@@ -51,6 +51,14 @@ CREATE TABLE IF NOT EXISTS public.user_completed_wishs (
     REFERENCES public.wishlists(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+-- The primary key (user_id, wish_id) does not serve lookups by wish_id or
+-- from_wishlist_id alone: FK cascades from wishs and wishlists, and the
+-- wishlist archiving function, filter on them.
+CREATE INDEX IF NOT EXISTS user_completed_wishs_wish_id_idx
+  ON public.user_completed_wishs (wish_id);
+CREATE INDEX IF NOT EXISTS user_completed_wishs_from_wishlist_id_idx
+  ON public.user_completed_wishs (from_wishlist_id);
+
 ALTER TABLE public.user_completed_wishs ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.user_completed_wishs REPLICA IDENTITY FULL;
@@ -67,32 +75,57 @@ BEGIN
   END IF;
 END $$;
 
--- Policies are recreated so that every project ends up with the same rules.
--- Writes are limited to the current user's own rows.
+-- Policies are recreated so that every project ends up with the same rules,
+-- under names that describe them. The DROP on the old names cleans up dev.
 DROP POLICY IF EXISTS "Enable read access for authenticated users only" ON public.user_completed_wishs;
-CREATE POLICY "Enable read access for authenticated users only"
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON public.user_completed_wishs;
+DROP POLICY IF EXISTS "Enable update for authenticated users based on user_id" ON public.user_completed_wishs;
+DROP POLICY IF EXISTS "Enable delete for users based on user_id" ON public.user_completed_wishs;
+
+DROP POLICY IF EXISTS "Authenticated users can read completed wishes" ON public.user_completed_wishs;
+CREATE POLICY "Authenticated users can read completed wishes"
   ON public.user_completed_wishs
   FOR SELECT
   TO authenticated
   USING (true);
 
-DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON public.user_completed_wishs;
-CREATE POLICY "Enable insert for authenticated users only"
+-- A wish is completed by the owner of its wishlist: the row must point to one
+-- of the current user's wishes, through the wishlist that holds it. Otherwise
+-- anyone could attach a completion to another user's wishlist and turn its
+-- deletion into an archive.
+DROP POLICY IF EXISTS "Users can complete their own wishes" ON public.user_completed_wishs;
+CREATE POLICY "Users can complete their own wishes"
   ON public.user_completed_wishs
   FOR INSERT
   TO authenticated
-  WITH CHECK ((SELECT auth.uid()) = user_id);
+  WITH CHECK (
+    (SELECT auth.uid()) = user_id
+    AND EXISTS (
+      SELECT 1
+      FROM public.wishs w
+      JOIN public.wishlists wl ON wl.id = w.wishlist_id
+      WHERE w.id = user_completed_wishs.wish_id
+        AND w.wishlist_id = user_completed_wishs.from_wishlist_id
+        AND wl.id_owner = (SELECT auth.uid())
+    )
+  );
 
-DROP POLICY IF EXISTS "Enable update for authenticated users based on user_id" ON public.user_completed_wishs;
-CREATE POLICY "Enable update for authenticated users based on user_id"
+-- Updates are limited to the user's own rows here, and to the columns the app
+-- changes through column privileges: wish_id and from_wishlist_id must not be
+-- rewritten after the insert check. UPDATE is revoked as a whole, the
+-- migration adding the quantity column grants UPDATE (quantity) back.
+DROP POLICY IF EXISTS "Users can update their own completed wishes" ON public.user_completed_wishs;
+CREATE POLICY "Users can update their own completed wishes"
   ON public.user_completed_wishs
   FOR UPDATE
   TO authenticated
   USING ((SELECT auth.uid()) = user_id)
   WITH CHECK ((SELECT auth.uid()) = user_id);
 
-DROP POLICY IF EXISTS "Enable delete for users based on user_id" ON public.user_completed_wishs;
-CREATE POLICY "Enable delete for users based on user_id"
+REVOKE UPDATE ON public.user_completed_wishs FROM anon, authenticated;
+
+DROP POLICY IF EXISTS "Users can delete their own completed wishes" ON public.user_completed_wishs;
+CREATE POLICY "Users can delete their own completed wishes"
   ON public.user_completed_wishs
   FOR DELETE
   TO authenticated
@@ -117,3 +150,7 @@ DROP FUNCTION IF EXISTS public.batch_update_wishlists_order(jsonb);
 --
 -- SELECT policyname, cmd, qual, with_check FROM pg_policies
 --  WHERE tablename = 'user_completed_wishs';
+--   -> 4 rows, named "... completed wishes" / "Users can complete their own wishes"
+--
+-- SELECT indexname FROM pg_indexes WHERE tablename = 'user_completed_wishs';
+--   -> user_completed_wishs_pkey, _wish_id_idx, _from_wishlist_id_idx
