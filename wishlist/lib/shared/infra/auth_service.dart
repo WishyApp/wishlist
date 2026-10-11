@@ -30,20 +30,36 @@ class AuthService {
   }
 
   Future<String> _resolveEmailFromPseudo(String pseudo) async {
+    String? email;
+    try {
+      email = await supabase.rpc<String?>(
+        'get_email_by_pseudo',
+        params: {'p_pseudo': pseudo},
+      );
+    } on PostgrestException catch (e) {
+      // PGRST202: the function does not exist yet on a database that has not
+      // received its migration.
+      if (e.code != 'PGRST202') {
+        rethrow;
+      }
+      email = await _resolveEmailFromPseudoThroughView(pseudo);
+    }
+
+    if (email == null) {
+      throw const AuthException('User not found', statusCode: '404');
+    }
+
+    return email;
+  }
+
+  Future<String?> _resolveEmailFromPseudoThroughView(String pseudo) async {
     final response = await supabase
         .from('users_profiles')
         .select('user->>email')
         .eq('profile->>pseudo', pseudo)
         .maybeSingle();
 
-    if (response == null || response['email'] == null) {
-      throw const AuthException(
-        'User not found',
-        statusCode: '404',
-      );
-    }
-
-    return response['email'] as String;
+    return response?['email'] as String?;
   }
 
   Future<void> signUp({required String email, required String password}) async {
@@ -79,17 +95,17 @@ class AuthService {
   Future<bool> confirmPasswordIsCorrect(String password) async {
     final user = supabase.auth.currentUserNonNull;
     try {
-      await supabase.auth
-          .signInWithPassword(email: user.email, password: password);
+      await supabase.auth.signInWithPassword(
+        email: user.email,
+        password: password,
+      );
       return true;
     } catch (e) {
       return false;
     }
   }
 
-  Future<void> sendPasswordResetEmail({
-    required String email,
-  }) async {
+  Future<void> sendPasswordResetEmail({required String email}) async {
     try {
       final resetPasswordRouteLocation = ResetPasswordRoute().location;
 
@@ -97,10 +113,7 @@ class AuthService {
         path: resetPasswordRouteLocation,
       ).toString();
 
-      await supabase.auth.resetPasswordForEmail(
-        email,
-        redirectTo: redirectUrl,
-      );
+      await supabase.auth.resetPasswordForEmail(email, redirectTo: redirectUrl);
     } on AuthException catch (e) {
       final statusCode = e.statusCode;
       throw AppException(
