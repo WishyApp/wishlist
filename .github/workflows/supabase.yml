@@ -35,11 +35,6 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Same groups as deploy-dev and migrate-database: never check a project
-    # while migrations are being pushed to it.
-    concurrency:
-      group: supabase-${{ matrix.env }}
-      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:

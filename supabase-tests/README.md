@@ -4,7 +4,7 @@ Tests SQL lancés par `scripts/check_supabase_migrations.sh` (et donc par la CI 
 
 Conventions :
 - un fichier par sujet (`write_policies.sql`, ...), exécuté en `postgres` avec `ON_ERROR_STOP` ;
-- tout se passe dans une transaction annulée à la fin (`BEGIN` ... `ROLLBACK`) : chaque fichier crée ses propres données ;
+- tout se passe dans une transaction annulée à la fin (`BEGIN` ... `ROLLBACK`) : chaque fichier crée ses propres données. Le script compare les schémas `public`, `auth` et `storage` (données comprises) avant et après chaque fichier, et échoue si quelque chose est resté ;
 - pour agir en utilisateur connecté : `SET LOCAL ROLE authenticated` puis `request.jwt.claim.sub` et `request.jwt.claims` via `set_config` ;
 - un résultat inattendu lève une erreur (`RAISE EXCEPTION`), ce qui fait échouer le script.
 

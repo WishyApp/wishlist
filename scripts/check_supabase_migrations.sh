@@ -7,8 +7,10 @@
 #      all the others, without changing the public and storage schemas (data
 #      and the auth schema are not compared). This is the
 #      order 'db push --include-all' uses for a migration merged late.
-#   5. the SQL tests in supabase-tests/ pass. Each file runs as postgres and
-#      raises an error on an unexpected result (see supabase-tests/README.md).
+#   5. the SQL tests in supabase-tests/ pass. Each file runs as postgres,
+#      raises an error on an unexpected result and leaves the public, auth and
+#      storage schemas, data included, as it found them
+#      (see supabase-tests/README.md).
 #
 # Usage: scripts/check_supabase_migrations.sh [BASE_REF]
 # Requires Docker. See docs/supabase-migrations.md.
@@ -42,9 +44,11 @@ fi
 ERR_FILE="$(mktemp)"
 SCHEMA_BEFORE="$(mktemp)"
 SCHEMA_AFTER="$(mktemp)"
+STATE_BEFORE="$(mktemp)"
+STATE_AFTER="$(mktemp)"
 cleanup() {
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
-  rm -f "$ERR_FILE" "$SCHEMA_BEFORE" "$SCHEMA_AFTER"
+  rm -f "$ERR_FILE" "$SCHEMA_BEFORE" "$SCHEMA_AFTER" "$STATE_BEFORE" "$STATE_AFTER"
 }
 trap cleanup EXIT
 
@@ -71,6 +75,14 @@ dump_schema() {
   docker exec -e PGPASSWORD=postgres "$CONTAINER" \
     pg_dump -h 127.0.0.1 -U postgres -d postgres --schema-only --schema=public --schema=storage |
     grep -vE '^\\(un)?restrict '
+}
+
+# Schema and data touched by the tests. Sequences are left out: nextval() is
+# not undone by a rollback.
+dump_state() {
+  docker exec -e PGPASSWORD=postgres "$CONTAINER" \
+    pg_dump -h 127.0.0.1 -U postgres -d postgres --schema=public --schema=auth --schema=storage |
+    grep -vE '^\\(un)?restrict |^SELECT pg_catalog\.setval\('
 }
 
 apply() {
@@ -107,11 +119,19 @@ fi
 
 if compgen -G "$TESTS_DIR/*.sql" >/dev/null; then
   echo "==> Running database tests"
+  dump_state >"$STATE_BEFORE"
   for file in "$TESTS_DIR"/*.sql; do
     echo "    $(basename "$file")"
     if ! psql_exec -f - <"$file" >"$ERR_FILE" 2>&1; then
       cat "$ERR_FILE"
       echo "::error file=$file::Database test failed"
+      exit 1
+    fi
+    # A test must not leak into the next ones (missing ROLLBACK, COMMIT...).
+    # Only test fixtures can show up in the diff.
+    dump_state >"$STATE_AFTER"
+    if ! diff -u "$STATE_BEFORE" "$STATE_AFTER"; then
+      echo "::error file=$file::Database test left changes, run it in BEGIN ... ROLLBACK"
       exit 1
     fi
   done
