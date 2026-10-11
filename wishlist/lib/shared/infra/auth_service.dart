@@ -30,20 +30,19 @@ class AuthService {
   }
 
   Future<String> _resolveEmailFromPseudo(String pseudo) async {
-    final response = await supabase
-        .from('users_profiles')
-        .select('user->>email')
-        .eq('profile->>pseudo', pseudo)
-        .maybeSingle();
+    final email = await supabase.rpc<String?>(
+      'get_email_by_pseudo',
+      params: {'p_pseudo': pseudo},
+    );
 
-    if (response == null || response['email'] == null) {
+    if (email == null) {
       throw const AuthException(
         'User not found',
         statusCode: '404',
       );
     }
 
-    return response['email'] as String;
+    return email;
   }
 
   Future<void> signUp({required String email, required String password}) async {
