@@ -179,12 +179,12 @@ Le workflow `supabase.yml` :
 
 | Déclencheur | Ce qu'il fait |
 | ----------- | ------------- |
-| PR qui touche une migration | Vérifie que `supabase-dev` et `supabase-prod` ont les mêmes migrations, les rejoue sur une base vide, puis rejoue une 2e fois celles ajoutées par la PR (idempotence) |
-| Merge sur `main` | `db push` sur dev, puis échoue si le schéma de dev diffère des migrations |
+| PR qui touche une migration | Vérifie que `supabase-dev` et `supabase-prod` ont les mêmes migrations et qu'aucune migration déjà mergée n'est modifiée, les rejoue sur une base vide en Postgres 15 (dev) et 17 (prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que le schéma ne change pas (idempotence, ordre de `--include-all`) |
+| Merge sur `main` | Contrôle de dérive, `db push` sur dev, puis nouveau contrôle de dérive |
 | Chaque lundi | Contrôle de dérive sur dev et prod |
-| Tag `v*` (workflow CD) | `db push` sur prod et contrôle de dérive, avant les builds |
+| Tag `v*` (workflow CD) | Mêmes étapes sur prod, avant les builds, uniquement si le commit tagué est sur `main` |
 
-Les jobs qui touchent aux projets Supabase sont inactifs tant que la variable de repo `SUPABASE_DEPLOY_ENABLED` ne vaut pas `true`. Avant chaque push, le job liste dans ses logs les migrations qu'il va appliquer.
+Les jobs qui touchent aux projets Supabase sont inactifs tant que la variable de repo `SUPABASE_DEPLOY_ENABLED` ne vaut pas `true`. Avant chaque push, le job liste dans ses logs les migrations qu'il va appliquer, puis vérifie que le projet n'a pas dérivé (migrations en attente mises de côté) : un état de départ inconnu fait échouer le job sans rien appliquer.
 
 Le contrôle de dérive n'affiche jamais le diff (les logs sont publics) : en cas d'échec, lancer `supabase db diff --linked --schema public` en local. Workflow complet : [docs/supabase-migrations.md](docs/supabase-migrations.md).
 
