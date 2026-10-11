@@ -46,12 +46,27 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
       if (!mounted) {
         return;
       }
-      final payload =
-          ref.read(shareIntentPayloadNotifierProvider.notifier).consume();
-      _prefill = payload.prefill ?? widget.prefill;
-      _sharedImagePath = payload.imagePath;
-      _resolveNavigation();
+      _consumeSharePayload(isFirstRead: true);
     });
+  }
+
+  /// Lit (et vide) le partage en attente, puis relance la navigation.
+  ///
+  /// Appelé au montage, puis à chaque nouveau partage reçu pendant que
+  /// l'écran est affiché : `router.go('/add-wish')` vers la même adresse
+  /// garde la même page, donc `initState` ne repasse pas.
+  void _consumeSharePayload({bool isFirstRead = false}) {
+    final payload =
+        ref.read(shareIntentPayloadNotifierProvider.notifier).consume();
+    final isEmpty = payload.prefill == null && payload.imagePath == null;
+    if (isEmpty && !isFirstRead) {
+      // Déjà consommé (montage et écoute simultanés) : garder l'actuel.
+      return;
+    }
+    _prefill = payload.prefill ?? (isFirstRead ? widget.prefill : null);
+    _sharedImagePath = payload.imagePath;
+    _navigationHandled = false;
+    _resolveNavigation();
   }
 
   /// Navigue directement vers le formulaire s'il n'y a qu'une wishlist.
@@ -89,6 +104,18 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    // Nouveau partage alors que l'écran est déjà affiché : le consommer.
+    // En microtâche, car on ne modifie pas un provider pendant qu'il notifie.
+    ref.listen(shareIntentPayloadNotifierProvider, (prev, next) {
+      if (next.prefill == null && next.imagePath == null) {
+        return;
+      }
+      Future.microtask(() {
+        if (mounted) {
+          _consumeSharePayload();
+        }
+      });
+    });
     // Quand le provider passe en data après un loading, naviguer s'il n'y a
     // qu'une wishlist (WidgetRef.listen n'a pas fireImmediately).
     ref.listen(wishlistsRealtimeProvider, (prev, next) {
