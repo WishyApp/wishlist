@@ -50,6 +50,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The image is kept in the Actions cache: most runs then pull nothing
+      # from the registries, whose anonymous quotas are shared by the runners.
+      - name: Restore Postgres image
+        id: image-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/postgres-image.tar
+          key: postgres-image-${{ matrix.image }}
+
+      - name: Load Postgres image
+        if: steps.image-cache.outputs.cache-hit == 'true'
+        run: docker load -q -i "$RUNNER_TEMP/postgres-image.tar"
+
       - name: Apply migrations on an empty database
         env:
           SUPABASE_POSTGRES_IMAGE: ${{ matrix.image }}
@@ -64,6 +77,17 @@ jobs:
             fi
           fi
           scripts/check_supabase_migrations.sh "$base"
+
+      - name: Export Postgres image
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        run: docker save -o "$RUNNER_TEMP/postgres-image.tar" "${{ matrix.image }}"
+
+      - name: Save Postgres image
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/postgres-image.tar
+          key: postgres-image-${{ matrix.image }}
 
   deploy-dev:
     name: Deploy to dev

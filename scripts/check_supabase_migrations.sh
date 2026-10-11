@@ -52,21 +52,35 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# The registry rate-limits anonymous pulls ("toomanyrequests") now and then:
-# retry with a growing delay before giving up.
+# The default registry, ECR Public, limits anonymous pulls ("toomanyrequests:
+# Rate exceeded", or "Data limit exceeded" once the quota of the runner IPs is
+# used up). Each attempt tries ECR Public, then the same image on Docker Hub,
+# tagged back to $IMAGE; attempts are retried with a growing delay.
+pull_candidates=("$IMAGE")
+if [[ "$IMAGE" == public.ecr.aws/* ]]; then
+  pull_candidates+=("docker.io/${IMAGE#public.ecr.aws/}")
+fi
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
   echo "==> Pulling $IMAGE"
+  pulled=false
   for attempt in 1 2 3 4 5; do
-    if docker pull -q "$IMAGE" >/dev/null; then
-      break
+    for candidate in "${pull_candidates[@]}"; do
+      if docker pull -q "$candidate" >/dev/null; then
+        [[ "$candidate" == "$IMAGE" ]] || docker tag "$candidate" "$IMAGE"
+        echo "    pulled from $candidate"
+        pulled=true
+        break 2
+      fi
+    done
+    if [[ "$attempt" -lt 5 ]]; then
+      echo "    pull failed (attempt $attempt/5), retrying in $((attempt * 15))s"
+      sleep $((attempt * 15))
     fi
-    if [[ "$attempt" -eq 5 ]]; then
-      echo "::error::Unable to pull $IMAGE"
-      exit 1
-    fi
-    echo "    pull failed (attempt $attempt/5), retrying in $((attempt * 15))s"
-    sleep $((attempt * 15))
   done
+  if [[ "$pulled" != true ]]; then
+    echo "::error::Unable to pull $IMAGE"
+    exit 1
+  fi
 fi
 
 echo "==> Starting $IMAGE"
