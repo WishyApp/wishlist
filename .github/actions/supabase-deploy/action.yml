@@ -1,0 +1,116 @@
+name: Supabase deploy
+description: Check that a Supabase project has not drifted, push pending migrations, then check that its public schema matches the migrations.
+
+inputs:
+  workdir:
+    description: Folder holding the supabase/ directory (supabase-dev or supabase-prod)
+    required: true
+  project-ref:
+    description: Supabase project ref
+    required: true
+  access-token:
+    description: Supabase personal access token
+    required: true
+  db-password:
+    description: Database password of the project. Optional, the CLI falls back to a temporary login role.
+    required: false
+    default: ''
+  push:
+    description: Push pending migrations before checking drift
+    default: 'true'
+  pre-push-check:
+    description: Check drift before pushing. Set to 'false' only to catch up a project already changed outside of migrations.
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: 2.119.0
+
+    # An empty SUPABASE_DB_PASSWORD would be used as is, so only export it when
+    # set. Line breaks (pasted secret) are dropped, and the value is written
+    # with a random delimiter so it cannot add other variables.
+    - name: Configure credentials
+      shell: bash
+      env:
+        DB_PASSWORD: ${{ inputs.db-password }}
+      run: |
+        password="$(printf '%s' "$DB_PASSWORD" | tr -d '\r\n')"
+        if [ -n "$password" ]; then
+          echo "::add-mask::$password"
+          delimiter="EOF_$(openssl rand -hex 16)"
+          {
+            echo "SUPABASE_DB_PASSWORD<<$delimiter"
+            echo "$password"
+            echo "$delimiter"
+          } >>"$GITHUB_ENV"
+        fi
+
+    - name: Link project
+      shell: bash
+      working-directory: ${{ inputs.workdir }}
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+      run: supabase link --project-ref "${{ inputs.project-ref }}"
+
+    # Migration file names only, already in the repository. Also run when only
+    # checking drift: migrations merged but not deployed yet (prod waits for
+    # the next tag) must be set aside in that check too.
+    - name: List pending migrations
+      shell: bash
+      working-directory: ${{ inputs.workdir }}
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+      run: |
+        supabase db push --include-all --dry-run 2>&1 | tee "$RUNNER_TEMP/dry-run.log"
+        grep -oE '[0-9]{14}(_[A-Za-z0-9_.-]+)?\.sql' "$RUNNER_TEMP/dry-run.log" | sort -u \
+          >"$RUNNER_TEMP/pending-migrations.txt" || true
+        while IFS= read -r name; do
+          if [ ! -f "supabase/migrations/$name" ]; then
+            echo "::error::Pending migration $name not found in ${{ inputs.workdir }}/supabase/migrations"
+            exit 1
+          fi
+        done <"$RUNNER_TEMP/pending-migrations.txt"
+
+    # Compare the project with the migrations it already has, pending ones set
+    # aside: an unknown starting state fails before anything is applied.
+    - name: Skip drift check before push
+      if: inputs.push == 'true' && inputs.pre-push-check != 'true'
+      shell: bash
+      run: echo "::warning::Drift check before push skipped on ${{ inputs.workdir }} (SUPABASE_SKIP_PRE_PUSH_DRIFT_DEV / _PROD), remove the variable once the project has caught up"
+
+    - name: Check schema drift before push
+      if: inputs.push == 'true' && inputs.pre-push-check == 'true'
+      shell: bash
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+      run: |
+        "${{ github.action_path }}/check_drift.sh" "${{ inputs.workdir }}" \
+          "$RUNNER_TEMP/pending-migrations.txt"
+
+    - name: Push migrations
+      if: inputs.push == 'true'
+      shell: bash
+      working-directory: ${{ inputs.workdir }}
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+      # --include-all: a branch merged late can carry migrations older than
+      # the last applied one. Migrations are idempotent, so replaying is safe.
+      run: supabase db push --include-all --yes
+
+    # After the push, the migrations must describe the resulting schema. When
+    # only checking, the project is compared with the migrations it has.
+    - name: Check schema drift
+      shell: bash
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+      run: |
+        if [ "${{ inputs.push }}" = "true" ]; then
+          "${{ github.action_path }}/check_drift.sh" "${{ inputs.workdir }}"
+        else
+          "${{ github.action_path }}/check_drift.sh" "${{ inputs.workdir }}" \
+            "$RUNNER_TEMP/pending-migrations.txt"
+        fi
