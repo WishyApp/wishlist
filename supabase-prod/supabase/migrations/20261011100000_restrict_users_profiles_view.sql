@@ -5,6 +5,8 @@
 -- The output columns keep their names and types (id, "user", profile), so
 -- the app parses rows as before. The view keeps the owner's privileges to
 -- read the email from auth.users: authenticated has no access to that table.
+-- Profiles without a pseudo yet (sign-up not finished) are left out: the app
+-- requires one to read a profile.
 CREATE OR REPLACE VIEW public.users_profiles AS
   SELECT
     u.id,
@@ -15,7 +17,8 @@ CREATE OR REPLACE VIEW public.users_profiles AS
       'avatar_url', p.avatar_url
     ) AS profile
   FROM auth.users u
-  JOIN public.profiles p ON p.id = u.id;
+  JOIN public.profiles p ON p.id = u.id
+  WHERE p.pseudo IS NOT NULL;
 
 REVOKE ALL ON TABLE public.users_profiles FROM anon, authenticated;
 GRANT SELECT ON TABLE public.users_profiles TO authenticated;
