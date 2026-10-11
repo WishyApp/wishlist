@@ -72,14 +72,25 @@ jobs:
       - name: Run build_runner
         run: dart run build_runner build --delete-conflicting-outputs
 
+      # On main, goldens are only checked: a mismatch means a render change
+      # that was never reviewed in a PR diff, so the build must fail.
+      - name: Run tests
+        if: github.event_name != 'pull_request'
+        run: flutter test
+
+      # On PRs, goldens are regenerated on Linux and pushed to the branch so
+      # the PNG changes show up in the PR diff for review.
       - name: Run tests & update goldens
+        if: github.event_name == 'pull_request'
         run: flutter test --update-goldens
 
       - name: Check for golden changes
+        if: github.event_name == 'pull_request'
         id: goldens
         run: |
           cd ..
-          if git diff --quiet -- ':(glob)wishlist/test/**/preview/*.png'; then
+          # status (not diff) so that new, untracked goldens are picked up too
+          if [ -z "$(git status --porcelain -- ':(glob)wishlist/test/**/preview/*.png')" ]; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             echo "changed=true" >> $GITHUB_OUTPUT
@@ -89,12 +100,12 @@ jobs:
         if: steps.goldens.outputs.changed == 'true'
         run: |
           cd ..
+          {
+            echo "### Golden files updated"
+            git status --porcelain -- ':(glob)wishlist/test/**/preview/*.png' | sed 's/^.. /- /'
+          } >> "$GITHUB_STEP_SUMMARY"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add 'wishlist/test/**/preview/*.png'
           git commit -m "test: update golden files [skip ci]"
           git push
-
-      - name: Re-run tests to validate updated goldens
-        if: steps.goldens.outputs.changed == 'true'
-        run: flutter test
