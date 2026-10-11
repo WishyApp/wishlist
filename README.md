@@ -179,22 +179,24 @@ Le workflow `supabase.yml` :
 
 | Déclencheur | Ce qu'il fait |
 | ----------- | ------------- |
-| PR qui touche une migration | Vérifie que `supabase-dev` et `supabase-prod` ont les mêmes migrations et qu'aucune migration déjà mergée n'est modifiée, les rejoue sur une base vide en Postgres 15 (dev) et 17 (prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que le schéma ne change pas (idempotence, ordre de `--include-all`) |
+| PR qui touche une migration | Vérifie que `supabase-dev` et `supabase-prod` ont les mêmes migrations et qu'aucune migration déjà mergée n'est modifiée, les rejoue sur une base vide en Postgres 15 (dev) et 17 (prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que les schémas `public` et `storage` ne changent pas (idempotence, ordre de `--include-all`) |
 | Merge sur `main` | Contrôle de dérive, `db push` sur dev, puis nouveau contrôle de dérive |
-| Chaque lundi | Contrôle de dérive sur dev et prod |
+| Chaque lundi | Contrôle de dérive sur dev et prod, migrations mergées mais pas encore déployées mises de côté |
 | Tag `v*` (workflow CD) | Mêmes étapes sur prod, avant les builds, uniquement si le commit tagué est sur `main` |
 
 Les jobs qui touchent aux projets Supabase sont inactifs tant que la variable de repo `SUPABASE_DEPLOY_ENABLED` ne vaut pas `true`. Avant chaque push, le job liste dans ses logs les migrations qu'il va appliquer, puis vérifie que le projet n'a pas dérivé (migrations en attente mises de côté) : un état de départ inconnu fait échouer le job sans rien appliquer.
 
-Rattrapage d'un projet modifié hors migrations (objets créés à la main que de nouvelles migrations viennent capturer) : le contrôle d'avant push échoue forcément, puisque le projet contient déjà ce que les migrations en attente vont créer. Passer la variable de repo `SUPABASE_SKIP_PRE_PUSH_DRIFT` à `true` le temps du déploiement de rattrapage (le contrôle d'après push reste actif), puis la supprimer dès que le contrôle d'après push est vert.
+Rattrapage d'un projet modifié hors migrations (objets créés à la main que de nouvelles migrations viennent capturer) : le contrôle d'avant push échoue forcément, puisque le projet contient déjà ce que les migrations en attente vont créer. Passer la variable de repo `SUPABASE_SKIP_PRE_PUSH_DRIFT_DEV` (dev) ou `SUPABASE_SKIP_PRE_PUSH_DRIFT_PROD` (prod) à `true` le temps du déploiement de rattrapage de cet environnement (le contrôle d'après push reste actif), puis la supprimer dès que le contrôle d'après push est vert.
 
-Le contrôle de dérive n'affiche jamais le diff (les logs sont publics) : en cas d'échec, lancer `supabase db diff --linked --schema public` en local. Workflow complet : [docs/supabase-migrations.md](docs/supabase-migrations.md).
+Le contrôle de dérive n'affiche ni le diff ni le détail des erreurs de la CLI : en cas d'échec, lancer `supabase db diff --linked --schema public` en local. Workflow complet : [docs/supabase-migrations.md](docs/supabase-migrations.md).
 
 Pour tester les migrations en local (Docker requis) :
 
 ```bash
 scripts/check_supabase_migrations.sh origin/main
 ```
+
+Limites du contrôle d'idempotence : il compare les schémas `public` et `storage`, pas les données ni le schéma `auth`. Une migration rejouée qui insère des lignes (un `INSERT` sans `ON CONFLICT`, par exemple) passe ce contrôle : c'est à la relecture de s'en assurer.
 
 #### Secrets GitHub requis
 

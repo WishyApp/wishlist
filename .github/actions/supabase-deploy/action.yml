@@ -30,15 +30,23 @@ runs:
       with:
         version: 2.119.0
 
-    # An empty SUPABASE_DB_PASSWORD would be used as is, so only export it when set.
+    # An empty SUPABASE_DB_PASSWORD would be used as is, so only export it when
+    # set. Line breaks (pasted secret) are dropped, and the value is written
+    # with a random delimiter so it cannot add other variables.
     - name: Configure credentials
       shell: bash
       env:
         DB_PASSWORD: ${{ inputs.db-password }}
       run: |
-        if [ -n "$DB_PASSWORD" ]; then
-          echo "::add-mask::$DB_PASSWORD"
-          echo "SUPABASE_DB_PASSWORD=$DB_PASSWORD" >> "$GITHUB_ENV"
+        password="$(printf '%s' "$DB_PASSWORD" | tr -d '\r\n')"
+        if [ -n "$password" ]; then
+          echo "::add-mask::$password"
+          delimiter="EOF_$(openssl rand -hex 16)"
+          {
+            echo "SUPABASE_DB_PASSWORD<<$delimiter"
+            echo "$password"
+            echo "$delimiter"
+          } >>"$GITHUB_ENV"
         fi
 
     - name: Link project
@@ -48,16 +56,17 @@ runs:
         SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
       run: supabase link --project-ref "${{ inputs.project-ref }}"
 
-    # Migration file names only, already public in the repository.
+    # Migration file names only, already in the repository. Also run when only
+    # checking drift: migrations merged but not deployed yet (prod waits for
+    # the next tag) must be set aside in that check too.
     - name: List pending migrations
-      if: inputs.push == 'true'
       shell: bash
       working-directory: ${{ inputs.workdir }}
       env:
         SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
       run: |
         supabase db push --include-all --dry-run 2>&1 | tee "$RUNNER_TEMP/dry-run.log"
-        grep -oE '[0-9]{14}_[A-Za-z0-9_.-]+\.sql' "$RUNNER_TEMP/dry-run.log" | sort -u \
+        grep -oE '[0-9]{14}(_[A-Za-z0-9_.-]+)?\.sql' "$RUNNER_TEMP/dry-run.log" | sort -u \
           >"$RUNNER_TEMP/pending-migrations.txt" || true
         while IFS= read -r name; do
           if [ ! -f "supabase/migrations/$name" ]; then
@@ -71,7 +80,7 @@ runs:
     - name: Skip drift check before push
       if: inputs.push == 'true' && inputs.pre-push-check != 'true'
       shell: bash
-      run: echo "::warning::Drift check before push skipped on ${{ inputs.workdir }} (SUPABASE_SKIP_PRE_PUSH_DRIFT), remove the variable once the project has caught up"
+      run: echo "::warning::Drift check before push skipped on ${{ inputs.workdir }} (SUPABASE_SKIP_PRE_PUSH_DRIFT_DEV / _PROD), remove the variable once the project has caught up"
 
     - name: Check schema drift before push
       if: inputs.push == 'true' && inputs.pre-push-check == 'true'
@@ -92,9 +101,16 @@ runs:
       # the last applied one. Migrations are idempotent, so replaying is safe.
       run: supabase db push --include-all --yes
 
-    # After the push: the migrations must describe the resulting schema.
+    # After the push, the migrations must describe the resulting schema. When
+    # only checking, the project is compared with the migrations it has.
     - name: Check schema drift
       shell: bash
       env:
         SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
-      run: '"${{ github.action_path }}/check_drift.sh" "${{ inputs.workdir }}"'
+      run: |
+        if [ "${{ inputs.push }}" = "true" ]; then
+          "${{ github.action_path }}/check_drift.sh" "${{ inputs.workdir }}"
+        else
+          "${{ github.action_path }}/check_drift.sh" "${{ inputs.workdir }}" \
+            "$RUNNER_TEMP/pending-migrations.txt"
+        fi

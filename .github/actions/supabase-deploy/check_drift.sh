@@ -31,9 +31,15 @@ if [[ -n "$pending_list" && -s "$pending_list" ]]; then
   done <"$pending_list"
 fi
 
-if ! (cd "$workdir" && supabase db diff --linked --schema public -o "$drift") >/dev/null 2>"$log"; then
-  echo "::error::supabase db diff failed on $workdir"
-  tail -5 "$log"
+# The CLI error may quote SQL or object names of the remote project: only
+# print the exit code.
+if (cd "$workdir" && supabase db diff --linked --schema public -o "$drift") >/dev/null 2>"$log"; then
+  status=0
+else
+  status=$?
+fi
+if [[ $status -ne 0 ]]; then
+  echo "::error::supabase db diff failed on $workdir (exit code $status). Run 'supabase db diff --linked --schema public' locally for details."
   exit 1
 fi
 

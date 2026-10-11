@@ -4,7 +4,8 @@
 #   2. migrations merged before BASE_REF are not modified, renamed or deleted
 #   3. every migration applies, in order, on an empty database
 #   4. migrations added since BASE_REF can be applied a second time, after
-#      all the others, without changing the resulting schema. This is the
+#      all the others, without changing the public and storage schemas (data
+#      and the auth schema are not compared). This is the
 #      order 'db push --include-all' uses for a migration merged late.
 #
 # Usage: scripts/check_supabase_migrations.sh [BASE_REF]
@@ -65,7 +66,7 @@ psql_exec -tAc 'select 1' >/dev/null
 # holding a random key: drop them so that two dumps of a schema compare equal.
 dump_schema() {
   docker exec -e PGPASSWORD=postgres "$CONTAINER" \
-    pg_dump -h 127.0.0.1 -U postgres -d postgres --schema-only --schema=public |
+    pg_dump -h 127.0.0.1 -U postgres -d postgres --schema-only --schema=public --schema=storage |
     grep -vE '^\\(un)?restrict '
 }
 
