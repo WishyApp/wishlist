@@ -18,6 +18,9 @@ inputs:
   push:
     description: Push pending migrations before checking drift
     default: 'true'
+  pre-push-check:
+    description: Check drift before pushing. Set to 'false' only to catch up a project already changed outside of migrations.
+    default: 'true'
 
 runs:
   using: composite
@@ -65,8 +68,13 @@ runs:
 
     # Compare the project with the migrations it already has, pending ones set
     # aside: an unknown starting state fails before anything is applied.
+    - name: Skip drift check before push
+      if: inputs.push == 'true' && inputs.pre-push-check != 'true'
+      shell: bash
+      run: echo "::warning::Drift check before push skipped on ${{ inputs.workdir }} (SUPABASE_SKIP_PRE_PUSH_DRIFT), remove the variable once the project has caught up"
+
     - name: Check schema drift before push
-      if: inputs.push == 'true'
+      if: inputs.push == 'true' && inputs.pre-push-check == 'true'
       shell: bash
       env:
         SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}

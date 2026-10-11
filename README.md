@@ -186,6 +186,8 @@ Le workflow `supabase.yml` :
 
 Les jobs qui touchent aux projets Supabase sont inactifs tant que la variable de repo `SUPABASE_DEPLOY_ENABLED` ne vaut pas `true`. Avant chaque push, le job liste dans ses logs les migrations qu'il va appliquer, puis vérifie que le projet n'a pas dérivé (migrations en attente mises de côté) : un état de départ inconnu fait échouer le job sans rien appliquer.
 
+Rattrapage d'un projet modifié hors migrations (objets créés à la main que de nouvelles migrations viennent capturer) : le contrôle d'avant push échoue forcément, puisque le projet contient déjà ce que les migrations en attente vont créer. Passer la variable de repo `SUPABASE_SKIP_PRE_PUSH_DRIFT` à `true` le temps du déploiement de rattrapage (le contrôle d'après push reste actif), puis la supprimer dès que le contrôle d'après push est vert.
+
 Le contrôle de dérive n'affiche jamais le diff (les logs sont publics) : en cas d'échec, lancer `supabase db diff --linked --schema public` en local. Workflow complet : [docs/supabase-migrations.md](docs/supabase-migrations.md).
 
 Pour tester les migrations en local (Docker requis) :

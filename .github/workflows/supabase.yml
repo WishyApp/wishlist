@@ -83,6 +83,8 @@ jobs:
           project-ref: qedynftuclpdisocgzuv
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           db-password: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
+          # Catch-up of a project changed outside of migrations, see README.
+          pre-push-check: ${{ vars.SUPABASE_SKIP_PRE_PUSH_DRIFT != 'true' }}
 
   drift:
     name: Check drift (${{ matrix.env }})

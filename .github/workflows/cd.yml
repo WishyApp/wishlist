@@ -41,6 +41,8 @@ jobs:
           project-ref: cbcrtjggsmtwvqljzbnl
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           db-password: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
+          # Catch-up of a project changed outside of migrations, see README.
+          pre-push-check: ${{ vars.SUPABASE_SKIP_PRE_PUSH_DRIFT != 'true' }}
 
   # ============================================================================
   # ANDROID - Build et deploy sur Google Play (Internal Testing)
