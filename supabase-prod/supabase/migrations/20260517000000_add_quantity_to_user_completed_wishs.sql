@@ -24,3 +24,9 @@ CREATE TRIGGER set_user_completed_wishs_updated_at
   BEFORE UPDATE ON public.user_completed_wishs
   FOR EACH ROW
   EXECUTE FUNCTION public.update_user_completed_wishs_updated_at();
+
+-- 4. Column privilege: 20260516000000_capture_remote_drift revokes UPDATE on
+-- the table so that wish_id and from_wishlist_id cannot be rewritten after
+-- the insert check. The app only updates quantity (updated_at is set by the
+-- trigger above, which column privileges do not affect).
+GRANT UPDATE (quantity) ON public.user_completed_wishs TO authenticated;
