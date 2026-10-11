@@ -52,6 +52,23 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# The registry rate-limits anonymous pulls ("toomanyrequests") now and then:
+# retry with a growing delay before giving up.
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  echo "==> Pulling $IMAGE"
+  for attempt in 1 2 3 4 5; do
+    if docker pull -q "$IMAGE" >/dev/null; then
+      break
+    fi
+    if [[ "$attempt" -eq 5 ]]; then
+      echo "::error::Unable to pull $IMAGE"
+      exit 1
+    fi
+    echo "    pull failed (attempt $attempt/5), retrying in $((attempt * 15))s"
+    sleep $((attempt * 15))
+  done
+fi
+
 echo "==> Starting $IMAGE"
 docker run -d --name "$CONTAINER" -e POSTGRES_PASSWORD=postgres "$IMAGE" >/dev/null
 
