@@ -7,6 +7,8 @@
 #      all the others, without changing the public and storage schemas (data
 #      and the auth schema are not compared). This is the
 #      order 'db push --include-all' uses for a migration merged late.
+#   5. the SQL tests in supabase-tests/ pass. Each file runs as postgres and
+#      raises an error on an unexpected result (see supabase-tests/README.md).
 #
 # Usage: scripts/check_supabase_migrations.sh [BASE_REF]
 # Requires Docker. See docs/supabase-migrations.md.
@@ -17,6 +19,7 @@ IMAGE="${SUPABASE_POSTGRES_IMAGE:-public.ecr.aws/supabase/postgres:17.6.1.043}"
 CONTAINER="check-supabase-migrations-$$"
 DEV_DIR="supabase-dev/supabase/migrations"
 PROD_DIR="supabase-prod/supabase/migrations"
+TESTS_DIR="supabase-tests"
 
 cd "$(git rev-parse --show-toplevel)"
 
@@ -100,6 +103,18 @@ if [[ -n "$BASE_REF" ]]; then
       exit 1
     fi
   fi
+fi
+
+if compgen -G "$TESTS_DIR/*.sql" >/dev/null; then
+  echo "==> Running database tests"
+  for file in "$TESTS_DIR"/*.sql; do
+    echo "    $(basename "$file")"
+    if ! psql_exec -f - <"$file" >"$ERR_FILE" 2>&1; then
+      cat "$ERR_FILE"
+      echo "::error file=$file::Database test failed"
+      exit 1
+    fi
+  done
 fi
 
 echo "==> OK"

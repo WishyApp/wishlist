@@ -9,6 +9,7 @@ on:
       - 'supabase-dev/supabase/migrations/**'
       - 'supabase-prod/supabase/migrations/**'
       - 'scripts/check_supabase_migrations.sh'
+      - 'supabase-tests/**'
       - '.github/workflows/supabase.yml'
       - '.github/actions/supabase-deploy/**'
   push:
@@ -17,6 +18,7 @@ on:
     paths:
       - 'supabase-dev/supabase/migrations/**'
       - 'supabase-prod/supabase/migrations/**'
+      - 'supabase-tests/**'
       - '.github/workflows/supabase.yml'
       - '.github/actions/supabase-deploy/**'
   schedule:
