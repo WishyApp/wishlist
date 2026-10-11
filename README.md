@@ -15,7 +15,7 @@ Welcome to the Wishy App! This Flutter application is designed to help you effor
 
 ### ✅ Prerequisites
 
-* **🛠 Flutter**: Ensure you have Flutter installed on your machine. You can follow the installation guide [here](https://flutter.dev/docs/get-started/install).
+* **🛠 Flutter**: Ensure you have Flutter installed on your machine. You can follow the installation guide [here](https://flutter.dev/docs/get-started/install). The project uses the exact version set in `wishlist/pubspec.yaml` (`environment: flutter:`, currently 3.41.4), the one CI and CD install; `flutter pub get` fails with an older one.
 * **🎯 Dart**: Flutter requires Dart, which is included with the Flutter SDK.
 
 ### 📦 Installation
