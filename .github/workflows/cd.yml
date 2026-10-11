@@ -37,7 +37,7 @@ jobs:
         if: vars.SUPABASE_DEPLOY_ENABLED == 'true'
         uses: ./.github/actions/supabase-deploy
         with:
-          workdir: supabase-prod
+          environment: prod
           project-ref: cbcrtjggsmtwvqljzbnl
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           db-password: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}

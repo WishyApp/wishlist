@@ -6,8 +6,8 @@ name: Supabase
 on:
   pull_request:
     paths:
-      - 'supabase-dev/supabase/migrations/**'
-      - 'supabase-prod/supabase/migrations/**'
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
       - 'scripts/check_supabase_migrations.sh'
       - 'supabase-tests/**'
       - '.github/workflows/supabase.yml'
@@ -16,8 +16,8 @@ on:
     branches:
       - main
     paths:
-      - 'supabase-dev/supabase/migrations/**'
-      - 'supabase-prod/supabase/migrations/**'
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
       - 'supabase-tests/**'
       - '.github/workflows/supabase.yml'
       - '.github/actions/supabase-deploy/**'
@@ -31,19 +31,13 @@ permissions:
 
 jobs:
   validate:
-    name: Validate migrations (Postgres ${{ matrix.postgres }})
+    name: Validate migrations
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        # Same versions as the projects: dev runs Postgres 15, prod 17.
-        include:
-          - postgres: 15
-            image: public.ecr.aws/supabase/postgres:15.8.1.105
-          - postgres: 17
-            image: public.ecr.aws/supabase/postgres:17.6.1.043
+    env:
+      # Same version as the projects (major_version in supabase/config.toml).
+      POSTGRES_IMAGE: public.ecr.aws/supabase/postgres:17.6.1.043
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -57,7 +51,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/postgres-image.tar
-          key: postgres-image-${{ matrix.image }}
+          key: postgres-image-${{ env.POSTGRES_IMAGE }}
 
       - name: Load Postgres image
         if: steps.image-cache.outputs.cache-hit == 'true'
@@ -65,7 +59,7 @@ jobs:
 
       - name: Apply migrations on an empty database
         env:
-          SUPABASE_POSTGRES_IMAGE: ${{ matrix.image }}
+          SUPABASE_POSTGRES_IMAGE: ${{ env.POSTGRES_IMAGE }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base="origin/${{ github.base_ref }}"
@@ -80,14 +74,14 @@ jobs:
 
       - name: Export Postgres image
         if: steps.image-cache.outputs.cache-hit != 'true'
-        run: docker save -o "$RUNNER_TEMP/postgres-image.tar" "${{ matrix.image }}"
+        run: docker save -o "$RUNNER_TEMP/postgres-image.tar" "$POSTGRES_IMAGE"
 
       - name: Save Postgres image
         if: steps.image-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/postgres-image.tar
-          key: postgres-image-${{ matrix.image }}
+          key: postgres-image-${{ env.POSTGRES_IMAGE }}
 
   deploy-dev:
     name: Deploy to dev
@@ -105,7 +99,7 @@ jobs:
       - name: Push migrations and check drift
         uses: ./.github/actions/supabase-deploy
         with:
-          workdir: supabase-dev
+          environment: dev
           project-ref: qedynftuclpdisocgzuv
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           db-password: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
@@ -127,11 +121,9 @@ jobs:
       matrix:
         include:
           - env: dev
-            workdir: supabase-dev
             project-ref: qedynftuclpdisocgzuv
             password-secret: SUPABASE_DB_PASSWORD_DEV
           - env: prod
-            workdir: supabase-prod
             project-ref: cbcrtjggsmtwvqljzbnl
             password-secret: SUPABASE_DB_PASSWORD_PROD
     steps:
@@ -141,7 +133,7 @@ jobs:
       - name: Check drift
         uses: ./.github/actions/supabase-deploy
         with:
-          workdir: ${{ matrix.workdir }}
+          environment: ${{ matrix.env }}
           project-ref: ${{ matrix.project-ref }}
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           db-password: ${{ secrets[matrix.password-secret] }}
