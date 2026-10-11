@@ -63,12 +63,15 @@ class SupabaseUserRepository implements UserRepository {
   Future<IList<AppUser>> searchUsersByEmailOrPseudo(String query) async {
     return executeSafely(
       () async {
-        final response = await _client
-            .from('users_profiles')
-            .select('id, user, profile')
-            .or('profile->>pseudo.ilike.%$query%,user->>email.ilike.%$query%');
+        final response = await _client.rpc<List<dynamic>>(
+          'search_users',
+          params: {'p_query': query},
+        );
 
-        return response.map(AppUser.fromJson).toIList();
+        return response
+            .cast<Map<String, dynamic>>()
+            .map(AppUser.fromJson)
+            .toIList();
       },
       errorMessage: 'Failed to search user by email or pseudo',
     );
