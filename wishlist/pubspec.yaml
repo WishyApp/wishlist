@@ -20,6 +20,9 @@ version: 0.2.4+9
 
 environment:
   sdk: ">=3.4.1 <4.0.0"
+  # Single source of truth for the Flutter version used by CI and CD
+  # (read by subosito/flutter-action through flutter-version-file).
+  flutter: 3.41.4
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
