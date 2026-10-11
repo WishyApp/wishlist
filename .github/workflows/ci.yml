@@ -15,7 +15,11 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
- 
+
+# Golden files, as a git pathspec from the repository root.
+env:
+  GOLDENS: ':(glob)wishlist/test/**/preview/*.png'
+
 jobs:
   analyze:
     name: Analyze & Format
@@ -46,9 +50,12 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
-    # Needed to push the regenerated golden files
+    # Read-only: on main this job runs build_runner and the whole test suite;
+    # pushing the regenerated goldens of a PR is left to commit-goldens.
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      goldens-changed: ${{ steps.goldens.outputs.changed }}
     defaults:
       run:
         working-directory: wishlist
@@ -57,7 +64,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -78,8 +84,8 @@ jobs:
         if: github.event_name != 'pull_request'
         run: flutter test
 
-      # On PRs, goldens are regenerated on Linux and pushed to the branch so
-      # the PNG changes show up in the PR diff for review.
+      # On PRs, goldens are regenerated on Linux and pushed to the branch by
+      # commit-goldens, so the PNG changes show up in the PR diff for review.
       - name: Run tests & update goldens
         if: github.event_name == 'pull_request'
         run: flutter test --update-goldens
@@ -90,22 +96,59 @@ jobs:
         run: |
           cd ..
           # status (not diff) so that new, untracked goldens are picked up too
-          if [ -z "$(git status --porcelain -- ':(glob)wishlist/test/**/preview/*.png')" ]; then
-            echo "changed=false" >> $GITHUB_OUTPUT
+          if [ -z "$(git status --porcelain -- "$GOLDENS")" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit updated goldens
+      # The artifact root is wishlist/test, the part of the path before the
+      # first wildcard: commit-goldens downloads it back there.
+      - name: Upload regenerated goldens
         if: steps.goldens.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: goldens
+          path: wishlist/test/**/preview/*.png
+          if-no-files-found: error
+          retention-days: 1
+
+  commit-goldens:
+    name: Commit golden files
+    needs: test
+    if: github.event_name == 'pull_request' && needs.test.outputs.goldens-changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Needed to push the regenerated golden files to the PR branch
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Download regenerated goldens
+        uses: actions/download-artifact@v4
+        with:
+          name: goldens
+          path: wishlist/test
+
+      - name: Commit and push goldens
         run: |
-          cd ..
-          {
-            echo "### Golden files updated"
-            git status --porcelain -- ':(glob)wishlist/test/**/preview/*.png' | sed 's/^.. /- /'
-          } >> "$GITHUB_STEP_SUMMARY"
+          git add -- "$GOLDENS"
+          if git diff --cached --quiet; then
+            echo "No golden change to commit"
+            exit 0
+          fi
+          changed="$(git diff --cached --name-only)"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add 'wishlist/test/**/preview/*.png'
-          git commit -m "test: update golden files [skip ci]"
+          # No [skip ci]: a push made with GITHUB_TOKEN triggers no workflow,
+          # and the marker would reach main through a squash merge.
+          git commit -m "test: update golden files"
           git push
+          {
+            echo "### Golden files updated"
+            while IFS= read -r file; do echo "- $file"; done <<<"$changed"
+          } >> "$GITHUB_STEP_SUMMARY"
