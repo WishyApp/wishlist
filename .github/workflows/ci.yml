@@ -20,6 +20,7 @@ jobs:
   analyze:
     name: Analyze & Format
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: wishlist
@@ -40,12 +41,27 @@ jobs:
       - name: Check formatting
         run: dart format --set-exit-if-changed lib test
 
+      # Generated files are committed: fail if they are out of date with
+      # their sources (models, providers, routes, assets, l10n).
+      - name: Check generated files are up to date
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          flutter gen-l10n
+          cd ..
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            git diff
+            echo "::error::Generated files are out of date. Run build_runner and flutter gen-l10n, then commit the result."
+            exit 1
+          fi
+
       - name: Analyze code
         run: flutter analyze
 
   test:
     name: Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # Needed to push the regenerated golden files
     permissions:
       contents: write
@@ -73,7 +89,14 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Run tests & update goldens
-        run: flutter test --update-goldens
+        run: flutter test --update-goldens --coverage
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: wishlist/coverage/lcov.info
+          retention-days: 14
 
       - name: Check for golden changes
         id: goldens
