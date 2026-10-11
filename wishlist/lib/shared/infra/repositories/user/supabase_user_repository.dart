@@ -65,7 +65,7 @@ class SupabaseUserRepository implements UserRepository {
       () async {
         final response = await _client
             .from('users_profiles')
-            .select()
+            .select('id, user, profile')
             .or('profile->>pseudo.ilike.%$query%,user->>email.ilike.%$query%');
 
         return response.map(AppUser.fromJson).toIList();
@@ -80,7 +80,7 @@ class SupabaseUserRepository implements UserRepository {
       () async {
         final response = await _client
             .from('users_profiles')
-            .select()
+            .select('id, user, profile')
             .eq('id', userId)
             .single();
 
