@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Validate Supabase migrations on a throwaway Postgres container:
 #   1. supabase-dev and supabase-prod hold the same migrations
-#   2. every migration applies, in order, on an empty database
-#   3. migrations added since BASE_REF can be applied a second time
+#   2. migrations merged before BASE_REF are not modified, renamed or deleted
+#   3. every migration applies, in order, on an empty database
+#   4. migrations added since BASE_REF can be applied a second time, after
+#      all the others, without changing the resulting schema. This is the
+#      order 'db push --include-all' uses for a migration merged late.
 #
 # Usage: scripts/check_supabase_migrations.sh [BASE_REF]
 # Requires Docker. See docs/supabase-migrations.md.
@@ -22,10 +25,22 @@ if ! diff -r "$DEV_DIR" "$PROD_DIR"; then
   exit 1
 fi
 
+if [[ -n "$BASE_REF" ]]; then
+  echo "==> Checking that merged migrations are unchanged since $BASE_REF"
+  changed="$(git diff --name-only --diff-filter=MDR "$BASE_REF"...HEAD -- "$DEV_DIR" "$PROD_DIR")"
+  if [[ -n "$changed" ]]; then
+    echo "$changed"
+    echo "::error::Merged migrations must not be modified, add a new migration instead"
+    exit 1
+  fi
+fi
+
 ERR_FILE="$(mktemp)"
+SCHEMA_BEFORE="$(mktemp)"
+SCHEMA_AFTER="$(mktemp)"
 cleanup() {
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
-  rm -f "$ERR_FILE"
+  rm -f "$ERR_FILE" "$SCHEMA_BEFORE" "$SCHEMA_AFTER"
 }
 trap cleanup EXIT
 
@@ -46,6 +61,14 @@ for _ in $(seq 1 60); do
 done
 psql_exec -tAc 'select 1' >/dev/null
 
+# Recent pg_dump versions wrap the output in \restrict / \unrestrict lines
+# holding a random key: drop them so that two dumps of a schema compare equal.
+dump_schema() {
+  docker exec -e PGPASSWORD=postgres "$CONTAINER" \
+    pg_dump -h 127.0.0.1 -U postgres -d postgres --schema-only --schema=public |
+    grep -vE '^\\(un)?restrict '
+}
+
 apply() {
   local file="$1"
   echo "    $(basename "$file")"
@@ -65,9 +88,16 @@ if [[ -n "$BASE_REF" ]]; then
   added="$(git diff --name-only --diff-filter=A "$BASE_REF"...HEAD -- "$PROD_DIR" | sort)"
   if [[ -n "$added" ]]; then
     echo "==> Re-applying migrations added since $BASE_REF"
+    dump_schema >"$SCHEMA_BEFORE"
     while IFS= read -r file; do
       apply "$file"
     done <<<"$added"
+    dump_schema >"$SCHEMA_AFTER"
+    # The schema is rebuilt from the repository only, printing it is safe.
+    if ! diff -u "$SCHEMA_BEFORE" "$SCHEMA_AFTER"; then
+      echo "::error::Re-applying migrations added since $BASE_REF changes the schema"
+      exit 1
+    fi
   fi
 fi
 

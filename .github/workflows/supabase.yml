@@ -29,10 +29,19 @@ permissions:
 
 jobs:
   validate:
-    name: Validate migrations
+    name: Validate migrations (Postgres ${{ matrix.postgres }})
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # Same versions as the projects: dev runs Postgres 15, prod 17.
+        include:
+          - postgres: 15
+            image: public.ecr.aws/supabase/postgres:15.8.1.105
+          - postgres: 17
+            image: public.ecr.aws/supabase/postgres:17.6.1.043
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,11 +49,17 @@ jobs:
           fetch-depth: 0
 
       - name: Apply migrations on an empty database
+        env:
+          SUPABASE_POSTGRES_IMAGE: ${{ matrix.image }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base="origin/${{ github.base_ref }}"
           else
             base="${{ github.event.before }}"
+            # Unreachable after a force-push, all zeros on a new branch.
+            if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              base="HEAD~1"
+            fi
           fi
           scripts/check_supabase_migrations.sh "$base"
 
