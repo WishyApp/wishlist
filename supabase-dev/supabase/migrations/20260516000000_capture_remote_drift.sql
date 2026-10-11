@@ -110,10 +110,11 @@ CREATE POLICY "Users can complete their own wishes"
     )
   );
 
--- Updates are limited to the user's own rows here, and to the columns the app
--- changes through column privileges: wish_id and from_wishlist_id must not be
--- rewritten after the insert check. UPDATE is revoked as a whole, the
--- migration adding the quantity column grants UPDATE (quantity) back.
+-- Updates are limited to the user's own rows. The columns they may change
+-- are restricted where the quantity column is added (20260517000000), with
+-- the REVOKE and the column GRANT in the same migration: a table-level REVOKE
+-- also revokes column privileges, so replaying it here alone would drop the
+-- GRANT on quantity.
 DROP POLICY IF EXISTS "Users can update their own completed wishes" ON public.user_completed_wishs;
 CREATE POLICY "Users can update their own completed wishes"
   ON public.user_completed_wishs
@@ -121,8 +122,6 @@ CREATE POLICY "Users can update their own completed wishes"
   TO authenticated
   USING ((SELECT auth.uid()) = user_id)
   WITH CHECK ((SELECT auth.uid()) = user_id);
-
-REVOKE UPDATE ON public.user_completed_wishs FROM anon, authenticated;
 
 DROP POLICY IF EXISTS "Users can delete their own completed wishes" ON public.user_completed_wishs;
 CREATE POLICY "Users can delete their own completed wishes"
