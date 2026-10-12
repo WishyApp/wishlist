@@ -27,19 +27,29 @@ Welcome to the Wishy App! This Flutter application is designed to help you effor
    cd wishlist
    ```
 
-2. **📥 Install Dependencies**
+2. **🔐 Decrypt the Secrets**
+
+   `wishlist/env/.env.dev`, `wishlist/env/.env.prod` and `wishlist/android/key.properties` are encrypted in git with [transcrypt](https://github.com/elasticdog/transcrypt) (see `.gitattributes`). Ask a maintainer for the password, then:
+
+   ```bash
+   transcrypt -p '<password>'
+   ```
+
+   Without it these files stay encrypted and the app fails to load its config at startup.
+
+3. **📥 Install Dependencies**
 
    ```bash
    flutter pub get
    ```
 
-3. **▶️ Run the App**
+4. **▶️ Run the App**
 
    ```bash
    flutter run   # dev environment by default
    ```
 
-4. **📱 Build for Production**
+5. **📱 Build for Production**
 
    ```bash
    flutter build appbundle --dart-define=APP_ENV=prod   # For Android
