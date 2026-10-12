@@ -10,7 +10,8 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
   SupabaseFriendshipRepository(this._client);
   final SupabaseClient _client;
   static const _friendshipsTableName = 'friendships';
-  late String currentUserId = _client.auth.currentUserNonNull.id;
+  // Read at call time: this repository outlives a session.
+  String get currentUserId => _client.auth.currentUserNonNull.id;
 
   @override
   Future<ISet<String>> getFriendsIds(String userId) async {
@@ -40,7 +41,6 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
 
   @override
   Future<ISet<String>> getCurrentUserFriendsIds() async {
-    final currentUserId = _client.auth.currentUserNonNull.id;
     return getFriendsIds(currentUserId);
   }
 
@@ -48,7 +48,6 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
   Future<ISet<String>> getCurrentUserPendingFriendsIds() async {
     return executeSafely(
       () async {
-        final currentUserId = _client.auth.currentUserNonNull.id;
         final response = await _client
             .from(_friendshipsTableName)
             .select()
@@ -70,7 +69,6 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
   Future<ISet<String>> getCurrentUserRequestedFriendsIds() async {
     return executeSafely(
       () async {
-        final currentUserId = _client.auth.currentUserNonNull.id;
         final response = await _client
             .from(_friendshipsTableName)
             .select()

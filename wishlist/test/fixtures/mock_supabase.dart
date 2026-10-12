@@ -34,6 +34,8 @@ MockSupabaseClient createMockSupabaseClient({
 
   when(() => mockSupabaseClient.auth).thenReturn(mockAuth);
   when(() => mockAuth.currentUser).thenReturn(mockUser);
+  when(() => mockAuth.onAuthStateChange)
+      .thenAnswer((_) => const Stream.empty());
   when(() => mockUser.id).thenReturn(effectiveUserId);
 
   return mockSupabaseClient;

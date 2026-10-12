@@ -8,7 +8,6 @@ import 'package:wishlist/gen/fonts.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/auth/view/auth_layout.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
-import 'package:wishlist/shared/infra/current_user_avatar_provider.dart';
 import 'package:wishlist/shared/infra/first_launch_service.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
@@ -87,7 +86,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _isLoading = false;
       });
       if (_isSigningIn) {
-        ref.read(currentUserAvatarProvider.notifier).refresh();
         if (redirectTo != null && redirectTo.startsWith('/')) {
           context.go(redirectTo);
         } else {
