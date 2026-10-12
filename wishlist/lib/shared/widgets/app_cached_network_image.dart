@@ -105,8 +105,13 @@ class _LoadedAppCachedNetworkImage extends AppCachedNetworkImage {
     final cacheManager = InheritedCacheManager.of(context);
 
     // Calculer les dimensions du cache mémoire pour optimiser les performances
-    final memCacheWidth = width?.round();
-    final memCacheHeight = height?.round();
+    final memCacheSize = computeMemCacheSize(
+      width: width,
+      height: height,
+      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+    );
+    final memCacheWidth = memCacheSize.width;
+    final memCacheHeight = memCacheSize.height;
 
     // Si le délai est activé, on attend avant de charger l'image
     // Utile pour tester le comportement lors de chargements lents
@@ -126,8 +131,6 @@ class _LoadedAppCachedNetworkImage extends AppCachedNetworkImage {
                   cacheManager: cacheManager,
                   fadeInDuration: kThemeAnimationDuration,
                   fadeOutDuration: kThemeAnimationDuration,
-                  memCacheWidth: memCacheWidth,
-                  memCacheHeight: memCacheHeight,
                   progressIndicatorBuilder: (_, __, ___) =>
                       _LoadingAppCachedNetworkImage(
                     height: height,
@@ -138,6 +141,9 @@ class _LoadedAppCachedNetworkImage extends AppCachedNetworkImage {
                     height: height,
                     width: width,
                   ),
+                  // Pas de memCacheWidth/Height ici : l'imageBuilder reçoit le
+                  // provider brut, ils provoqueraient un second décodage sans
+                  // redimensionner l'image affichée
                   imageBuilder: (context, imageProvider) => Image(
                     image: imageProvider,
                     width: width,
@@ -216,8 +222,6 @@ class _LoadedAppCachedNetworkImage extends AppCachedNetworkImage {
           cacheManager: cacheManager,
           fadeInDuration: kThemeAnimationDuration,
           fadeOutDuration: kThemeAnimationDuration,
-          memCacheWidth: memCacheWidth,
-          memCacheHeight: memCacheHeight,
           progressIndicatorBuilder: (_, __, ___) =>
               _LoadingAppCachedNetworkImage(
             height: height,
@@ -229,6 +233,9 @@ class _LoadedAppCachedNetworkImage extends AppCachedNetworkImage {
             width: width,
             placeholderColor: placeholderColor,
           ),
+          // Pas de memCacheWidth/Height ici : l'imageBuilder reçoit le provider
+          // brut, ils provoqueraient un second décodage sans redimensionner
+          // l'image affichée
           imageBuilder: (context, imageProvider) => Image(
             image: imageProvider,
             width: width,
@@ -384,6 +391,35 @@ class _AppCachedNetworkImageLayout extends StatelessWidget {
       child: child,
     );
   }
+}
+
+/// Convertit en pixels physiques l'unique dimension connue ([width] ou
+/// [height], en pixels logiques) d'une image réseau.
+///
+/// Une seule dimension est renvoyée pour que le décodeur conserve le ratio de
+/// l'image (fixer les deux l'étire). Les dimensions absentes, non finies ou
+/// inférieures ou égales à zéro sont ignorées.
+///
+/// Ne sert que hors `imageBuilder` (width et height non tous deux renseignés) :
+/// si les deux sont connues, rien n'est renvoyé.
+@visibleForTesting
+({int? width, int? height}) computeMemCacheSize({
+  required double? width,
+  required double? height,
+  required double devicePixelRatio,
+}) {
+  double? valid(double? value) =>
+      value != null && value.isFinite && value > 0 ? value : null;
+
+  final w = valid(width);
+  final h = valid(height);
+  if (w != null && h == null) {
+    return (width: (w * devicePixelRatio).ceil(), height: null);
+  }
+  if (h != null && w == null) {
+    return (width: null, height: (h * devicePixelRatio).ceil());
+  }
+  return (width: null, height: null);
 }
 
 /// Constante pour activer/désactiver le délai artificiel de chargement
