@@ -39,17 +39,31 @@ Welcome to the Wishy App! This Flutter application is designed to help you effor
 
 3. **📥 Install Dependencies**
 
+   The Flutter project lives in the `wishlist/` subfolder of the repository: run the commands below from there.
+
    ```bash
-   flutter pub get
+   cd wishlist
+   flutter pub get   # also generates the localization files (`generate: true`)
    ```
 
-4. **▶️ Run the App**
+4. **⚙️ Generate the Code**
+
+   Generated files (Freezed, Riverpod, routes, assets) are committed and CI fails if they are out of date: regenerate them after `pub get` and after any change to an annotated class.
+
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
+   dart format lib   # CI compares the generated files after formatting them
+   ```
+
+5. **▶️ Run the App**
 
    ```bash
    flutter run   # dev environment by default
    ```
 
-5. **📱 Build for Production**
+   The environment comes from `--dart-define=APP_ENV=<env>`; accepted values are `dev` (default) and `prod` (`lib/app/config/environment.dart`, `environment_service.dart`).
+
+6. **📱 Build for Production**
 
    ```bash
    flutter build appbundle --dart-define=APP_ENV=prod   # For Android
@@ -108,6 +122,8 @@ The project includes two Supabase environments:
 Each developer must manually link both projects once.
 
 #### 👉 Link dev
+
+From the repository root:
 
 ```bash
 cd supabase-dev
