@@ -220,8 +220,10 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
         showActions: _$convertMapValue(
                 'show-actions', state.uri.queryParameters, _$boolConverter) ??
             true,
-        quantityDisplay: WishQuantityDisplay.values
-                .asNameMap()[state.uri.queryParameters['quantity-display']] ??
+        quantityDisplay: _$convertMapValue(
+                'quantity-display',
+                state.uri.queryParameters,
+                _$WishQuantityDisplayEnumMap._$fromName) ??
             WishQuantityDisplay.total,
       );
 
@@ -232,7 +234,7 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
           if (isMyWishlist != false) 'is-my-wishlist': isMyWishlist.toString(),
           if (showActions != true) 'show-actions': showActions.toString(),
           if (quantityDisplay != WishQuantityDisplay.total)
-            'quantity-display': quantityDisplay.name,
+            'quantity-display': _$WishQuantityDisplayEnumMap[quantityDisplay],
         },
       );
 
@@ -245,6 +247,14 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
 
   void replace(BuildContext context) => context.replace(location);
 }
+
+const _$WishQuantityDisplayEnumMap = {
+  WishQuantityDisplay.total: 'total',
+  WishQuantityDisplay.pending: 'pending',
+  WishQuantityDisplay.booked: 'booked',
+  WishQuantityDisplay.myBooked: 'my-booked',
+  WishQuantityDisplay.completed: 'completed',
+};
 
 extension $EditWishRouteExtension on EditWishRoute {
   static EditWishRoute _fromState(GoRouterState state) => EditWishRoute(
@@ -304,6 +314,11 @@ bool _$boolConverter(String value) {
     default:
       throw UnsupportedError('Cannot convert "$value" into a bool.');
   }
+}
+
+extension<T extends Enum> on Map<T, String> {
+  T _$fromName(String value) =>
+      entries.singleWhere((element) => element.value == value).key;
 }
 
 RouteBase get $authRoute => GoRouteData.$route(

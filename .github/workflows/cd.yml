@@ -5,12 +5,67 @@ on:
     tags:
       - 'v*'
 
+# Un seul déploiement à la fois, tous tags confondus : deux releases ne
+# doivent ni se doubler sur les stores ni migrer la prod en même temps. On ne
+# coupe jamais un upload en cours.
+concurrency:
+  group: cd-deploy
+  cancel-in-progress: false
+
 jobs:
+  # ============================================================================
+  # VERIFY - Analyse, tests et cohérence tag / pubspec avant tout build
+  # ============================================================================
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: wishlist
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check tag matches pubspec version
+        if: github.ref_type == 'tag'
+        run: |
+          PUBSPEC_VERSION=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$TAG_VERSION" != "$PUBSPEC_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match pubspec version $PUBSPEC_VERSION"
+            exit 1
+          fi
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: wishlist/pubspec.yaml
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Comme ci.yml : sur les fichiers commités, avant la génération.
+      - name: Check formatting
+        run: dart format --set-exit-if-changed lib test
+
+      - name: Run build_runner
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze code
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
   # ============================================================================
   # SUPABASE - Migrations prod, avant les builds
   # ============================================================================
   migrate-database:
     name: Migrate prod database
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -51,6 +106,7 @@ jobs:
     name: Build & Deploy Android
     needs: migrate-database
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: wishlist
@@ -62,8 +118,17 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.41.4
+          flutter-version-file: wishlist/pubspec.yaml
           cache: true
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('wishlist/android/**/*.gradle', 'wishlist/android/gradle/wrapper/gradle-wrapper.properties', 'wishlist/pubspec.lock') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: Install dependencies
         run: flutter pub get
@@ -93,6 +158,14 @@ jobs:
       - name: Build App Bundle
         run: flutter build appbundle --release --dart-define=APP_ENV=prod
 
+      - name: Upload App Bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: wishlist/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 7
+          if-no-files-found: error
+
       - name: Upload to Google Play (Internal Testing)
         uses: r0adkll/upload-google-play@v1
         with:
@@ -109,6 +182,7 @@ jobs:
     name: Build & Deploy iOS
     needs: migrate-database
     runs-on: macos-26
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: wishlist
@@ -116,11 +190,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # flutter-version-file reads pubspec.yaml with yq: make sure the macOS
+      # image has it before Setup Flutter.
+      - name: Ensure yq is installed
+        run: command -v yq >/dev/null || brew install yq
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.41.4
+          flutter-version-file: wishlist/pubspec.yaml
           cache: true
 
       - name: Install dependencies
@@ -172,6 +251,13 @@ jobs:
           </plist>
           EOF
 
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: wishlist/ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('wishlist/ios/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-
+
       - name: Install CocoaPods
         run: |
           cd ios
@@ -181,7 +267,21 @@ jobs:
         run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --dart-define=APP_ENV=prod
 
       - name: Find IPA file
-        run: echo "IPA_PATH=$(find build/ios/ipa -name '*.ipa' | head -1)" >> $GITHUB_ENV
+        run: |
+          IPA_PATH=$(find build/ios/ipa -name '*.ipa' | head -1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "::error::No IPA found in build/ios/ipa"
+            exit 1
+          fi
+          echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-ipa
+          path: wishlist/${{ env.IPA_PATH }}
+          retention-days: 7
+          if-no-files-found: error
 
       - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v1
