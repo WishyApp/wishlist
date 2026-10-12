@@ -15,6 +15,7 @@ abstract class WishRepository {
 
   // Gestion des images de wishs
   Future<String> uploadWishImage({
+    required String userId,
     required int wishId,
     required Uint8List imageData,
     required String fileName,

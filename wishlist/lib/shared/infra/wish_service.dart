@@ -5,6 +5,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository_provider.dart';
+import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/infra/utils/update_entity.dart';
 import 'package:wishlist/shared/models/wish/create_request/wish_create_request.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
@@ -141,6 +142,8 @@ class WishService {
 
   /// Upload une image pour un wish
   Future<String> uploadWishImage(File imageFile, int wishId) async {
+    final currentUserId = ref.read(userServiceProvider).getCurrentUserId();
+
     // Compression de l'image principale
     final processedImageData = await _processImage(imageFile);
 
@@ -155,6 +158,7 @@ class WishService {
 
     // Upload de l'image principale via le repository
     final filePath = await _wishRepository.uploadWishImage(
+      userId: currentUserId,
       wishId: wishId,
       imageData: processedImageData,
       fileName: fileName,
@@ -162,6 +166,7 @@ class WishService {
 
     // Upload de la miniature
     await _wishRepository.uploadWishImage(
+      userId: currentUserId,
       wishId: wishId,
       imageData: thumbnailData,
       fileName: thumbnailFileName,
