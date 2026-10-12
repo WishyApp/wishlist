@@ -33,7 +33,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
 
     // ignore: close_sinks - Le controller sera fermé dans _cleanupAllFriendshipsStream
     final newController = StreamController<FriendshipIds>.broadcast(
-      onCancel: _cleanupAllFriendshipsStream,
+      onCancel: () => _cleanupAllFriendshipsStream(key),
     );
     _allFriendshipsController = newController;
 
@@ -96,9 +96,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     _loadAllFriendships(userId);
   }
 
-  void _cleanupAllFriendshipsStream() {
-    final currentUserId = _client.auth.currentUserNonNull.id;
-    final key = 'all_friendships_$currentUserId';
+  void _cleanupAllFriendshipsStream(String key) {
     _channels[key]?.unsubscribe();
     _channels.remove(key);
     _allFriendshipsController?.close();
@@ -332,5 +330,8 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       await controller.close();
     }
     _controllers.clear();
+
+    await _allFriendshipsController?.close();
+    _allFriendshipsController = null;
   }
 }
