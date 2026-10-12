@@ -36,7 +36,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # Same version as the projects (major_version in supabase/config.toml).
+      # Same major version as the projects (major_version in
+      # supabase/config.toml). The projects run 17.11.0.003, but that image no
+      # longer creates the storage tables (the Storage service does) and the
+      # first migration needs them. The drift check of the deploy job still
+      # uses the projects' version for its shadow database.
       POSTGRES_IMAGE: public.ecr.aws/supabase/postgres:17.6.1.043
     steps:
       - name: Checkout repository

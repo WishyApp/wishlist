@@ -16,6 +16,7 @@
 set -euo pipefail
 
 BASE_REF="${1:-}"
+# Keep in sync with POSTGRES_IMAGE in .github/workflows/supabase.yml.
 IMAGE="${SUPABASE_POSTGRES_IMAGE:-public.ecr.aws/supabase/postgres:17.6.1.043}"
 CONTAINER="check-supabase-migrations-$$"
 MIGRATIONS_DIR="supabase/migrations"
