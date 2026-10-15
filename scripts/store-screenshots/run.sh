@@ -31,4 +31,5 @@ for _ in $(seq 1 120); do
   grep -qE "Flutter run key commands|Could not build|Error launching" "$LOG" && break
   sleep 5
 done
-grep -E "Flutter run key commands|Could not build|Error launching" "$LOG" || { echo "timeout, see $LOG" >&2; exit 1; }
+grep -q "Flutter run key commands" "$LOG" || { echo "app did not start, see $LOG" >&2; exit 1; }
+echo "app running" 

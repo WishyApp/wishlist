@@ -58,4 +58,4 @@ Les titres et sous-titres sont dans l'objet `COPY` de `compose/shot.html` (visue
 - Dev uniquement : `seed.mjs` refuse tout projet Supabase autre que le projet dev (`qedynftuclpdisocgzuv`).
 - `raw/`, `out/`, `.image-cache/`, `.accounts.json`, `.ids.json` sont ignorés par git ; ne jamais committer d'identifiants.
 - Les images des wishes sont téléchargées depuis Unsplash puis converties en webp dans `.image-cache/`.
-- Sur le détail d'un wish, la barre de statut est claire sur fond clair (bug connu de l'app, audit F091) : `compose/shot.html` la repeint à partir de la capture `home`.
+- Sur le détail d'un wish, la barre de statut est claire sur fond clair (bug connu de l’app) : `compose/shot.html` la repeint à partir de la capture `home`.

@@ -31,7 +31,7 @@ if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
   throw new Error(`${ENV_FILE} has no SUPABASE_URL / SUPABASE_ANON_KEY (still encrypted? see the transcrypt section of the root README)`);
 }
 const URL_ = env.SUPABASE_URL, ANON = env.SUPABASE_ANON_KEY;
-if (!URL_.includes(DEV_PROJECT_REF)) throw new Error('refusing to run: not the dev Supabase project');
+if (new URL(URL_).hostname !== `${DEV_PROJECT_REF}.supabase.co`) throw new Error('refusing to run: not the dev Supabase project');
 
 // Unsplash photo ids
 const PHOTOS = {

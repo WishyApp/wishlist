@@ -6,7 +6,7 @@ set -euo pipefail
 NAME="Wishy Shots 17PM"
 
 udid() {
-  xcrun simctl list devices | grep -F "$NAME (" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/'
+  xcrun simctl list devices | grep -F "$NAME (" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/' || true
 }
 
 case "${1:-}" in
