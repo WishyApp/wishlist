@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wishy store shot</title>
+<style>
+  @font-face { font-family: Jakarta; src: url(../../../wishlist/fonts/PlusJakartaSans-Medium.ttf); font-weight: 500; }
+  @font-face { font-family: Jakarta; src: url(../../../wishlist/fonts/PlusJakartaSans-Bold.ttf); font-weight: 700; }
+  @font-face { font-family: Jakarta; src: url(../../../wishlist/fonts/PlusJakartaSans-ExtraBold.ttf); font-weight: 800; }
+  :root {
+    --bg: #F7F6F0; --ink: #2C2C2C; --muted: #887A6B; --orange: #F28C57; --orange-dk: #DF733D;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { width: 100vw; height: 100vh; overflow: hidden; background: var(--bg); }
+  body { font-family: Jakarta, sans-serif; color: var(--ink); position: relative; }
+  .ribbon { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .text { position: absolute; left: 0; right: 0; text-align: center; padding: 0 7%; }
+  h1 { font-weight: 800; letter-spacing: -0.02em; line-height: 1.08; }
+  h1 .c { margin-left: -0.1em; }
+  h1 em { font-style: normal; color: var(--orange-dk); }
+  p { font-weight: 500; color: var(--muted); line-height: 1.35; }
+  .phone { position: absolute; background: #1d1d1f; box-shadow: 0 40px 90px rgba(120, 70, 30, .22), 0 8px 24px rgba(0,0,0,.12); }
+  .screen { position: absolute; overflow: hidden; background: #fff; }
+  .screen img { display: block; width: 100%; height: 100%; }
+  .island { position: absolute; background: #000; border-radius: 999px; }
+  .mask { position: absolute; left: 0; right: 0; top: 0; }
+  .sb { position: absolute; left: 0; top: 0; width: 100%; mix-blend-mode: darken; }
+</style>
+</head>
+<body>
+<svg class="ribbon" id="ribbon" preserveAspectRatio="none"></svg>
+<div class="text" id="text"><h1 id="h"></h1><p id="p"></p></div>
+<div class="phone" id="phone"><div class="screen" id="screen"><img id="img"><div class="mask" id="mask"></div><img class="sb" id="sb"></div><div class="island" id="island"></div></div>
+<script>
+const q = new URLSearchParams(location.search);
+const lang = q.get('lang') || 'fr', n = +(q.get('n') || 1);
+const COPY = {
+  fr: [
+    ['Toutes tes <em>wishlists</em><span class="c">,</span><br>au même endroit', 'Anniversaire, Noël, crémaillère :<br>une wishlist par occasion.', 'home'],
+    ['Ajoute un <em>wish</em><br>en un instant', 'Photo, prix, lien : partage-le<br>depuis n’importe quelle app.', 'wl'],
+    ['Offre le bon cadeau<span class="c">,</span><br><em>garde la surprise</em>', 'Réserve un wish de tes amis.<br>Ils ne sauront pas qui l’offre.', 'friendwish'],
+    ['Tes cadeaux réservés<span class="c">,</span><br><em>sous la main</em>', 'Classés par ami,<br>avec le budget total.', 'booked'],
+  ],
+  en: [
+    ['All your <em>wishlists</em><br>in one place', 'Birthday, Christmas, housewarming:<br>one wishlist per occasion.', 'home'],
+    ['Add a <em>wish</em><br>in seconds', 'Photo, price, link: share it<br>from any app.', 'wl'],
+    ['Give the right gift<span class="c">,</span><br><em>keep the surprise</em>', 'Book a friend’s wish.<br>They won’t know who’s giving it.', 'friendwish'],
+    ['Your booked gifts<span class="c">,</span><br><em>at a glance</em>', 'Grouped by friend,<br>with your total budget.', 'booked'],
+  ],
+};
+const [h, p, shot] = COPY[lang][n - 1];
+document.getElementById('h').innerHTML = h;
+document.getElementById('p').innerHTML = p;
+document.getElementById('img').src = `../raw/${lang}-${shot}.png`;
+// these screens draw a light status bar on a light background: repaint it from the home capture
+if (shot === 'friendwish' || shot === 'wish') {
+  document.getElementById('sb').src = `../raw/${lang}-home.png`;
+}
+
+document.fonts.ready.then(layout);
+function layout() {
+const W = innerWidth, H = innerHeight, u = W / 100;
+const SR = 2868 / 1320;                        // screen aspect
+const textTop = H * 0.055;
+const h1Size = W * 0.082, pSize = W * 0.04;
+const hEl = document.getElementById('h'), pEl = document.getElementById('p');
+hEl.style.fontSize = h1Size + 'px';
+pEl.style.fontSize = pSize + 'px'; pEl.style.marginTop = (pSize * 0.8) + 'px';
+const t = document.getElementById('text'); t.style.top = textTop + 'px';
+const textBottom = textTop + t.offsetHeight;
+
+const gap = H * 0.035, bezel = W * 0.022;
+let sw = W * 0.76;
+let sh = sw * SR;
+const maxH = H - textBottom - gap - bezel * 2 + H * 0.06;   // bleed a little past the bottom edge
+if (sh > maxH) { sh = maxH; sw = sh / SR; }
+const pw = sw + bezel * 2, ph = sh + bezel * 2;
+const phone = document.getElementById('phone');
+Object.assign(phone.style, { width: pw + 'px', height: ph + 'px', left: (W - pw) / 2 + 'px', top: textBottom + gap + 'px', borderRadius: (sw * 0.135 + bezel) + 'px' });
+const screen = document.getElementById('screen');
+Object.assign(screen.style, { left: bezel + 'px', top: bezel + 'px', width: sw + 'px', height: sh + 'px', borderRadius: sw * 0.135 + 'px' });
+const k = sw / 1320;
+Object.assign(document.getElementById('island').style, { width: 375 * k + 'px', height: 110 * k + 'px', left: bezel + 472 * k + 'px', top: bezel + 42 * k + 'px' });
+const mask = document.getElementById('mask'), sb = document.getElementById('sb');
+if (sb.getAttribute('src')) {
+  Object.assign(mask.style, { height: 150 * k + 'px', background: '#E8E4DA' });
+  sb.style.height = sh + 'px'; sb.style.clipPath = `inset(0 0 ${sh - 150 * k}px 0)`;
+}
+
+// a loose ribbon stroke echoing the app icon, behind the phone
+const svg = document.getElementById('ribbon');
+svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const variants = [
+  `M ${-W*.1} ${H*.62} C ${W*.2} ${H*.45}, ${W*.35} ${H*.9}, ${W*.6} ${H*.7} S ${W*1.0} ${H*.4}, ${W*1.15} ${H*.55}`,
+  `M ${-W*.1} ${H*.45} C ${W*.25} ${H*.6}, ${W*.4} ${H*.35}, ${W*.7} ${H*.55} S ${W*1.05} ${H*.85}, ${W*1.15} ${H*.7}`,
+  `M ${-W*.1} ${H*.8} C ${W*.15} ${H*.55}, ${W*.5} ${H*.6}, ${W*.65} ${H*.45} S ${W*.95} ${H*.3}, ${W*1.15} ${H*.42}`,
+  `M ${-W*.1} ${H*.5} C ${W*.3} ${H*.4}, ${W*.3} ${H*.8}, ${W*.55} ${H*.75} S ${W*.9} ${H*.5}, ${W*1.15} ${H*.62}`,
+];
+svg.innerHTML = `<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#FDB46E"/><stop offset="1" stop-color="#F28C57"/></linearGradient></defs>
+  <path d="${variants[n - 1]}" fill="none" stroke="url(#g)" stroke-width="${W * 0.09}" stroke-linecap="round" opacity=".28"/>`;
+}
+</script>
+</body>
+</html>
