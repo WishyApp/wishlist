@@ -4,6 +4,9 @@
 #   out/apple-6.9in/<lang>/0N.png                  1320x2868
 #   out/google-play/<lang>/0N.png                  1080x1920
 #   out/google-play/<lang>/feature-graphic.png     1024x500
+#   out/apple-creative/<lang>/header.png           3840x1646 (product page header)
+#   out/apple-creative/<lang>/search-results.png   3840x2560
+#   out/apple-creative/<lang>/universal.png        5244x2950
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -26,4 +29,8 @@ for lang in fr en; do
     render "$url" 1080 1920 "$HERE/out/google-play/$lang/0$n.png"
   done
   render "file://$HERE/compose/feature.html?lang=$lang" 1024 500 "$HERE/out/google-play/$lang/feature-graphic.png"
+  creative="file://$HERE/compose/creative.html?lang=$lang"
+  render "$creative&type=header" 3840 1646 "$HERE/out/apple-creative/$lang/header.png"
+  render "$creative&type=search" 3840 2560 "$HERE/out/apple-creative/$lang/search-results.png"
+  render "$creative&type=universal" 5244 2950 "$HERE/out/apple-creative/$lang/universal.png"
 done
