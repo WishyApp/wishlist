@@ -285,6 +285,9 @@ class WishlistScreen extends ConsumerWidget {
                     ),
                   ),
                   body: SafeArea(
+                    // Le bas est géré par les enfants pour que le fond gris
+                    // de la liste aille jusqu'au bord de l'écran
+                    bottom: false,
                     child: Stack(
                       children: [
                         WishlistScreenBody(

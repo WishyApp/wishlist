@@ -30,7 +30,7 @@ class WishlistFloatingActions extends ConsumerWidget {
     final badgeCount = screenState.selectedWishIds.length;
 
     return Positioned(
-      bottom: 24,
+      bottom: 24 + MediaQuery.viewPaddingOf(context).bottom,
       right: 24,
       child: SizedBox(
         height: 320,
