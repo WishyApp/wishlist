@@ -12,7 +12,8 @@ import '../../../../fixtures/mock_supabase.dart';
 
 class MockPostgresChangePayload extends Mock
     // ignore: avoid_implementing_value_types
-    implements PostgresChangePayload {}
+    implements
+        PostgresChangePayload {}
 
 void main() {
   setUpAll(() => registerFallbackValue(PostgresChangeEvent.all));
@@ -47,8 +48,8 @@ void main() {
         _Listener(
           event: invocation.namedArguments[#event] as PostgresChangeEvent,
           filter: invocation.namedArguments[#filter] as PostgresChangeFilter?,
-          callback: invocation.namedArguments[#callback]
-              as void Function(PostgresChangePayload),
+          callback: invocation.namedArguments[#callback] as void Function(
+              PostgresChangePayload),
         ),
       );
       return channel;
@@ -113,8 +114,7 @@ void main() {
       await sub.cancel();
     });
 
-    test('requested (received requests) listens to receiver_id only',
-        () async {
+    test('requested (received requests) listens to receiver_id only', () async {
       final sub =
           repository.watchCurrentUserRequestedFriendsIds().listen((_) {});
       expectFiltered({'receiver_id'});
