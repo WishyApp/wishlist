@@ -10,6 +10,7 @@ Outillage pour produire les visuels de fiche store de Wishy : seed de comptes de
 | --- | --- |
 | `out/apple-6.9in/<lang>/0N.png` | 1320×2868 (App Store 6,9") |
 | `out/apple-6.3in/<lang>/0N.png` | 1206×2622 (App Store 6,3", l’emplacement demandé en premier) |
+| `out/apple-ipad-13in/<lang>/0N.png` | 2064×2752 (App Store iPad 13", seulement si les captures iPad existent) |
 | `out/google-play/<lang>/0N.png` | 1080×1920 (Google Play) |
 | `out/google-play/<lang>/feature-graphic.png` | 1024×500 (bannière Google Play) |
 | `out/apple-creative/<lang>/header.png` | 3840×1646 (ressource créative App Store : en-tête de la page produit) |
@@ -46,6 +47,8 @@ node seed.mjs fr && node seed.mjs en   # comptes, amis, wishlists, images, rése
 ./capture.sh en
 ./render.sh                             # compose tout dans out/
 ```
+
+Pour l'iPad (l'app est compatible iPad, Apple veut donc de vraies captures iPad), on refait les mêmes étapes avec `SHOTS_DEVICE=ipad` devant `simulator.sh`, `run.sh` et `capture.sh`. Ça utilise le simulateur « Wishy Shots iPad 13 » et écrit dans `raw/ipad-<lang>-*.png`. `render.sh` produit ensuite les visuels iPad tout seul.
 
 `seed.mjs` est idempotent : il supprime puis recrée les wishlists des comptes démo. Les identifiants sont dans `.accounts.json` (mode 600) et les ids/routes de capture dans `.ids.json`, tous deux ignorés par git. L'adresse e-mail réelle des comptes vient uniquement de la variable d'environnement, jamais du dépôt.
 

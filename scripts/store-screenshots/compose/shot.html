@@ -34,6 +34,12 @@
 <script>
 const q = new URLSearchParams(location.search);
 const lang = q.get('lang') || 'fr', n = +(q.get('n') || 1);
+// raw capture size, screen corner radius, status bar height (raw px), Dynamic Island
+const DEVICES = {
+  iphone: { prefix: '', w: 1320, h: 2868, radius: 0.135, statusBar: 150, island: true },
+  ipad: { prefix: 'ipad-', w: 2064, h: 2752, radius: 0.045, statusBar: 66, island: false },
+};
+const D = DEVICES[q.get('device') || 'iphone'];
 const COPY = {
   fr: [
     ['Toutes tes <em>wishlists</em><span class="c">,</span><br>au même endroit', 'Anniversaire, Noël, crémaillère :<br>une wishlist par occasion.', 'home'],
@@ -51,16 +57,16 @@ const COPY = {
 const [h, p, shot] = COPY[lang][n - 1];
 document.getElementById('h').innerHTML = h;
 document.getElementById('p').innerHTML = p;
-document.getElementById('img').src = `../raw/${lang}-${shot}.png`;
+document.getElementById('img').src = `../raw/${D.prefix}${lang}-${shot}.png`;
 // these screens draw a light status bar on a light background: repaint it from the home capture
 if (shot === 'friendwish' || shot === 'wish') {
-  document.getElementById('sb').src = `../raw/${lang}-home.png`;
+  document.getElementById('sb').src = `../raw/${D.prefix}${lang}-home.png`;
 }
 
 document.fonts.ready.then(layout);
 function layout() {
 const W = innerWidth, H = innerHeight, u = W / 100;
-const SR = 2868 / 1320;                        // screen aspect
+const SR = D.h / D.w;                           // screen aspect
 const textTop = H * 0.055;
 const h1Size = W * 0.082, pSize = W * 0.04;
 const hEl = document.getElementById('h'), pEl = document.getElementById('p');
@@ -72,19 +78,23 @@ const textBottom = textTop + t.offsetHeight;
 const gap = H * 0.035, bezel = W * 0.022;
 let sw = W * 0.76;
 let sh = sw * SR;
-const maxH = H - textBottom - gap - bezel * 2 + H * 0.06;   // bleed a little past the bottom edge
+// bleed a little past the bottom edge; on iPad only the bezel and the window
+// resize handle, so the bottom buttons stay visible
+const bleed = D.island ? H * 0.06 : bezel + 0.03 * (H - textBottom - gap);
+const maxH = H - textBottom - gap - bezel * 2 + bleed;
 if (sh > maxH) { sh = maxH; sw = sh / SR; }
 const pw = sw + bezel * 2, ph = sh + bezel * 2;
 const phone = document.getElementById('phone');
-Object.assign(phone.style, { width: pw + 'px', height: ph + 'px', left: (W - pw) / 2 + 'px', top: textBottom + gap + 'px', borderRadius: (sw * 0.135 + bezel) + 'px' });
+Object.assign(phone.style, { width: pw + 'px', height: ph + 'px', left: (W - pw) / 2 + 'px', top: textBottom + gap + 'px', borderRadius: (sw * D.radius + bezel) + 'px' });
 const screen = document.getElementById('screen');
-Object.assign(screen.style, { left: bezel + 'px', top: bezel + 'px', width: sw + 'px', height: sh + 'px', borderRadius: sw * 0.135 + 'px' });
-const k = sw / 1320;
-Object.assign(document.getElementById('island').style, { width: 375 * k + 'px', height: 110 * k + 'px', left: bezel + 472 * k + 'px', top: bezel + 42 * k + 'px' });
+Object.assign(screen.style, { left: bezel + 'px', top: bezel + 'px', width: sw + 'px', height: sh + 'px', borderRadius: sw * D.radius + 'px' });
+const k = sw / D.w;
+if (!D.island) document.getElementById('island').remove();
+else Object.assign(document.getElementById('island').style, { width: 375 * k + 'px', height: 110 * k + 'px', left: bezel + 472 * k + 'px', top: bezel + 42 * k + 'px' });
 const mask = document.getElementById('mask'), sb = document.getElementById('sb');
 if (sb.getAttribute('src')) {
-  Object.assign(mask.style, { height: 150 * k + 'px', background: '#E8E4DA' });
-  sb.style.height = sh + 'px'; sb.style.clipPath = `inset(0 0 ${sh - 150 * k}px 0)`;
+  Object.assign(mask.style, { height: D.statusBar * k + 'px', background: '#E8E4DA' });
+  sb.style.height = sh + 'px'; sb.style.clipPath = `inset(0 0 ${sh - D.statusBar * k}px 0)`;
 }
 
 // A loose ribbon echoing the app icon, behind the phone. The stores show the

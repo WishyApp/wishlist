@@ -3,6 +3,7 @@
 # Renders the store visuals from raw/<lang>-*.png with headless Chrome:
 #   out/apple-6.9in/<lang>/0N.png                  1320x2868
 #   out/apple-6.3in/<lang>/0N.png                  1206x2622 (slot App Store Connect asks for first)
+#   out/apple-ipad-13in/<lang>/0N.png              2064x2752 (from raw/ipad-*, if captured)
 #   out/google-play/<lang>/0N.png                  1080x1920
 #   out/google-play/<lang>/feature-graphic.png     1024x500
 #   out/apple-creative/<lang>/header.png           3840x1646 (product page header)
@@ -29,6 +30,9 @@ for lang in fr en; do
     render "$url" 1320 2868 "$HERE/out/apple-6.9in/$lang/0$n.png"
     render "$url" 1206 2622 "$HERE/out/apple-6.3in/$lang/0$n.png"
     render "$url" 1080 1920 "$HERE/out/google-play/$lang/0$n.png"
+    if [[ -f "$HERE/raw/ipad-$lang-home.png" ]]; then
+      render "$url&device=ipad" 2064 2752 "$HERE/out/apple-ipad-13in/$lang/0$n.png"
+    fi
   done
   render "file://$HERE/compose/feature.html?lang=$lang" 1024 500 "$HERE/out/google-play/$lang/feature-graphic.png"
   creative="file://$HERE/compose/creative.html?lang=$lang"

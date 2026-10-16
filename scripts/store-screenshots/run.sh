@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: run.sh <account-key>   (e.g. fr-main, en-main)
+# Usage: [SHOTS_DEVICE=iphone|ipad] run.sh <account-key>   (e.g. fr-main, en-main)
 # (Re)launches the dev app in debug on the screenshots simulator, signed in as that
 # demo account. See wishlist/lib/app/dev/store_screenshot_mode.dart.
 set -euo pipefail

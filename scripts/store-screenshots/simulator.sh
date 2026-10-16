@@ -1,9 +1,13 @@
 #!/bin/bash
-# Simulator helpers. Usage: simulator.sh setup | lang fr|en | udid
+# Simulator helpers. Usage: [SHOTS_DEVICE=iphone|ipad] simulator.sh setup | lang fr|en | udid
 # The device is looked up by name, never by UDID.
 set -euo pipefail
 
-NAME="Wishy Shots 17PM"
+case "${SHOTS_DEVICE:-iphone}" in
+  iphone) NAME="Wishy Shots 17PM"; TYPE=iPhone-17-Pro-Max ;;
+  ipad) NAME="Wishy Shots iPad 13"; TYPE=iPad-Pro-13-inch-M5-12GB ;;
+  *) echo "SHOTS_DEVICE must be iphone or ipad" >&2; exit 1 ;;
+esac
 
 udid() {
   xcrun simctl list devices | grep -F "$NAME (" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/' || true
@@ -17,7 +21,7 @@ case "${1:-}" in
     U=$(udid)
     if [[ -z "$U" ]]; then
       RUNTIME=$(xcrun simctl list runtimes | grep -E '^iOS' | tail -1 | sed -E 's/.*(com\.apple\.CoreSimulator\.SimRuntime\.[A-Za-z0-9-]+).*/\1/')
-      U=$(xcrun simctl create "$NAME" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max "$RUNTIME")
+      U=$(xcrun simctl create "$NAME" "com.apple.CoreSimulator.SimDeviceType.$TYPE" "$RUNTIME")
     fi
     xcrun simctl boot "$U" 2>/dev/null || true
     xcrun simctl bootstatus "$U" -b >/dev/null
