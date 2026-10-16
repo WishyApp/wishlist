@@ -595,17 +595,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsGeneral => 'General';
 
   @override
-  String get settingsCrashReports => 'Send crash reports';
-
-  @override
-  String get settingsCrashReportsSubtitle =>
-      'Helps fix bugs. Your email and username are never sent.';
-
-  @override
-  String get settingsCrashReportsEnabledSnackbar =>
-      'Takes effect next time you open the app';
-
-  @override
   String get settingsAbout => 'About';
 
   @override

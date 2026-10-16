@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:wishlist/app/app.dart';
@@ -11,7 +10,6 @@ import 'package:wishlist/app/config/config_provider.dart';
 import 'package:wishlist/app/config/environment.dart';
 import 'package:wishlist/app/config/environment_provider.dart';
 import 'package:wishlist/app/config/environment_service.dart';
-import 'package:wishlist/shared/infra/crash_reporting_preference.dart';
 import 'package:wishlist/shared/infra/sentry_user_sync.dart';
 
 void main() async {
@@ -21,12 +19,8 @@ void main() async {
   final config = await Config.load(environment: environment);
 
   final sentryDsn = config.sentryDsn;
-  final prefs = await SharedPreferences.getInstance();
-  final isSentryEnabled = shouldEnableSentry(
-    dsn: sentryDsn,
-    userEnabled: CrashReportingPreference(prefs).isEnabled(),
-    isRelease: kReleaseMode,
-  );
+  // Local debug runs never report, even with the dev DSN.
+  final isSentryEnabled = sentryDsn != null && kReleaseMode;
 
   Future<void> startApp() async {
     await Supabase.initialize(

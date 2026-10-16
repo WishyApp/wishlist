@@ -8,7 +8,6 @@ import 'package:wishlist/modules/settings/widgets/settings_line.dart';
 import 'package:wishlist/modules/settings/widgets/settings_section.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
-import 'package:wishlist/shared/infra/crash_reporting_preference.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
@@ -48,34 +47,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _onCrashReportsToggle(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final l10n = context.l10n;
-
-    try {
-      final enabled =
-          await ref.read(crashReportingEnabledProvider.notifier).toggle();
-
-      if (enabled && context.mounted) {
-        showAppSnackBar(
-          context,
-          l10n.settingsCrashReportsEnabledSnackbar,
-          type: SnackBarType.success,
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        showAppSnackBar(
-          context,
-          l10n.genericError,
-          type: SnackBarType.error,
-        );
-      }
-    }
-  }
-
   void _onDeleteAccountTap(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
 
@@ -106,8 +77,6 @@ class SettingsScreen extends ConsumerWidget {
         ref.read(userServiceProvider).getCurrentUserEmail();
     final currentUserProfile = ref.watch(watchCurrentUserProfileProvider);
     final appInfo = ref.watch(appInfoProvider);
-    final crashReportsEnabled =
-        ref.watch(crashReportingEnabledProvider).valueOrNull ?? true;
 
     return PageLayout(
       title: l10n.settingsScreenTitle,
@@ -166,16 +135,6 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () {
                       CompletedWishesRoute().push(context);
                     },
-                  ),
-                  SettingsLine(
-                    title: l10n.settingsCrashReports,
-                    subtitle: l10n.settingsCrashReportsSubtitle,
-                    toggled: crashReportsEnabled,
-                    onTap: () => _onCrashReportsToggle(context, ref),
-                    trailing: Switch(
-                      value: crashReportsEnabled,
-                      onChanged: (_) => _onCrashReportsToggle(context, ref),
-                    ),
                   ),
                   SettingsLine(
                     title: l10n.settingsScreenDeleteAccount,

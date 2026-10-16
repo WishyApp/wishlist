@@ -1136,24 +1136,6 @@ abstract class AppLocalizations {
   /// **'Général'**
   String get settingsGeneral;
 
-  /// No description provided for @settingsCrashReports.
-  ///
-  /// In fr, this message translates to:
-  /// **'Envoyer les rapports de plantage'**
-  String get settingsCrashReports;
-
-  /// No description provided for @settingsCrashReportsSubtitle.
-  ///
-  /// In fr, this message translates to:
-  /// **'Aide à corriger les bugs. Ni ton email ni ton pseudo ne sont envoyés.'**
-  String get settingsCrashReportsSubtitle;
-
-  /// No description provided for @settingsCrashReportsEnabledSnackbar.
-  ///
-  /// In fr, this message translates to:
-  /// **'Pris en compte au prochain lancement de l\'app'**
-  String get settingsCrashReportsEnabledSnackbar;
-
   /// No description provided for @settingsAbout.
   ///
   /// In fr, this message translates to:
