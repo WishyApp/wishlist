@@ -98,6 +98,9 @@ class FakeAuthSession {
     _events.add(const AuthState(AuthChangeEvent.tokenRefreshed, null));
   }
 
+  /// Exception poussée dans le stream, comme gotrue (notifyException).
+  void addAuthError(Object error) => _events.addError(error);
+
   Future<void> close() => _events.close();
 }
 

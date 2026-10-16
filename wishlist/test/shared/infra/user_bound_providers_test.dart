@@ -156,7 +156,7 @@ void main() {
       expect(friendIds(), ['friend-of-user-b']);
     });
 
-    test('does not read the repository nor fail while signed out', () async {
+    test('stops serving the previous user data while signed out', () async {
       start(
         userId: 'user-a',
         overrides: [
@@ -170,8 +170,11 @@ void main() {
       session.signOut();
       await pumpEventQueue();
 
+      // Stale data of user A must not stay served as if it were current.
       verifyNever(repository.watchCurrentUserAllFriendships);
-      expect(container.read(friendshipsRealtimeProvider).hasError, isFalse);
+      final state = container.read(friendshipsRealtimeProvider);
+      expect(state.isLoading, isTrue);
+      expect(state.hasError, isFalse);
     });
   });
 
@@ -205,10 +208,11 @@ void main() {
       );
     });
 
-    test('does not fail while signed out', () async {
+    test('stops serving the previous user wishlists while signed out',
+        () async {
       final repository = MockWishlistStreamRepository();
       when(() => repository.watchWishlistsByUser(any()))
-          .thenAnswer((_) => Stream.value(const IListConst([])));
+          .thenAnswer((_) => Stream.value(IList([_wishlistOf('user-a')])));
       start(
         userId: 'user-a',
         overrides: [
@@ -221,8 +225,10 @@ void main() {
       session.signOut();
       await pumpEventQueue();
 
-      expect(container.read(wishlistsRealtimeProvider).hasError, isFalse);
-      verifyNever(() => repository.watchWishlistsByUser('null'));
+      final state = container.read(wishlistsRealtimeProvider);
+      expect(state.isLoading, isTrue);
+      expect(state.hasError, isFalse);
+      verify(() => repository.watchWishlistsByUser(any())).called(1);
     });
   });
 

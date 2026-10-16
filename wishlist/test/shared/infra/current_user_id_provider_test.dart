@@ -95,6 +95,20 @@ void main() {
     expect(emitted, ['user-b']);
   });
 
+  test('an auth stream error is not uncaught and the id stays correct',
+      () async {
+    start('user-a');
+
+    session
+      ..setUserSilently('user-b')
+      ..addAuthError(Exception('auth failure'));
+    await pumpEventQueue();
+
+    // An uncaught zone error would fail the test; the id is resynced.
+    expect(emitted, ['user-b']);
+    expect(container.read(currentUserIdProvider), 'user-b');
+  });
+
   test(
     'a late subscriber to the replaying stream gets the current user',
     () async {

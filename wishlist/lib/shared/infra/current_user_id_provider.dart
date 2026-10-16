@@ -24,12 +24,19 @@ class CurrentUserIdNotifier extends Notifier<String?> {
   String? build() {
     final auth = ref.watch(supabaseClientProvider).auth;
 
-    final subscription = auth.onAuthStateChange.listen((_) {
+    void sync() {
       final id = auth.currentUser?.id;
       if (id != state) {
         state = id;
       }
-    });
+    }
+
+    // gotrue also pushes exceptions into this stream (notifyException): resync
+    // from currentUser and swallow them, they are not ours to handle.
+    final subscription = auth.onAuthStateChange.listen(
+      (_) => sync(),
+      onError: (_) => sync(),
+    );
     ref.onDispose(subscription.cancel);
 
     return auth.currentUser?.id;
