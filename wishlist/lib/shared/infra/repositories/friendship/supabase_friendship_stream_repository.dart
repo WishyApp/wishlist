@@ -17,27 +17,30 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   static const _friendshipsTableName = 'friendships';
 
   final Map<String, RealtimeChannel> _channels = {};
-  final Map<String, StreamController<ISet<String>>> _controllers = {};
+  final Map<String, StreamController<dynamic>> _controllers = {};
 
-  StreamController<FriendshipIds>? _allFriendshipsController;
+  /// Les controllers de clés différentes n'ont pas le même type d'événement :
+  /// la clé détermine le type attendu.
+  StreamController<T>? _existingController<T>(String key) =>
+      _controllers[key] as StreamController<T>?;
 
   @override
   Stream<FriendshipIds> watchCurrentUserAllFriendships() {
     final currentUserId = _client.auth.currentUserNonNull.id;
     final key = 'all_friendships_$currentUserId';
 
-    final existingController = _allFriendshipsController;
+    // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
+    final existingController = _existingController<FriendshipIds>(key);
     if (existingController != null) {
       return existingController.stream;
     }
 
-    // ignore: close_sinks - Le controller sera fermé dans _cleanupAllFriendshipsStream
-    final newController = StreamController<FriendshipIds>.broadcast(
-      onCancel: () => _cleanupAllFriendshipsStream(key),
+    final controller = StreamController<FriendshipIds>.broadcast(
+      onCancel: () => _cleanupStream(key),
     );
-    _allFriendshipsController = newController;
+    _controllers[key] = controller;
 
-    _loadAllFriendships(currentUserId);
+    _loadAllFriendships(currentUserId, controller);
 
     final channel = _client
         .channel('friendships_all_$currentUserId')
@@ -45,16 +48,19 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: _friendshipsTableName,
-          callback: (payload) => _handleAllFriendshipsChange(currentUserId),
+          callback: (payload) => _loadAllFriendships(currentUserId, controller),
         )
         .subscribe();
 
     _channels[key] = channel;
 
-    return newController.stream;
+    return controller.stream;
   }
 
-  Future<void> _loadAllFriendships(String userId) async {
+  Future<void> _loadAllFriendships(
+    String userId,
+    StreamController<FriendshipIds> controller,
+  ) async {
     try {
       final results = await Future.wait([
         _friendshipRepository.getFriendsIds(userId),
@@ -62,45 +68,20 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         _friendshipRepository.getCurrentUserRequestedFriendsIds(),
       ]);
 
-      final friendsIds = results[0];
-      final pendingIds = results[1];
-      final requestedIds = results[2];
-
-      final allFriendshipsController = _allFriendshipsController;
-      if (allFriendshipsController == null) {
-        return;
-      }
-
-      if (!allFriendshipsController.isClosed) {
-        allFriendshipsController.add(
+      if (!controller.isClosed) {
+        controller.add(
           FriendshipIds(
-            friendsIds: friendsIds,
-            pendingIds: pendingIds,
-            requestedIds: requestedIds,
+            friendsIds: results[0],
+            pendingIds: results[1],
+            requestedIds: results[2],
           ),
         );
       }
     } catch (e) {
-      final allFriendshipsController = _allFriendshipsController;
-      if (allFriendshipsController == null) {
-        return;
-      }
-
-      if (!allFriendshipsController.isClosed) {
-        allFriendshipsController.addError(e);
+      if (!controller.isClosed) {
+        controller.addError(e);
       }
     }
-  }
-
-  void _handleAllFriendshipsChange(String userId) {
-    _loadAllFriendships(userId);
-  }
-
-  void _cleanupAllFriendshipsStream(String key) {
-    _channels[key]?.unsubscribe();
-    _channels.remove(key);
-    _allFriendshipsController?.close();
-    _allFriendshipsController = null;
   }
 
   @override
@@ -108,7 +89,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     final key = 'friends_$userId';
 
     // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
-    final existingController = _controllers[key];
+    final existingController = _existingController<ISet<String>>(key);
     if (existingController != null) {
       return existingController.stream;
     }
@@ -147,7 +128,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     final key = 'pending_$currentUserId';
 
     // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
-    final existingController = _controllers[key];
+    final existingController = _existingController<ISet<String>>(key);
     if (existingController != null) {
       return existingController.stream;
     }
@@ -181,7 +162,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     final key = 'requested_$currentUserId';
 
     // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
-    final existingController = _controllers[key];
+    final existingController = _existingController<ISet<String>>(key);
     if (existingController != null) {
       return existingController.stream;
     }
@@ -326,12 +307,12 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     }
     _channels.clear();
 
-    for (final controller in _controllers.values) {
+    // Fermer un controller déclenche onCancel -> _cleanupStream, qui modifie
+    // _controllers : on itère donc sur une copie.
+    final controllers = _controllers.values.toList();
+    _controllers.clear();
+    for (final controller in controllers) {
       await controller.close();
     }
-    _controllers.clear();
-
-    await _allFriendshipsController?.close();
-    _allFriendshipsController = null;
   }
 }
