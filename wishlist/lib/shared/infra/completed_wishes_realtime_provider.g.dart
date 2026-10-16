@@ -7,7 +7,7 @@ part of 'completed_wishes_realtime_provider.dart';
 // **************************************************************************
 
 String _$completedWishesRealtimeHash() =>
-    r'4ea08e11cec9142c5e7dc7f0bb574be6e5cbda99';
+    r'4b8acb7edf1f8724bb2688e0ac97f2b073034c9f';
 
 /// StreamProvider qui écoute en temps réel tous les wishs complétés
 /// par l'utilisateur courant.
