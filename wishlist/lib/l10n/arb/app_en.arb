@@ -208,6 +208,8 @@
   "resetPasswordSuccess": "Password reset successfully! Please sign in with your new password.",
   "resetPasswordLinkExpired": "The reset link has expired. Please request a new one.",
   "settingsGeneral": "General",
+  "settingsCrashReports": "Send crash reports",
+  "settingsCrashReportsSubtitle": "Helps fix bugs. No personal data.",
   "settingsAbout": "About",
   "settingsTermsOfUse": "Terms of use",
   "settingsPrivacyPolicy": "Privacy policy",

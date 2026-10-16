@@ -1,9 +1,11 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_profile_provider.dart';
+import 'package:wishlist/shared/infra/first_launch_service.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
@@ -125,6 +127,14 @@ Override appInfoOverride() {
   return appInfoProvider.overrideWith((ref) async => fakePackageInfo);
 }
 
+/// Override pour sharedPreferencesProvider avec des préférences en mémoire
+Override sharedPreferencesOverride({Map<String, Object> values = const {}}) {
+  SharedPreferences.setMockInitialValues(values);
+  return sharedPreferencesProvider.overrideWith(
+    (ref) => SharedPreferences.getInstance(),
+  );
+}
+
 // =============================================================================
 // COMBINED OVERRIDES FOR SCREENS
 // =============================================================================
@@ -165,6 +175,7 @@ List<Override> settingsScreenOverrides({
     userServiceOverride(userId: currentUserId, userEmail: currentUserEmail),
     watchCurrentUserProfileOverride(profile: currentUserProfile),
     appInfoOverride(),
+    sharedPreferencesOverride(),
   ];
 }
 

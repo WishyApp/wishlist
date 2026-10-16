@@ -208,6 +208,8 @@
   "resetPasswordSuccess": "Mot de passe réinitialisé avec succès ! Reconnectez-vous avec votre nouveau mot de passe.",
   "resetPasswordLinkExpired": "Le lien de réinitialisation a expiré. Veuillez en demander un nouveau.",
   "settingsGeneral": "Général",
+  "settingsCrashReports": "Envoyer les rapports de plantage",
+  "settingsCrashReportsSubtitle": "Aide à corriger les bugs. Aucune donnée personnelle.",
   "settingsAbout": "À propos",
   "settingsTermsOfUse": "Conditions d'utilisation",
   "settingsPrivacyPolicy": "Politique de confidentialité",

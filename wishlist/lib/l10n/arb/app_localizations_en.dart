@@ -595,6 +595,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsGeneral => 'General';
 
   @override
+  String get settingsCrashReports => 'Send crash reports';
+
+  @override
+  String get settingsCrashReportsSubtitle =>
+      'Helps fix bugs. No personal data.';
+
+  @override
   String get settingsAbout => 'About';
 
   @override

@@ -8,6 +8,7 @@ import 'package:wishlist/modules/settings/widgets/settings_line.dart';
 import 'package:wishlist/modules/settings/widgets/settings_section.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
+import 'package:wishlist/shared/infra/crash_reporting_preference.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
@@ -47,6 +48,12 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  void _onCrashReportsToggle(WidgetRef ref, {required bool enabled}) {
+    ref
+        .read(crashReportingEnabledProvider.notifier)
+        .setEnabled(enabled: enabled);
+  }
+
   void _onDeleteAccountTap(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
 
@@ -77,6 +84,8 @@ class SettingsScreen extends ConsumerWidget {
         ref.read(userServiceProvider).getCurrentUserEmail();
     final currentUserProfile = ref.watch(watchCurrentUserProfileProvider);
     final appInfo = ref.watch(appInfoProvider);
+    final crashReportsEnabled =
+        ref.watch(crashReportingEnabledProvider).valueOrNull ?? true;
 
     return PageLayout(
       title: l10n.settingsScreenTitle,
@@ -135,6 +144,21 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () {
                       CompletedWishesRoute().push(context);
                     },
+                  ),
+                  SettingsLine(
+                    title: l10n.settingsCrashReports,
+                    subtitle: l10n.settingsCrashReportsSubtitle,
+                    onTap: () => _onCrashReportsToggle(
+                      ref,
+                      enabled: !crashReportsEnabled,
+                    ),
+                    trailing: Switch(
+                      value: crashReportsEnabled,
+                      onChanged: (enabled) => _onCrashReportsToggle(
+                        ref,
+                        enabled: enabled,
+                      ),
+                    ),
                   ),
                   SettingsLine(
                     title: l10n.settingsScreenDeleteAccount,

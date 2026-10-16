@@ -7,10 +7,16 @@ class SettingsLine extends StatelessWidget {
     super.key,
     required this.title,
     required this.onTap,
+    this.subtitle,
+    this.trailing,
   });
 
   final String title;
   final VoidCallback onTap;
+  final String? subtitle;
+
+  /// Replaces the default chevron.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -23,11 +29,25 @@ class SettingsLine extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: AppTextStyles.smaller,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.smaller,
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: AppTextStyles.smaller.copyWith(
+                          color: Colors.grey,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-              const Icon(Icons.arrow_forward_ios, size: 18),
+              trailing ?? const Icon(Icons.arrow_forward_ios, size: 18),
             ],
           ),
         ),
