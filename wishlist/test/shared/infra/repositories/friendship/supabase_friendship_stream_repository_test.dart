@@ -10,10 +10,8 @@ import 'package:wishlist/shared/infra/repositories/friendship/supabase_friendshi
 import '../../../../fixtures/fake_data.dart';
 import '../../../../fixtures/mock_supabase.dart';
 
-class MockPostgresChangePayload extends Mock
-    // ignore: avoid_implementing_value_types
-    implements
-        PostgresChangePayload {}
+// ignore: avoid_implementing_value_types
+class MockPostgresChangePayload extends Mock implements PostgresChangePayload {}
 
 void main() {
   setUpAll(() => registerFallbackValue(PostgresChangeEvent.all));
@@ -44,12 +42,12 @@ void main() {
         callback: any(named: 'callback'),
       ),
     ).thenAnswer((invocation) {
+      final callback = invocation.namedArguments[#callback] as _PayloadCallback;
       listeners.add(
         _Listener(
           event: invocation.namedArguments[#event] as PostgresChangeEvent,
           filter: invocation.namedArguments[#filter] as PostgresChangeFilter?,
-          callback: invocation.namedArguments[#callback] as void Function(
-              PostgresChangePayload),
+          callback: callback,
         ),
       );
       return channel;
@@ -265,6 +263,8 @@ void main() {
   });
 }
 
+typedef _PayloadCallback = void Function(PostgresChangePayload);
+
 class _Listener {
   _Listener({
     required this.event,
@@ -274,5 +274,5 @@ class _Listener {
 
   final PostgresChangeEvent event;
   final PostgresChangeFilter? filter;
-  final void Function(PostgresChangePayload) callback;
+  final _PayloadCallback callback;
 }
