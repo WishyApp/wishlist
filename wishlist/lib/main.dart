@@ -34,7 +34,7 @@ void main() async {
       anonKey: config.supabaseConfig.anonKey,
     );
 
-    if (sentryDsn != null && isSentryEnabled) {
+    if (isSentryEnabled) {
       // Lives as long as the app, so it is never disposed.
       SentryUserSync(
         authStateChanges: Supabase.instance.client.auth.onAuthStateChange,
@@ -52,7 +52,7 @@ void main() async {
     );
   }
 
-  if (sentryDsn != null && isSentryEnabled) {
+  if (isSentryEnabled) {
     await SentryFlutter.init(
       (options) {
         options
