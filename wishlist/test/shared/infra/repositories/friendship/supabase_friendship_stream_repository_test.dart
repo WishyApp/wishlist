@@ -70,9 +70,7 @@ void main() {
       verify(channel.unsubscribe).called(1);
 
       // Log back in: a new watch must not return the dead controller.
-      final mockUser = MockUser();
-      when(() => mockUser.id).thenReturn(fakeCurrentUserId);
-      when(() => auth.currentUser).thenReturn(mockUser);
+      signInAs(fakeCurrentUserId);
 
       final secondStream = repository.watchCurrentUserAllFriendships();
       await expectLater(secondStream.first, completes);
@@ -99,6 +97,39 @@ void main() {
 
       await expectLater(allDone.future, completes);
       await expectLater(pendingDone.future, completes);
+    });
+
+    test('does not abort when a listener cancels while channels unsubscribe',
+        () async {
+      final unsubscribed = Completer<String>();
+      when(channel.unsubscribe).thenAnswer((_) => unsubscribed.future);
+
+      final subscription =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+
+      final disposing = repository.dispose();
+      await subscription.cancel();
+      unsubscribed.complete('ok');
+
+      await expectLater(disposing, completes);
+    });
+
+    test('a watch started while disposing keeps its own controller', () async {
+      Stream<ISet<String>>? newStream;
+      repository.watchCurrentUserPendingFriendsIds().listen(
+            (_) {},
+            onDone: () =>
+                newStream = repository.watchCurrentUserPendingFriendsIds(),
+          );
+
+      await repository.dispose();
+      await pumpEventQueue();
+
+      var isDone = false;
+      newStream!.listen((_) {}, onDone: () => isDone = true);
+      await pumpEventQueue();
+
+      expect(isDone, isFalse);
     });
   });
 

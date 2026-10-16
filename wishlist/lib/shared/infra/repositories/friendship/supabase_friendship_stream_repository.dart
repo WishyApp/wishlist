@@ -35,8 +35,9 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       return existingController.stream;
     }
 
-    final controller = StreamController<FriendshipIds>.broadcast(
-      onCancel: () => _cleanupStream(key),
+    late final StreamController<FriendshipIds> controller;
+    controller = StreamController<FriendshipIds>.broadcast(
+      onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
@@ -94,8 +95,9 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       return existingController.stream;
     }
 
-    final controller = StreamController<ISet<String>>.broadcast(
-      onCancel: () => _cleanupStream(key),
+    late final StreamController<ISet<String>> controller;
+    controller = StreamController<ISet<String>>.broadcast(
+      onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
@@ -133,8 +135,9 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       return existingController.stream;
     }
 
-    final controller = StreamController<ISet<String>>.broadcast(
-      onCancel: () => _cleanupStream(key),
+    late final StreamController<ISet<String>> controller;
+    controller = StreamController<ISet<String>>.broadcast(
+      onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
@@ -167,8 +170,9 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       return existingController.stream;
     }
 
-    final controller = StreamController<ISet<String>>.broadcast(
-      onCancel: () => _cleanupStream(key),
+    late final StreamController<ISet<String>> controller;
+    controller = StreamController<ISet<String>>.broadcast(
+      onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
@@ -293,22 +297,28 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     }
   }
 
-  void _cleanupStream(String key) {
+  void _cleanupStream(String key, StreamController<dynamic> controller) {
+    // Ignore un cancel tardif d'un ancien controller (ex: pendant dispose) si
+    // la clé a été reprise par un nouveau.
+    if (!identical(_controllers[key], controller)) {
+      return;
+    }
     _channels[key]?.unsubscribe();
     _channels.remove(key);
-    _controllers[key]?.close();
+    controller.close();
     _controllers.remove(key);
   }
 
   @override
   Future<void> dispose() async {
-    for (final channel in _channels.values) {
+    // Un cancel pendant les await déclenche onCancel -> _cleanupStream, qui
+    // modifie _channels et _controllers : on itère donc sur des copies.
+    final channels = _channels.values.toList();
+    _channels.clear();
+    for (final channel in channels) {
       await channel.unsubscribe();
     }
-    _channels.clear();
 
-    // Fermer un controller déclenche onCancel -> _cleanupStream, qui modifie
-    // _controllers : on itère donc sur une copie.
     final controllers = _controllers.values.toList();
     _controllers.clear();
     for (final controller in controllers) {
