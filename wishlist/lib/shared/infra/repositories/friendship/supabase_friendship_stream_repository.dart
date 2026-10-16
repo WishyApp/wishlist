@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_repository.dart';
@@ -21,6 +22,10 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   final Map<String, RealtimeChannel> _channels = {};
   final Map<String, StreamController<dynamic>> _controllers = {};
 
+  /// Chaque controller est un [BehaviorSubject] : un abonné qui arrive après le
+  /// premier chargement reçoit tout de suite la dernière valeur (ou erreur),
+  /// puis les suivantes. `onCancel` se déclenche quand le dernier abonné part.
+  ///
   /// Les controllers de clés différentes n'ont pas le même type d'événement :
   /// la clé détermine le type attendu.
   StreamController<T>? _existingController<T>(String key) =>
@@ -70,7 +75,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     }
 
     late final StreamController<FriendshipIds> controller;
-    controller = StreamController<FriendshipIds>.broadcast(
+    controller = BehaviorSubject<FriendshipIds>(
       onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
@@ -127,7 +132,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     }
 
     late final StreamController<ISet<String>> controller;
-    controller = StreamController<ISet<String>>.broadcast(
+    controller = BehaviorSubject<ISet<String>>(
       onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
@@ -164,7 +169,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     }
 
     late final StreamController<ISet<String>> controller;
-    controller = StreamController<ISet<String>>.broadcast(
+    controller = BehaviorSubject<ISet<String>>(
       onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
@@ -196,7 +201,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     }
 
     late final StreamController<ISet<String>> controller;
-    controller = StreamController<ISet<String>>.broadcast(
+    controller = BehaviorSubject<ISet<String>>(
       onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;

@@ -137,6 +137,128 @@ void main() {
     });
   });
 
+  group('replay to late subscribers', () {
+    setUp(() {
+      signInAs('me');
+      when(() => friendshipRepository.getFriendsIds(any()))
+          .thenAnswer((_) async => {'friend'}.lock);
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) async => {'pending'}.lock);
+      when(friendshipRepository.getCurrentUserRequestedFriendsIds)
+          .thenAnswer((_) async => {'requested'}.lock);
+    });
+
+    test('all friendships replays the last value', () async {
+      final first = repository.watchCurrentUserAllFriendships().listen((_) {});
+      await pumpEventQueue();
+
+      final ids = await repository
+          .watchCurrentUserAllFriendships()
+          .first
+          .timeout(const Duration(seconds: 1));
+
+      expect(ids.friendsIds, {'friend'}.lock);
+      expect(ids.pendingIds, {'pending'}.lock);
+      expect(ids.requestedIds, {'requested'}.lock);
+      await first.cancel();
+    });
+
+    test('friends of a user replays the last value', () async {
+      final first = repository.watchFriendsIds('u').listen((_) {});
+      await pumpEventQueue();
+
+      final ids = await repository
+          .watchFriendsIds('u')
+          .first
+          .timeout(const Duration(seconds: 1));
+
+      expect(ids, {'friend'}.lock);
+      await first.cancel();
+    });
+
+    test('pending replays the last value', () async {
+      final first =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      await pumpEventQueue();
+
+      final ids = await repository
+          .watchCurrentUserPendingFriendsIds()
+          .first
+          .timeout(const Duration(seconds: 1));
+
+      expect(ids, {'pending'}.lock);
+      await first.cancel();
+    });
+
+    test('requested replays the last value', () async {
+      final first =
+          repository.watchCurrentUserRequestedFriendsIds().listen((_) {});
+      await pumpEventQueue();
+
+      final ids = await repository
+          .watchCurrentUserRequestedFriendsIds()
+          .first
+          .timeout(const Duration(seconds: 1));
+
+      expect(ids, {'requested'}.lock);
+      await first.cancel();
+    });
+
+    test('a late subscriber also receives the following updates', () async {
+      final first =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      await pumpEventQueue();
+
+      final received = <ISet<String>>[];
+      final late = repository
+          .watchCurrentUserPendingFriendsIds()
+          .listen(received.add);
+      await pumpEventQueue();
+
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) async => {'pending', 'new'}.lock);
+      listeners.first.callback(MockPostgresChangePayload());
+      await pumpEventQueue();
+
+      expect(received, [
+        {'pending'}.lock,
+        {'pending', 'new'}.lock,
+      ]);
+      await first.cancel();
+      await late.cancel();
+    });
+
+    test('keeps the channel until the last listener leaves', () async {
+      final first =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      final second =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      await pumpEventQueue();
+
+      await first.cancel();
+      verifyNever(channel.unsubscribe);
+
+      await second.cancel();
+      verify(channel.unsubscribe).called(1);
+    });
+
+    test('a watch after the last listener left reloads from scratch', () async {
+      final first =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      await pumpEventQueue();
+      await first.cancel();
+
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) async => {'other'}.lock);
+      final ids = await repository
+          .watchCurrentUserPendingFriendsIds()
+          .first
+          .timeout(const Duration(seconds: 1));
+
+      expect(ids, {'other'}.lock);
+    });
+  });
+
   group('watchCurrentUserAllFriendships cleanup', () {
     test('unsubscribes and drops the controller after the session is closed',
         () async {
