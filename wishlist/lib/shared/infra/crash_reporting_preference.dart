@@ -3,6 +3,16 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wishlist/shared/infra/first_launch_service.dart';
 
+/// Sentry only runs when configured, allowed by the user and in release builds
+/// so local debug runs never report.
+bool shouldEnableSentry({
+  required String? dsn,
+  required bool userEnabled,
+  required bool isRelease,
+}) {
+  return dsn != null && userEnabled && isRelease;
+}
+
 /// User choice to send crash reports (opt-out, enabled by default).
 class CrashReportingPreference {
   CrashReportingPreference(this._prefs);

@@ -6,6 +6,18 @@ import 'package:wishlist/shared/infra/crash_reporting_preference.dart';
 import '../../fixtures/fake_providers.dart';
 
 void main() {
+  group('shouldEnableSentry', () {
+    test('requires a DSN, the user consent and a release build', () {
+      bool run({String? dsn, bool user = true, bool release = true}) =>
+          shouldEnableSentry(dsn: dsn, userEnabled: user, isRelease: release);
+
+      expect(run(dsn: 'https://key@sentry.io/1'), isTrue);
+      expect(run(), isFalse);
+      expect(run(dsn: 'https://key@sentry.io/1', user: false), isFalse);
+      expect(run(dsn: 'https://key@sentry.io/1', release: false), isFalse);
+    });
+  });
+
   group('CrashReportingPreference', () {
     test('is enabled by default', () async {
       SharedPreferences.setMockInitialValues({});
