@@ -9,38 +9,39 @@ class AvatarNotifier extends StateNotifier<AsyncValue<String?>> {
   AvatarNotifier(
     this._avatarService,
     this._userService, {
-    required bool hasSession,
+    required String? userId,
   }) : super(
-          hasSession ? const AsyncValue.loading() : const AsyncValue.data(null),
+          userId != null
+              ? const AsyncValue.loading()
+              : const AsyncValue.data(null),
         ) {
-    if (hasSession) {
-      _loadCurrentUserAvatar();
+    if (userId != null) {
+      _loadAvatar(userId);
     }
   }
 
   final AvatarService _avatarService;
   final UserService _userService;
 
-  Future<void> _loadCurrentUserAvatar() async {
+  // The notifier can be disposed while an async call is still running.
+  void _setIfMounted(AsyncValue<String?> value) {
+    if (mounted) {
+      state = value;
+    }
+  }
+
+  Future<void> _loadAvatar(String userId) async {
     try {
-      final currentUserId = _userService.getCurrentUserId();
-      final appUser = await _userService.getAppUserById(currentUserId);
-      // The session may have changed while loading.
-      if (!mounted) {
-        return;
-      }
+      final appUser = await _userService.getAppUserById(userId);
       final avatarUrl = appUser.profile.avatarUrl;
 
       if (avatarUrl != null && avatarUrl.isNotEmpty) {
-        final fullAvatarUrl = _avatarService.getAvatarUrl(avatarUrl);
-        state = AsyncValue.data(fullAvatarUrl);
+        _setIfMounted(AsyncValue.data(_avatarService.getAvatarUrl(avatarUrl)));
       } else {
-        state = const AsyncValue.data(null);
+        _setIfMounted(const AsyncValue.data(null));
       }
     } catch (e, stack) {
-      if (mounted) {
-        state = AsyncValue.error(e, stack);
-      }
+      _setIfMounted(AsyncValue.error(e, stack));
     }
   }
 
@@ -48,16 +49,9 @@ class AvatarNotifier extends StateNotifier<AsyncValue<String?>> {
     try {
       state = const AsyncValue.loading();
       final avatarPath = await _avatarService.uploadAvatar(imageFile);
-      if (!mounted) {
-        return;
-      }
-      final fullAvatarUrl = _avatarService.getAvatarUrl(avatarPath);
-
-      state = AsyncValue.data(fullAvatarUrl);
+      _setIfMounted(AsyncValue.data(_avatarService.getAvatarUrl(avatarPath)));
     } catch (e, stack) {
-      if (mounted) {
-        state = AsyncValue.error(e, stack);
-      }
+      _setIfMounted(AsyncValue.error(e, stack));
     }
   }
 
@@ -65,40 +59,21 @@ class AvatarNotifier extends StateNotifier<AsyncValue<String?>> {
     try {
       state = const AsyncValue.loading();
       await _avatarService.deleteAvatar();
-      if (!mounted) {
-        return;
-      }
-      state = const AsyncValue.data(null);
+      _setIfMounted(const AsyncValue.data(null));
     } catch (e, stack) {
-      if (mounted) {
-        state = AsyncValue.error(e, stack);
-      }
+      _setIfMounted(AsyncValue.error(e, stack));
     }
   }
 }
 
+// autoDispose: its only consumer lives under the Home route, which is
+// destroyed on logout, so the next login builds it again for the new user.
 final currentUserAvatarProvider =
-    StateNotifierProvider<AvatarNotifier, AsyncValue<String?>>((ref) {
-  final avatarService = ref.watch(avatarServiceProvider);
-  final userService = ref.watch(userServiceProvider);
-  final auth = ref.watch(supabaseClientProvider).auth;
-  final userId = auth.currentUser?.id;
-  // onAuthStateChange replays its last event to each new subscriber, so only
-  // rebuild when the user actually differs from the one this state was built
-  // for.
-  final authSubscription = auth.onAuthStateChange.listen(
-    (data) {
-      if (data.session?.user.id != userId) {
-        ref.invalidateSelf();
-      }
-    },
-    // The stream replays errors (e.g. a failed token refresh while offline).
-    onError: (Object _) {},
-  );
-  ref.onDispose(authSubscription.cancel);
+    StateNotifierProvider.autoDispose<AvatarNotifier, AsyncValue<String?>>(
+        (ref) {
   return AvatarNotifier(
-    avatarService,
-    userService,
-    hasSession: userId != null,
+    ref.watch(avatarServiceProvider),
+    ref.watch(userServiceProvider),
+    userId: ref.watch(supabaseClientProvider).auth.currentUser?.id,
   );
 });

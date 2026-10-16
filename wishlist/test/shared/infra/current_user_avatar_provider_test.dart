@@ -1,7 +1,9 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:rxdart/rxdart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/avatar_service.dart';
 import 'package:wishlist/shared/infra/current_user_avatar_provider.dart';
@@ -15,58 +17,44 @@ import '../../fixtures/mock_supabase.dart';
 
 class MockAvatarService extends Mock implements AvatarService {}
 
-// ignore: avoid_implementing_value_types
-class MockSession extends Mock implements Session {}
-
-Session _sessionFor(String userId) {
-  final user = MockUser();
-  when(() => user.id).thenReturn(userId);
-  final session = MockSession();
-  when(() => session.user).thenReturn(user);
-  return session;
-}
-
-Future<void> _pump() async {
-  for (var i = 0; i < 20; i++) {
-    await Future<void>.delayed(Duration.zero);
-  }
-}
+AppUser _appUserFor(String userId) => AppUser(
+      profile: Profile(
+        id: userId,
+        pseudo: 'pseudo',
+        avatarUrl: 'path-$userId',
+      ),
+      user: fakeCurrentAppUser.user,
+    );
 
 void main() {
-  late BehaviorSubject<AuthState> authEvents;
   late MockGoTrueClient auth;
   late MockUserService userService;
+  late MockAvatarService avatarService;
   late ProviderContainer container;
   late User? currentUser;
 
   void signIn(String userId) {
-    final session = _sessionFor(userId);
-    currentUser = session.user;
-    authEvents.add(AuthState(AuthChangeEvent.signedIn, session));
+    final user = MockUser();
+    when(() => user.id).thenReturn(userId);
+    currentUser = user;
   }
 
+  setUpAll(() {
+    registerFallbackValue(File('avatar.png'));
+  });
+
   setUp(() {
-    // Like gotrue, replays its last event to every new subscriber.
-    authEvents = BehaviorSubject<AuthState>();
     currentUser = null;
     final client = MockSupabaseClient();
     auth = MockGoTrueClient();
     when(() => client.auth).thenReturn(auth);
-    when(() => auth.onAuthStateChange).thenAnswer((_) => authEvents);
     when(() => auth.currentUser).thenAnswer((_) => currentUser);
     userService = MockUserService();
-    when(userService.getCurrentUserId).thenAnswer((_) => currentUser!.id);
     when(() => userService.getAppUserById(any())).thenAnswer(
-      (invocation) async => AppUser(
-        profile: Profile(
-          id: invocation.positionalArguments.first as String,
-          pseudo: 'pseudo',
-          avatarUrl: 'path-${invocation.positionalArguments.first}',
-        ),
-        user: fakeCurrentAppUser.user,
-      ),
+      (invocation) async =>
+          _appUserFor(invocation.positionalArguments.first as String),
     );
-    final avatarService = MockAvatarService();
+    avatarService = MockAvatarService();
     when(() => avatarService.getAvatarUrl(any()))
         .thenAnswer((i) => 'url-${i.positionalArguments.first}');
 
@@ -78,26 +66,43 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    addTearDown(authEvents.close);
   });
 
-  test('a replayed signedIn for the same user does not reload', () async {
+  test('loads the avatar of the signed-in user', () async {
     signIn('user-1');
     container.listen(currentUserAvatarProvider, (_, __) {});
-    await _pump();
+    await pumpEventQueue();
 
     verify(() => userService.getAppUserById('user-1')).called(1);
+    expect(
+      container.read(currentUserAvatarProvider),
+      const AsyncValue<String?>.data('url-path-user-1'),
+    );
   });
 
-  test('switching to another user reloads exactly once', () async {
-    signIn('user-1');
+  test('has no avatar and loads nothing without a session', () async {
     container.listen(currentUserAvatarProvider, (_, __) {});
-    await _pump();
+    await pumpEventQueue();
+
+    expect(
+      container.read(currentUserAvatarProvider),
+      const AsyncValue<String?>.data(null),
+    );
+    verifyNever(() => userService.getAppUserById(any()));
+  });
+
+  test('is rebuilt for the new user once its listeners are gone', () async {
+    signIn('user-1');
+    final subscription =
+        container.listen(currentUserAvatarProvider, (_, __) {});
+    await pumpEventQueue();
+    subscription.close();
+    await pumpEventQueue();
 
     signIn('user-2');
-    await _pump();
+    container.listen(currentUserAvatarProvider, (_, __) {});
+    await pumpEventQueue();
 
-    verify(() => userService.getAppUserById('user-1')).called(1);
     verify(() => userService.getAppUserById('user-2')).called(1);
     expect(
       container.read(currentUserAvatarProvider),
@@ -105,56 +110,83 @@ void main() {
     );
   });
 
-  test('signing in after being signed out loads that user once', () async {
-    container.listen(currentUserAvatarProvider, (_, __) {});
-    await _pump();
-    expect(
-      container.read(currentUserAvatarProvider),
-      const AsyncValue<String?>.data(null),
-    );
-    verifyNever(() => userService.getAppUserById(any()));
+  group('when the notifier is disposed during an async call', () {
+    test('a load finishing late does not throw nor touch the new user',
+        () async {
+      final firstLoad = Completer<AppUser>();
+      signIn('user-1');
+      when(() => userService.getAppUserById('user-1'))
+          .thenAnswer((_) => firstLoad.future);
 
-    signIn('user-1');
-    await _pump();
+      final subscription =
+          container.listen(currentUserAvatarProvider, (_, __) {});
+      await pumpEventQueue();
+      subscription.close();
+      await pumpEventQueue();
 
-    verify(() => userService.getAppUserById('user-1')).called(1);
-    expect(
-      container.read(currentUserAvatarProvider),
-      const AsyncValue<String?>.data('url-path-user-1'),
-    );
-  });
+      signIn('user-2');
+      container.listen(currentUserAvatarProvider, (_, __) {});
+      await pumpEventQueue();
 
-  test('an error replayed by the auth stream is swallowed', () async {
-    signIn('user-1');
-    authEvents.addError(Exception('offline'));
-    container.listen(currentUserAvatarProvider, (_, __) {});
-    await _pump();
+      firstLoad.complete(_appUserFor('user-1'));
+      await pumpEventQueue();
 
-    expect(
-      container.read(currentUserAvatarProvider),
-      const AsyncValue<String?>.data('url-path-user-1'),
-    );
-  });
+      expect(
+        container.read(currentUserAvatarProvider),
+        const AsyncValue<String?>.data('url-path-user-2'),
+      );
+    });
 
-  test('signing out gives no avatar and no error', () async {
-    signIn('user-1');
-    container.listen(currentUserAvatarProvider, (_, __) {});
-    await _pump();
+    test('a failing load finishing late does not throw', () async {
+      final firstLoad = Completer<AppUser>();
+      signIn('user-1');
+      when(() => userService.getAppUserById('user-1'))
+          .thenAnswer((_) => firstLoad.future);
 
-    expect(
-      container.read(currentUserAvatarProvider),
-      const AsyncValue<String?>.data('url-path-user-1'),
-    );
+      final subscription =
+          container.listen(currentUserAvatarProvider, (_, __) {});
+      await pumpEventQueue();
+      subscription.close();
+      await pumpEventQueue();
 
-    clearInteractions(userService);
-    currentUser = null;
-    authEvents.add(const AuthState(AuthChangeEvent.signedOut, null));
-    await _pump();
+      firstLoad.completeError(Exception('network'));
+      await pumpEventQueue();
+    });
 
-    expect(
-      container.read(currentUserAvatarProvider),
-      const AsyncValue<String?>.data(null),
-    );
-    verifyNever(() => userService.getAppUserById(any()));
+    test('an upload finishing late does not throw', () async {
+      final upload = Completer<String>();
+      signIn('user-1');
+      when(() => avatarService.uploadAvatar(any()))
+          .thenAnswer((_) => upload.future);
+
+      final subscription =
+          container.listen(currentUserAvatarProvider, (_, __) {});
+      await pumpEventQueue();
+      final pending = container
+          .read(currentUserAvatarProvider.notifier)
+          .uploadAvatar(File('avatar.png'));
+      subscription.close();
+      await pumpEventQueue();
+
+      upload.complete('path');
+      await pending;
+    });
+
+    test('a delete finishing late does not throw', () async {
+      final delete = Completer<void>();
+      signIn('user-1');
+      when(() => avatarService.deleteAvatar()).thenAnswer((_) => delete.future);
+
+      final subscription =
+          container.listen(currentUserAvatarProvider, (_, __) {});
+      await pumpEventQueue();
+      final pending =
+          container.read(currentUserAvatarProvider.notifier).deleteAvatar();
+      subscription.close();
+      await pumpEventQueue();
+
+      delete.complete();
+      await pending;
+    });
   });
 }
