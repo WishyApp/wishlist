@@ -43,10 +43,12 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
 
--- delete_user_account is not called through RPC by the app: AuthService calls
--- the delete-user-account Edge Function, whose source is not in this
--- repository. It deletes auth.uid(), so it only works with the JWT of the
--- user, hence the grant to authenticated (kept from 20261005170000).
+-- delete_user_account is not called by the app: AuthService calls the
+-- delete-user-account Edge Function, which uses a service_role client
+-- (storage cleanup, then auth.admin.deleteUser) and never this function. Called
+-- directly, it would delete the account without the storage cleanup, so only
+-- service_role keeps EXECUTE.
+REVOKE ALL ON FUNCTION public.delete_user_account() FROM authenticated;
 
 -- The one function used before sign in.
 GRANT EXECUTE ON FUNCTION public.get_email_by_pseudo(text) TO anon;

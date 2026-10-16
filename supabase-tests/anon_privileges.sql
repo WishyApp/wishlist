@@ -210,8 +210,7 @@ SELECT pg_temp.expect_denied('authenticated uses a sequence', $q$SELECT nextval(
 SELECT pg_temp.expect_denied('authenticated setval', $q$SELECT setval('public.wishs_id_seq', 1)$q$);
 SELECT pg_temp.expect_denied('authenticated executes a trigger function',
   $q$SELECT public.update_user_completed_wishs_updated_at()$q$);
--- delete_user_account is checked last: it removes the user (rolled back below)
-SELECT pg_temp.expect_ok('authenticated executes delete_user_account',
+SELECT pg_temp.expect_denied('authenticated executes delete_user_account',
   $q$SELECT public.delete_user_account()$q$);
 
 ROLLBACK;
