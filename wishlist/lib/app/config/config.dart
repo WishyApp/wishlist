@@ -19,8 +19,21 @@ class Config extends Equatable {
         url: dotEnvConfig.get('SUPABASE_URL'),
         anonKey: dotEnvConfig.get('SUPABASE_ANON_KEY'),
       ),
-      sentryDsn: sentryDsn == null || sentryDsn.isEmpty ? null : sentryDsn,
+      sentryDsn:
+          sentryDsn != null && _isValidSentryDsn(sentryDsn) ? sentryDsn : null,
     );
+  }
+
+  /// A malformed DSN must never prevent the app from starting, it just
+  /// disables crash reporting.
+  static bool _isValidSentryDsn(String dsn) {
+    final uri = Uri.tryParse(dsn);
+
+    return uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty &&
+        uri.userInfo.isNotEmpty &&
+        uri.pathSegments.any((segment) => segment.isNotEmpty);
   }
 
   final SupabaseConfig supabaseConfig;

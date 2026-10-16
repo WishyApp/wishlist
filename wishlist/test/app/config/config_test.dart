@@ -33,6 +33,18 @@ void main() {
       expect(configFrom('${baseEnv}SENTRY_DSN=').sentryDsn, isNull);
     });
 
+    for (final malformed in [
+      'changeme',
+      'https://sentry.io/1',
+      'https://key@/1',
+      'ftp://key@sentry.io/1',
+      'https://key@sentry.io',
+    ]) {
+      test('ignores the malformed Sentry DSN "$malformed"', () {
+        expect(configFrom('${baseEnv}SENTRY_DSN=$malformed').sentryDsn, isNull);
+      });
+    }
+
     test('includes the Sentry DSN in equality', () {
       final withDsn =
           configFrom('${baseEnv}SENTRY_DSN=https://key@sentry.io/1');
