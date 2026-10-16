@@ -16,6 +16,8 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   final FriendshipRepository _friendshipRepository;
   static const _friendshipsTableName = 'friendships';
 
+  static const _bothUserColumns = ['requester_id', 'receiver_id'];
+
   final Map<String, RealtimeChannel> _channels = {};
   final Map<String, StreamController<dynamic>> _controllers = {};
 
@@ -23,6 +25,45 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   /// la clé détermine le type attendu.
   StreamController<T>? _existingController<T>(String key) =>
       _controllers[key] as StreamController<T>?;
+
+  /// Abonne un channel aux lignes de `friendships` où [userId] figure dans
+  /// l'une des [columns] (un filtre `eq` par colonne, donc un listener par
+  /// colonne).
+  ///
+  /// Les DELETE ne passent pas par ces filtres : Supabase Realtime ne filtre
+  /// pas les DELETE (et n'y applique pas la RLS). Un listener DELETE sans
+  /// filtre recharge donc à chaque suppression dans la table. Avec RLS, la
+  /// ligne supprimée ne contient que sa clé primaire : impossible de savoir
+  /// côté client si elle concerne l'utilisateur.
+  RealtimeChannel _subscribeToFriendships({
+    required String channelName,
+    required String userId,
+    required List<String> columns,
+    required void Function() onChange,
+  }) {
+    var channel = _client.channel(channelName);
+    for (final column in columns) {
+      channel = channel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: _friendshipsTableName,
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: column,
+          value: userId,
+        ),
+        callback: (payload) => onChange(),
+      );
+    }
+    return channel
+        .onPostgresChanges(
+          event: PostgresChangeEvent.delete,
+          schema: 'public',
+          table: _friendshipsTableName,
+          callback: (payload) => onChange(),
+        )
+        .subscribe();
+  }
 
   @override
   Stream<FriendshipIds> watchCurrentUserAllFriendships() {
@@ -43,15 +84,12 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
 
     _loadAllFriendships(currentUserId, controller);
 
-    final channel = _client
-        .channel('friendships_all_$currentUserId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: _friendshipsTableName,
-          callback: (payload) => _loadAllFriendships(currentUserId, controller),
-        )
-        .subscribe();
+    final channel = _subscribeToFriendships(
+      channelName: 'friendships_all_$currentUserId',
+      userId: currentUserId,
+      columns: _bothUserColumns,
+      onChange: () => _loadAllFriendships(currentUserId, controller),
+    );
 
     _channels[key] = channel;
 
@@ -103,15 +141,12 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
 
     _loadInitialFriends(userId, controller);
 
-    final channel = _client
-        .channel('friendships_$userId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: _friendshipsTableName,
-          callback: (payload) => _handleFriendshipChange(userId, controller),
-        )
-        .subscribe();
+    final channel = _subscribeToFriendships(
+      channelName: 'friendships_$userId',
+      userId: userId,
+      columns: _bothUserColumns,
+      onChange: () => _handleFriendshipChange(userId, controller),
+    );
 
     _channels[key] = channel;
 
@@ -143,16 +178,13 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
 
     _loadInitialPending(currentUserId, controller);
 
-    final channel = _client
-        .channel('friendships_pending_$currentUserId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: _friendshipsTableName,
-          callback: (payload) =>
-              _handlePendingChange(currentUserId, controller),
-        )
-        .subscribe();
+    // Les demandes envoyées par l'utilisateur : il en est le requester.
+    final channel = _subscribeToFriendships(
+      channelName: 'friendships_pending_$currentUserId',
+      userId: currentUserId,
+      columns: const ['requester_id'],
+      onChange: () => _handlePendingChange(currentUserId, controller),
+    );
 
     _channels[key] = channel;
 
@@ -178,16 +210,13 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
 
     _loadInitialRequested(currentUserId, controller);
 
-    final channel = _client
-        .channel('friendships_requested_$currentUserId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: _friendshipsTableName,
-          callback: (payload) =>
-              _handleRequestedChange(currentUserId, controller),
-        )
-        .subscribe();
+    // Les demandes reçues par l'utilisateur : il en est le receiver.
+    final channel = _subscribeToFriendships(
+      channelName: 'friendships_requested_$currentUserId',
+      userId: currentUserId,
+      columns: const ['receiver_id'],
+      onChange: () => _handleRequestedChange(currentUserId, controller),
+    );
 
     _channels[key] = channel;
 
