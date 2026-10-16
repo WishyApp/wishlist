@@ -77,12 +77,17 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE TRUNCATE, TRI
 
 -- A new function must not be callable by anon through PUBLIC, including one
 -- created by hand in the SQL editor. PUBLIC's EXECUTE can only be removed for
--- all schemas at once, so the schemas where postgres creates functions that
--- others call are given it back: extensions (CREATE EXTENSION run as
--- postgres). Functions created by postgres in public keep the grants to
--- authenticated and service_role of the default privileges above. The
--- helper functions of supabase-tests/ are granted to PUBLIC by the tests.
+-- all schemas at once. Functions created by postgres in public keep the
+-- grants to authenticated and service_role of the default privileges above.
+-- The helper functions of supabase-tests/ are granted to PUBLIC by the tests.
+--
+-- This fails closed: a function that postgres creates later outside public
+-- (in a new schema) or that another role must call (for example an auth hook
+-- run by supabase_auth_admin) needs an explicit GRANT EXECUTE.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+-- Extension objects are created as supabase_admin (supautils), so the default
+-- privileges of postgres do not apply to them: this only keeps PUBLIC's
+-- EXECUTE on functions that postgres creates by hand in extensions.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA extensions GRANT EXECUTE ON FUNCTIONS TO PUBLIC;
 
 -- Verification: tests in supabase-tests/anon_privileges.sql.
@@ -98,3 +103,12 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA extensions GRANT EXECUTE ON
 -- SELECT defaclrole::regrole, defaclobjtype, defaclacl FROM pg_default_acl
 --  WHERE defaclnamespace = 'public'::regnamespace;
 --   -> no anon entry for postgres (supabase_admin entries remain)
+--
+-- SELECT p.oid::regprocedure FROM pg_proc p
+--  WHERE p.pronamespace = 'public'::regnamespace
+--    AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
+--  ORDER BY 1;
+--   -> the functions the app and the policies call (nb_wishs_by_user,
+--      delete_or_archive_wishlist, restore_completed_wish, search_users,
+--      get_email_by_pseudo, is_friend_or_friend_of_friend, is_wishlist_owner,
+--      can_book_wish), and no trigger function nor delete_user_account
