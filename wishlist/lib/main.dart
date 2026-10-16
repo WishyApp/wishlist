@@ -10,7 +10,7 @@ import 'package:wishlist/app/config/config_provider.dart';
 import 'package:wishlist/app/config/environment.dart';
 import 'package:wishlist/app/config/environment_provider.dart';
 import 'package:wishlist/app/config/environment_service.dart';
-import 'package:wishlist/app/config/sentry_user_sync.dart';
+import 'package:wishlist/shared/infra/sentry_user_sync.dart';
 import 'package:wishlist/shared/infra/crash_reporting_preference.dart';
 
 void main() async {

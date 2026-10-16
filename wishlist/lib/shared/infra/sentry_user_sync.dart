@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -25,8 +26,17 @@ class SentryUserSync {
 
   void start() {
     _subscription ??= _authStateChanges.listen(
-      (state) => _setUser(state.session?.user.id),
+      (state) => _applyUser(state.session?.user.id),
     );
+  }
+
+  /// Crash reporting must never break the auth flow, so errors are only logged.
+  Future<void> _applyUser(String? userId) async {
+    try {
+      await _setUser(userId);
+    } catch (error) {
+      debugPrint('Could not update the Sentry user: $error');
+    }
   }
 
   Future<void> dispose() async {
