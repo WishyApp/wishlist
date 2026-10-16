@@ -2,6 +2,7 @@
 # Usage: render.sh
 # Renders the store visuals from raw/<lang>-*.png with headless Chrome:
 #   out/apple-6.9in/<lang>/0N.png                  1320x2868
+#   out/apple-6.3in/<lang>/0N.png                  1206x2622 (slot App Store Connect asks for first)
 #   out/google-play/<lang>/0N.png                  1080x1920
 #   out/google-play/<lang>/feature-graphic.png     1024x500
 #   out/apple-creative/<lang>/header.png           3840x1646 (product page header)
@@ -26,6 +27,7 @@ for lang in fr en; do
   for n in 1 2 3 4; do
     url="file://$HERE/compose/shot.html?lang=$lang&n=$n"
     render "$url" 1320 2868 "$HERE/out/apple-6.9in/$lang/0$n.png"
+    render "$url" 1206 2622 "$HERE/out/apple-6.3in/$lang/0$n.png"
     render "$url" 1080 1920 "$HERE/out/google-play/$lang/0$n.png"
   done
   render "file://$HERE/compose/feature.html?lang=$lang" 1024 500 "$HERE/out/google-play/$lang/feature-graphic.png"

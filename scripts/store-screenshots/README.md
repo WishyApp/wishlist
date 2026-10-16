@@ -9,6 +9,7 @@ Outillage pour produire les visuels de fiche store de Wishy : seed de comptes de
 | Fichier | Taille |
 | --- | --- |
 | `out/apple-6.9in/<lang>/0N.png` | 1320×2868 (App Store 6,9") |
+| `out/apple-6.3in/<lang>/0N.png` | 1206×2622 (App Store 6,3", l’emplacement demandé en premier) |
 | `out/google-play/<lang>/0N.png` | 1080×1920 (Google Play) |
 | `out/google-play/<lang>/feature-graphic.png` | 1024×500 (bannière Google Play) |
 | `out/apple-creative/<lang>/header.png` | 3840×1646 (ressource créative App Store : en-tête de la page produit) |
