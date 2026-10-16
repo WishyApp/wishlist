@@ -78,19 +78,17 @@ void main() {
     setUp(() => signInAs('me'));
 
     void expectFiltered(Set<String> columns) {
-      final filtered = listeners.where((l) => l.filter != null).toList();
+      // Every listener is filtered; `all` also covers filtered DELETEs
+      // (the table is REPLICA IDENTITY FULL).
+      expect(listeners.where((l) => l.filter == null), isEmpty);
+      final filtered = listeners;
       for (final l in filtered) {
+        expect(l.event, PostgresChangeEvent.all);
         expect(l.filter!.type, PostgresChangeFilterType.eq);
         expect(l.filter!.value, 'me');
       }
       expect({for (final l in filtered) l.filter!.column}, columns);
       expect(filtered, hasLength(columns.length));
-
-      // DELETE events cannot be filtered by Realtime: one unfiltered listener.
-      final deletes =
-          listeners.where((l) => l.event == PostgresChangeEvent.delete);
-      expect(deletes, hasLength(1));
-      expect(deletes.single.filter, isNull);
     }
 
     test('all friendships listens to both user columns of the current user',
@@ -119,7 +117,7 @@ void main() {
       await sub.cancel();
     });
 
-    test('each listener, including delete, triggers a reload', () async {
+    test('each listener triggers a reload', () async {
       final received = <FriendshipIds>[];
       final sub =
           repository.watchCurrentUserAllFriendships().listen(received.add);
@@ -132,8 +130,8 @@ void main() {
         await pumpEventQueue();
       }
 
-      // 2 filtered listeners + 1 delete listener, one reload each.
-      expect(listeners, hasLength(3));
+      // 2 filtered listeners, one reload each.
+      expect(listeners, hasLength(2));
       expect(received, hasLength(1 + listeners.length));
       await sub.cancel();
     });

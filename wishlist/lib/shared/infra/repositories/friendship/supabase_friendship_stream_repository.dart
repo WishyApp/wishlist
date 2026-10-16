@@ -30,11 +30,11 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   /// l'une des [columns] (un filtre `eq` par colonne, donc un listener par
   /// colonne).
   ///
-  /// Les DELETE ne passent pas par ces filtres : Supabase Realtime ne filtre
-  /// pas les DELETE (et n'y applique pas la RLS). Un listener DELETE sans
-  /// filtre recharge donc à chaque suppression dans la table. Avec RLS, la
-  /// ligne supprimée ne contient que sa clé primaire : impossible de savoir
-  /// côté client si elle concerne l'utilisateur.
+  /// Les DELETE sont filtrés comme les autres événements, car la table est en
+  /// `REPLICA IDENTITY FULL` : l'ancienne ligne contient toutes ses colonnes.
+  /// La RLS n'est pas appliquée aux DELETE, mais le filtre les limite aux
+  /// lignes qui concernent l'utilisateur. Le payload ne sert que de
+  /// déclencheur de rechargement.
   RealtimeChannel _subscribeToFriendships({
     required String channelName,
     required String userId,
@@ -55,14 +55,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         callback: (payload) => onChange(),
       );
     }
-    return channel
-        .onPostgresChanges(
-          event: PostgresChangeEvent.delete,
-          schema: 'public',
-          table: _friendshipsTableName,
-          callback: (payload) => onChange(),
-        )
-        .subscribe();
+    return channel.subscribe();
   }
 
   @override
