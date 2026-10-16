@@ -5,6 +5,11 @@
 
 BEGIN;
 
+-- Functions created by postgres have no EXECUTE for PUBLIC by default
+-- (20261012110000_restrict_anon_privileges): the helpers below are called
+-- after switching role. Rolled back with the rest.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres GRANT EXECUTE ON FUNCTIONS TO PUBLIC;
+
 CREATE FUNCTION pg_temp.expect_denied(label text, statement text)
 RETURNS void LANGUAGE plpgsql AS $$
 BEGIN

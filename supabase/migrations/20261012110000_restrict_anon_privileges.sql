@@ -12,76 +12,55 @@
 -- Nothing else, so anon keeps USAGE on the schema (PostgREST needs it to call
 -- the function) and EXECUTE on get_email_by_pseudo, and nothing more.
 --
--- authenticated keeps its table, sequence and function privileges, except
--- TRUNCATE, TRIGGER and REFERENCES on tables: the app never uses them, and
--- TRUNCATE is not subject to row level security.
+-- The revokes apply to everything in the schema, not to a list of objects:
+-- an object created by hand on dev or prod, outside the migrations, loses
+-- its anon privileges too. What must stay granted is granted back explicitly.
+--
+-- authenticated keeps its table and function privileges, except TRUNCATE,
+-- TRIGGER, REFERENCES and MAINTAIN (Postgres 17: VACUUM, ANALYZE, REINDEX,
+-- CLUSTER, LOCK) on tables, which the app never uses (TRUNCATE is not subject
+-- to row level security), and every privilege on sequences: an insert on an
+-- identity column calls nextval without checking the caller's privileges on
+-- the sequence, while UPDATE would allow setval, which breaks the inserts of
+-- every user (duplicate keys).
 -- service_role is left untouched.
 
 -- 1. Tables and views: nothing for anon. authenticated loses the privileges
 -- the app does not use. Column privileges granted to authenticated by earlier
 -- migrations (friendships.status, user_completed_wishs.quantity) are not
--- affected by revoking table-level TRUNCATE, TRIGGER or REFERENCES.
-REVOKE ALL ON TABLE
-  public.friendships,
-  public.profiles,
-  public.users_profiles,
-  public.user_completed_wishs,
-  public.wish_taken_by_user,
-  public.wishlists,
-  public.wishs
-FROM anon;
+-- affected by revoking table-level TRUNCATE, TRIGGER, REFERENCES or MAINTAIN.
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+REVOKE TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON ALL TABLES IN SCHEMA public FROM authenticated;
 
-REVOKE TRUNCATE, TRIGGER, REFERENCES ON TABLE
-  public.friendships,
-  public.profiles,
-  public.user_completed_wishs,
-  public.wish_taken_by_user,
-  public.wishlists,
-  public.wishs
-FROM authenticated;
-
--- 2. Sequences: nothing for anon. authenticated keeps USAGE, needed by the
--- column defaults of inserts.
-REVOKE ALL ON SEQUENCE
-  public.friendships_id_seq,
-  public.wishlists_id_seq,
-  public.wishs_id_seq
-FROM anon;
+-- 2. Sequences: nothing for anon and authenticated. Ids are identity columns
+-- (friendships, wishlists, wishs), so inserts do not need any privilege on
+-- the sequence.
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
 
 -- 3. Functions. PUBLIC has EXECUTE by default, so it is revoked together with
--- anon, then each function is granted to the roles that call it.
---
--- Called by the app (RPC) or by policies, which run as the caller:
-REVOKE ALL ON FUNCTION public.delete_user_account() FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.is_friend_or_friend_of_friend(uuid, uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.nb_wishs_by_user(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.delete_or_archive_wishlist(bigint) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.restore_completed_wish(bigint, bigint) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.is_wishlist_owner(bigint) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.can_book_wish(bigint, bigint) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.search_users(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.delete_user_account() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.is_friend_or_friend_of_friend(uuid, uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.nb_wishs_by_user(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.delete_or_archive_wishlist(bigint) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.restore_completed_wish(bigint, bigint) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.is_wishlist_owner(bigint) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.can_book_wish(bigint, bigint) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.search_users(text) TO authenticated;
+-- anon, then authenticated is granted back everything: the RPC called by the
+-- app and the functions used by policies, which run as the caller.
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+
+-- delete_user_account is not called through RPC by the app: AuthService calls
+-- the delete-user-account Edge Function, whose source is not in this
+-- repository. It deletes auth.uid(), so it only works with the JWT of the
+-- user, hence the grant to authenticated (kept from 20261005170000).
 
 -- The one function used before sign in.
-REVOKE ALL ON FUNCTION public.get_email_by_pseudo(text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_email_by_pseudo(text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_email_by_pseudo(text) TO anon;
 
 -- Trigger functions: privileges are checked when the trigger is created, not
 -- when it fires, so no client role needs EXECUTE.
-REVOKE ALL ON FUNCTION public.update_user_metadata() FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.update_user_completed_wishs_updated_at() FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.friendships_before_update() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.update_user_metadata() FROM authenticated;
+REVOKE ALL ON FUNCTION public.update_user_completed_wishs_updated_at() FROM authenticated;
+REVOKE ALL ON FUNCTION public.friendships_before_update() FROM authenticated;
 
 -- 4. Default privileges of the role running migrations (postgres): tables,
 -- sequences and functions created from now on are not granted to anon.
--- authenticated and service_role keep their defaults.
+-- authenticated and service_role keep their defaults, except the privileges
+-- revoked above.
 --
 -- Default privileges are per creating role. Only those of postgres can be
 -- changed here: the ones of supabase_admin, which also grant anon on tables,
@@ -89,22 +68,20 @@ REVOKE ALL ON FUNCTION public.friendships_before_update() FROM PUBLIC, anon, aut
 -- (permission denied for postgres). They apply to objects created by
 -- supabase_admin, not by migrations or the SQL editor.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON TABLES FROM anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon, authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM anon;
 -- Same for the table privileges the app does not use (see section 1).
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE TRUNCATE, TRIGGER, REFERENCES ON TABLES FROM authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON TABLES FROM authenticated;
 
--- Not done: the implicit EXECUTE for PUBLIC on new functions. It can only be
--- removed for all schemas at once (ALTER DEFAULT PRIVILEGES FOR ROLE postgres
--- REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, without IN SCHEMA), which also
--- removes it from helper functions created by the database tests and by
--- other tooling. A new function in public is therefore still executable by
--- anon through PUBLIC until it is revoked explicitly, as the other
--- migrations do. The catalog check in supabase-tests/anon_privileges.sql
--- fails CI if a future migration forgets it:
---   REVOKE ALL ON FUNCTION public.f() FROM PUBLIC, anon;
---   GRANT EXECUTE ON FUNCTION public.f() TO authenticated;
-
+-- A new function must not be callable by anon through PUBLIC, including one
+-- created by hand in the SQL editor. PUBLIC's EXECUTE can only be removed for
+-- all schemas at once, so the schemas where postgres creates functions that
+-- others call are given it back: extensions (CREATE EXTENSION run as
+-- postgres). Functions created by postgres in public keep the grants to
+-- authenticated and service_role of the default privileges above. The
+-- helper functions of supabase-tests/ are granted to PUBLIC by the tests.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA extensions GRANT EXECUTE ON FUNCTIONS TO PUBLIC;
 
 -- Verification: tests in supabase-tests/anon_privileges.sql.
 --

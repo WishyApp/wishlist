@@ -22,6 +22,11 @@ BEGIN
   RAISE NOTICE 'ok   % (allowed)', label;
 END $$;
 
+-- postgres functions have no EXECUTE for PUBLIC by default (see the migration):
+-- the helpers called after switching role need it.
+GRANT EXECUTE ON FUNCTION pg_temp.expect_denied(text, text) TO PUBLIC;
+GRANT EXECUTE ON FUNCTION pg_temp.expect_ok(text, text) TO PUBLIC;
+
 CREATE FUNCTION pg_temp.act_as_anon()
 RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -62,9 +67,9 @@ BEGIN
   SELECT count(*) INTO n FROM pg_class c, aclexplode(c.relacl) a
    WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p')
      AND a.grantee = 'authenticated'::regrole
-     AND a.privilege_type IN ('TRUNCATE', 'TRIGGER', 'REFERENCES');
+     AND a.privilege_type IN ('TRUNCATE', 'TRIGGER', 'REFERENCES', 'MAINTAIN');
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL authenticated has % TRUNCATE/TRIGGER/REFERENCES privilege(s) on public tables', n;
+    RAISE EXCEPTION 'FAIL authenticated has % TRUNCATE/TRIGGER/REFERENCES/MAINTAIN privilege(s) on public tables', n;
   END IF;
 
   SELECT count(*) INTO n FROM pg_default_acl d, aclexplode(d.defaclacl) a
@@ -72,25 +77,34 @@ BEGIN
      AND d.defaclnamespace = 'public'::regnamespace
      AND d.defaclobjtype = 'r'
      AND a.grantee = 'authenticated'::regrole
-     AND a.privilege_type IN ('TRUNCATE', 'TRIGGER', 'REFERENCES');
+     AND a.privilege_type IN ('TRUNCATE', 'TRIGGER', 'REFERENCES', 'MAINTAIN');
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL default privileges of postgres grant authenticated TRUNCATE/TRIGGER/REFERENCES on new tables';
+    RAISE EXCEPTION 'FAIL default privileges of postgres grant authenticated TRUNCATE/TRIGGER/REFERENCES/MAINTAIN on new tables';
   END IF;
 
   SELECT count(*) INTO n FROM pg_class c, aclexplode(c.relacl) a
    WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'S'
-     AND a.grantee IN (0, 'anon'::regrole);
+     AND a.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole);
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL anon or PUBLIC has % sequence privilege(s) in public', n;
+    RAISE EXCEPTION 'FAIL anon, authenticated or PUBLIC has % sequence privilege(s) in public', n;
+  END IF;
+
+  SELECT count(*) INTO n FROM pg_default_acl d, aclexplode(d.defaclacl) a
+   WHERE d.defaclrole = 'postgres'::regrole
+     AND d.defaclnamespace = 'public'::regnamespace
+     AND d.defaclobjtype = 'S'
+     AND a.grantee = 'authenticated'::regrole;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL default privileges of postgres grant authenticated on new sequences';
   END IF;
 
   -- Functions executable by anon, directly or through PUBLIC
   SELECT count(*) INTO n FROM pg_proc p
    WHERE p.pronamespace = 'public'::regnamespace
      AND has_function_privilege('anon', p.oid, 'EXECUTE')
-     AND p.proname <> 'get_email_by_pseudo';
+     AND p.oid <> 'public.get_email_by_pseudo(text)'::regprocedure;
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL anon can execute % public function(s) other than get_email_by_pseudo', n;
+    RAISE EXCEPTION 'FAIL anon can execute % public function(s) other than get_email_by_pseudo(text)', n;
   END IF;
 
   SELECT count(*) INTO n FROM pg_default_acl d, aclexplode(d.defaclacl) a
@@ -103,13 +117,42 @@ BEGIN
   RAISE NOTICE 'ok   catalog: no anon grant left, default privileges cleaned';
 END $$;
 
--- A new table created by postgres is not usable by anon
+-- Objects created by postgres from now on get no privilege for anon, no
+-- sequence privilege and no MAINTAIN for authenticated. A function in public
+-- is granted to authenticated only; one in extensions keeps EXECUTE for PUBLIC.
 CREATE TABLE public.anon_privileges_test_tbl (id int);
+CREATE SEQUENCE public.anon_privileges_test_seq;
+CREATE FUNCTION public.anon_privileges_test_fn() RETURNS int LANGUAGE sql AS 'SELECT 1';
+CREATE FUNCTION extensions.anon_privileges_test_fn() RETURNS int LANGUAGE sql AS 'SELECT 1';
+DO $$
+BEGIN
+  IF has_table_privilege('anon', 'public.anon_privileges_test_tbl', 'SELECT')
+     OR has_sequence_privilege('anon', 'public.anon_privileges_test_seq', 'USAGE')
+     OR has_sequence_privilege('authenticated', 'public.anon_privileges_test_seq', 'USAGE')
+     OR has_table_privilege('authenticated', 'public.anon_privileges_test_tbl', 'MAINTAIN') THEN
+    RAISE EXCEPTION 'FAIL a new table or sequence of public is granted to anon, or beyond the app needs to authenticated';
+  END IF;
+  IF has_function_privilege('anon', 'public.anon_privileges_test_fn()', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL anon can execute a new function of public';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.anon_privileges_test_fn()', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL authenticated cannot execute a new function of public';
+  END IF;
+  IF NOT has_function_privilege('anon', 'extensions.anon_privileges_test_fn()', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL a new function of extensions is not executable by PUBLIC';
+  END IF;
+  RAISE NOTICE 'ok   catalog: defaults for new objects';
+END $$;
 SELECT pg_temp.act_as_anon();
 SELECT pg_temp.expect_denied('new table read by anon',
   $q$SELECT * FROM public.anon_privileges_test_tbl$q$);
+SELECT pg_temp.expect_denied('new function executed by anon',
+  $q$SELECT public.anon_privileges_test_fn()$q$);
 RESET ROLE;
 DROP TABLE public.anon_privileges_test_tbl;
+DROP SEQUENCE public.anon_privileges_test_seq;
+DROP FUNCTION public.anon_privileges_test_fn();
+DROP FUNCTION extensions.anon_privileges_test_fn();
 
 -- As anon
 SELECT pg_temp.act_as_anon();
@@ -148,9 +191,9 @@ SELECT pg_temp.expect_ok('authenticated reads wishs', $q$SELECT * FROM public.wi
 SELECT pg_temp.expect_ok('authenticated reads profiles', $q$SELECT * FROM public.profiles$q$);
 SELECT pg_temp.expect_ok('authenticated reads users_profiles', $q$SELECT * FROM public.users_profiles$q$);
 SELECT pg_temp.expect_ok('authenticated reads friendships', $q$SELECT * FROM public.friendships$q$);
-SELECT pg_temp.expect_ok('authenticated inserts a wishlist (sequence default)',
+SELECT pg_temp.expect_ok('authenticated inserts a wishlist (identity column)',
   $q$INSERT INTO public.wishlists (name, id_owner, color, updated_by) VALUES ('new', '00000000-0000-4000-c000-00000000000a', '#FFFFFF', '00000000-0000-4000-c000-00000000000a')$q$);
-SELECT pg_temp.expect_ok('authenticated inserts a wish (sequence default)',
+SELECT pg_temp.expect_ok('authenticated inserts a wish (identity column)',
   $q$INSERT INTO public.wishs (name, description, wishlist_id, updated_by, quantity) VALUES ('new', '', 930001, '00000000-0000-4000-c000-00000000000a', 1)$q$);
 SELECT pg_temp.expect_ok('authenticated updates an own wishlist',
   $q$UPDATE public.wishlists SET name = 'renamed' WHERE id = 930001$q$);
@@ -162,6 +205,9 @@ SELECT pg_temp.expect_ok('authenticated executes get_email_by_pseudo',
 SELECT pg_temp.expect_ok('authenticated executes delete_or_archive_wishlist',
   $q$SELECT public.delete_or_archive_wishlist(930001)$q$);
 SELECT pg_temp.expect_denied('authenticated truncates wishs', $q$TRUNCATE public.wishs$q$);
+SELECT pg_temp.expect_denied('authenticated reindexes wishs', $q$REINDEX TABLE public.wishs$q$);
+SELECT pg_temp.expect_denied('authenticated uses a sequence', $q$SELECT nextval('public.wishs_id_seq')$q$);
+SELECT pg_temp.expect_denied('authenticated setval', $q$SELECT setval('public.wishs_id_seq', 1)$q$);
 SELECT pg_temp.expect_denied('authenticated executes a trigger function',
   $q$SELECT public.update_user_completed_wishs_updated_at()$q$);
 -- delete_user_account is checked last: it removes the user (rolled back below)
