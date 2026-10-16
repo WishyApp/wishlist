@@ -161,7 +161,7 @@ Le workflow `supabase.yml` :
 
 | Déclencheur | Ce qu'il fait |
 | ----------- | ------------- |
-| PR qui touche une migration | Vérifie qu'aucune migration déjà mergée n'est modifiée, renommée ou supprimée, les rejoue sur une base vide en Postgres 17 (la version de dev et de prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que les schémas `public` et `storage` ne changent pas (idempotence, ordre de `--include-all`) |
+| PR qui touche une migration | Vérifie qu'aucune migration déjà mergée n'est modifiée, renommée ou supprimée, les rejoue sur une base vide en Postgres 17 (la version de dev et de prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que les schémas `public` et `storage` ne changent pas (idempotence, ordre de `--include-all`). Elle les rejoue aussi avec la CLI sur la version exacte de Postgres de dev et de prod, et échoue si `supabase-dev/` ou `supabase-prod/` contient encore des fichiers |
 | Merge sur `main` | Contrôle de dérive, `db push` sur dev, puis nouveau contrôle de dérive |
 | Chaque lundi | Contrôle de dérive sur dev et prod, migrations mergées mais pas encore déployées mises de côté |
 | Tag `v*` (workflow CD) | Mêmes étapes sur prod, avant les builds, uniquement si le commit tagué est sur `main` |

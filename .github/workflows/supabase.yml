@@ -8,6 +8,8 @@ on:
     paths:
       - 'supabase/migrations/**'
       - 'supabase/config.toml'
+      - 'supabase-dev/**'
+      - 'supabase-prod/**'
       - 'scripts/check_supabase_migrations.sh'
       - 'supabase-tests/**'
       - '.github/workflows/supabase.yml'
@@ -18,6 +20,8 @@ on:
     paths:
       - 'supabase/migrations/**'
       - 'supabase/config.toml'
+      - 'supabase-dev/**'
+      - 'supabase-prod/**'
       - 'supabase-tests/**'
       - '.github/workflows/supabase.yml'
       - '.github/actions/supabase-deploy/**'
@@ -37,16 +41,27 @@ jobs:
     timeout-minutes: 15
     env:
       # Same major version as the projects (major_version in
-      # supabase/config.toml). The projects run 17.11.0.003, but that image no
-      # longer creates the storage tables (the Storage service does) and the
-      # first migration needs them. The drift check of the deploy job still
-      # uses the projects' version for its shadow database.
+      # supabase/config.toml), not the same minor: the projects run
+      # 17.11.0.003, which no longer creates the storage tables (the Storage
+      # service does) while the first migration needs them. The replay job
+      # below covers 17.11.0.003, started by the Supabase CLI.
       POSTGRES_IMAGE: public.ecr.aws/supabase/postgres:17.6.1.043
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # The deploy only reads supabase/migrations: a migration left in the
+      # former folders would never reach dev or prod.
+      - name: Check that the former supabase folders are gone
+        run: |
+          files="$(git ls-files supabase-dev supabase-prod)"
+          if [ -n "$files" ]; then
+            echo "$files"
+            echo "::error::supabase-dev/ and supabase-prod/ were merged into supabase/, move these files to supabase/ (rebase on main)"
+            exit 1
+          fi
 
       # The image is kept in the Actions cache: most runs then pull nothing
       # from the registries, whose anonymous quotas are shared by the runners.
@@ -86,6 +101,35 @@ jobs:
         with:
           path: ${{ runner.temp }}/postgres-image.tar
           key: postgres-image-${{ env.POSTGRES_IMAGE }}
+
+  # The projects' version of Postgres, as the deploy jobs get it: started by
+  # the CLI, which also creates the auth and storage schemas, and replaying
+  # every migration from scratch like the shadow database of the drift check.
+  replay:
+    name: Replay migrations on the projects' Postgres
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Update with the projects (Dashboard > Infrastructure) when they upgrade.
+      PROJECTS_POSTGRES_VERSION: 17.11.0.003
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          # Keep in sync with .github/actions/supabase-deploy/action.yml.
+          version: 2.119.0
+
+      # The CLI picks the image from the version of the linked project, which
+      # is recorded in this file.
+      - name: Start the database and apply migrations
+        run: |
+          mkdir -p supabase/.temp
+          printf '%s' "$PROJECTS_POSTGRES_VERSION" > supabase/.temp/postgres-version
+          supabase db start
 
   deploy-dev:
     name: Deploy to dev
