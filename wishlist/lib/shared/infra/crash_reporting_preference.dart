@@ -36,9 +36,14 @@ class CrashReportingEnabledNotifier extends AsyncNotifier<bool> {
     return CrashReportingPreference(prefs).isEnabled();
   }
 
+  /// Flips the current value and returns the new one. The state only changes
+  /// once the value is persisted, so a failed write leaves it untouched and
+  /// rethrows.
+  ///
   /// Turning it off stops Sentry right away, turning it on only applies at the
   /// next launch since Sentry is initialized in `main`.
-  Future<void> setEnabled({required bool enabled}) async {
+  Future<bool> toggle() async {
+    final enabled = !(state.valueOrNull ?? true);
     final prefs = await ref.read(sharedPreferencesProvider.future);
     await CrashReportingPreference(prefs).setEnabled(enabled: enabled);
     state = AsyncData(enabled);
@@ -46,6 +51,8 @@ class CrashReportingEnabledNotifier extends AsyncNotifier<bool> {
     if (!enabled) {
       await Sentry.close();
     }
+
+    return enabled;
   }
 }
 

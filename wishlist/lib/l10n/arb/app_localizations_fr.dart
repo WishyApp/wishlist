@@ -601,7 +601,11 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get settingsCrashReportsSubtitle =>
-      'Aide à corriger les bugs. Aucune donnée personnelle.';
+      'Aide à corriger les bugs. Ni ton email ni ton pseudo ne sont envoyés.';
+
+  @override
+  String get settingsCrashReportsEnabledSnackbar =>
+      'Pris en compte au prochain lancement de l\'app';
 
   @override
   String get settingsAbout => 'À propos';

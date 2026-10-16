@@ -48,10 +48,32 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _onCrashReportsToggle(WidgetRef ref, {required bool enabled}) {
-    ref
-        .read(crashReportingEnabledProvider.notifier)
-        .setEnabled(enabled: enabled);
+  Future<void> _onCrashReportsToggle(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final l10n = context.l10n;
+
+    try {
+      final enabled =
+          await ref.read(crashReportingEnabledProvider.notifier).toggle();
+
+      if (enabled && context.mounted) {
+        showAppSnackBar(
+          context,
+          l10n.settingsCrashReportsEnabledSnackbar,
+          type: SnackBarType.success,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showAppSnackBar(
+          context,
+          l10n.genericError,
+          type: SnackBarType.error,
+        );
+      }
+    }
   }
 
   void _onDeleteAccountTap(BuildContext context, WidgetRef ref) {
@@ -148,16 +170,11 @@ class SettingsScreen extends ConsumerWidget {
                   SettingsLine(
                     title: l10n.settingsCrashReports,
                     subtitle: l10n.settingsCrashReportsSubtitle,
-                    onTap: () => _onCrashReportsToggle(
-                      ref,
-                      enabled: !crashReportsEnabled,
-                    ),
+                    toggled: crashReportsEnabled,
+                    onTap: () => _onCrashReportsToggle(context, ref),
                     trailing: Switch(
                       value: crashReportsEnabled,
-                      onChanged: (enabled) => _onCrashReportsToggle(
-                        ref,
-                        enabled: enabled,
-                      ),
+                      onChanged: (_) => _onCrashReportsToggle(context, ref),
                     ),
                   ),
                   SettingsLine(

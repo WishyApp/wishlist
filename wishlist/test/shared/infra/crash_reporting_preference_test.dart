@@ -49,9 +49,7 @@ void main() {
 
       expect(await container.read(crashReportingEnabledProvider.future), true);
 
-      await container
-          .read(crashReportingEnabledProvider.notifier)
-          .setEnabled(enabled: false);
+      await container.read(crashReportingEnabledProvider.notifier).toggle();
 
       expect(container.read(crashReportingEnabledProvider).value, false);
       final prefs = await SharedPreferences.getInstance();

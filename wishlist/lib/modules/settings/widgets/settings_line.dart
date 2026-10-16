@@ -9,6 +9,7 @@ class SettingsLine extends StatelessWidget {
     required this.onTap,
     this.subtitle,
     this.trailing,
+    this.toggled,
   });
 
   final String title;
@@ -18,9 +19,13 @@ class SettingsLine extends StatelessWidget {
   /// Replaces the default chevron.
   final Widget? trailing;
 
+  /// For a toggle row: the whole row (title and `trailing` switch) is exposed
+  /// as a single toggleable semantics node labelled by the title.
+  final bool? toggled;
+
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final line = Material(
       color: AppColors.gainsboro,
       child: InkWell(
         onTap: onTap,
@@ -52,6 +57,20 @@ class SettingsLine extends StatelessWidget {
           ),
         ),
       ),
+    );
+
+    if (toggled == null) {
+      return line;
+    }
+
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      label: title,
+      hint: subtitle,
+      toggled: toggled,
+      onTap: onTap,
+      child: line,
     );
   }
 }
