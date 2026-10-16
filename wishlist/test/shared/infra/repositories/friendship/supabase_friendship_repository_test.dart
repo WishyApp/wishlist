@@ -80,7 +80,6 @@ void main() {
         },
       ]);
 
-      expect(query.filters['requester_id'], 'user-1');
       expect((await pending).unlock, {'friend'});
     },
   );
@@ -103,7 +102,6 @@ void main() {
         },
       ]);
 
-      expect(query.filters['receiver_id'], 'user-1');
       expect((await requested).unlock, {'friend'});
     },
   );

@@ -68,6 +68,10 @@ class AvatarNotifier extends StateNotifier<AsyncValue<String?>> {
 
 // autoDispose: its only consumer lives under the Home route, which is
 // destroyed on logout, so the next login builds it again for the new user.
+// This is only correct while every consumer stays under the Home route: one
+// mounted at app level would keep the previous user's avatar after a logout
+// (F015 again). A shared currentUserIdProvider watched by user-bound providers
+// is the planned follow-up.
 final currentUserAvatarProvider =
     StateNotifierProvider.autoDispose<AvatarNotifier, AsyncValue<String?>>(
         (ref) {
