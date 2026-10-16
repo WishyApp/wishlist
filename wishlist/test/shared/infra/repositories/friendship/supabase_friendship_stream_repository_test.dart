@@ -210,9 +210,8 @@ void main() {
       await pumpEventQueue();
 
       final received = <ISet<String>>[];
-      final late = repository
-          .watchCurrentUserPendingFriendsIds()
-          .listen(received.add);
+      final late =
+          repository.watchCurrentUserPendingFriendsIds().listen(received.add);
       await pumpEventQueue();
 
       when(friendshipRepository.getCurrentUserPendingFriendsIds)
