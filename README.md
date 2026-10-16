@@ -113,7 +113,7 @@ supabase projects list
 
 ### 🔄 Schema changes
 
-Every schema change goes through an idempotent migration file, applied to dev then to prod with `supabase db push`. Never edit the schema from the dashboard.
+Every schema change goes through an idempotent migration file, applied to dev with `supabase db push` (the linked project) and to prod by the CD at the next tag. Never run `db push` on prod from your machine, and never edit the schema from the dashboard.
 
 See [docs/supabase-migrations.md](docs/supabase-migrations.md) for the workflow, how to write idempotent migrations and how to check for drift.
 
