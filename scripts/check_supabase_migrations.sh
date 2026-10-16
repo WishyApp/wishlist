@@ -38,6 +38,13 @@ if [[ -n "$BASE_REF" ]]; then
   if ! git cat-file -e "$merge_base:$MIGRATIONS_DIR" 2>/dev/null; then
     base_dir="$LEGACY_DIR"
   fi
+  # The lists below are whitespace-separated.
+  spaced="$(printf '%s\n' "$MIGRATIONS_DIR"/*.sql | sed 's|.*/||' | grep '[[:space:]]' || true)"
+  if [[ -n "$spaced" ]]; then
+    echo "$spaced"
+    echo "::error::Migration file names must not contain whitespace"
+    exit 1
+  fi
   # ls-tree already gives the blob id of each file: no process per migration.
   base_list="$(git ls-tree "$merge_base" -- "$base_dir/" 2>/dev/null |
     awk -F'\t' '{ split($1, meta, " "); n = split($2, parts, "/"); if (parts[n] ~ /\.sql$/) print parts[n], meta[3] }' |

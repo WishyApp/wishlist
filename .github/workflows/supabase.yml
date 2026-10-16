@@ -129,11 +129,24 @@ jobs:
         run: |
           mkdir -p supabase/.temp
           printf '%s' "$PROJECTS_POSTGRES_VERSION" > supabase/.temp/postgres-version
-          supabase db start
+          # The image comes from ECR Public, whose anonymous quota is shared
+          # by the runners: retry, like the pulls of the validate job.
+          for attempt in 1 2 3; do
+            if supabase db start; then
+              exit 0
+            fi
+            supabase stop --no-backup || true
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::supabase db start failed (attempt $attempt/3), retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            fi
+          done
+          echo "::error::supabase db start failed on Postgres $PROJECTS_POSTGRES_VERSION"
+          exit 1
 
   deploy-dev:
     name: Deploy to dev
-    needs: validate
+    needs: [validate, replay]
     if: github.event_name == 'push' && vars.SUPABASE_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
