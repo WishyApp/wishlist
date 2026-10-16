@@ -1,5 +1,6 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
@@ -29,6 +30,8 @@ class BookedWishesNotifier
 
 final bookedWishesProvider = StateNotifierProvider.autoDispose<
     BookedWishesNotifier, AsyncValue<IList<BookedWishWithDetails>>>((ref) {
+  // Rebuilt (and reloaded) when the user changes.
+  ref.watch(currentUserIdProvider);
   return BookedWishesNotifier(
     ref.watch(wishRepositoryProvider),
     ref.watch(userServiceProvider),

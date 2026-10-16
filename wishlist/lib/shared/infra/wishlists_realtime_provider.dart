@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_stream_repository_provider.dart';
-import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
 final wishlistsRealtimeProvider =
     StreamProvider.autoDispose<List<Wishlist>>((ref) {
-  final userId = ref.watch(supabaseClientProvider).auth.currentUserNonNull.id;
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) {
+    return const Stream.empty();
+  }
   final repository = ref.watch(wishlistStreamRepositoryProvider);
 
   return repository

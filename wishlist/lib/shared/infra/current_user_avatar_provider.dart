@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/shared/infra/avatar_service.dart';
-import 'package:wishlist/shared/infra/supabase_client_provider.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 
 class AvatarNotifier extends StateNotifier<AsyncValue<String?>> {
@@ -66,18 +66,15 @@ class AvatarNotifier extends StateNotifier<AsyncValue<String?>> {
   }
 }
 
-// autoDispose: its only consumer lives under the Home route, which is
-// destroyed on logout, so the next login builds it again for the new user.
-// This is only correct while every consumer stays under the Home route: one
-// mounted at app level would keep the previous user's avatar after a logout
-// (F015 again). A shared currentUserIdProvider watched by user-bound providers
-// is the planned follow-up.
+// Rebuilt when the user changes (it watches currentUserIdProvider), so a
+// consumer that survives a logout never shows the previous user's avatar.
+// autoDispose still drops the avatar as soon as nothing listens to it.
 final currentUserAvatarProvider =
     StateNotifierProvider.autoDispose<AvatarNotifier, AsyncValue<String?>>(
         (ref) {
   return AvatarNotifier(
     ref.watch(avatarServiceProvider),
     ref.watch(userServiceProvider),
-    userId: ref.watch(supabaseClientProvider).auth.currentUser?.id,
+    userId: ref.watch(currentUserIdProvider),
   );
 });

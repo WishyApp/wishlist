@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
-import 'package:wishlist/shared/infra/supabase_client_provider.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/colors.dart';
@@ -21,8 +21,7 @@ class WishlistCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final borderRadius = BorderRadius.circular(36);
-    final currentUserId =
-        ref.watch(supabaseClientProvider).auth.currentUser?.id;
+    final currentUserId = ref.watch(currentUserIdProvider);
     final isOwner = currentUserId == wishlist.idOwner;
 
     void onTap() {

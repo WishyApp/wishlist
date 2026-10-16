@@ -1,8 +1,8 @@
 ﻿import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_stream_repository_provider.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 
 part 'booked_wishes_realtime_provider.g.dart';
@@ -19,7 +19,10 @@ part 'booked_wishes_realtime_provider.g.dart';
 Stream<IList<BookedWishWithDetails>> bookedWishesRealtime(
   Ref ref,
 ) {
-  final userId = ref.watch(userServiceProvider).getCurrentUserId();
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) {
+    return const Stream.empty();
+  }
   final streamRepository = ref.watch(wishStreamRepositoryProvider);
 
   return streamRepository.watchBookedWishesByUser(userId);

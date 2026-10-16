@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/avatar_service.dart';
 import 'package:wishlist/shared/infra/current_user_avatar_provider.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
@@ -27,28 +26,20 @@ AppUser _appUserFor(String userId) => AppUser(
     );
 
 void main() {
-  late MockGoTrueClient auth;
+  late FakeAuthSession session;
   late MockUserService userService;
   late MockAvatarService avatarService;
   late ProviderContainer container;
-  late User? currentUser;
 
-  void signIn(String userId) {
-    final user = MockUser();
-    when(() => user.id).thenReturn(userId);
-    currentUser = user;
-  }
+  void signIn(String userId) => session.signIn(userId);
 
   setUpAll(() {
     registerFallbackValue(File('avatar.png'));
   });
 
   setUp(() {
-    currentUser = null;
-    final client = MockSupabaseClient();
-    auth = MockGoTrueClient();
-    when(() => client.auth).thenReturn(auth);
-    when(() => auth.currentUser).thenAnswer((_) => currentUser);
+    session = FakeAuthSession();
+    addTearDown(session.close);
     userService = MockUserService();
     when(() => userService.getAppUserById(any())).thenAnswer(
       (invocation) async =>
@@ -60,7 +51,7 @@ void main() {
 
     container = ProviderContainer(
       overrides: [
-        supabaseClientProvider.overrideWithValue(client),
+        supabaseClientProvider.overrideWithValue(session.client),
         userServiceProvider.overrideWithValue(userService),
         avatarServiceProvider.overrideWithValue(avatarService),
       ],
