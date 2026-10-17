@@ -10,9 +10,11 @@ import 'package:wishlist/modules/settings/change_password/view/change_password_s
 import 'package:wishlist/modules/settings/change_pseudo/view/change_pseudo_screen.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen.dart';
+import 'package:wishlist/modules/wishs/view/screens/add_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/edit_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/wish_form_screen.dart';
+import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
 import 'package:wishlist/shared/navigation/floating_nav_bar_navigator.dart';
 
 part 'routes.g.dart';
@@ -61,6 +63,10 @@ part 'routes.g.dart';
     TypedGoRoute<FriendDetailsRoute>(
       path: 'friend/:friendId',
     ),
+    // Ajouter un wish (partage externe, sans wishlist connue)
+    TypedGoRoute<AddWishRoute>(
+      path: 'add-wish',
+    ),
   ],
 )
 class HomeRoute extends GoRouteData {
@@ -94,14 +100,36 @@ class WishlistRoute extends GoRouteData {
 class CreateWishRoute extends GoRouteData {
   CreateWishRoute({
     required this.wishlistId,
+    this.name,
+    this.link,
+    this.description,
+    this.price,
+    this.$extra,
   });
 
   final int wishlistId;
+  final String? name;
+  final String? link;
+  final String? description;
+  final String? price;
+
+  /// Chemin local de l'image partagée. Passé en `extra` et pas en query
+  /// param : un lien profond ne doit pas pouvoir désigner un fichier de l'app.
+  final String? $extra;
+
+  WishPrefillData? get prefill => WishPrefillData.fromRouteParams(
+        name: name,
+        link: link,
+        description: description,
+        price: price,
+      );
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
     return WishFormScreen(
       wishlistId: wishlistId,
+      prefill: prefill,
+      sharedImagePath: $extra,
     );
   }
 }
@@ -183,6 +211,32 @@ class FriendDetailsRoute extends GoRouteData {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     return FriendDetailsScreen(friendId: friendId);
+  }
+}
+
+class AddWishRoute extends GoRouteData {
+  AddWishRoute({
+    this.name,
+    this.link,
+    this.description,
+    this.price,
+  });
+
+  final String? name;
+  final String? link;
+  final String? description;
+  final String? price;
+
+  WishPrefillData? get prefill => WishPrefillData.fromRouteParams(
+        name: name,
+        link: link,
+        description: description,
+        price: price,
+      );
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    return AddWishScreen(prefill: prefill);
   }
 }
 
