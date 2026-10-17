@@ -83,7 +83,8 @@ AS $$
 $$;
 
 -- The current user reads the profile: their own, one they share a friendship
--- with (the pair is looked up through friendships_pair_key), the owner of a
+-- with, pending or accepted, not rejected or blocked (the pair is looked up
+-- through friendships_pair_key), the owner of a
 -- public wishlist or of a wishlist holding a wish they booked, or a user who
 -- booked a wish they can read.
 CREATE OR REPLACE FUNCTION public.can_read_profile(p_profile_id uuid)
@@ -100,6 +101,7 @@ AS $$
       FROM public.friendships f
       WHERE least(f.requester_id, f.receiver_id) = least((SELECT auth.uid()), p_profile_id)
         AND greatest(f.requester_id, f.receiver_id) = greatest((SELECT auth.uid()), p_profile_id)
+        AND f.status IN ('pending', 'accepted')
     )
     OR EXISTS (
       SELECT 1

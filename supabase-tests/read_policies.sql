@@ -36,6 +36,7 @@ END $$;
 --   F: no relation with A; booked a wish of B's public wishlist.
 --   S: no relation with A; has a public wishlist.
 --   N: no relation with A; has a private wishlist only.
+--   K, R: a blocked and a rejected friendship row with A; no wishlist.
 INSERT INTO auth.users (id) VALUES
   ('00000000-0000-4000-c000-00000000000a'),
   ('00000000-0000-4000-c000-00000000000b'),
@@ -43,7 +44,9 @@ INSERT INTO auth.users (id) VALUES
   ('00000000-0000-4000-c000-00000000000d'),
   ('00000000-0000-4000-c000-000000000050'),
   ('00000000-0000-4000-c000-00000000005e'),
-  ('00000000-0000-4000-c000-00000000000e');
+  ('00000000-0000-4000-c000-00000000000e'),
+  ('00000000-0000-4000-c000-0000000000b1'),
+  ('00000000-0000-4000-c000-0000000000e2');
 INSERT INTO public.profiles (id, pseudo) VALUES
   ('00000000-0000-4000-c000-00000000000a', 'read_a'),
   ('00000000-0000-4000-c000-00000000000b', 'read_b'),
@@ -51,12 +54,16 @@ INSERT INTO public.profiles (id, pseudo) VALUES
   ('00000000-0000-4000-c000-00000000000d', 'read_d'),
   ('00000000-0000-4000-c000-000000000050', 'read_p'),
   ('00000000-0000-4000-c000-00000000005e', 'read_s'),
-  ('00000000-0000-4000-c000-00000000000e', 'read_n');
+  ('00000000-0000-4000-c000-00000000000e', 'read_n'),
+  ('00000000-0000-4000-c000-0000000000b1', 'read_blocked'),
+  ('00000000-0000-4000-c000-0000000000e2', 'read_rejected');
 INSERT INTO public.friendships (id, requester_id, receiver_id, status) VALUES
   (930001, '00000000-0000-4000-c000-00000000000a', '00000000-0000-4000-c000-00000000000b', 'accepted'),
   (930002, '00000000-0000-4000-c000-00000000000f', '00000000-0000-4000-c000-00000000000b', 'accepted'),
   (930003, '00000000-0000-4000-c000-000000000050', '00000000-0000-4000-c000-00000000000a', 'pending'),
-  (930004, '00000000-0000-4000-c000-00000000000a', '00000000-0000-4000-c000-00000000000d', 'pending');
+  (930004, '00000000-0000-4000-c000-00000000000a', '00000000-0000-4000-c000-00000000000d', 'pending'),
+  (930005, '00000000-0000-4000-c000-0000000000b1', '00000000-0000-4000-c000-00000000000a', 'blocked'),
+  (930006, '00000000-0000-4000-c000-00000000000a', '00000000-0000-4000-c000-0000000000e2', 'rejected');
 INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility, deleted_at) VALUES
   (940001, 'A private',         '00000000-0000-4000-c000-00000000000a', '#FFFFFF', '00000000-0000-4000-c000-00000000000a', 'private', NULL),
   (940002, 'B public',          '00000000-0000-4000-c000-00000000000b', '#FFFFFF', '00000000-0000-4000-c000-00000000000b', 'public',  NULL),
@@ -148,6 +155,10 @@ SELECT pg_temp.expect_count('profile of the owner of a public wishlist read',
   $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-00000000005e'$q$, 1);
 SELECT pg_temp.expect_count('profile of a user with a private wishlist only and no relation not read',
   $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-00000000000e'$q$, 0);
+SELECT pg_temp.expect_count('profile of a blocked friendship not read',
+  $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-0000000000b1'$q$, 0);
+SELECT pg_temp.expect_count('profile of a rejected friendship not read',
+  $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-0000000000e2'$q$, 0);
 SELECT pg_temp.expect_count('same profile not read through users_profiles',
   $q$SELECT count(*) FROM public.users_profiles WHERE id = '00000000-0000-4000-c000-00000000000e'$q$, 0);
 SELECT pg_temp.expect_count('same profile found by search_users',
