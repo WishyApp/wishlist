@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/current_user_avatar_provider.dart';
+import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/utils/app_image_cropper.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
@@ -11,10 +12,7 @@ import 'package:wishlist/shared/widgets/avatar/app_avatar.dart';
 import 'package:wishlist/shared/widgets/image_options_bottom_sheet.dart';
 
 class EditableAvatar extends ConsumerWidget {
-  const EditableAvatar({
-    super.key,
-    this.showEditIcon = true,
-  });
+  const EditableAvatar({super.key, this.showEditIcon = true});
 
   final bool showEditIcon;
 
@@ -36,7 +34,7 @@ class EditableAvatar extends ConsumerWidget {
         return;
       }
 
-      await ref.read(currentUserAvatarProvider.notifier).uploadAvatar(image);
+      await ref.read(avatarEditProvider.notifier).uploadAvatar(image);
     } on PlatformException {
       if (!context.mounted) {
         return;
@@ -52,10 +50,14 @@ class EditableAvatar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final avatarAsync = ref.watch(currentUserAvatarProvider);
+    final editState = ref.watch(avatarEditProvider);
+    final profileAsync = ref.watch(watchCurrentUserProfileProvider);
+    // Un upload ou une suppression en cours prime sur le profil affiché.
+    final avatarAsync = editState.isLoading
+        ? const AsyncValue<String?>.loading()
+        : profileAsync.whenData((profile) => profile?.avatarUrl);
 
-    ref.listen<AsyncValue<String?>>(currentUserAvatarProvider,
-        (previous, next) {
+    ref.listen<AsyncValue<void>>(avatarEditProvider, (previous, next) {
       // Affiche le snackbar uniquement si l'erreur survient après un upload
       if (next.hasError && previous != null && previous.isLoading) {
         showAppSnackBar(
@@ -72,10 +74,7 @@ class EditableAvatar extends ConsumerWidget {
       child: Stack(
         children: [
           avatarAsync.when(
-            data: (avatarUrl) => AppAvatar(
-              avatarUrl: avatarUrl,
-              size: _size,
-            ),
+            data: (avatarUrl) => AppAvatar(avatarUrl: avatarUrl, size: _size),
             loading: () => Container(
               width: _size,
               height: _size,
@@ -84,9 +83,7 @@ class EditableAvatar extends ConsumerWidget {
                 color: AppColors.makara,
               ),
               child: const Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.background,
-                ),
+                child: CircularProgressIndicator(color: AppColors.background),
               ),
             ),
             error: (error, stack) => Container(
@@ -113,10 +110,7 @@ class EditableAvatar extends ConsumerWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.background,
-                  border: Border.all(
-                    color: AppColors.primary,
-                    width: 2.5,
-                  ),
+                  border: Border.all(color: AppColors.primary, width: 2.5),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.darkGrey.withValues(alpha: 0.12),
@@ -127,8 +121,10 @@ class EditableAvatar extends ConsumerWidget {
                 ),
                 child: IconButton(
                   onPressed: () {
-                    final avatarAsync = ref.read(currentUserAvatarProvider);
-                    final avatarUrl = avatarAsync.valueOrNull;
+                    final avatarUrl = ref
+                        .read(watchCurrentUserProfileProvider)
+                        .valueOrNull
+                        ?.avatarUrl;
                     final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
                     final l10n = context.l10n;
                     showImageOptionsBottomSheet(
@@ -145,9 +141,8 @@ class EditableAvatar extends ConsumerWidget {
                         ref,
                         ImageSource.camera,
                       ),
-                      onRemoveImage: () => ref
-                          .read(currentUserAvatarProvider.notifier)
-                          .deleteAvatar(),
+                      onRemoveImage: () =>
+                          ref.read(avatarEditProvider.notifier).deleteAvatar(),
                       removeImageTitle: l10n.removeImage,
                       removeImageConfirmation: l10n.removeImageConfirmation,
                     );
