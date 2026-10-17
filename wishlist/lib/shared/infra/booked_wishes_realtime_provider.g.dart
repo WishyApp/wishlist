@@ -7,7 +7,7 @@ part of 'booked_wishes_realtime_provider.dart';
 // **************************************************************************
 
 String _$bookedWishesRealtimeHash() =>
-    r'2e5693e15d353807edd3aa1c7c8e68481baeb05f';
+    r'2a7d210c1b60fde6292f4c7648456bf6ee9dfc6a';
 
 /// StreamProvider qui écoute en temps réel tous les wishs réservés
 /// par l'utilisateur courant.
