@@ -2,7 +2,8 @@
 # Fail if the public schema of the linked project differs from the local
 # migrations.
 #
-# Usage: check_drift.sh WORKDIR [PENDING_LIST]
+# Usage: check_drift.sh ENVIRONMENT [PENDING_LIST]
+#   ENVIRONMENT: name of the linked project (dev or prod), used in messages.
 #   PENDING_LIST: file holding the names of the migrations not applied on the
 #   project yet, one per line. They are moved aside during the comparison, so
 #   that the project is compared with the migrations it already has.
@@ -10,9 +11,9 @@
 # The repository is public: never print the diff, only whether there is one.
 set -euo pipefail
 
-workdir="$1"
+environment="$1"
 pending_list="${2:-}"
-migrations_dir="$workdir/supabase/migrations"
+migrations_dir="supabase/migrations"
 
 aside="$(mktemp -d)"
 drift="$(mktemp)"
@@ -33,19 +34,19 @@ fi
 
 # The CLI error may quote SQL or object names of the remote project: only
 # print the exit code.
-if (cd "$workdir" && supabase db diff --linked --schema public -o "$drift") >/dev/null 2>"$log"; then
+if supabase db diff --linked --schema public -o "$drift" >/dev/null 2>"$log"; then
   status=0
 else
   status=$?
 fi
 if [[ $status -ne 0 ]]; then
-  echo "::error::supabase db diff failed on $workdir (exit code $status). Run 'supabase db diff --linked --schema public' locally for details."
+  echo "::error::supabase db diff failed on $environment (exit code $status). Run 'supabase db diff --linked --schema public' locally for details."
   exit 1
 fi
 
 if [[ -s "$drift" ]]; then
-  echo "::error::Schema drift on $workdir: the remote schema differs from the migrations. Run 'supabase db diff --linked --schema public' locally (see docs/supabase-migrations.md)."
+  echo "::error::Schema drift on $environment: the remote schema differs from the migrations. Run 'supabase db diff --linked --schema public' locally (see docs/supabase-migrations.md)."
   exit 1
 fi
 
-echo "No drift on $workdir"
+echo "No drift on $environment"
