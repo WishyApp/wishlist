@@ -22,6 +22,8 @@ doc/api/
 
 .env
 
+.DS_Store
+
 # Local state of the former supabase-dev/ and supabase-prod/ projects (project
 # refs, database host and user), left behind by the CLI in existing clones
 /supabase-dev/supabase/.temp/
