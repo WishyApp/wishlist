@@ -36,6 +36,7 @@ END $$;
 --   F: no relation with A; booked a wish of B's public wishlist.
 --   S: no relation with A; has a public wishlist.
 --   N: no relation with A; has a private wishlist only.
+--   Q: no relation with A; has a private wishlist only, holding a wish A booked.
 --   K, R: a blocked and a rejected friendship row with A; no wishlist.
 INSERT INTO auth.users (id) VALUES
   ('00000000-0000-4000-c000-00000000000a'),
@@ -46,7 +47,8 @@ INSERT INTO auth.users (id) VALUES
   ('00000000-0000-4000-c000-00000000005e'),
   ('00000000-0000-4000-c000-00000000000e'),
   ('00000000-0000-4000-c000-0000000000b1'),
-  ('00000000-0000-4000-c000-0000000000e2');
+  ('00000000-0000-4000-c000-0000000000e2'),
+  ('00000000-0000-4000-c000-0000000000c9');
 INSERT INTO public.profiles (id, pseudo) VALUES
   ('00000000-0000-4000-c000-00000000000a', 'read_a'),
   ('00000000-0000-4000-c000-00000000000b', 'read_b'),
@@ -56,7 +58,8 @@ INSERT INTO public.profiles (id, pseudo) VALUES
   ('00000000-0000-4000-c000-00000000005e', 'read_s'),
   ('00000000-0000-4000-c000-00000000000e', 'read_n'),
   ('00000000-0000-4000-c000-0000000000b1', 'read_blocked'),
-  ('00000000-0000-4000-c000-0000000000e2', 'read_rejected');
+  ('00000000-0000-4000-c000-0000000000e2', 'read_rejected'),
+  ('00000000-0000-4000-c000-0000000000c9', 'read_q');
 INSERT INTO public.friendships (id, requester_id, receiver_id, status) VALUES
   (930001, '00000000-0000-4000-c000-00000000000a', '00000000-0000-4000-c000-00000000000b', 'accepted'),
   (930002, '00000000-0000-4000-c000-00000000000f', '00000000-0000-4000-c000-00000000000b', 'accepted'),
@@ -71,7 +74,8 @@ INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility,
   (940004, 'B public archived', '00000000-0000-4000-c000-00000000000b', '#FFFFFF', '00000000-0000-4000-c000-00000000000b', 'public',  now()),
   (940005, 'B booked, now private', '00000000-0000-4000-c000-00000000000b', '#FFFFFF', '00000000-0000-4000-c000-00000000000b', 'private', NULL),
   (940006, 'S public',          '00000000-0000-4000-c000-00000000005e', '#FFFFFF', '00000000-0000-4000-c000-00000000005e', 'public',  NULL),
-  (940007, 'N private',         '00000000-0000-4000-c000-00000000000e', '#FFFFFF', '00000000-0000-4000-c000-00000000000e', 'private', NULL);
+  (940007, 'N private',         '00000000-0000-4000-c000-00000000000e', '#FFFFFF', '00000000-0000-4000-c000-00000000000e', 'private', NULL),
+  (940008, 'Q private, A booked a wish', '00000000-0000-4000-c000-0000000000c9', '#FFFFFF', '00000000-0000-4000-c000-0000000000c9', 'private', NULL);
 INSERT INTO public.wishs (id, name, description, wishlist_id, updated_by) VALUES
   (950001, 'A wish',           '', 940001, '00000000-0000-4000-c000-00000000000a'),
   (950002, 'B public wish',    '', 940002, '00000000-0000-4000-c000-00000000000b'),
@@ -80,12 +84,14 @@ INSERT INTO public.wishs (id, name, description, wishlist_id, updated_by) VALUES
   (950005, 'B booked wish',    '', 940005, '00000000-0000-4000-c000-00000000000b'),
   (950006, 'B other wish in the booked wishlist', '', 940005, '00000000-0000-4000-c000-00000000000b'),
   (950007, 'S wish',           '', 940006, '00000000-0000-4000-c000-00000000005e'),
-  (950008, 'N wish',           '', 940007, '00000000-0000-4000-c000-00000000000e');
+  (950008, 'N wish',           '', 940007, '00000000-0000-4000-c000-00000000000e'),
+  (950009, 'Q wish booked by A', '', 940008, '00000000-0000-4000-c000-0000000000c9');
 INSERT INTO public.user_completed_wishs (user_id, wish_id, from_wishlist_id) VALUES
   ('00000000-0000-4000-c000-00000000000b', 950004, 940004);
 INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES
   (950005, '00000000-0000-4000-c000-00000000000a', 1),
-  (950002, '00000000-0000-4000-c000-00000000000f', 1);
+  (950002, '00000000-0000-4000-c000-00000000000f', 1),
+  (950009, '00000000-0000-4000-c000-00000000000a', 1);
 
 -- As A
 SELECT pg_temp.act_as('00000000-0000-4000-c000-00000000000a');
@@ -138,7 +144,7 @@ SELECT pg_temp.expect_count('booked wish with its wishlist and owner profile rea
        JOIN public.wishs w ON w.id = t.wish_id
        JOIN public.wishlists wl ON wl.id = w.wishlist_id
        JOIN public.profiles p ON p.id = wl.id_owner
-      WHERE t.user_id = '00000000-0000-4000-c000-00000000000a'$q$, 1);
+      WHERE t.user_id = '00000000-0000-4000-c000-00000000000a'$q$, 2);
 
 -- profiles
 SELECT pg_temp.expect_count('own profile read',
@@ -159,6 +165,8 @@ SELECT pg_temp.expect_count('profile of a blocked friendship not read',
   $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-0000000000b1'$q$, 0);
 SELECT pg_temp.expect_count('profile of a rejected friendship not read',
   $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-0000000000e2'$q$, 0);
+SELECT pg_temp.expect_count('profile of the owner of a private wishlist holding a booked wish read',
+  $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-0000000000c9'$q$, 1);
 SELECT pg_temp.expect_count('same profile not read through users_profiles',
   $q$SELECT count(*) FROM public.users_profiles WHERE id = '00000000-0000-4000-c000-00000000000e'$q$, 0);
 SELECT pg_temp.expect_count('same profile found by search_users',
@@ -172,6 +180,8 @@ SELECT pg_temp.expect_count('private wish of the owner not read',
   $q$SELECT count(*) FROM public.wishs WHERE id = 950005$q$, 0);
 SELECT pg_temp.expect_count('private wishlist of a user without relation not read by F',
   $q$SELECT count(*) FROM public.wishlists WHERE id = 940001$q$, 0);
+SELECT pg_temp.expect_count('private wishlist with a booking not read by a non-booker F',
+  $q$SELECT count(*) FROM public.wishlists WHERE id = 940005$q$, 0);
 SELECT pg_temp.expect_count('profile of a user who only booked in a private wishlist not read',
   $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-00000000000a'$q$, 0);
 
@@ -179,6 +189,8 @@ SELECT pg_temp.expect_count('profile of a user who only booked in a private wish
 SELECT pg_temp.act_as('00000000-0000-4000-c000-000000000050');
 SELECT pg_temp.expect_count('public wishlist read, private wishlist of the receiver not read',
   $q$SELECT count(*) FROM public.wishlists WHERE id IN (940002, 940001)$q$, 1);
+SELECT pg_temp.expect_count('private wishlist with a booking not read by a non-booker P',
+  $q$SELECT count(*) FROM public.wishlists WHERE id = 940005$q$, 0);
 
 -- As B: the owner reads everything of their own and the profile of A
 SELECT pg_temp.act_as('00000000-0000-4000-c000-00000000000b');
