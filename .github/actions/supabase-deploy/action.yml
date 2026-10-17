@@ -2,8 +2,8 @@ name: Supabase deploy
 description: Check that a Supabase project has not drifted, push pending migrations, then check that its public schema matches the migrations.
 
 inputs:
-  workdir:
-    description: Folder holding the supabase/ directory (supabase-dev or supabase-prod)
+  environment:
+    description: Name of the environment (dev or prod), used in messages
     required: true
   project-ref:
     description: Supabase project ref
@@ -51,7 +51,6 @@ runs:
 
     - name: Link project
       shell: bash
-      working-directory: ${{ inputs.workdir }}
       env:
         SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
       run: supabase link --project-ref "${{ inputs.project-ref }}"
@@ -61,7 +60,6 @@ runs:
     # the next tag) must be set aside in that check too.
     - name: List pending migrations
       shell: bash
-      working-directory: ${{ inputs.workdir }}
       env:
         SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
       run: |
@@ -70,7 +68,7 @@ runs:
           >"$RUNNER_TEMP/pending-migrations.txt" || true
         while IFS= read -r name; do
           if [ ! -f "supabase/migrations/$name" ]; then
-            echo "::error::Pending migration $name not found in ${{ inputs.workdir }}/supabase/migrations"
+            echo "::error::Pending migration $name not found in supabase/migrations"
             exit 1
           fi
         done <"$RUNNER_TEMP/pending-migrations.txt"
@@ -80,7 +78,7 @@ runs:
     - name: Skip drift check before push
       if: inputs.push == 'true' && inputs.pre-push-check != 'true'
       shell: bash
-      run: echo "::warning::Drift check before push skipped on ${{ inputs.workdir }} (SUPABASE_SKIP_PRE_PUSH_DRIFT_DEV / _PROD), remove the variable once the project has caught up"
+      run: echo "::warning::Drift check before push skipped on ${{ inputs.environment }} (SUPABASE_SKIP_PRE_PUSH_DRIFT_DEV / _PROD), remove the variable once the project has caught up"
 
     - name: Check schema drift before push
       if: inputs.push == 'true' && inputs.pre-push-check == 'true'
@@ -88,13 +86,12 @@ runs:
       env:
         SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
       run: |
-        "${{ github.action_path }}/check_drift.sh" "${{ inputs.workdir }}" \
+        "${{ github.action_path }}/check_drift.sh" "${{ inputs.environment }}" \
           "$RUNNER_TEMP/pending-migrations.txt"
 
     - name: Push migrations
       if: inputs.push == 'true'
       shell: bash
-      working-directory: ${{ inputs.workdir }}
       env:
         SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
       # --include-all: a branch merged late can carry migrations older than
@@ -109,8 +106,8 @@ runs:
         SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
       run: |
         if [ "${{ inputs.push }}" = "true" ]; then
-          "${{ github.action_path }}/check_drift.sh" "${{ inputs.workdir }}"
+          "${{ github.action_path }}/check_drift.sh" "${{ inputs.environment }}"
         else
-          "${{ github.action_path }}/check_drift.sh" "${{ inputs.workdir }}" \
+          "${{ github.action_path }}/check_drift.sh" "${{ inputs.environment }}" \
             "$RUNNER_TEMP/pending-migrations.txt"
         fi

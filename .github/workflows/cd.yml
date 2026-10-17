@@ -4,6 +4,14 @@ on:
   push:
     tags:
       - 'v*'
+  # Lancement manuel pour valider le build (signing, extension iOS) sans
+  # publier : les étapes d'upload ne tournent que sur tag ou si publish=true.
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publier sur Google Play / TestFlight'
+        type: boolean
+        default: false
 
 # Un seul déploiement à la fois, tous tags confondus : deux releases ne
 # doivent ni se doubler sur les stores ni migrer la prod en même temps. On ne
@@ -92,7 +100,7 @@ jobs:
         if: vars.SUPABASE_DEPLOY_ENABLED == 'true'
         uses: ./.github/actions/supabase-deploy
         with:
-          workdir: supabase-prod
+          environment: prod
           project-ref: cbcrtjggsmtwvqljzbnl
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           db-password: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
@@ -167,6 +175,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to Google Play (Internal Testing)
+        if: github.event_name == 'push' || inputs.publish
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
@@ -221,13 +230,16 @@ jobs:
           p12-file-base64: ${{ secrets.IOS_P12_BASE64 }}
           p12-password: ${{ secrets.IOS_P12_PASSWORD }}
 
-      - name: Install Provisioning Profile
+      - name: Install Provisioning Profiles
         run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
-          # Extraire l'UUID du provisioning profile
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(/usr/bin/security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision))
-          echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
+          PROFILES_DIR=~/Library/MobileDevice/Provisioning\ Profiles
+          mkdir -p "$PROFILES_DIR"
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 -d > "$PROFILES_DIR/runner.mobileprovision"
+          echo "${{ secrets.IOS_SHARE_EXTENSION_PROFILE_BASE64 }}" | base64 -d > "$PROFILES_DIR/share-extension.mobileprovision"
+          # Extraire l'UUID de chaque provisioning profile pour l'ExportOptions
+          profile_uuid() { /usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(/usr/bin/security cms -D -i "$1")"; }
+          echo "PROFILE_UUID=$(profile_uuid "$PROFILES_DIR/runner.mobileprovision")" >> $GITHUB_ENV
+          echo "SHARE_EXTENSION_PROFILE_UUID=$(profile_uuid "$PROFILES_DIR/share-extension.mobileprovision")" >> $GITHUB_ENV
 
       - name: Create ExportOptions.plist
         run: |
@@ -246,6 +258,8 @@ jobs:
               <dict>
                   <key>com.raphtang.wishy</key>
                   <string>${PROFILE_UUID}</string>
+                  <key>com.raphtang.wishy.ShareExtension</key>
+                  <string>${SHARE_EXTENSION_PROFILE_UUID}</string>
               </dict>
           </dict>
           </plist>
@@ -284,6 +298,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to TestFlight
+        if: github.event_name == 'push' || inputs.publish
         uses: apple-actions/upload-testflight-build@v1
         with:
           app-path: wishlist/${{ env.IPA_PATH }}

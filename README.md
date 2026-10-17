@@ -112,30 +112,22 @@ Each developer must use their own Supabase account and Personal Access Token (PA
 
 ### 🗂 Project Linking
 
-The project includes two Supabase environments:
+A single `supabase/` folder (migrations, config) describes both Supabase environments:
 
-| Environment | Folder           | Supabase Project | Project Ref            |
-| ----------- | ---------------- | ---------------- | ---------------------- |
-| Development | `supabase-dev/`  | wishlist-dev     | `qedynftuclpdisocgzuv` |
-| Production  | `supabase-prod/` | wishy-prod       | `cbcrtjggsmtwvqljzbnl` |
+| Environment | Supabase Project | Project Ref            | Postgres |
+| ----------- | ---------------- | ---------------------- | -------- |
+| Development | wishlist-dev     | `qedynftuclpdisocgzuv` | 17       |
+| Production  | wishy-prod       | `cbcrtjggsmtwvqljzbnl` | 17       |
 
-Each developer must manually link both projects once.
-
-#### 👉 Link dev
+Locally, link the dev project, from the repository root:
 
 From the repository root:
 
 ```bash
-cd supabase-dev
 supabase link --project-ref qedynftuclpdisocgzuv
 ```
 
-#### 👉 Link prod
-
-```bash
-cd ../supabase-prod
-supabase link --project-ref cbcrtjggsmtwvqljzbnl
-```
+The CLI works on the linked project. Prod is migrated by the CD only (see below): do not link it to run `db push` from your machine.
 
 Verify with:
 
@@ -147,7 +139,7 @@ supabase projects list
 
 ### 🔄 Schema changes
 
-Every schema change goes through an idempotent migration file, applied to dev then to prod with `supabase db push`. Never edit the schema from the dashboard.
+Every schema change goes through an idempotent migration file, applied to dev with `supabase db push` (the linked project) and to prod by the CD at the next tag. Never run `db push` on prod from your machine, and never edit the schema from the dashboard.
 
 See [docs/supabase-migrations.md](docs/supabase-migrations.md) for the workflow, how to write idempotent migrations and how to check for drift.
 
@@ -195,7 +187,7 @@ Le workflow `supabase.yml` :
 
 | Déclencheur | Ce qu'il fait |
 | ----------- | ------------- |
-| PR qui touche une migration | Vérifie que `supabase-dev` et `supabase-prod` ont les mêmes migrations et qu'aucune migration déjà mergée n'est modifiée, les rejoue sur une base vide en Postgres 15 (dev) et 17 (prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que les schémas `public` et `storage` ne changent pas (idempotence, ordre de `--include-all`) |
+| PR qui touche une migration | Vérifie qu'aucune migration déjà mergée n'est modifiée, renommée ou supprimée, les rejoue sur une base vide en Postgres 17 (la version de dev et de prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que les schémas `public` et `storage` ne changent pas (idempotence, ordre de `--include-all`). Il les rejoue aussi avec la CLI sur la version exacte de Postgres de dev et de prod, et échoue si `supabase-dev/` ou `supabase-prod/` contient encore des fichiers. Ces vérifications tournent aussi à chaque push sur `main`, et le déploiement sur dev attend le rejeu en 17.11 |
 | Merge sur `main` | Contrôle de dérive, `db push` sur dev, puis nouveau contrôle de dérive |
 | Chaque lundi | Contrôle de dérive sur dev et prod, migrations mergées mais pas encore déployées mises de côté |
 | Tag `v*` (workflow CD) | Mêmes étapes sur prod, avant les builds, uniquement si le commit tagué est sur `main` |
