@@ -52,7 +52,11 @@ void main() {
           quality: any(named: 'quality'),
           format: any(named: 'format'),
         ),
-      ).thenAnswer((_) async => Uint8List.fromList([1, 2, 3]));
+      ).thenAnswer((invocation) async {
+        // Different bytes for the main image (1024) and the thumbnail (256).
+        final isThumbnail = invocation.namedArguments[#minWidth] == 256;
+        return Uint8List.fromList(isThumbnail ? [2] : [1]);
+      });
       final previousCompressor = FlutterImageCompressPlatform.instance;
       FlutterImageCompressPlatform.instance = compressor;
       addTearDown(() {
@@ -83,24 +87,26 @@ void main() {
           () => repository.uploadWishImage(
             userId: captureAny(named: 'userId'),
             wishId: captureAny(named: 'wishId'),
-            imageData: any(named: 'imageData'),
+            imageData: captureAny(named: 'imageData'),
             fileName: captureAny(named: 'fileName'),
           ),
         ).captured;
 
-        // Two calls, each capturing (userId, wishId, fileName).
-        expect(captured, hasLength(6));
+        // Two calls, each capturing (userId, wishId, imageData, fileName).
+        expect(captured, hasLength(8));
         expect(captured[0], 'user-1');
         expect(captured[1], 42);
-        expect(captured[2], matches(RegExp(r'^wish_image_\d+\.webp$')));
-        expect(captured[3], 'user-1');
-        expect(captured[4], 42);
-        expect(captured[5], matches(RegExp(r'^wish_image_\d+_thumb\.webp$')));
+        expect(captured[2], Uint8List.fromList([1]));
+        expect(captured[3], matches(RegExp(r'^wish_image_\d+\.webp$')));
+        expect(captured[4], 'user-1');
+        expect(captured[5], 42);
+        expect(captured[6], Uint8List.fromList([2]));
+        expect(captured[7], matches(RegExp(r'^wish_image_\d+_thumb\.webp$')));
         expect(
-          (captured[5] as String).replaceFirst('_thumb', ''),
-          captured[2],
+          (captured[7] as String).replaceFirst('_thumb', ''),
+          captured[3],
         );
-        expect(path, 'user-1/42/${captured[2]}');
+        expect(path, 'user-1/42/${captured[3]}');
       },
     );
   });

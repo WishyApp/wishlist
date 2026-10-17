@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wishlist/modules/wishlists/infra/wishlist_screen_data_realtime_provider.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 import 'package:wishlist/shared/infra/wish_mutations_provider.dart';
+import 'package:wishlist/shared/infra/wish_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wish/wish_sort_type.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
@@ -104,7 +105,13 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   Future<void> deleteSelectedWishs() async {
     final selectedIds = state.selectedWishIds;
     for (final wishId in selectedIds) {
-      await ref.read(wishMutationsProvider.notifier).delete(wishId);
+      // Les images (principale + miniature) sont supprimées avec le wish,
+      // tant que la RLS du bucket autorise encore le propriétaire.
+      final wish = await ref.read(wishServiceProvider).getWishById(wishId);
+      await ref.read(wishMutationsProvider.notifier).delete(
+            wishId,
+            iconUrl: wish.iconUrl,
+          );
     }
     exitSelectionMode();
   }
