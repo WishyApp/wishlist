@@ -14,14 +14,17 @@
 --   to new uploads only, existing objects are left as they are. The avatars
 --   bucket is not touched.
 -- - SELECT is restricted by the same rule: the old policy let any signed-in
---   user list the bucket root and learn the id of every user who uploaded an
---   image. The bucket is public, so image URLs keep working without a SELECT
---   policy (the app only uses public URLs). The storage API still needs SELECT
+--   user list every object name of the bucket, including images of wishes in
+--   private wishlists, and the bucket is public so each name is a fetchable
+--   URL. Names now have to be guessed. The bucket is public, so image URLs
+--   keep working without a SELECT policy (the app only uses public URLs). The storage API still needs SELECT
 --   on the caller's own objects to remove or upsert them.
 -- - Legacy images of a wish that has since been deleted match no rule any more
---   (the wish is gone), so only service_role can remove them. The app never
---   removed them anyway: deleting a wishlist (delete_or_archive_wishlist) does
---   not touch storage. Clean-up of these orphans is a follow-up.
+--   (the wish is gone), so only service_role can remove them. The app removes
+--   the files before deleting a wish (wish form and multi-select), but
+--   deleting a wishlist (delete_or_archive_wishlist) does not touch storage:
+--   that is the remaining source of orphans, also for the new layout.
+--   Cleaning them up is a follow-up.
 
 -- 1. Bucket configuration, idempotent.
 
