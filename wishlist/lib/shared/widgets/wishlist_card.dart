@@ -21,7 +21,9 @@ class WishlistCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final borderRadius = BorderRadius.circular(36);
-    final currentUserId = ref.watch(currentUserIdProvider);
+    // read, not watch: the card must not change look when the session ends
+    // and its screen is still leaving. A user switch rebuilds the list anyway.
+    final currentUserId = ref.read(currentUserIdProvider);
     final isOwner = currentUserId == wishlist.idOwner;
 
     void onTap() {

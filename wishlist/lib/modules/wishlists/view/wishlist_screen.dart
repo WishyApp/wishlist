@@ -250,8 +250,11 @@ class WishlistScreen extends ConsumerWidget {
       data: (data) {
         final wishlist = data.wishlist;
         final wishlistTheme = getWishlistTheme(context, wishlist);
+        // read, not watch: the screen outlives the session for a few frames
+        // until the router redirects, and must not turn into a visitor view
+        // of one's own wishlist when the id becomes null.
         final isMyWishlist =
-            wishlist.idOwner == ref.watch(currentUserIdProvider);
+            wishlist.idOwner == ref.read(currentUserIdProvider);
         final canShareWishlist =
             wishlist.visibility == WishlistVisibility.public;
 

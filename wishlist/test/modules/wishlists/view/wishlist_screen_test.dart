@@ -7,6 +7,7 @@ import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart
 import 'package:wishlist/modules/wishlists/view/wishlist_screen.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository_provider.dart';
+import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
@@ -14,6 +15,7 @@ import 'package:wishlist/shared/navigation/routes.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
+import '../../../fixtures/mock_supabase.dart';
 import '../../../pump_app.dart';
 
 class _MockUserCompletedWishRepository extends Mock
@@ -186,6 +188,35 @@ void main() {
         wishlist: fakeWishlist2,
         shouldShowShareButton: true,
       );
+    },
+  );
+
+  testWidgets(
+    'keeps the owner actions while the session ends and the screen is leaving',
+    (tester) async {
+      final session = FakeAuthSession(userId: fakeCurrentUserId);
+      addTearDown(session.close);
+      await tester.pumpRouterApp(
+        WishlistRoute(wishlistId: 2).location,
+        overrides: [
+          ...wishlistScreenOverrides(
+            wishlistId: 2,
+            wishlist: fakeWishlist2,
+            wishes: fakeWishes,
+            currentUserId: fakeCurrentUserId,
+          ),
+          supabaseClientProvider.overrideWithValue(session.client),
+        ],
+      );
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+      expect(find.byIcon(Icons.add), findsOneWidget);
+
+      session.signOut();
+      await tester.pumpAndSettle();
+
+      // The owner floating actions stay for the frames before the
+      // router redirects.
+      expect(find.byIcon(Icons.add), findsOneWidget);
     },
   );
 
