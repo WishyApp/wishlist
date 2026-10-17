@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # Validate Supabase migrations on a throwaway Postgres container:
-#   1. supabase-dev and supabase-prod hold the same migrations
-#   2. migrations merged before BASE_REF are not modified, renamed or deleted
-#   3. every migration applies, in order, on an empty database
-#   4. migrations added since BASE_REF can be applied a second time, after
+#   1. migrations merged before BASE_REF are not modified, renamed or deleted
+#   2. every migration applies, in order, on an empty database
+#   3. migrations added since BASE_REF can be applied a second time, after
 #      all the others, without changing the public and storage schemas (data
 #      and the auth schema are not compared). This is the
 #      order 'db push --include-all' uses for a migration merged late.
-#   5. the SQL tests in supabase-tests/ pass. Each file runs as postgres,
+#   4. the SQL tests in supabase-tests/ pass. Each file runs as postgres,
 #      raises an error on an unexpected result and leaves the public, auth and
 #      storage schemas, data included, as it found them
 #      (see supabase-tests/README.md).
@@ -17,28 +16,57 @@
 set -euo pipefail
 
 BASE_REF="${1:-}"
+# Keep in sync with POSTGRES_IMAGE in .github/workflows/supabase.yml.
 IMAGE="${SUPABASE_POSTGRES_IMAGE:-public.ecr.aws/supabase/postgres:17.6.1.043}"
 CONTAINER="check-supabase-migrations-$$"
-DEV_DIR="supabase-dev/supabase/migrations"
-PROD_DIR="supabase-prod/supabase/migrations"
+MIGRATIONS_DIR="supabase/migrations"
+# Where migrations lived before supabase-dev/ and supabase-prod/ were merged
+# into supabase/, for a BASE_REF older than that.
+LEGACY_DIR="supabase-prod/supabase/migrations"
 TESTS_DIR="supabase-tests"
 
 cd "$(git rev-parse --show-toplevel)"
 
-echo "==> Comparing $DEV_DIR and $PROD_DIR"
-if ! diff -r "$DEV_DIR" "$PROD_DIR"; then
-  echo "::error::Migrations differ between supabase-dev and supabase-prod"
-  exit 1
-fi
-
+# Migrations are compared by file name, not by path, so that moving the
+# folder does not count as deleting and re-adding every migration. The lists
+# below hold one "name blob-id" line per migration, sorted by name.
+added=""
 if [[ -n "$BASE_REF" ]]; then
   echo "==> Checking that merged migrations are unchanged since $BASE_REF"
-  changed="$(git diff --name-only --diff-filter=MDR "$BASE_REF"...HEAD -- "$DEV_DIR" "$PROD_DIR")"
+  merge_base="$(git merge-base "$BASE_REF" HEAD)"
+  base_dir="$MIGRATIONS_DIR"
+  if ! git cat-file -e "$merge_base:$MIGRATIONS_DIR" 2>/dev/null; then
+    base_dir="$LEGACY_DIR"
+  fi
+  # The lists below are whitespace-separated.
+  spaced="$(printf '%s\n' "$MIGRATIONS_DIR"/*.sql | sed 's|.*/||' | grep '[[:space:]]' || true)"
+  if [[ -n "$spaced" ]]; then
+    echo "$spaced"
+    echo "::error::Migration file names must not contain whitespace"
+    exit 1
+  fi
+  # ls-tree already gives the blob id of each file: no process per migration.
+  base_list="$(git ls-tree "$merge_base" -- "$base_dir/" 2>/dev/null |
+    awk -F'\t' '{ split($1, meta, " "); n = split($2, parts, "/"); if (parts[n] ~ /\.sql$/) print parts[n], meta[3] }' |
+    LC_ALL=C sort)"
+  if [[ -z "$base_list" ]]; then
+    echo "::error::No migration found in $MIGRATIONS_DIR or $LEGACY_DIR at $merge_base (merge base of $BASE_REF and HEAD), cannot tell which migrations are new"
+    exit 1
+  fi
+  current_list="$(paste -d' ' \
+    <(printf '%s\n' "$MIGRATIONS_DIR"/*.sql | sed 's|.*/||') \
+    <(git hash-object "$MIGRATIONS_DIR"/*.sql) |
+    LC_ALL=C sort)"
+  changed="$(
+    LC_ALL=C join -v1 <(echo "$base_list") <(echo "$current_list") | sed 's/ .*//; s/^/deleted or renamed: /'
+    LC_ALL=C join <(echo "$base_list") <(echo "$current_list") | awk '$2 != $3 { print "modified: " $1 }'
+  )"
   if [[ -n "$changed" ]]; then
     echo "$changed"
     echo "::error::Merged migrations must not be modified, add a new migration instead"
     exit 1
   fi
+  added="$(LC_ALL=C join -v2 <(echo "$base_list") <(echo "$current_list") | sed "s|^\([^ ]*\) .*|$MIGRATIONS_DIR/\1|")"
 fi
 
 ERR_FILE="$(mktemp)"
@@ -127,24 +155,21 @@ apply() {
 }
 
 echo "==> Applying all migrations"
-for file in "$PROD_DIR"/*.sql; do
+for file in "$MIGRATIONS_DIR"/*.sql; do
   apply "$file"
 done
 
-if [[ -n "$BASE_REF" ]]; then
-  added="$(git diff --name-only --diff-filter=A "$BASE_REF"...HEAD -- "$PROD_DIR" | sort)"
-  if [[ -n "$added" ]]; then
-    echo "==> Re-applying migrations added since $BASE_REF"
-    dump_schema >"$SCHEMA_BEFORE"
-    while IFS= read -r file; do
-      apply "$file"
-    done <<<"$added"
-    dump_schema >"$SCHEMA_AFTER"
-    # The schema is rebuilt from the repository only, printing it is safe.
-    if ! diff -u "$SCHEMA_BEFORE" "$SCHEMA_AFTER"; then
-      echo "::error::Re-applying migrations added since $BASE_REF changes the schema"
-      exit 1
-    fi
+if [[ -n "$added" ]]; then
+  echo "==> Re-applying migrations added since $BASE_REF"
+  dump_schema >"$SCHEMA_BEFORE"
+  while IFS= read -r file; do
+    [[ -n "$file" ]] && apply "$file"
+  done <<<"$added"
+  dump_schema >"$SCHEMA_AFTER"
+  # The schema is rebuilt from the repository only, printing it is safe.
+  if ! diff -u "$SCHEMA_BEFORE" "$SCHEMA_AFTER"; then
+    echo "::error::Re-applying migrations added since $BASE_REF changes the schema"
+    exit 1
   fi
 fi
 
