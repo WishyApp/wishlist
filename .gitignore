@@ -18,16 +18,11 @@ node_modules/
 /wishlist/android/build/
 /wishlist/ios/build/
 
-# Supabase CLI local state (backstop for supabase/.gitignore)
-.branches/
-.temp/
-
-# Local state of the former supabase-dev/ and supabase-prod/ projects (project
-# refs, database host and user), left behind by the CLI in existing clones
-/supabase-dev/supabase/.temp/
-/supabase-dev/supabase/.branches/
-/supabase-prod/supabase/.temp/
-/supabase-prod/supabase/.branches/
+# Supabase CLI local state (project refs, database host and user). The wildcard
+# also covers the former supabase-dev/ and supabase-prod/ folders, which the CLI
+# left behind in existing clones.
+**/supabase/.branches/
+**/supabase/.temp/
 
 # Dump written by scripts/migrate_data_dev_to_prod.sh (left behind if the script fails)
 data_dump.sql
