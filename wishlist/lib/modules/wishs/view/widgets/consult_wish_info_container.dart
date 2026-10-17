@@ -9,7 +9,6 @@ import 'package:wishlist/modules/wishs/view/widgets/scrollable_content_with_indi
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/infra/wish_taken_by_user_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
@@ -55,7 +54,12 @@ class ConsultWishInfoContainer extends ConsumerWidget {
   }
 
   Future<void> _onGiveItTap(BuildContext context, WidgetRef ref) async {
-    final currentUserId = ref.read(userServiceProvider).getCurrentUserId();
+    // Same source as build(): null while signed out (the screen is leaving),
+    // where nothing can be booked.
+    final currentUserId = ref.read(currentUserIdProvider);
+    if (currentUserId == null) {
+      return;
+    }
     final isWishTakenByMe = wish.takenByUser.any(
       (element) => element.userId == currentUserId,
     );
