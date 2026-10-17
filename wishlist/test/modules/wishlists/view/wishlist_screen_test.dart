@@ -1,12 +1,18 @@
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wishlist_floating_actions.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen.dart';
+import 'package:wishlist/modules/wishlists/view/wishlist_screen_display_provider.dart';
+import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository_provider.dart';
+import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
@@ -18,6 +24,8 @@ import '../../../pump_app.dart';
 
 class _MockUserCompletedWishRepository extends Mock
     implements UserCompletedWishRepository {}
+
+class _MockUserService extends Mock implements UserService {}
 
 void main() {
   CompletedWishWithDetails completedWish(Wish wish, int quantity) {
@@ -367,5 +375,117 @@ void main() {
       ),
     ).called(1);
     expect(find.byIcon(Icons.add), findsOneWidget);
+  });
+
+  testWidgets('does not rebuild the screen root when typing in the search',
+      (tester) async {
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 2).location,
+      overrides: wishlistScreenOverrides(
+        wishlistId: 2,
+        wishlist: fakeWishlist2,
+        wishes: fakeWishes,
+        currentUserId: fakeCurrentUserId,
+      ),
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    // L'AppBar est recréée à chaque build de la racine : son identité change
+    // si, et seulement si, la racine est reconstruite
+    final appBarBefore = tester.widget<WishlistAppBar>(
+      find.byType(WishlistAppBar),
+    );
+
+    await tester.enterText(find.byType(TextField), 'AirPods');
+    await tester.pumpAndSettle();
+
+    // La recherche est bien prise en compte par le body
+    expect(find.text(fakeWish1.name), findsNothing);
+    expect(find.text(fakeWish2.name), findsOneWidget);
+    expect(
+      identical(
+        tester.widget<WishlistAppBar>(find.byType(WishlistAppBar)),
+        appBarBefore,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('updates the selection badge when a second wish is selected',
+      (tester) async {
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 2).location,
+      overrides: wishlistScreenOverrides(
+        wishlistId: 2,
+        wishlist: fakeWishlist2,
+        wishes: fakeWishes,
+        currentUserId: fakeCurrentUserId,
+      ),
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    Finder badges(String count) => find.descendant(
+          of: find.byType(WishlistFloatingActions),
+          matching: find.text(count),
+        );
+
+    await tester.longPress(find.text(fakeWish1.name));
+    await tester.pumpAndSettle();
+
+    // Un badge par bouton d'action (compléter, déplacer, supprimer)
+    expect(badges('1'), findsNWidgets(3));
+    expect(badges('2'), findsNothing);
+
+    await tester.tap(find.text(fakeWish2.name));
+    await tester.pumpAndSettle();
+
+    expect(badges('2'), findsNWidgets(3));
+    expect(badges('1'), findsNothing);
+  });
+
+  test('does not recompute the displayed wishs on selection change', () async {
+    final userService = _MockUserService();
+    when(userService.getCurrentUserId).thenReturn(fakeCurrentUserId);
+    final container = ProviderContainer(
+      overrides: [
+        ...wishlistScreenOverrides(
+          wishlistId: 2,
+          wishlist: fakeWishlist2,
+          wishes: fakeWishes,
+          currentUserId: fakeCurrentUserId,
+        ),
+        userServiceProvider.overrideWithValue(userService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    // Maintient les providers en vie, comme le ferait l'écran
+    container
+      ..listen(wishlistScreenDisplayProvider(2), (_, __) {})
+      ..listen(wishlistScreenNotifierProvider(2), (_, __) {});
+    await pumpEventQueue();
+
+    final display = container.read(wishlistScreenDisplayProvider(2));
+    expect(display.all, hasLength(2));
+    // Un appel à getCurrentUserId par calcul du provider
+    verify(userService.getCurrentUserId).called(1);
+
+    final notifier = container.read(wishlistScreenNotifierProvider(2).notifier);
+    notifier
+      ..enableSelectionMode(fakeWish1.id)
+      ..toggleWishSelection(fakeWish2.id)
+      ..onPageChanged(WishlistStatsCardType.booked.index)
+      ..exitSelectionMode();
+
+    expect(
+      identical(container.read(wishlistScreenDisplayProvider(2)), display),
+      isTrue,
+    );
+    verifyNever(userService.getCurrentUserId);
+
+    // Contrôle : une vraie entrée (la recherche) relance bien le calcul
+    notifier.searchController.text = 'AirPods';
+    expect(container.read(wishlistScreenDisplayProvider(2)).all, hasLength(1));
+    verify(userService.getCurrentUserId).called(1);
   });
 }
