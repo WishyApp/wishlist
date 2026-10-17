@@ -7,7 +7,8 @@ final wishlistsRealtimeProvider =
     StreamProvider.autoDispose<List<Wishlist>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) {
-    return const Stream.empty();
+    // Signed out: an empty value replaces the previous user's one.
+    return Stream.value(const []);
   }
   final repository = ref.watch(wishlistStreamRepositoryProvider);
 

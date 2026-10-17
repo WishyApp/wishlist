@@ -21,7 +21,8 @@ Stream<IList<CompletedWishWithDetails>> completedWishesRealtime(
 ) {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) {
-    return const Stream.empty();
+    // Signed out: an empty value replaces the previous user's one.
+    return Stream.value(const IListConst([]));
   }
   final streamRepository = ref.watch(userCompletedWishStreamRepositoryProvider);
 

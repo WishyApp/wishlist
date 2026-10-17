@@ -21,7 +21,9 @@ Stream<IList<BookedWishWithDetails>> bookedWishesRealtime(
 ) {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) {
-    return const Stream.empty();
+    // Signed out: emit an empty value, which replaces the previous user's
+    // one (a silent stream would keep it served as the last value).
+    return Stream.value(const IListConst([]));
   }
   final streamRepository = ref.watch(wishStreamRepositoryProvider);
 

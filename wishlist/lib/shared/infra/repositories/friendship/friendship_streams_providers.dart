@@ -12,7 +12,7 @@ final watchFriendsIdsProvider =
 final watchCurrentUserFriendsIdsProvider =
     StreamProvider.autoDispose<ISet<String>>((ref) {
   if (ref.watch(currentUserIdProvider) == null) {
-    return const Stream.empty();
+    return Stream.value(const ISetConst({}));
   }
   final repository = ref.watch(friendshipStreamRepositoryProvider);
   return repository.watchCurrentUserFriendsIds();
@@ -21,7 +21,7 @@ final watchCurrentUserFriendsIdsProvider =
 final watchCurrentUserPendingFriendsIdsProvider =
     StreamProvider.autoDispose<ISet<String>>((ref) {
   if (ref.watch(currentUserIdProvider) == null) {
-    return const Stream.empty();
+    return Stream.value(const ISetConst({}));
   }
   final repository = ref.watch(friendshipStreamRepositoryProvider);
   return repository.watchCurrentUserPendingFriendsIds();
@@ -30,7 +30,7 @@ final watchCurrentUserPendingFriendsIdsProvider =
 final watchCurrentUserRequestedFriendsIdsProvider =
     StreamProvider.autoDispose<ISet<String>>((ref) {
   if (ref.watch(currentUserIdProvider) == null) {
-    return const Stream.empty();
+    return Stream.value(const ISetConst({}));
   }
   final repository = ref.watch(friendshipStreamRepositoryProvider);
   return repository.watchCurrentUserRequestedFriendsIds();

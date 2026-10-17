@@ -8,10 +8,16 @@ import 'package:wishlist/shared/models/app_user.dart';
 final friendshipsRealtimeProvider =
     StreamProvider.autoDispose<FriendsData>((ref) {
   // Rebuilt on logout / user switch: the widgets listening to it (the nav bar)
-  // can outlive a session. Signed out, it stays loading instead of reading
-  // the repository without a user.
+  // can outlive a session. Signed out, it emits an empty value (which replaces
+  // the previous user's one) instead of reading the repository without a user.
   if (ref.watch(currentUserIdProvider) == null) {
-    return const Stream.empty();
+    return Stream.value(
+      const FriendsData(
+        friends: IListConst([]),
+        pendingFriends: IListConst([]),
+        requestedFriends: IListConst([]),
+      ),
+    );
   }
 
   final userService = ref.watch(userServiceProvider);
