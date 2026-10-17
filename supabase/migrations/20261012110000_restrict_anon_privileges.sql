@@ -33,13 +33,13 @@
 -- the app does not use. Column privileges granted to authenticated by earlier
 -- migrations (friendships.status, user_completed_wishs.quantity) are not
 -- affected by revoking table-level TRUNCATE, TRIGGER, REFERENCES or MAINTAIN.
-REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC, anon;
 REVOKE TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON ALL TABLES IN SCHEMA public FROM authenticated;
 
 -- 2. Sequences: nothing for anon and authenticated. Ids are identity columns
 -- (friendships, wishlists, wishs), so inserts do not need any privilege on
 -- the sequence.
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, anon, authenticated;
 
 -- 3. Functions and procedures. PUBLIC has EXECUTE by default, so it is revoked
 -- together with anon, then authenticated is granted back everything: the RPC
@@ -112,7 +112,20 @@ BEGIN
    WHERE c.relnamespace = 'public'::regnamespace
      AND a.grantee IN (0, 'anon'::regrole);
   IF n > 0 THEN
-    RAISE EXCEPTION '% table/sequence privilege(s) left for anon or PUBLIC in public: %', n, names;
+    RAISE EXCEPTION '% table/sequence privilege(s) left for anon or PUBLIC in public: %', n, names
+      USING HINT = 'The object is probably owned by supabase_admin. An extension installed in public: ALTER EXTENSION <name> SET SCHEMA extensions (if relocatable), or drop it and create it in extensions. Another object: recreate it as postgres.';
+  END IF;
+
+  -- Column privileges (REVOKE on a table leaves column grants of another owner)
+  SELECT count(*), string_agg(DISTINCT c.oid::regclass::text || '.' || t.attname, ', ') INTO n, names
+    FROM pg_class c
+    JOIN pg_attribute t ON t.attrelid = c.oid AND t.attnum > 0 AND NOT t.attisdropped,
+         aclexplode(t.attacl) a
+   WHERE c.relnamespace = 'public'::regnamespace
+     AND a.grantee IN (0, 'anon'::regrole);
+  IF n > 0 THEN
+    RAISE EXCEPTION '% column privilege(s) left for anon or PUBLIC in public: %', n, names
+      USING HINT = 'The object is probably owned by supabase_admin. An extension installed in public: ALTER EXTENSION <name> SET SCHEMA extensions (if relocatable), or drop it and create it in extensions. Another object: recreate it as postgres.';
   END IF;
 
   -- Functions and procedures, directly or through PUBLIC
@@ -122,7 +135,8 @@ BEGIN
      AND has_function_privilege('anon', p.oid, 'EXECUTE')
      AND p.oid <> 'public.get_email_by_pseudo(text)'::regprocedure;
   IF n > 0 THEN
-    RAISE EXCEPTION '% routine(s) in public still executable by anon: %', n, names;
+    RAISE EXCEPTION '% routine(s) in public still executable by anon: %', n, names
+      USING HINT = 'The object is probably owned by supabase_admin. An extension installed in public: ALTER EXTENSION <name> SET SCHEMA extensions (if relocatable), or drop it and create it in extensions. Another object: recreate it as postgres.';
   END IF;
 
   -- Default privileges of postgres for public

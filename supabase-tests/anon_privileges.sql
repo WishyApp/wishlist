@@ -63,6 +63,15 @@ BEGIN
     RAISE EXCEPTION 'FAIL anon or PUBLIC has % table privilege(s) in public', n;
   END IF;
 
+  SELECT count(*) INTO n
+    FROM pg_class c
+    JOIN pg_attribute t ON t.attrelid = c.oid AND t.attnum > 0 AND NOT t.attisdropped,
+         aclexplode(t.attacl) a
+   WHERE c.relnamespace = 'public'::regnamespace AND a.grantee IN (0, 'anon'::regrole);
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL anon or PUBLIC has % column privilege(s) in public', n;
+  END IF;
+
   SELECT count(*) INTO n FROM pg_class c, aclexplode(c.relacl) a
    WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p')
      AND a.grantee = 'authenticated'::regrole
@@ -117,13 +126,6 @@ BEGIN
     RAISE EXCEPTION 'FAIL public.delete_user_account() still exists';
   END IF;
 
-  -- Procedures are covered too (ALL ROUTINES)
-  SELECT count(*) INTO n FROM pg_proc p
-   WHERE p.pronamespace = 'public'::regnamespace AND p.prokind = 'p'
-     AND has_function_privilege('anon', p.oid, 'EXECUTE');
-  IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL anon can execute % public procedure(s)', n;
-  END IF;
   RAISE NOTICE 'ok   catalog: no anon grant left, default privileges cleaned';
 END $$;
 
