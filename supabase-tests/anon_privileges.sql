@@ -6,6 +6,10 @@
 
 BEGIN;
 
+-- postgres functions have no EXECUTE for PUBLIC by default (see the migration):
+-- the helpers below are called after switching role. Rolled back with the rest.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres GRANT EXECUTE ON FUNCTIONS TO PUBLIC;
+
 CREATE FUNCTION pg_temp.expect_denied(label text, statement text)
 RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
@@ -21,11 +25,6 @@ BEGIN
   EXECUTE statement;
   RAISE NOTICE 'ok   % (allowed)', label;
 END $$;
-
--- postgres functions have no EXECUTE for PUBLIC by default (see the migration):
--- the helpers called after switching role need it.
-GRANT EXECUTE ON FUNCTION pg_temp.expect_denied(text, text) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION pg_temp.expect_ok(text, text) TO PUBLIC;
 
 CREATE FUNCTION pg_temp.act_as_anon()
 RETURNS void LANGUAGE plpgsql AS $$
@@ -114,8 +113,23 @@ BEGIN
   IF n <> 0 THEN
     RAISE EXCEPTION 'FAIL default privileges of postgres still grant anon (% entries)', n;
   END IF;
+  IF to_regprocedure('public.delete_user_account()') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL public.delete_user_account() still exists';
+  END IF;
+
+  -- Procedures are covered too (ALL ROUTINES)
+  SELECT count(*) INTO n FROM pg_proc p
+   WHERE p.pronamespace = 'public'::regnamespace AND p.prokind = 'p'
+     AND has_function_privilege('anon', p.oid, 'EXECUTE');
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL anon can execute % public procedure(s)', n;
+  END IF;
   RAISE NOTICE 'ok   catalog: no anon grant left, default privileges cleaned';
 END $$;
+
+-- All helpers exist: back to the default privileges of the migration, which the
+-- checks below are about.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
 -- Objects created by postgres from now on get no privilege for anon, no
 -- sequence privilege and no MAINTAIN for authenticated. A function in public
@@ -168,7 +182,6 @@ SELECT pg_temp.expect_denied('anon inserts a wishlist',
 SELECT pg_temp.expect_denied('anon deletes wishs', $q$DELETE FROM public.wishs$q$);
 SELECT pg_temp.expect_denied('anon truncates wishs', $q$TRUNCATE public.wishs$q$);
 SELECT pg_temp.expect_denied('anon uses a sequence', $q$SELECT nextval('public.wishs_id_seq')$q$);
-SELECT pg_temp.expect_denied('anon executes delete_user_account', $q$SELECT public.delete_user_account()$q$);
 SELECT pg_temp.expect_denied('anon executes is_friend_or_friend_of_friend',
   $q$SELECT public.is_friend_or_friend_of_friend('00000000-0000-4000-c000-00000000000a', '00000000-0000-4000-c000-00000000000a')$q$);
 SELECT pg_temp.expect_denied('anon executes nb_wishs_by_user',
@@ -210,7 +223,5 @@ SELECT pg_temp.expect_denied('authenticated uses a sequence', $q$SELECT nextval(
 SELECT pg_temp.expect_denied('authenticated setval', $q$SELECT setval('public.wishs_id_seq', 1)$q$);
 SELECT pg_temp.expect_denied('authenticated executes a trigger function',
   $q$SELECT public.update_user_completed_wishs_updated_at()$q$);
-SELECT pg_temp.expect_denied('authenticated executes delete_user_account',
-  $q$SELECT public.delete_user_account()$q$);
 
 ROLLBACK;
