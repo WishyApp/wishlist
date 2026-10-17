@@ -1,9 +1,6 @@
-import 'dart:io' as io;
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:file/file.dart';
-import 'package:file/local.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,12 +10,10 @@ import 'package:wishlist/shared/widgets/app_cached_network_image.dart';
 class _MockCacheManager extends Mock
     implements CacheManager, ImageCacheManager {}
 
-/// Writes a real 8x4 PNG to a temporary file so that the image is decoded.
-Future<File> _writePng(WidgetTester tester) async {
-  const fileSystem = LocalFileSystem();
-  final file = fileSystem.file(
-    '${io.Directory.systemTemp.createTempSync().path}/image.png',
-  );
+/// Writes a real 8x4 PNG to an in-memory file so that the image is decoded.
+Future<FileInfo> _writePng(WidgetTester tester) async {
+  const url = 'https://example.com/image.png';
+  final file = await MemoryCacheSystem().createFile('image.png');
   await tester.runAsync(() async {
     final recorder = ui.PictureRecorder();
     Canvas(recorder).drawRect(
@@ -29,15 +24,25 @@ Future<File> _writePng(WidgetTester tester) async {
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
     await file.writeAsBytes(bytes!.buffer.asUint8List());
   });
-  return file;
+  return FileInfo(
+    file,
+    FileSource.Cache,
+    DateTime.now().add(const Duration(days: 1)),
+    url,
+  );
 }
 
+/// Pumps an [AppCachedNetworkImage]. The cache manager never answers by
+/// default (loading state), returns [fileInfo] if given, or fails if
+/// [fails] is true.
 Future<CachedNetworkImage> _pump(
   WidgetTester tester, {
   double? width,
   double? height,
   BoxFit fit = BoxFit.cover,
-  File? imageFile,
+  Color? placeholderColor,
+  FileInfo? fileInfo,
+  bool fails = false,
 }) async {
   final cacheManager = _MockCacheManager();
   when(
@@ -50,16 +55,11 @@ Future<CachedNetworkImage> _pump(
       maxWidth: any(named: 'maxWidth'),
     ),
   ).thenAnswer(
-    (_) => imageFile == null
-        ? const Stream<FileResponse>.empty()
-        : Stream<FileResponse>.value(
-            FileInfo(
-              imageFile,
-              FileSource.Cache,
-              DateTime.now().add(const Duration(days: 1)),
-              'https://example.com/image.png',
-            ),
-          ),
+    (_) => fails
+        ? Stream<FileResponse>.error(Exception('failed'))
+        : fileInfo == null
+            ? const Stream<FileResponse>.empty()
+            : Stream<FileResponse>.value(fileInfo),
   );
 
   await tester.pumpWidget(
@@ -74,13 +74,14 @@ Future<CachedNetworkImage> _pump(
             width: width,
             height: height,
             fit: fit,
+            placeholderColor: placeholderColor,
           ),
         ),
       ),
     ),
   );
 
-  if (imageFile != null) {
+  if (fileInfo != null || fails) {
     // Lets the file be read and decoded for real, and the fade-in finish.
     for (var i = 0; i < 10; i++) {
       await tester.runAsync(
@@ -94,6 +95,11 @@ Future<CachedNetworkImage> _pump(
 }
 
 void main() {
+  // The image cache is shared by all tests and keyed by url: a pending load
+  // from a previous test would otherwise be reused.
+  setUp(() => PaintingBinding.instance.imageCache.clear());
+  tearDown(() => PaintingBinding.instance.imageCache.clear());
+
   group('AppCachedNetworkImage memCache', () {
     testWidgets('is not set when width and height are given', (tester) async {
       final image = await _pump(tester, width: 64, height: 64);
@@ -142,10 +148,44 @@ void main() {
     });
   });
 
-  group('AppCachedNetworkImage decoding', () {
-    setUp(() => PaintingBinding.instance.imageCache.clear());
-    tearDown(() => PaintingBinding.instance.imageCache.clear());
+  group('AppCachedNetworkImage placeholder color', () {
+    const color = Color(0xFF123456);
+    final withColor = find.byWidgetPredicate(
+      (widget) => widget is ColoredBox && widget.color == color,
+    );
 
+    for (final (name, width, height) in [
+      ('width and height', 64.0, 64.0),
+      ('width only', 64.0, null),
+      ('no dimension', null, null),
+    ]) {
+      testWidgets('is used while loading with $name', (tester) async {
+        await _pump(
+          tester,
+          width: width,
+          height: height,
+          fit: BoxFit.contain,
+          placeholderColor: color,
+        );
+        expect(withColor, findsOneWidget);
+      });
+
+      testWidgets('is used on error with $name', (tester) async {
+        await _pump(
+          tester,
+          width: width,
+          height: height,
+          fit: BoxFit.contain,
+          placeholderColor: color,
+          fails: true,
+        );
+        expect(find.byIcon(Icons.image_not_supported), findsOneWidget);
+        expect(withColor, findsOneWidget);
+      });
+    }
+  });
+
+  group('AppCachedNetworkImage decoding', () {
     for (final (name, width, height, fit) in [
       ('width and height', 64.0, 64.0, BoxFit.cover),
       ('width only', 64.0, null, BoxFit.contain),
@@ -153,13 +193,13 @@ void main() {
       ('no dimension', null, null, BoxFit.contain),
     ]) {
       testWidgets('decodes the image once with $name', (tester) async {
-        final file = await _writePng(tester);
+        final fileInfo = await _writePng(tester);
         await _pump(
           tester,
           width: width,
           height: height,
           fit: fit,
-          imageFile: file,
+          fileInfo: fileInfo,
         );
 
         expect(PaintingBinding.instance.imageCache.currentSize, 1);
