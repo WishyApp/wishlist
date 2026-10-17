@@ -16,6 +16,7 @@ node_modules/
 
 # Build output of the native platforms (wishlist/build/ is in wishlist/.gitignore)
 /wishlist/android/build/
+/wishlist/android/app/build/
 /wishlist/ios/build/
 
 # Supabase CLI local state (project refs, database host and user). The wildcard
