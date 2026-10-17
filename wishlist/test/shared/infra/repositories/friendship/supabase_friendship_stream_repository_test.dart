@@ -137,7 +137,11 @@ void main() {
       expect(received, hasLength(1));
 
       final payload = MockPostgresChangePayload();
+      var reload = 0;
       for (final l in List.of(listeners)) {
+        // Identical results are not re-emitted: make each reload differ.
+        when(() => friendshipRepository.getFriendsIds(any()))
+            .thenAnswer((_) async => {'friend-${reload++}'}.lock);
         l.callback(payload);
         await pumpEventQueue();
       }
@@ -426,6 +430,118 @@ void main() {
       await pumpEventQueue();
 
       expect(received, hasLength(1));
+      await sub.cancel();
+    });
+  });
+
+  group('reload ordering edge cases', () {
+    setUp(() => signInAs('me'));
+
+    test('a first load still delivers its value when a later reload fails',
+        () async {
+      final initial = Completer<ISet<String>>();
+      final reload = Completer<ISet<String>>();
+      final queue = [initial, reload];
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) => queue.removeAt(0).future);
+
+      final received = <ISet<String>>[];
+      final errors = <Object>[];
+      final sub = repository
+          .watchCurrentUserPendingFriendsIds()
+          .listen(received.add, onError: errors.add);
+      // The channel is subscribed while the initial query is still running.
+      statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+      await pumpEventQueue();
+      initial.complete({'valid'}.lock);
+      await pumpEventQueue();
+      reload.completeError(Exception('offline'));
+      await pumpEventQueue();
+
+      expect(received, [
+        {'valid'}.lock,
+      ]);
+      expect(errors, isEmpty);
+      await sub.cancel();
+    });
+
+    test('an older load failing while a newer one is pending emits no error',
+        () async {
+      final older = Completer<ISet<String>>();
+      final newer = Completer<ISet<String>>();
+      final queue = [older, newer];
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) => queue.removeAt(0).future);
+
+      final received = <ISet<String>>[];
+      final errors = <Object>[];
+      final sub = repository
+          .watchCurrentUserPendingFriendsIds()
+          .listen(received.add, onError: errors.add);
+      listeners.first.callback(MockPostgresChangePayload());
+      await pumpEventQueue();
+
+      older.completeError(Exception('older failed'));
+      await pumpEventQueue();
+      newer.complete({'newer'}.lock);
+      await pumpEventQueue();
+
+      expect(errors, isEmpty);
+      expect(received, [
+        {'newer'}.lock,
+      ]);
+      await sub.cancel();
+    });
+
+    test('a late callback of a closed controller does not hide an error',
+        () async {
+      final first =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      await pumpEventQueue();
+      final oldCallback = listeners.first.callback;
+      final oldStatus = statusCallbacks.first;
+      await first.cancel();
+
+      final load = Completer<ISet<String>>();
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) => load.future);
+      final errors = <Object>[];
+      final second = repository
+          .watchCurrentUserPendingFriendsIds()
+          .listen((_) {}, onError: errors.add);
+
+      // The old channel fires again (rejoin) after the cleanup: it must not
+      // make the load of the new controller look outdated.
+      oldCallback(MockPostgresChangePayload());
+      oldStatus(RealtimeSubscribeStatus.subscribed, null);
+      load.completeError(Exception('offline'));
+      await pumpEventQueue();
+
+      expect(errors, hasLength(1));
+      await second.cancel();
+    });
+  });
+
+  group('identical reloads', () {
+    setUp(() => signInAs('me'));
+
+    test('all friendships does not re-emit an identical value', () async {
+      final received = <FriendshipIds>[];
+      final sub =
+          repository.watchCurrentUserAllFriendships().listen(received.add);
+      await pumpEventQueue();
+      // The channel reports subscribed: the reload returns the same data.
+      statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+      await pumpEventQueue();
+      expect(received, hasLength(1));
+
+      when(() => friendshipRepository.getFriendsIds(any()))
+          .thenAnswer((_) async => {'new'}.lock);
+      listeners.first.callback(MockPostgresChangePayload());
+      await pumpEventQueue();
+
+      expect(received, hasLength(2));
+      expect(received.last.friendsIds, {'new'}.lock);
       await sub.cancel();
     });
   });

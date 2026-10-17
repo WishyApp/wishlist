@@ -32,6 +32,9 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   /// Numéro du dernier chargement lancé par clé, voir [_load].
   final Map<String, int> _loadGenerations = {};
 
+  /// Numéro du dernier chargement émis par clé, voir [_load].
+  final Map<String, int> _emittedGenerations = {};
+
   /// Les controllers de clés différentes n'ont pas le même type d'événement :
   /// la clé détermine le type attendu.
   BehaviorSubject<T>? _existingController<T>(String key) =>
@@ -84,31 +87,41 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
 
   /// Charge une valeur et l'émet sur [controller].
   ///
-  /// Les rechargements ne sont pas séquencés : seul le dernier lancé pour la
-  /// clé compte, un résultat plus ancien qui termine après lui est ignoré
-  /// (sinon, rejoué par le [BehaviorSubject], il resterait en cache).
+  /// Les rechargements ne sont pas séquencés. Un résultat n'est émis que s'il
+  /// est plus récent que le dernier émis pour la clé : un résultat plus ancien
+  /// qui termine après un plus récent est ignoré (sinon, rejoué par le
+  /// [BehaviorSubject], il resterait en cache), mais un plus ancien qui termine
+  /// avant est gardé, il évite d'attendre le suivant. Une valeur identique à la
+  /// courante n'est pas ré-émise (les abonnés rechargent des données en aval).
   ///
-  /// Une erreur n'est émise que tant qu'aucune valeur n'a été émise : sinon
-  /// elle remplacerait la dernière bonne valeur pour les abonnés suivants.
+  /// Une erreur n'est émise que tant qu'aucune valeur n'a été émise et qu'aucun
+  /// rechargement plus récent n'est en cours : sinon elle remplacerait la
+  /// dernière bonne valeur pour les abonnés suivants, ou un résultat à venir.
   Future<void> _load<T>(
     String key,
     BehaviorSubject<T> controller,
     Future<T> Function() fetch,
   ) async {
+    // Un controller fermé (ex: callback tardif d'un ancien channel) ne doit pas
+    // avancer la génération partagée, il rendrait périmé le chargement du
+    // nouveau controller de la même clé.
     if (controller.isClosed) {
       return;
     }
     final generation = _loadGenerations[key] = (_loadGenerations[key] ?? 0) + 1;
-    bool isStale() =>
-        controller.isClosed || _loadGenerations[key] != generation;
 
     try {
       final value = await fetch();
-      if (!isStale()) {
+      if (controller.isClosed ||
+          generation <= (_emittedGenerations[key] ?? 0)) {
+        return;
+      }
+      _emittedGenerations[key] = generation;
+      if (!controller.hasValue || controller.value != value) {
         controller.add(value);
       }
     } catch (e, st) {
-      if (isStale()) {
+      if (controller.isClosed || _loadGenerations[key] != generation) {
         return;
       }
       if (controller.hasValue) {
@@ -292,6 +305,10 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     if (!identical(_controllers[key], controller)) {
       return;
     }
+    // Sans risque : [_load] ignore les controllers fermés, aucun ancien
+    // chargement ne peut écrire dans la génération d'un futur controller.
+    _loadGenerations.remove(key);
+    _emittedGenerations.remove(key);
     _channels[key]?.unsubscribe();
     _channels.remove(key);
     controller.close();
