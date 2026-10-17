@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
@@ -20,16 +21,21 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   static const _bothUserColumns = ['requester_id', 'receiver_id'];
 
   final Map<String, RealtimeChannel> _channels = {};
-  final Map<String, StreamController<dynamic>> _controllers = {};
 
-  /// Chaque controller est un [BehaviorSubject] : un abonné qui arrive après le
-  /// premier chargement reçoit tout de suite la dernière valeur (ou erreur),
+  /// Chaque controller est un [BehaviorSubject] (et non un
+  /// `StreamController.broadcast`, qui ne rejoue rien) : un abonné qui arrive
+  /// après le premier chargement reçoit tout de suite la dernière valeur,
   /// puis les suivantes. `onCancel` se déclenche quand le dernier abonné part.
-  ///
+  /// Le type de la map interdit d'en créer un autre type par erreur.
+  final Map<String, BehaviorSubject<dynamic>> _controllers = {};
+
+  /// Numéro du dernier chargement lancé par clé, voir [_load].
+  final Map<String, int> _loadGenerations = {};
+
   /// Les controllers de clés différentes n'ont pas le même type d'événement :
   /// la clé détermine le type attendu.
-  StreamController<T>? _existingController<T>(String key) =>
-      _controllers[key] as StreamController<T>?;
+  BehaviorSubject<T>? _existingController<T>(String key) =>
+      _controllers[key] as BehaviorSubject<T>?;
 
   /// Abonne un channel aux lignes de `friendships` où [userId] figure dans
   /// l'une des [columns] (un filtre `eq` par colonne, donc un listener par
@@ -49,6 +55,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     required String userId,
     required List<String> columns,
     required void Function() onChange,
+    required void Function() onSubscribed,
   }) {
     var channel = _client.channel(channelName);
     for (final column in columns) {
@@ -64,7 +71,53 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         callback: (payload) => onChange(),
       );
     }
-    return channel.subscribe();
+    return channel.subscribe((status, _) {
+      // Un changement validé entre la première requête et l'abonnement du
+      // channel n'est jamais livré en événement : on recharge une fois abonné
+      // (et à chaque reconnexion). Les autres statuts
+      // ne disent rien du contenu.
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        onSubscribed();
+      }
+    });
+  }
+
+  /// Charge une valeur et l'émet sur [controller].
+  ///
+  /// Les rechargements ne sont pas séquencés : seul le dernier lancé pour la
+  /// clé compte, un résultat plus ancien qui termine après lui est ignoré
+  /// (sinon, rejoué par le [BehaviorSubject], il resterait en cache).
+  ///
+  /// Une erreur n'est émise que tant qu'aucune valeur n'a été émise : sinon
+  /// elle remplacerait la dernière bonne valeur pour les abonnés suivants.
+  Future<void> _load<T>(
+    String key,
+    BehaviorSubject<T> controller,
+    Future<T> Function() fetch,
+  ) async {
+    if (controller.isClosed) {
+      return;
+    }
+    final generation = _loadGenerations[key] = (_loadGenerations[key] ?? 0) + 1;
+    bool isStale() =>
+        controller.isClosed || _loadGenerations[key] != generation;
+
+    try {
+      final value = await fetch();
+      if (!isStale()) {
+        controller.add(value);
+      }
+    } catch (e, st) {
+      if (isStale()) {
+        return;
+      }
+      if (controller.hasValue) {
+        debugPrint('[Wishy friendships] reload failed, keeping last value: $e');
+        debugPrint(st.toString());
+      } else {
+        controller.addError(e, st);
+      }
+    }
   }
 
   @override
@@ -78,19 +131,22 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       return existingController.stream;
     }
 
-    late final StreamController<FriendshipIds> controller;
+    late final BehaviorSubject<FriendshipIds> controller;
     controller = BehaviorSubject<FriendshipIds>(
       onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
-    _loadAllFriendships(currentUserId, controller);
+    void reload() =>
+        _load(key, controller, () => _fetchAllFriendships(currentUserId));
+    reload();
 
     final channel = _subscribeToFriendships(
       channelName: 'friendships_all_$currentUserId',
       userId: currentUserId,
       columns: _bothUserColumns,
-      onChange: () => _loadAllFriendships(currentUserId, controller),
+      onChange: reload,
+      onSubscribed: reload,
     );
 
     _channels[key] = channel;
@@ -98,31 +154,18 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     return controller.stream;
   }
 
-  Future<void> _loadAllFriendships(
-    String userId,
-    StreamController<FriendshipIds> controller,
-  ) async {
-    try {
-      final results = await Future.wait([
-        _friendshipRepository.getFriendsIds(userId),
-        _friendshipRepository.getCurrentUserPendingFriendsIds(),
-        _friendshipRepository.getCurrentUserRequestedFriendsIds(),
-      ]);
+  Future<FriendshipIds> _fetchAllFriendships(String userId) async {
+    final results = await Future.wait([
+      _friendshipRepository.getFriendsIds(userId),
+      _friendshipRepository.getCurrentUserPendingFriendsIds(),
+      _friendshipRepository.getCurrentUserRequestedFriendsIds(),
+    ]);
 
-      if (!controller.isClosed) {
-        controller.add(
-          FriendshipIds(
-            friendsIds: results[0],
-            pendingIds: results[1],
-            requestedIds: results[2],
-          ),
-        );
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
+    return FriendshipIds(
+      friendsIds: results[0],
+      pendingIds: results[1],
+      requestedIds: results[2],
+    );
   }
 
   @override
@@ -135,19 +178,25 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       return existingController.stream;
     }
 
-    late final StreamController<ISet<String>> controller;
+    late final BehaviorSubject<ISet<String>> controller;
     controller = BehaviorSubject<ISet<String>>(
       onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
-    _loadInitialFriends(userId, controller);
+    void reload() => _load(
+          key,
+          controller,
+          () => _friendshipRepository.getFriendsIds(userId),
+        );
+    reload();
 
     final channel = _subscribeToFriendships(
       channelName: 'friendships_$userId',
       userId: userId,
       columns: _bothUserColumns,
-      onChange: () => _handleFriendshipChange(userId, controller),
+      onChange: reload,
+      onSubscribed: reload,
     );
 
     _channels[key] = channel;
@@ -172,20 +221,26 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       return existingController.stream;
     }
 
-    late final StreamController<ISet<String>> controller;
+    late final BehaviorSubject<ISet<String>> controller;
     controller = BehaviorSubject<ISet<String>>(
       onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
-    _loadInitialPending(currentUserId, controller);
+    void reload() => _load(
+          key,
+          controller,
+          _friendshipRepository.getCurrentUserPendingFriendsIds,
+        );
+    reload();
 
     // Les demandes envoyées par l'utilisateur : il en est le requester.
     final channel = _subscribeToFriendships(
       channelName: 'friendships_pending_$currentUserId',
       userId: currentUserId,
       columns: const ['requester_id'],
-      onChange: () => _handlePendingChange(currentUserId, controller),
+      onChange: reload,
+      onSubscribed: reload,
     );
 
     _channels[key] = channel;
@@ -204,20 +259,26 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       return existingController.stream;
     }
 
-    late final StreamController<ISet<String>> controller;
+    late final BehaviorSubject<ISet<String>> controller;
     controller = BehaviorSubject<ISet<String>>(
       onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
-    _loadInitialRequested(currentUserId, controller);
+    void reload() => _load(
+          key,
+          controller,
+          _friendshipRepository.getCurrentUserRequestedFriendsIds,
+        );
+    reload();
 
     // Les demandes reçues par l'utilisateur : il en est le receiver.
     final channel = _subscribeToFriendships(
       channelName: 'friendships_requested_$currentUserId',
       userId: currentUserId,
       columns: const ['receiver_id'],
-      onChange: () => _handleRequestedChange(currentUserId, controller),
+      onChange: reload,
+      onSubscribed: reload,
     );
 
     _channels[key] = channel;
@@ -225,110 +286,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     return controller.stream;
   }
 
-  Future<void> _loadInitialFriends(
-    String userId,
-    StreamController<ISet<String>> controller,
-  ) async {
-    try {
-      final friendsIds = await _friendshipRepository.getFriendsIds(userId);
-      if (!controller.isClosed) {
-        controller.add(friendsIds);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
-  }
-
-  Future<void> _loadInitialPending(
-    String userId,
-    StreamController<ISet<String>> controller,
-  ) async {
-    try {
-      final pendingIds =
-          await _friendshipRepository.getCurrentUserPendingFriendsIds();
-      if (!controller.isClosed) {
-        controller.add(pendingIds);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
-  }
-
-  Future<void> _loadInitialRequested(
-    String userId,
-    StreamController<ISet<String>> controller,
-  ) async {
-    try {
-      final requestedIds =
-          await _friendshipRepository.getCurrentUserRequestedFriendsIds();
-      if (!controller.isClosed) {
-        controller.add(requestedIds);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
-  }
-
-  Future<void> _handleFriendshipChange(
-    String userId,
-    StreamController<ISet<String>> controller,
-  ) async {
-    try {
-      final friendsIds = await _friendshipRepository.getFriendsIds(userId);
-
-      if (!controller.isClosed) {
-        controller.add(friendsIds);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
-  }
-
-  Future<void> _handlePendingChange(
-    String userId,
-    StreamController<ISet<String>> controller,
-  ) async {
-    try {
-      final pendingIds =
-          await _friendshipRepository.getCurrentUserPendingFriendsIds();
-
-      if (!controller.isClosed) {
-        controller.add(pendingIds);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
-  }
-
-  Future<void> _handleRequestedChange(
-    String userId,
-    StreamController<ISet<String>> controller,
-  ) async {
-    try {
-      final requestedIds =
-          await _friendshipRepository.getCurrentUserRequestedFriendsIds();
-
-      if (!controller.isClosed) {
-        controller.add(requestedIds);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
-  }
-
-  void _cleanupStream(String key, StreamController<dynamic> controller) {
+  void _cleanupStream(String key, BehaviorSubject<dynamic> controller) {
     // Ignore un cancel tardif d'un ancien controller (ex: pendant dispose) si
     // la clé a été reprise par un nouveau.
     if (!identical(_controllers[key], controller)) {

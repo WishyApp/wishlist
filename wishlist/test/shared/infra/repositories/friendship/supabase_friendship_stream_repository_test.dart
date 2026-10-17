@@ -19,6 +19,9 @@ void main() {
   /// Listeners registered on the mock channel, in order.
   late List<_Listener> listeners;
 
+  /// Status callbacks passed to `channel.subscribe`, in order.
+  late List<_StatusCallback> statusCallbacks;
+
   late MockSupabaseClient client;
   late MockGoTrueClient auth;
   late MockFriendshipRepository friendshipRepository;
@@ -32,6 +35,7 @@ void main() {
     channel = MockRealtimeChannel();
 
     listeners = [];
+    statusCallbacks = [];
     when(() => client.channel(any())).thenReturn(channel);
     when(
       () => channel.onPostgresChanges(
@@ -52,7 +56,13 @@ void main() {
       );
       return channel;
     });
-    when(channel.subscribe).thenReturn(channel);
+    when(() => channel.subscribe(any())).thenAnswer((invocation) {
+      final callback = invocation.positionalArguments.first as _StatusCallback?;
+      if (callback != null) {
+        statusCallbacks.add(callback);
+      }
+      return channel;
+    });
     when(channel.unsubscribe).thenAnswer((_) async => 'ok');
 
     when(() => friendshipRepository.getFriendsIds(any()))
@@ -243,6 +253,22 @@ void main() {
       verify(channel.unsubscribe).called(1);
     });
 
+    test('keeps the channel until the last listener leaves, replayed one too',
+        () async {
+      final first =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      await pumpEventQueue();
+      final replayed =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      await pumpEventQueue();
+
+      await first.cancel();
+      verifyNever(channel.unsubscribe);
+
+      await replayed.cancel();
+      verify(channel.unsubscribe).called(1);
+    });
+
     test('a watch after the last listener left reloads from scratch', () async {
       final first =
           repository.watchCurrentUserPendingFriendsIds().listen((_) {});
@@ -257,6 +283,150 @@ void main() {
           .timeout(const Duration(seconds: 1));
 
       expect(ids, {'other'}.lock);
+    });
+  });
+
+  group('reload ordering', () {
+    setUp(() => signInAs('me'));
+
+    test('an older reload finishing last does not overwrite the newest value',
+        () async {
+      final slow = Completer<ISet<String>>();
+      final fast = Completer<ISet<String>>();
+      final queue = [slow, fast];
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) => queue.removeAt(0).future);
+
+      final first =
+          repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      // The initial load took `slow`; the event starts a newer reload, `fast`.
+      listeners.first.callback(MockPostgresChangePayload());
+      await pumpEventQueue();
+      expect(queue, isEmpty);
+      fast.complete({'new'}.lock);
+      await pumpEventQueue();
+      slow.complete({'stale'}.lock);
+      await pumpEventQueue();
+
+      final replayed = await repository
+          .watchCurrentUserPendingFriendsIds()
+          .first
+          .timeout(const Duration(seconds: 1));
+      expect(replayed, {'new'}.lock);
+      await first.cancel();
+    });
+
+    test('an initial load finishing after the first event is ignored',
+        () async {
+      final initial = Completer<ISet<String>>();
+      final queue = [initial];
+      when(friendshipRepository.getCurrentUserRequestedFriendsIds).thenAnswer(
+        (_) => queue.isNotEmpty
+            ? queue.removeAt(0).future
+            : Future.value({'after-event'}.lock),
+      );
+
+      final received = <ISet<String>>[];
+      final sub =
+          repository.watchCurrentUserRequestedFriendsIds().listen(received.add);
+      listeners.first.callback(MockPostgresChangePayload());
+      await pumpEventQueue();
+      initial.complete({'stale'}.lock);
+      await pumpEventQueue();
+
+      expect(received, [
+        {'after-event'}.lock,
+      ]);
+      await sub.cancel();
+    });
+  });
+
+  group('errors', () {
+    setUp(() => signInAs('me'));
+
+    test('a failed reload keeps the last value for a late subscriber',
+        () async {
+      final errors = <Object>[];
+      final first = repository
+          .watchCurrentUserPendingFriendsIds()
+          .listen((_) {}, onError: errors.add);
+      await pumpEventQueue();
+
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) async => throw Exception('offline'));
+      listeners.first.callback(MockPostgresChangePayload());
+      await pumpEventQueue();
+
+      final replayed = await repository
+          .watchCurrentUserPendingFriendsIds()
+          .first
+          .timeout(const Duration(seconds: 1));
+      expect(replayed, const ISet<String>.empty());
+      expect(errors, isEmpty);
+      await first.cancel();
+    });
+
+    test('a failed first load is replayed with its stack trace', () async {
+      final trace = StackTrace.current;
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) => Future.error(Exception('offline'), trace));
+
+      final first = repository
+          .watchCurrentUserPendingFriendsIds()
+          .listen((_) {}, onError: (_) {});
+      await pumpEventQueue();
+
+      Object? error;
+      StackTrace? stackTrace;
+      final late = repository.watchCurrentUserPendingFriendsIds().listen(
+        (_) {},
+        onError: (Object e, StackTrace st) {
+          error = e;
+          stackTrace = st;
+        },
+      );
+      await pumpEventQueue();
+
+      expect(error, isA<Exception>());
+      expect(stackTrace, trace);
+      await first.cancel();
+      await late.cancel();
+    });
+  });
+
+  group('reload once subscribed', () {
+    setUp(() => signInAs('me'));
+
+    test('reloads when the channel reports subscribed', () async {
+      final received = <ISet<String>>[];
+      final sub =
+          repository.watchCurrentUserPendingFriendsIds().listen(received.add);
+      await pumpEventQueue();
+      expect(received, hasLength(1));
+
+      // A change committed between the first query and the subscription is
+      // not delivered as an event: the subscribed status triggers a reload.
+      when(friendshipRepository.getCurrentUserPendingFriendsIds)
+          .thenAnswer((_) async => {'missed'}.lock);
+      expect(statusCallbacks, hasLength(1));
+      statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+      await pumpEventQueue();
+
+      expect(received.last, {'missed'}.lock);
+      await sub.cancel();
+    });
+
+    test('does not reload for other statuses', () async {
+      final received = <ISet<String>>[];
+      final sub =
+          repository.watchCurrentUserPendingFriendsIds().listen(received.add);
+      await pumpEventQueue();
+
+      statusCallbacks.single(RealtimeSubscribeStatus.channelError, null);
+      await pumpEventQueue();
+
+      expect(received, hasLength(1));
+      await sub.cancel();
     });
   });
 
@@ -385,6 +555,7 @@ void main() {
 }
 
 typedef _PayloadCallback = void Function(PostgresChangePayload);
+typedef _StatusCallback = void Function(RealtimeSubscribeStatus, Object?);
 
 class _Listener {
   _Listener({
