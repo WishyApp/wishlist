@@ -78,8 +78,10 @@ void main() {
     setUp(() => signInAs('me'));
 
     void expectFiltered(Set<String> columns) {
-      // Every listener is filtered; `all` also covers filtered DELETEs
-      // (the table is REPLICA IDENTITY FULL).
+      // Every listener is filtered; `all` includes DELETEs. These tests only
+      // check the channel configuration: that Realtime delivers filtered
+      // DELETEs relies on REPLICA IDENTITY FULL, checked by
+      // supabase-tests/friendships_realtime.sql.
       expect(listeners.where((l) => l.filter == null), isEmpty);
       final filtered = listeners;
       for (final l in filtered) {

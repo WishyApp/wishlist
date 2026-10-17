@@ -35,11 +35,15 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   /// l'une des [columns] (un filtre `eq` par colonne, donc un listener par
   /// colonne).
   ///
-  /// Les DELETE sont filtrés comme les autres événements, car la table est en
-  /// `REPLICA IDENTITY FULL` : l'ancienne ligne contient toutes ses colonnes.
-  /// La RLS n'est pas appliquée aux DELETE, mais le filtre les limite aux
-  /// lignes qui concernent l'utilisateur. Le payload ne sert que de
-  /// déclencheur de rechargement.
+  /// Le filtre réduit le trafic, ce n'est pas une barrière d'accès : le client
+  /// en choisit la valeur, et la RLS n'est pas appliquée aux DELETE.
+  ///
+  /// Les DELETE sont filtrés comme les autres événements. Realtime évalue le
+  /// filtre sur l'ancienne ligne complète, que Postgres journalise parce que
+  /// `friendships` est en `REPLICA IDENTITY FULL` (vérifié par
+  /// `supabase-tests/friendships_realtime.sql`). Avec la RLS, le payload reçu
+  /// ne contient ensuite que la clé primaire dans `oldRecord` : il ne sert que
+  /// de déclencheur de rechargement, ne pas y lire `requester_id`.
   RealtimeChannel _subscribeToFriendships({
     required String channelName,
     required String userId,
