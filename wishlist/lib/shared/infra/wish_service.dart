@@ -183,8 +183,9 @@ class WishService {
 
     // Si on veut la miniature, on remplace .webp par _thumb.webp dans le path
     if (thumbnail) {
-      // imagePath est du type: "wishId/wish_image_timestamp.webp"
-      // On veut obtenir: "wishId/wish_image_timestamp_thumb.webp"
+      // imagePath est du type: "userId/wishId/wish_image_timestamp.webp"
+      // (ou "wishId/wish_image_timestamp.webp" pour les images envoyées avant
+      // F010). On veut obtenir le même chemin avec "_thumb.webp".
       final thumbnailPath = imagePath.replaceFirst('.webp', '_thumb.webp');
       return _wishRepository.getWishImageUrl(thumbnailPath);
     }
