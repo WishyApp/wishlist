@@ -27,3 +27,6 @@ build/
 /supabase-dev/supabase/.branches/
 /supabase-prod/supabase/.temp/
 /supabase-prod/supabase/.branches/
+
+# Dump written by scripts/migrate_data_dev_to_prod.sh (left behind if the script fails)
+data_dump.sql
