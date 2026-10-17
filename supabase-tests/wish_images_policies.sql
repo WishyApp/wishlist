@@ -89,6 +89,10 @@ SELECT pg_temp.expect_denied('image uploaded in the folder of a wish of another 
   $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('wish-images', '910003/new.webp')$q$);
 SELECT pg_temp.expect_denied('image uploaded with a leading slash before the own prefix',
   $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('wish-images', '/00000000-0000-4000-a000-00000000000a/x.webp')$q$);
+SELECT pg_temp.expect_denied('image uploaded in a folder that is not a wish id',
+  $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('wish-images', 'abc/new.webp')$q$);
+SELECT pg_temp.expect_denied('image uploaded in a numeric folder too large for a bigint',
+  $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('wish-images', '99999999999999999999999/new.webp')$q$);
 SELECT pg_temp.expect_rows('image uploaded in the folder of an own wish',
   $q$INSERT INTO storage.objects (bucket_id, name) VALUES ('wish-images', '910001/new.webp')$q$, 1);
 
@@ -107,6 +111,16 @@ SELECT pg_temp.expect_denied('own image renamed under the prefix of another user
   $q$UPDATE storage.objects SET name = '00000000-0000-4000-a000-00000000000b/910003/stolen.webp' WHERE bucket_id = 'wish-images' AND name = '00000000-0000-4000-a000-00000000000a/910001/old.webp'$q$);
 SELECT pg_temp.expect_denied('own legacy image renamed into the folder of another wish',
   $q$UPDATE storage.objects SET name = '910003/stolen.webp' WHERE bucket_id = 'wish-images' AND name = '910001/legacy_thumb.webp'$q$);
+
+-- Select: only own images are visible, so the bucket root cannot be listed
+SELECT pg_temp.expect_rows('own image visible',
+  $q$SELECT 1 FROM storage.objects WHERE bucket_id = 'wish-images' AND name = '00000000-0000-4000-a000-00000000000a/910001/old.webp'$q$, 1);
+SELECT pg_temp.expect_rows('legacy image of an own wish visible',
+  $q$SELECT 1 FROM storage.objects WHERE bucket_id = 'wish-images' AND name = '910001/legacy.webp'$q$, 1);
+SELECT pg_temp.expect_rows('images of another user, of its wishes or without prefix hidden',
+  $q$SELECT 1 FROM storage.objects WHERE bucket_id = 'wish-images' AND (name LIKE '00000000-0000-4000-a000-00000000000b/%' OR name LIKE '910003/%' OR name = 'orphan.webp')$q$, 0);
+SELECT pg_temp.expect_rows('top-level folders listed are the own ones only',
+  $q$SELECT DISTINCT (storage.foldername(name))[1] FROM storage.objects WHERE bucket_id = 'wish-images' AND (storage.foldername(name))[1] <> '910001' AND (storage.foldername(name))[1] <> '00000000-0000-4000-a000-00000000000a'$q$, 0);
 
 -- A wish pointing to a path does not give access to that path
 UPDATE public.wishs SET icon_url = '910003/legacy.webp' WHERE id = 910001;

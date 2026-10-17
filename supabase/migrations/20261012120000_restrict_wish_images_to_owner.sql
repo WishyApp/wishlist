@@ -13,7 +13,15 @@
 --   accepts WebP images only, which is what the app uploads. The limits apply
 --   to new uploads only, existing objects are left as they are. The avatars
 --   bucket is not touched.
--- - SELECT policies are not touched.
+-- - SELECT is restricted by the same rule: the old policy let any signed-in
+--   user list the bucket root and learn the id of every user who uploaded an
+--   image. The bucket is public, so image URLs keep working without a SELECT
+--   policy (the app only uses public URLs). The storage API still needs SELECT
+--   on the caller's own objects to remove or upsert them.
+-- - Legacy images of a wish that has since been deleted match no rule any more
+--   (the wish is gone), so only service_role can remove them. The app never
+--   removed them anyway: deleting a wishlist (delete_or_archive_wishlist) does
+--   not touch storage. Clean-up of these orphans is a follow-up.
 
 -- 1. Bucket configuration, idempotent.
 
@@ -55,13 +63,17 @@ AS $$
   SELECT
     -- New layout: "<user id>/..."
     (storage.foldername(p_name))[1] = (SELECT auth.uid())::text
-    -- Legacy layout: "<wish id>/..." of a wish in a wishlist of the user
+    -- Legacy layout: "<wish id>/..." of a wish in a wishlist of the user.
+    -- Primary-key lookup on wishs; the CASE keeps the bigint cast from running
+    -- on a folder that is not a number.
     OR EXISTS (
       SELECT 1
       FROM public.wishs w
-      JOIN public.wishlists wl ON wl.id = w.wishlist_id
-      WHERE wl.id_owner = (SELECT auth.uid())
-        AND (storage.foldername(p_name))[1] = w.id::text
+      WHERE w.id = CASE
+            WHEN (storage.foldername(p_name))[1] ~ '^[0-9]{1,18}$'
+            THEN (storage.foldername(p_name))[1]::bigint
+          END
+        AND public.is_wishlist_owner(w.wishlist_id)
     );
 $$;
 
@@ -71,6 +83,25 @@ GRANT EXECUTE ON FUNCTION public.can_write_wish_image(text) TO authenticated;
 
 -- 3. storage.objects policies for wish-images
 
+DROP POLICY IF EXISTS "Authenticated users can alter all wish images gs2bfi_0" ON storage.objects;
+DROP POLICY IF EXISTS "Users can read their own wish images" ON storage.objects;
+CREATE POLICY "Users can read their own wish images"
+  ON storage.objects
+  FOR SELECT
+  TO authenticated
+  USING (
+    bucket_id = 'wish-images'
+    AND public.can_write_wish_image(name)
+  );
+
+-- The legacy branch of can_write_wish_image is kept on INSERT only for app
+-- versions that still upload to "<wish id>/" right after creating a wish.
+-- Replacing or deleting a legacy image needs UPDATE and DELETE only.
+-- TODO: once the minimum supported app version is the first release that
+-- uploads under "<user id>/" (the one shipping F010, the one after 0.2.4+9 in
+-- wishlist/pubspec.yaml), add a new migration that makes INSERT check the user
+-- prefix only. The legacy branch can go entirely when the legacy images have
+-- been migrated or purged.
 DROP POLICY IF EXISTS "Authenticated users can alter all wish images gs2bfi_1" ON storage.objects;
 DROP POLICY IF EXISTS "Users can upload their own wish images" ON storage.objects;
 CREATE POLICY "Users can upload their own wish images"
@@ -109,9 +140,11 @@ CREATE POLICY "Users can delete their own wish images"
   );
 
 
--- 4. Permissive policies add up (OR): fail if any other INSERT, UPDATE,
--- DELETE or ALL policy still targets the wish-images bucket (or has no bucket
--- condition), for instance one created by hand on a project.
+-- 4. Permissive policies add up (OR): fail if any INSERT, UPDATE, DELETE or ALL
+-- permissive policy on storage.objects is not in the list below, whatever its
+-- condition says, for instance one created by hand on a project. Adding a
+-- bucket with its own write policies means adding their names here (or in the
+-- migration that introduces them).
 
 DO $$
 DECLARE
@@ -124,19 +157,19 @@ BEGIN
     AND tablename = 'objects'
     AND permissive = 'PERMISSIVE'
     AND cmd IN ('INSERT', 'UPDATE', 'DELETE', 'ALL')
-    AND (
-      coalesce(qual, '') || ' ' || coalesce(with_check, '') LIKE '%wish-images%'
-      OR (coalesce(qual, '') NOT LIKE '%bucket_id%'
-          AND coalesce(with_check, '') NOT LIKE '%bucket_id%')
-    )
     AND policyname NOT IN (
+      -- wish-images, this migration
       'Users can upload their own wish images',
       'Users can update their own wish images',
-      'Users can delete their own wish images'
+      'Users can delete their own wish images',
+      -- avatars, 20251111150215_remote_schema
+      'Auth users can upload their own avatar',
+      'Auth users can update their own avatar',
+      'Auth users can delete their own avatar'
     );
 
   IF extra IS NOT NULL THEN
-    RAISE EXCEPTION 'Unexpected wish-images write policies left: %', extra;
+    RAISE EXCEPTION 'Unexpected write policies on storage.objects: %', extra;
   END IF;
 END $$;
 
