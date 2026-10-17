@@ -24,14 +24,45 @@
 -- The lookups across tables live in SECURITY DEFINER functions, so that the
 -- policies of wishlists, wishs and wish_taken_by_user never evaluate each
 -- other.
+--
+-- The SELECT policy of wishlists tests the columns of the row itself and does
+-- not call a function that reads wishlists back: INSERT/UPDATE ... RETURNING
+-- (what insert().select() sends) checks the SELECT policy on the new row, and
+-- a function reading the table again does not see that row. The rule "owner or
+-- public" is therefore written twice: in that policy, and in
+-- is_own_or_public_wishlist, which the other tables use for a wishlist they
+-- only know by id.
+--
+-- Known limit: the booking clause follows the wish, not the wishlist where it
+-- was booked. If the owner moves a booked wish to a private wishlist, the user
+-- who booked it can read that wishlist (its name, color, icon, end date and
+-- settings, but none of its other wishes) and its owner's profile.
 
 -- 1. Shared rules. SECURITY DEFINER with a pinned search_path: they read
 -- wishlists, wishs, wish_taken_by_user and friendships without going through
 -- their policies. They only answer about the current user (auth.uid()).
 
--- The current user reads the wish: it is in one of their wishlists or in a
--- public wishlist, or they booked it.
-CREATE OR REPLACE FUNCTION public.can_read_wish(p_wish_id bigint, p_wishlist_id bigint)
+-- The current user booked a wish of the wishlist. Reads neither wishlists nor
+-- the row being written, so the policy of wishlists can call it.
+CREATE OR REPLACE FUNCTION public.has_booked_wish_in(p_wishlist_id bigint)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.wishs w
+    JOIN public.wish_taken_by_user t ON t.wish_id = w.id
+    WHERE w.wishlist_id = p_wishlist_id
+      AND t.user_id = (SELECT auth.uid())
+  );
+$$;
+
+-- The wishlist is the current user's or public, known by its id. The rule of
+-- the wishlists policy, for the other tables.
+CREATE OR REPLACE FUNCTION public.is_own_or_public_wishlist(p_wishlist_id bigint)
 RETURNS boolean
 LANGUAGE sql
 STABLE
@@ -46,12 +77,6 @@ AS $$
         wl.id_owner = (SELECT auth.uid())
         OR wl.visibility = 'public'
       )
-  )
-  OR EXISTS (
-    SELECT 1
-    FROM public.wish_taken_by_user t
-    WHERE t.wish_id = p_wish_id
-      AND t.user_id = (SELECT auth.uid())
   );
 $$;
 
@@ -64,21 +89,27 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT EXISTS (
+  SELECT public.is_own_or_public_wishlist(p_wishlist_id)
+  OR public.has_booked_wish_in(p_wishlist_id);
+$$;
+
+-- The current user reads the wish: its wishlist is theirs or public, or they
+-- booked the wish (booking a wish does not open the other wishes of its
+-- wishlist). Reads wishlists and wish_taken_by_user, never wishs, so it works
+-- on the wish being written too.
+CREATE OR REPLACE FUNCTION public.can_read_wish(p_wish_id bigint, p_wishlist_id bigint)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT public.is_own_or_public_wishlist(p_wishlist_id)
+  OR EXISTS (
     SELECT 1
-    FROM public.wishlists wl
-    WHERE wl.id = p_wishlist_id
-      AND (
-        wl.id_owner = (SELECT auth.uid())
-        OR wl.visibility = 'public'
-        OR EXISTS (
-          SELECT 1
-          FROM public.wishs w
-          JOIN public.wish_taken_by_user t ON t.wish_id = w.id
-          WHERE w.wishlist_id = wl.id
-            AND t.user_id = (SELECT auth.uid())
-        )
-      )
+    FROM public.wish_taken_by_user t
+    WHERE t.wish_id = p_wish_id
+      AND t.user_id = (SELECT auth.uid())
   );
 $$;
 
@@ -107,16 +138,7 @@ AS $$
       SELECT 1
       FROM public.wishlists wl
       WHERE wl.id_owner = p_profile_id
-        AND (
-          wl.visibility = 'public'
-          OR EXISTS (
-            SELECT 1
-            FROM public.wishs w
-            JOIN public.wish_taken_by_user t ON t.wish_id = w.id
-            WHERE w.wishlist_id = wl.id
-              AND t.user_id = (SELECT auth.uid())
-          )
-        )
+        AND public.can_read_wishlist(wl.id)
     )
     OR EXISTS (
       SELECT 1
@@ -127,9 +149,13 @@ AS $$
     );
 $$;
 
+REVOKE ALL ON FUNCTION public.has_booked_wish_in(bigint) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.is_own_or_public_wishlist(bigint) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.can_read_wish(bigint, bigint) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.can_read_wishlist(bigint) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.can_read_profile(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.has_booked_wish_in(bigint) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_own_or_public_wishlist(bigint) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_read_wish(bigint, bigint) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_read_wishlist(bigint) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_read_profile(uuid) TO authenticated;
@@ -143,7 +169,11 @@ CREATE POLICY "Users can read their own and public wishlists"
   ON public.wishlists
   FOR SELECT
   TO authenticated
-  USING (public.can_read_wishlist(id));
+  USING (
+    id_owner = (SELECT auth.uid())
+    OR visibility = 'public'
+    OR public.has_booked_wish_in(id)
+  );
 
 -- 3. wishs
 
@@ -207,5 +237,5 @@ CREATE INDEX IF NOT EXISTS wishlists_id_owner_idx ON public.wishlists (id_owner)
 --
 -- SELECT p.proname, p.prosecdef, p.provolatile, p.proconfig
 --   FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace
---    AND p.proname IN ('can_read_wish', 'can_read_wishlist', 'can_read_profile');
+--    AND p.proname IN ('has_booked_wish_in', 'is_own_or_public_wishlist', 'can_read_wish', 'can_read_wishlist', 'can_read_profile');
 --   -> prosecdef true, provolatile 's', proconfig {search_path=""}

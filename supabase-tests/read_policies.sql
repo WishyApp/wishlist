@@ -189,4 +189,44 @@ SELECT pg_temp.expect_count('own wishes read by the owner',
 SELECT pg_temp.expect_count('profile of a user who booked an own wish read',
   $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-00000000000a'$q$, 1);
 
+-- As A: what the app sends, PostgREST turns insert().select() and
+-- update().select() into INSERT/UPDATE ... RETURNING, which checks the SELECT
+-- policy on the new row (supabase_wishlist_repository, supabase_wish_repository).
+SELECT pg_temp.act_as('00000000-0000-4000-c000-00000000000a');
+SELECT pg_temp.expect_count('wishlist created with RETURNING',
+  $q$WITH r AS (
+       INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility)
+       VALUES (940101, 'A new private', '00000000-0000-4000-c000-00000000000a', '#FFFFFF',
+               '00000000-0000-4000-c000-00000000000a', 'private')
+       RETURNING *)
+     SELECT count(*) FROM r$q$, 1);
+SELECT pg_temp.expect_count('public wishlist created with RETURNING',
+  $q$WITH r AS (
+       INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility)
+       VALUES (940102, 'A new public', '00000000-0000-4000-c000-00000000000a', '#FFFFFF',
+               '00000000-0000-4000-c000-00000000000a', 'public')
+       RETURNING *)
+     SELECT count(*) FROM r$q$, 1);
+SELECT pg_temp.expect_count('wishlist updated with RETURNING, turned private',
+  $q$WITH r AS (
+       UPDATE public.wishlists SET visibility = 'private', name = 'A renamed' WHERE id = 940102
+       RETURNING *)
+     SELECT count(*) FROM r$q$, 1);
+SELECT pg_temp.expect_count('wish created with RETURNING',
+  $q$WITH r AS (
+       INSERT INTO public.wishs (id, name, description, wishlist_id, updated_by)
+       VALUES (950101, 'A new wish', '', 940101, '00000000-0000-4000-c000-00000000000a')
+       RETURNING *)
+     SELECT count(*) FROM r$q$, 1);
+SELECT pg_temp.expect_count('wish updated with RETURNING',
+  $q$WITH r AS (
+       UPDATE public.wishs SET name = 'A renamed wish' WHERE id = 950101
+       RETURNING *)
+     SELECT count(*) FROM r$q$, 1);
+SELECT pg_temp.expect_count('profile updated with RETURNING',
+  $q$WITH r AS (
+       UPDATE public.profiles SET pseudo = 'read_a2' WHERE id = '00000000-0000-4000-c000-00000000000a'
+       RETURNING *)
+     SELECT count(*) FROM r$q$, 1);
+
 ROLLBACK;
