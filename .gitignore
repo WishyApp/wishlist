@@ -8,11 +8,11 @@
 # Node (scripts/)
 node_modules/
 
-# Secrets: a plain .env is never committed.
+# Secrets: any .env* file is ignored (.env, .env.keys, .env.production, ...).
 # wishlist/env/.env.dev and .env.prod are tracked on purpose (encrypted with transcrypt).
-.env
-.env.local
-.env.*.local
+.env*
+!wishlist/env/.env.dev
+!wishlist/env/.env.prod
 
 # Build output (wishlist/android/build/, wishlist/ios/build/)
 build/
