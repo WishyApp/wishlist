@@ -23,18 +23,21 @@ Profile _profile(String? avatarUrl) =>
 /// provider does when Settings is opened again.
 class _ProfileFeed {
   final _controller = StreamController<Profile?>.broadcast();
-  Profile? _latest;
+
+  /// Assigning it emits nothing, like a realtime event missed while the
+  /// channel was rejoining: only a new select sees the change.
+  Profile? stored;
 
   Stream<Profile?> get stream => Stream.multi((listener) {
-        if (_latest != null) {
-          listener.add(_latest);
+        if (stored != null) {
+          listener.add(stored);
         }
         final subscription = _controller.stream.listen(listener.add);
         listener.onCancel = subscription.cancel;
       });
 
   void emit(Profile? profile) {
-    _latest = profile;
+    stored = profile;
     _controller.add(profile);
   }
 }
@@ -81,7 +84,12 @@ void main() {
     expect(displayedAvatarUrl(tester), 'path-2');
   });
 
-  testWidgets('shows a spinner while an upload is running', (tester) async {
+  ProviderContainer containerOf(WidgetTester tester) =>
+      ProviderScope.containerOf(tester.element(find.byType(EditableAvatar)));
+
+  testWidgets(
+      'keeps the spinner during an upload then shows the new avatar, '
+      'without showing the old one again', (tester) async {
     final upload = Completer<String>();
     when(() => avatarService.uploadAvatar(any()))
         .thenAnswer((_) => upload.future);
@@ -89,21 +97,81 @@ void main() {
     await pumpAvatar(tester);
     await tester.pump();
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(EditableAvatar)),
-    );
     unawaited(
-      container.read(avatarEditProvider.notifier).uploadAvatar(File('a.png')),
+      containerOf(tester)
+          .read(avatarEditProvider.notifier)
+          .uploadAvatar(File('a.png')),
     );
     await tester.pump();
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.byType(AppAvatar), findsNothing);
 
+    feed.stored = _profile('path-2');
     upload.complete('path-2');
+    // Every frame until the end: the old avatar must never come back.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+      if (find.byType(AppAvatar).evaluate().isNotEmpty) {
+        expect(displayedAvatarUrl(tester), 'path-2');
+      }
+    }
+
+    expect(displayedAvatarUrl(tester), 'path-2');
+  });
+
+  testWidgets(
+      'shows the new avatar after an upload even if the stream emitted '
+      'nothing', (tester) async {
+    when(() => avatarService.uploadAvatar(any()))
+        .thenAnswer((_) async => 'path-2');
+    feed.emit(_profile('path-1'));
+    await pumpAvatar(tester);
     await tester.pump();
 
+    feed.stored = _profile('path-2');
+    await containerOf(tester)
+        .read(avatarEditProvider.notifier)
+        .uploadAvatar(File('a.png'));
+    await tester.pump();
+
+    expect(displayedAvatarUrl(tester), 'path-2');
+  });
+
+  testWidgets(
+      'shows no avatar after a delete even if the stream emitted '
+      'nothing', (tester) async {
+    when(() => avatarService.deleteAvatar()).thenAnswer((_) async {});
+    feed.emit(_profile('path-1'));
+    await pumpAvatar(tester);
+    await tester.pump();
+
+    feed.stored = _profile(null);
+    await containerOf(tester).read(avatarEditProvider.notifier).deleteAvatar();
+    await tester.pump();
+
+    expect(displayedAvatarUrl(tester), isNull);
+  });
+
+  testWidgets('keeps the profile avatar and shows a snackbar when it fails',
+      (tester) async {
+    when(() => avatarService.uploadAvatar(any()))
+        .thenThrow(Exception('network'));
+    feed.emit(_profile('path-1'));
+    await pumpAvatar(tester);
+    await tester.pump();
+
+    await containerOf(tester)
+        .read(avatarEditProvider.notifier)
+        .uploadAvatar(File('a.png'));
+    await tester.pump();
+
+    expect(
+      find.text("Erreur lors du chargement de l'image"),
+      findsOneWidget,
+    );
     expect(displayedAvatarUrl(tester), 'path-1');
+    await tester.pump(const Duration(seconds: 5));
   });
 
   testWidgets(
@@ -116,11 +184,10 @@ void main() {
     await pumpAvatar(tester);
     await tester.pump();
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(EditableAvatar)),
-    );
     unawaited(
-      container.read(avatarEditProvider.notifier).uploadAvatar(File('a.png')),
+      containerOf(tester)
+          .read(avatarEditProvider.notifier)
+          .uploadAvatar(File('a.png')),
     );
     await tester.pump();
 

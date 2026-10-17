@@ -12,7 +12,10 @@ import 'package:wishlist/shared/widgets/avatar/app_avatar.dart';
 import 'package:wishlist/shared/widgets/image_options_bottom_sheet.dart';
 
 class EditableAvatar extends ConsumerWidget {
-  const EditableAvatar({super.key, this.showEditIcon = true});
+  const EditableAvatar({
+    super.key,
+    this.showEditIcon = true,
+  });
 
   final bool showEditIcon;
 
@@ -74,7 +77,10 @@ class EditableAvatar extends ConsumerWidget {
       child: Stack(
         children: [
           avatarAsync.when(
-            data: (avatarUrl) => AppAvatar(avatarUrl: avatarUrl, size: _size),
+            data: (avatarUrl) => AppAvatar(
+              avatarUrl: avatarUrl,
+              size: _size,
+            ),
             loading: () => Container(
               width: _size,
               height: _size,
@@ -83,7 +89,9 @@ class EditableAvatar extends ConsumerWidget {
                 color: AppColors.makara,
               ),
               child: const Center(
-                child: CircularProgressIndicator(color: AppColors.background),
+                child: CircularProgressIndicator(
+                  color: AppColors.background,
+                ),
               ),
             ),
             error: (error, stack) => Container(
@@ -110,7 +118,10 @@ class EditableAvatar extends ConsumerWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.background,
-                  border: Border.all(color: AppColors.primary, width: 2.5),
+                  border: Border.all(
+                    color: AppColors.primary,
+                    width: 2.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.darkGrey.withValues(alpha: 0.12),
