@@ -2,35 +2,35 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/wishlists/infra/wishlist_screen_data_realtime_provider.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/utils/wish_sort_utils.dart';
 
 /// Listes de wishs affichées par l'écran wishlist, déjà ajustées des wishs
-/// complétés, filtrées, triées et réparties entre en attente et réservés
+/// complétés, filtrées, triées et réparties entre disponibles et réservés.
+/// Les wishs en attente se déduisent dans le body : ce sont tous les wishs si
+/// le propriétaire ne voit pas les réservations, sinon les disponibles
 typedef WishlistScreenDisplay = ({
   IList<Wish> all,
-  IList<Wish> pending,
+  IList<Wish> available,
   IList<Wish> booked,
   IMap<int, int> bookedQuantityOverrides,
-  bool isWishsBookedHidden,
 });
 
 const _emptyDisplay = (
   all: IListConst<Wish>([]),
-  pending: IListConst<Wish>([]),
+  available: IListConst<Wish>([]),
   booked: IListConst<Wish>([]),
   bookedQuantityOverrides: IMapConst<int, int>({}),
-  isWishsBookedHidden: false,
 );
 
 /// Provider dérivé : le calcul coûteux ne dépend que des données de la
 /// wishlist, du tri et de la recherche. Il n'est pas relancé quand la
 /// sélection ou la carte de stats choisie changent. Le record utilise des
 /// collections à égalité par valeur : un recalcul au résultat identique ne
-/// notifie pas les watchers.
+/// notifie pas les watchers. Le provider est autoDispose : il ne doit pas
+/// maintenir en vie le notifier de l'écran (contrôleurs, recherche, sélection).
 final wishlistScreenDisplayProvider =
-    Provider.family<WishlistScreenDisplay, int>((ref, wishlistId) {
+    Provider.autoDispose.family<WishlistScreenDisplay, int>((ref, wishlistId) {
   final data = ref.watch(wishlistScreenDataRealtimeProvider(wishlistId));
   final wishSort = ref.watch(
     wishlistScreenNotifierProvider(wishlistId).select((s) => s.wishSort),
@@ -43,10 +43,6 @@ final wishlistScreenDisplayProvider =
   if (screenData == null) {
     return _emptyDisplay;
   }
-
-  final wishlist = screenData.wishlist;
-  final isMyWishlist =
-      wishlist.idOwner == ref.read(userServiceProvider).getCurrentUserId();
 
   final completedByWishId = <int, int>{
     for (final c in screenData.completedWishes) c.wish.id: c.quantity,
@@ -68,11 +64,7 @@ final wishlistScreenDisplayProvider =
     searchQuery: searchQuery,
   );
 
-  final isWishsBookedHidden = !wishlist.canOwnerSeeTakenWish && isMyWishlist;
-
-  final pending = isWishsBookedHidden
-      ? wishs.toIList()
-      : wishs.where((wish) => wish.availableQuantity > 0).toIList();
+  final available = wishs.where((wish) => wish.availableQuantity > 0).toIList();
 
   final booked = wishs.where((wish) => wish.totalBookedQuantity > 0).toIList();
 
@@ -85,9 +77,8 @@ final wishlistScreenDisplayProvider =
 
   return (
     all: wishs,
-    pending: pending,
+    available: available,
     booked: booked,
     bookedQuantityOverrides: bookedQuantityOverrides,
-    isWishsBookedHidden: isWishsBookedHidden,
   );
 });

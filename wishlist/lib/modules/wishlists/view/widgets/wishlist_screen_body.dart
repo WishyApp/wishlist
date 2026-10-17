@@ -121,10 +121,10 @@ class WishlistScreenBody extends ConsumerWidget {
     // recherche : la sélection et la carte de stats ne le relancent pas
     final display = ref.watch(wishlistScreenDisplayProvider(wishlistId));
     final wishs = display.all;
-    final wishsPending = display.pending;
     final wishsBooked = display.booked;
     final bookedQuantityOverrides = display.bookedQuantityOverrides;
-    final isWishsBookedHidden = display.isWishsBookedHidden;
+    final isWishsBookedHidden = !wishlist.canOwnerSeeTakenWish && isMyWishlist;
+    final wishsPending = isWishsBookedHidden ? wishs : display.available;
 
     final nbWishsPending = wishsPending.length;
     final nbWishsBooked = wishsBooked.length;
