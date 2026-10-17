@@ -14,8 +14,9 @@ node_modules/
 !wishlist/env/.env.dev
 !wishlist/env/.env.prod
 
-# Build output (wishlist/android/build/, wishlist/ios/build/)
-build/
+# Build output of the native platforms (wishlist/build/ is in wishlist/.gitignore)
+/wishlist/android/build/
+/wishlist/ios/build/
 
 # Supabase CLI local state (backstop for supabase/.gitignore)
 .branches/
