@@ -6,173 +6,120 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/shared/infra/avatar_service.dart';
 import 'package:wishlist/shared/infra/current_user_avatar_provider.dart';
-import 'package:wishlist/shared/infra/supabase_client_provider.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
-import 'package:wishlist/shared/models/app_user.dart';
-import 'package:wishlist/shared/models/profile.dart';
-
-import '../../fixtures/fake_data.dart';
-import '../../fixtures/mock_supabase.dart';
 
 class MockAvatarService extends Mock implements AvatarService {}
 
-AppUser _appUserFor(String userId) => AppUser(
-      profile: Profile(
-        id: userId,
-        pseudo: 'pseudo',
-        avatarUrl: 'path-$userId',
-      ),
-      user: fakeCurrentAppUser.user,
-    );
+const _idle = AsyncValue<void>.data(null);
 
 void main() {
-  late FakeAuthSession session;
-  late MockUserService userService;
   late MockAvatarService avatarService;
   late ProviderContainer container;
-
-  void signIn(String userId) => session.signIn(userId);
 
   setUpAll(() {
     registerFallbackValue(File('avatar.png'));
   });
 
   setUp(() {
-    session = FakeAuthSession();
-    addTearDown(session.close);
-    userService = MockUserService();
-    when(() => userService.getAppUserById(any())).thenAnswer(
-      (invocation) async =>
-          _appUserFor(invocation.positionalArguments.first as String),
-    );
     avatarService = MockAvatarService();
-    when(() => avatarService.getAvatarUrl(any()))
-        .thenAnswer((i) => 'url-${i.positionalArguments.first}');
-
     container = ProviderContainer(
-      overrides: [
-        supabaseClientProvider.overrideWithValue(session.client),
-        userServiceProvider.overrideWithValue(userService),
-        avatarServiceProvider.overrideWithValue(avatarService),
-      ],
+      overrides: [avatarServiceProvider.overrideWithValue(avatarService)],
     );
     addTearDown(container.dispose);
   });
 
-  test('loads the avatar of the signed-in user', () async {
-    signIn('user-1');
-    container.listen(currentUserAvatarProvider, (_, __) {});
-    await pumpEventQueue();
+  test('is idle at start and loads nothing', () {
+    container.listen(avatarEditProvider, (_, __) {});
 
-    verify(() => userService.getAppUserById('user-1')).called(1);
-    expect(
-      container.read(currentUserAvatarProvider),
-      const AsyncValue<String?>.data('url-path-user-1'),
-    );
+    expect(container.read(avatarEditProvider), _idle);
+    verifyNever(() => avatarService.getAvatarUrl(any()));
   });
 
-  test('has no avatar and loads nothing without a session', () async {
-    container.listen(currentUserAvatarProvider, (_, __) {});
-    await pumpEventQueue();
+  test('is loading during an upload then idle again', () async {
+    final upload = Completer<String>();
+    when(() => avatarService.uploadAvatar(any()))
+        .thenAnswer((_) => upload.future);
+    container.listen(avatarEditProvider, (_, __) {});
 
-    expect(
-      container.read(currentUserAvatarProvider),
-      const AsyncValue<String?>.data(null),
-    );
-    verifyNever(() => userService.getAppUserById(any()));
+    final pending = container
+        .read(avatarEditProvider.notifier)
+        .uploadAvatar(File('avatar.png'));
+    expect(container.read(avatarEditProvider).isLoading, isTrue);
+
+    upload.complete('path');
+    await pending;
+
+    expect(container.read(avatarEditProvider), _idle);
   });
 
-  test('is rebuilt for the new user once its listeners are gone', () async {
-    signIn('user-1');
-    final subscription =
-        container.listen(currentUserAvatarProvider, (_, __) {});
-    await pumpEventQueue();
-    subscription.close();
-    await pumpEventQueue();
+  test('exposes the error of a failing upload', () async {
+    when(() => avatarService.uploadAvatar(any()))
+        .thenThrow(Exception('network'));
+    container.listen(avatarEditProvider, (_, __) {});
 
-    signIn('user-2');
-    container.listen(currentUserAvatarProvider, (_, __) {});
-    await pumpEventQueue();
+    await container
+        .read(avatarEditProvider.notifier)
+        .uploadAvatar(File('avatar.png'));
 
-    verify(() => userService.getAppUserById('user-2')).called(1);
-    expect(
-      container.read(currentUserAvatarProvider),
-      const AsyncValue<String?>.data('url-path-user-2'),
-    );
+    expect(container.read(avatarEditProvider).hasError, isTrue);
+  });
+
+  test('is loading during a delete then idle again', () async {
+    final delete = Completer<void>();
+    when(() => avatarService.deleteAvatar()).thenAnswer((_) => delete.future);
+    container.listen(avatarEditProvider, (_, __) {});
+
+    final pending = container.read(avatarEditProvider.notifier).deleteAvatar();
+    expect(container.read(avatarEditProvider).isLoading, isTrue);
+
+    delete.complete();
+    await pending;
+
+    expect(container.read(avatarEditProvider), _idle);
   });
 
   group('when the notifier is disposed during an async call', () {
-    test('a load finishing late does not throw nor touch the new user',
+    test('an upload still runs to the end and finishing late does not throw',
         () async {
-      final firstLoad = Completer<AppUser>();
-      signIn('user-1');
-      when(() => userService.getAppUserById('user-1'))
-          .thenAnswer((_) => firstLoad.future);
-
-      final subscription =
-          container.listen(currentUserAvatarProvider, (_, __) {});
-      await pumpEventQueue();
-      subscription.close();
-      await pumpEventQueue();
-
-      signIn('user-2');
-      container.listen(currentUserAvatarProvider, (_, __) {});
-      await pumpEventQueue();
-
-      firstLoad.complete(_appUserFor('user-1'));
-      await pumpEventQueue();
-
-      expect(
-        container.read(currentUserAvatarProvider),
-        const AsyncValue<String?>.data('url-path-user-2'),
-      );
-    });
-
-    test('a failing load finishing late does not throw', () async {
-      final firstLoad = Completer<AppUser>();
-      signIn('user-1');
-      when(() => userService.getAppUserById('user-1'))
-          .thenAnswer((_) => firstLoad.future);
-
-      final subscription =
-          container.listen(currentUserAvatarProvider, (_, __) {});
-      await pumpEventQueue();
-      subscription.close();
-      await pumpEventQueue();
-
-      firstLoad.completeError(Exception('network'));
-      await pumpEventQueue();
-    });
-
-    test('an upload finishing late does not throw', () async {
       final upload = Completer<String>();
-      signIn('user-1');
       when(() => avatarService.uploadAvatar(any()))
           .thenAnswer((_) => upload.future);
 
-      final subscription =
-          container.listen(currentUserAvatarProvider, (_, __) {});
-      await pumpEventQueue();
+      final subscription = container.listen(avatarEditProvider, (_, __) {});
       final pending = container
-          .read(currentUserAvatarProvider.notifier)
+          .read(avatarEditProvider.notifier)
           .uploadAvatar(File('avatar.png'));
       subscription.close();
       await pumpEventQueue();
 
       upload.complete('path');
       await pending;
+
+      verify(() => avatarService.uploadAvatar(any())).called(1);
+    });
+
+    test('a failing upload finishing late does not throw', () async {
+      final upload = Completer<String>();
+      when(() => avatarService.uploadAvatar(any()))
+          .thenAnswer((_) => upload.future);
+
+      final subscription = container.listen(avatarEditProvider, (_, __) {});
+      final pending = container
+          .read(avatarEditProvider.notifier)
+          .uploadAvatar(File('avatar.png'));
+      subscription.close();
+      await pumpEventQueue();
+
+      upload.completeError(Exception('network'));
+      await pending;
     });
 
     test('a delete finishing late does not throw', () async {
       final delete = Completer<void>();
-      signIn('user-1');
       when(() => avatarService.deleteAvatar()).thenAnswer((_) => delete.future);
 
-      final subscription =
-          container.listen(currentUserAvatarProvider, (_, __) {});
-      await pumpEventQueue();
+      final subscription = container.listen(avatarEditProvider, (_, __) {});
       final pending =
-          container.read(currentUserAvatarProvider.notifier).deleteAvatar();
+          container.read(avatarEditProvider.notifier).deleteAvatar();
       subscription.close();
       await pumpEventQueue();
 

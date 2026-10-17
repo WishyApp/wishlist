@@ -4,9 +4,7 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:wishlist/shared/infra/avatar_service.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
-import 'package:wishlist/shared/infra/current_user_avatar_provider.dart';
 import 'package:wishlist/shared/infra/current_user_profile_provider.dart';
 import 'package:wishlist/shared/infra/friendship_service.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
@@ -39,8 +37,6 @@ class MockWishlistStreamRepository extends Mock
 class MockWishStreamRepository extends Mock implements WishStreamRepository {}
 
 class MockUserStreamRepository extends Mock implements UserStreamRepository {}
-
-class MockAvatarService extends Mock implements AvatarService {}
 
 AppUser _appUserFor(String userId) => AppUser(
       profile: Profile(id: userId, pseudo: 'pseudo-$userId', avatarUrl: userId),
@@ -299,55 +295,6 @@ void main() {
       expect(
         container.read(watchCurrentUserProfileProvider).requireValue?.id,
         'user-b',
-      );
-    });
-  });
-
-  group('currentUserAvatarProvider', () {
-    test('loads the avatar of the new user while it stays listened to',
-        () async {
-      final avatarService = MockAvatarService();
-      when(() => avatarService.getAvatarUrl(any()))
-          .thenAnswer((i) => 'url-${i.positionalArguments.first}');
-      start(
-        userId: 'user-a',
-        overrides: [avatarServiceProvider.overrideWithValue(avatarService)],
-      );
-      container.listen(currentUserAvatarProvider, (_, __) {});
-      await pumpEventQueue();
-      expect(
-        container.read(currentUserAvatarProvider),
-        const AsyncValue<String?>.data('url-user-a'),
-      );
-
-      session
-        ..signOut()
-        ..signIn('user-b');
-      await pumpEventQueue();
-
-      expect(
-        container.read(currentUserAvatarProvider),
-        const AsyncValue<String?>.data('url-user-b'),
-      );
-    });
-
-    test('drops the previous avatar on logout', () async {
-      final avatarService = MockAvatarService();
-      when(() => avatarService.getAvatarUrl(any()))
-          .thenAnswer((i) => 'url-${i.positionalArguments.first}');
-      start(
-        userId: 'user-a',
-        overrides: [avatarServiceProvider.overrideWithValue(avatarService)],
-      );
-      container.listen(currentUserAvatarProvider, (_, __) {});
-      await pumpEventQueue();
-
-      session.signOut();
-      await pumpEventQueue();
-
-      expect(
-        container.read(currentUserAvatarProvider),
-        const AsyncValue<String?>.data(null),
       );
     });
   });
