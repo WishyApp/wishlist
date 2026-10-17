@@ -17,6 +17,13 @@ node_modules/
 # Build output (wishlist/android/build/, wishlist/ios/build/)
 build/
 
-# Supabase CLI local state (backstop for supabase*/supabase/.gitignore)
+# Supabase CLI local state (backstop for supabase/.gitignore)
 .branches/
 .temp/
+
+# Local state of the former supabase-dev/ and supabase-prod/ projects (project
+# refs, database host and user), left behind by the CLI in existing clones
+/supabase-dev/supabase/.temp/
+/supabase-dev/supabase/.branches/
+/supabase-prod/supabase/.temp/
+/supabase-prod/supabase/.branches/
