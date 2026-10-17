@@ -538,6 +538,8 @@ test('WishMutations.create appelle le service', () async {
 | **Wishs terminés** | `completedWishesRealtimeProvider`, `completedWishesByUserRealtimeProvider` | `completedWishMutationsProvider`<br>→ `.markAsCompleted(wish, {quantity})`<br>→ `.updateCompletedWishQuantity(...)`<br>→ `.unmarkAsCompleted(wishId)`<br>→ `.restoreCompletedWish(...)` |
 | **Friendships** | `friendshipsRealtimeProvider` | `friendshipMutationsProvider`<br>→ `.askFriendship(userId)`<br>→ `.acceptFriendship(userId)`<br>→ `.declineFriendship(userId)`<br>→ `.cancelFriendshipRequest(userId)`<br>→ `.removeFriendship(userId)` |
 | **Profiles** | `watchProfileByIdProvider` | *(écriture via `UserService`, pas de provider de mutation)* |
+| **Réservations** (`wish_taken_by_user`) | via les streams de wishs | *(écriture via `WishTakenByUserService`, pas de provider de mutation)* |
+| **Auth** | n/a | *(écriture via `AuthService`, pas de provider de mutation)* |
 
 ### Avantages obtenus
 
