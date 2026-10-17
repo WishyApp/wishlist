@@ -19,14 +19,14 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 - Mise à jour automatique des golden files dans la CI
 - Build iOS avec le SDK iOS 26 (runner macOS 26)
-- Mise à jour de Flutter (3.41.4) et du plugin Gradle Android (8.9.1)
+- Tentative de mise à jour de Flutter en 3.41.4, non effective (voir 0.2.4), et mise à jour du plugin Gradle Android (8.9.1)
 
 ### Corrections de bugs
 
 - Messages d'erreur plus précis (par exemple lorsqu'un texte saisi est trop long)
 - Le bouton retour du système quitte désormais le mode sélection au lieu de fermer la wishlist
 
-## [0.2.2] - 2026-02-05
+## [0.2.2] - 2026-02-09
 
 ### Nouvelles fonctionnalités
 

@@ -54,9 +54,9 @@ final mutationState = ref.watch(wishMutationsProvider);
 ### ✅ Testabilité
 ```dart
 // Facile à mocker dans les tests
+// class MockWishService extends Mock implements WishService {}
 final mockService = MockWishService();
-final mockWish = MockWish();
-when(() => mockService.createWish(any())).thenAnswer((_) async => mockWish);
+when(() => mockService.createWish(request)).thenAnswer((_) async => wish);
 // puis override de wishServiceProvider (voir la section Tests)
 ```
 
@@ -72,7 +72,7 @@ await ref.read(wishlistMutationsProvider.notifier)
 // Wishlists, wishs, wishs terminés, amitiés : via le provider de mutation
 await ref.read(wishlistMutationsProvider.notifier).create(request);
 
-// Ailleurs (auth, profil, réservations) : appel direct au service
+// Ailleurs : appel direct au service (voir le tableau récapitulatif)
 await ref.read(userServiceProvider).updateUserProfile(...);
 ```
 
@@ -80,7 +80,7 @@ await ref.read(userServiceProvider).updateUserProfile(...);
 
 ## 📁 Structure des fichiers
 
-Pour chaque entité (Wishlist, Wish, Friendship), on a :
+Pour chaque entité (Wishlist, Wish, Friendship), on a le modèle ci-dessous. Les wishs terminés suivent la même idée dans `user_completed_wish/` (`user_completed_wish_stream_repository*.dart`, sans `*_streams_providers.dart`), lus via `completedWishesRealtimeProvider` et `completedWishesByUserRealtimeProvider` :
 
 ### 1. Stream Repository (Lecture Realtime)
 ```
@@ -106,21 +106,21 @@ class WishMutations extends _$WishMutations with Mutation<void> {
   AsyncUpdate<void> build() => const AsyncUpdate.idle();
 
   Future<void> create(WishCreateRequest request) async {
-    await mutate(() async {
+    await mutateAsync(() async {
       final service = ref.read(wishServiceProvider);
       await service.createWish(request);
     });
   }
 
   Future<void> update(Wish wish) async {
-    await mutate(() async {
+    await mutateAsync(() async {
       final service = ref.read(wishServiceProvider);
       await service.updateWish(wish);
     });
   }
 
   Future<void> delete(int wishId, {String? iconUrl}) async {
-    await mutate(() async {
+    await mutateAsync(() async {
       final service = ref.read(wishServiceProvider);
       await service.deleteWish(wishId, iconUrl: iconUrl);
     });
@@ -172,7 +172,8 @@ class CreateWishlistButton extends ConsumerWidget {
             .create(request);
 
         // L'UI se met à jour automatiquement via Realtime ! ✨
-        // ⚠️ Cet await ne lève jamais d'exception (voir "Gestion des erreurs")
+        // ⚠️ WishlistMutations utilise `mutate` : cet await ne lève jamais
+        // d'exception (voir "Gestion des erreurs")
       },
       child: const Text('Créer'),
     );
@@ -198,7 +199,8 @@ class WishlistScreen extends ConsumerWidget {
         .update(updatedWish);
 
     // L'UI se met à jour automatiquement via Realtime ! ✨
-    // (l'erreur éventuelle est dans l'état de la mutation)
+    // WishMutations utilise `mutateAsync` : entourer l'appel d'un try/catch
+    // pour gérer l'erreur (voir "Gestion des erreurs")
   }
 
   @override
@@ -254,30 +256,26 @@ class AskFriendshipButton extends ConsumerStatefulWidget {
 }
 
 class _AskFriendshipButtonState extends ConsumerState<AskFriendshipButton> {
-  FriendshipStatus? _optimisticStatus;
-
   Future<void> onPressed(FriendshipStatus status) async {
     if (status == FriendshipStatus.none) {
-      setState(() => _optimisticStatus = FriendshipStatus.pending);
-
       // ✅ Mutation via MutationProvider
       await ref
           .read(friendshipMutationsProvider.notifier)
           .askFriendship(widget.userId);
 
       // La liste d'amis se met à jour automatiquement via Realtime ! ✨
-      // En cas d'erreur, `mutate` ne relance pas : annuler l'état optimiste
-      // en écoutant l'état de la mutation (ref.listen dans build).
+      // (FriendshipMutations utilise `mutate` : pas d'exception ici, et un
+      // état optimiste local ne pourrait pas être annulé en cas d'erreur.)
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(friendshipStatusProvider(widget.userId));
-    final displayStatus = _optimisticStatus ?? status.value;
-    
+    final displayStatus = status.value;
+
     return ElevatedButton(
-      onPressed: () => onPressed(displayStatus),
+      onPressed: displayStatus == null ? null : () => onPressed(displayStatus),
       child: Text(displayStatus == FriendshipStatus.none 
           ? 'Ajouter' 
           : 'En attente'),
@@ -297,7 +295,7 @@ Prenons l'exemple de l'ajout d'un ami :
    │
    ├─> UI appelle : ref.read(friendshipMutationsProvider.notifier).askFriendship(userId)
    │
-2. MutationProvider appelle mutate()
+2. MutationProvider appelle mutate() (ou mutateAsync())
    │
    ├─> État passe à AsyncUpdate.loading()
    │
@@ -411,7 +409,7 @@ await ref.read(wishlistServiceProvider).createWishlist(...);
 // ✅ BON
 await ref.read(wishlistMutationsProvider.notifier).create(...);
 ```
-Les autres écritures (auth, profil, réservations) passent aujourd'hui par le service, et une écriture sur les wishlists contourne encore les mutations : `updateWishlistsOrder` (réordonnancement), appelé directement sur `wishlistServiceProvider` dans `wishlists_grid.dart`. (`getNextWishlistOrderByUser` dans `create_dialog.dart` est une lecture.)
+Les entités sans provider de mutation (voir le tableau récapitulatif) passent par le service, et une écriture sur les wishlists contourne encore les mutations : `updateWishlistsOrder` (réordonnancement), appelé directement sur `wishlistServiceProvider` dans `wishlists_grid.dart`. (`getNextWishlistOrderByUser` dans `create_dialog.dart` est une lecture.)
 
 2. **Ne jamais mélanger lecture et écriture dans le même provider**
 ```dart
@@ -465,13 +463,14 @@ class WishMutations extends _$WishMutations with Mutation<void> {
 Exemple de test d'une mutation (à adapter ; il n'existe pas encore de tests dédiés aux providers de mutation) :
 
 ```dart
+// class MockWishService extends Mock implements WishService {}
+// `request` : un WishCreateRequest, `wish` : un Wish (fixtures du test)
 test('WishMutations.create appelle le service', () async {
   final mockService = MockWishService();
   final container = ProviderContainer(
     overrides: [wishServiceProvider.overrideWithValue(mockService)],
   );
-  final mockWish = MockWish();
-  when(() => mockService.createWish(any())).thenAnswer((_) async => mockWish);
+  when(() => mockService.createWish(request)).thenAnswer((_) async => wish);
 
   await container.read(wishMutationsProvider.notifier).create(request);
 
@@ -518,7 +517,7 @@ test('WishMutations.create appelle le service', () async {
 - [ ] Migrer les widgets pour utiliser `xxxRealtimeProvider` (lecture)
 - [ ] Migrer les widgets pour utiliser `xxxMutationsProvider.notifier.create/update/delete()` (écriture)
 - [ ] Supprimer les anciens `ref.invalidate()` (plus nécessaires après mutations !)
-- [ ] Ajouter la gestion d'erreur (`ref.listen` sur l'état avec `mutate`, ou `try/catch` avec `mutateAsync`)
+- [ ] Ajouter la gestion d'erreur : utiliser `mutateAsync` dans le provider et entourer l'appel d'un `try/catch` (voir "Gestion des erreurs")
 
 ### Étape 7 : Tests
 - [ ] Tester la synchronisation Realtime sur plusieurs appareils
@@ -603,29 +602,6 @@ class CreateWishButton extends ConsumerWidget {
 }
 ```
 
-#### Écouter les changements d'état
-
-```dart
-class MyWidget extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Écouter les changements pour afficher des messages
-    ref.listen<AsyncUpdate<void>>(
-      wishMutationsProvider,
-      (previous, next) {
-        if (next.isSuccess && previous?.isLoading == true) {
-          showAppSnackBar(context, 'Wish créé !', type: SnackBarType.success);
-        } else if (next.isError) {
-          showGenericError(context);
-        }
-      },
-    );
-
-    return MyForm();
-  }
-}
-```
-
 ### Gestion des erreurs : `mutate` vs `mutateAsync`
 
 Le mixin `Mutation` (`riverpod_community_mutation` 1.1.2, `mutation.dart`) propose deux méthodes :
@@ -633,10 +609,14 @@ Le mixin `Mutation` (`riverpod_community_mutation` 1.1.2, `mutation.dart`) propo
 - **`mutate(fn, {onSuccess, onError, onFinally})`** : attrape l'erreur, la met dans l'état (`AsyncUpdate.error`) et la logue, **sans la relancer**. Seul `onError` permet d'y réagir dans la méthode. Un `try/catch` autour de `await ...notifier.xxx()` ne s'exécute donc jamais.
 - **`mutateAsync(fn)`** : met l'état à jour puis **relance** l'erreur : un `try/catch` côté UI fonctionne.
 
-Dans le code actuel, `WishlistMutations`, `WishMutations` et `FriendshipMutations` utilisent `mutate` sans `onError` : l'erreur n'est visible que via l'état (`ref.watch` / `ref.listen`, voir ci-dessus). Seule `CompletedWishMutations` utilise `mutateAsync`, donc ses appels peuvent être entourés d'un `try/catch`.
+Dans le code actuel :
+
+- `WishMutations` et `CompletedWishMutations` utilisent `mutateAsync` : un `try/catch` autour de l'appel fonctionne.
+- `WishlistMutations` et `FriendshipMutations` utilisent encore `mutate` sans `onError`. **C'est un défaut connu, pas une convention** : l'erreur n'est visible que dans l'état, alors que les écrans (`wishlist_settings_bottom_sheet.dart`, `friend_details_app_bar.dart`, `ask_friendship_button.dart`) les entourent d'un `try/catch` qui ne s'exécute jamais. Par exemple, un `removeFriendship` qui échoue affiche quand même le message de succès. Le correctif est de les passer à `mutateAsync`, sans toucher aux écrans.
+
+Pour les nouvelles mutations, utiliser `mutateAsync` et gérer l'erreur à l'endroit de l'appel :
 
 ```dart
-// Mutation avec mutateAsync (CompletedWishMutations) : try/catch utile
 try {
   await ref
       .read(completedWishMutationsProvider.notifier)
@@ -644,14 +624,9 @@ try {
 } catch (e) {
   if (mounted) showGenericError(context, error: e);
 }
-
-// Mutation avec mutate (WishMutations, ...) : réagir via l'état
-ref.listen<AsyncUpdate<void>>(wishMutationsProvider, (previous, next) {
-  if (next.isError) showGenericError(context);
-});
 ```
 
-`wishMutationsProvider` n'est pas une famille : son état est partagé, donc un `ref.listen` dans un écran se déclenche aussi pour une mutation lancée depuis un autre écran encore monté.
+Éviter `ref.listen` sur un provider de mutation pour afficher un message : son état est partagé (ce ne sont pas des familles), donc le listener se déclenche aussi pour une mutation lancée par un autre widget, y compris plusieurs instances du même widget.
 
 ---
 
@@ -713,11 +688,7 @@ Cette architecture utilise les packages suivants :
 ---
 
 **Créé le** : 28 octobre 2025  
-**Dernière mise à jour** : 5 novembre 2025 (Migration vers Mutations)  
+**Dernière mise à jour** : 17 octobre 2026 (gestion des erreurs `mutate` / `mutateAsync`, alignement sur le code)  
 **Statut** : ✅ Implémenté et en production
-- Wishlists : ✅ Realtime + Mutations (create, update, delete)
-- Wishs : ✅ Realtime + Mutations (create, createWithImage, update, updateWithImage, delete, moveToWishlist)
-- Wishs terminés : ✅ Realtime + Mutations (markAsCompleted, updateCompletedWishQuantity, unmarkAsCompleted, restoreCompletedWish)
-- Friendships : ✅ Realtime + Mutations (actions métier)
-- Profiles : ✅ Realtime (lecture) ; écriture via `UserService` (pas de provider de mutation)
+Détail par entité (lecture et mutations) : voir le tableau de la section « Résumé ».
 

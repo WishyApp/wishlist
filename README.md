@@ -168,8 +168,8 @@ La CD se déclenche lors du push d'un **tag de version** (`v*`).
 #### Déclencher un déploiement
 
 ```bash
-git tag v0.2.3
-git push origin v0.2.3
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 #### Destinations
