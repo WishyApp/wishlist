@@ -20,13 +20,16 @@ BEGIN
     WHERE c.contype = 'f' AND n.nspname = 'public'
   LOOP
     checked := checked + 1;
-    -- An index covers the key when it is usable (valid, not partial) and its
-    -- leading key columns (INCLUDE columns don't count) are the key columns,
-    -- in any order. An expression has indkey 0, so it never matches a key
-    -- column.
+    -- An index covers the key when it is a valid btree index without a
+    -- predicate and its leading key columns (INCLUDE columns don't count) are
+    -- the key columns, in any order. An expression has indkey 0, so it never
+    -- matches a key column. A partial index could serve the key too, but is
+    -- rejected to keep the test simple.
     IF NOT EXISTS (
       SELECT 1 FROM pg_index i
+      JOIN pg_class ic ON ic.oid = i.indexrelid
       WHERE i.indrelid = fk.conrelid
+        AND ic.relam = (SELECT oid FROM pg_am WHERE amname = 'btree')
         AND i.indisvalid
         AND i.indpred IS NULL
         AND i.indnkeyatts >= cardinality(fk.conkey)
