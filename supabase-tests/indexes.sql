@@ -20,14 +20,18 @@ BEGIN
     WHERE c.contype = 'f' AND n.nspname = 'public'
   LOOP
     checked := checked + 1;
-    -- An index covers the key when its leading columns are the key columns.
+    -- An index covers the key when it is usable (valid, not partial) and its
+    -- leading columns are the key columns, in any order. An expression has
+    -- indkey 0, so it never matches a key column.
     IF NOT EXISTS (
       SELECT 1 FROM pg_index i
       WHERE i.indrelid = fk.conrelid
+        AND i.indisvalid
         AND i.indpred IS NULL
-        AND i.indexprs IS NULL
         AND (string_to_array(i.indkey::text, ' ')::int2[])[1:cardinality(fk.conkey)]
-            = fk.conkey
+            @> fk.conkey
+        AND (string_to_array(i.indkey::text, ' ')::int2[])[1:cardinality(fk.conkey)]
+            <@ fk.conkey
     ) THEN
       missing := missing || format(' %s(%s)', fk.tbl, fk.conname);
     END IF;
