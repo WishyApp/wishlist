@@ -217,7 +217,8 @@ Limites du contrôle d'idempotence : il compare les schémas `public` et `storag
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | JSON du service account Google Play |
 | `IOS_P12_BASE64` | Certificat Apple Distribution encodé en base64 |
 | `IOS_P12_PASSWORD` | Mot de passe du certificat |
-| `IOS_PROVISIONING_PROFILE_BASE64` | Provisioning profile encodé en base64 |
+| `IOS_PROVISIONING_PROFILE_BASE64` | Provisioning profile de l'app (Runner) encodé en base64 |
+| `IOS_SHARE_EXTENSION_PROFILE_BASE64` | Provisioning profile de la Share Extension encodé en base64 |
 | `APP_STORE_CONNECT_ISSUER_ID` | Issuer ID App Store Connect |
 | `APP_STORE_CONNECT_API_KEY_ID` | Key ID App Store Connect |
 | `APP_STORE_CONNECT_API_PRIVATE_KEY` | Contenu du fichier .p8 |
