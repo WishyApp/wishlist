@@ -337,9 +337,33 @@ void main() {
   });
 
   group('friends ids providers', () {
+    test('open the friends stream of the user they were built for', () async {
+      final repository = MockFriendshipStreamRepository();
+      when(() => repository.watchFriendsIds(any()))
+          .thenAnswer((_) => Stream.value(const ISetConst({'f'})));
+      start(
+        userId: 'user-a',
+        overrides: [
+          friendshipStreamRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      container.listen(watchCurrentUserFriendsIdsProvider, (_, __) {});
+      await pumpEventQueue();
+
+      session.setUserSilently(null);
+      container.invalidate(watchCurrentUserFriendsIdsProvider);
+      await pumpEventQueue();
+
+      expect(
+        container.read(watchCurrentUserFriendsIdsProvider).hasError,
+        isFalse,
+      );
+      verify(() => repository.watchFriendsIds('user-a')).called(2);
+    });
+
     test('stop serving the previous user ids while signed out', () async {
       final repository = MockFriendshipStreamRepository();
-      when(repository.watchCurrentUserFriendsIds)
+      when(() => repository.watchFriendsIds(any()))
           .thenAnswer((_) => Stream.value(const ISetConst({'f'})));
       when(repository.watchCurrentUserPendingFriendsIds)
           .thenAnswer((_) => Stream.value(const ISetConst({'p'})));
@@ -401,9 +425,9 @@ void main() {
   group('watchCurrentUserProfileProvider', () {
     test('watches the profile of the new user after a user switch', () async {
       final repository = MockUserStreamRepository();
-      when(repository.watchCurrentUserProfile).thenAnswer(
-        (_) => Stream.value(
-          Profile(id: currentId()!, pseudo: 'p'),
+      when(() => repository.watchProfileById(any())).thenAnswer(
+        (i) => Stream.value(
+          Profile(id: i.positionalArguments.first as String, pseudo: 'p'),
         ),
       );
       start(
@@ -424,10 +448,38 @@ void main() {
       );
     });
 
+    test('opens the stream of the user it was built for', () async {
+      final repository = MockUserStreamRepository();
+      when(() => repository.watchProfileById(any())).thenAnswer(
+        (i) => Stream.value(
+          Profile(id: i.positionalArguments.first as String, pseudo: 'p'),
+        ),
+      );
+      start(
+        userId: 'user-a',
+        overrides: [userStreamRepositoryProvider.overrideWithValue(repository)],
+      );
+      container.listen(watchCurrentUserProfileProvider, (_, __) {});
+      await pumpEventQueue();
+
+      // gotrue clears currentUser before it emits signedOut: a rebuild in that
+      // window must not read the auth again.
+      session.setUserSilently(null);
+      container.invalidate(watchCurrentUserProfileProvider);
+      await pumpEventQueue();
+
+      final state = container.read(watchCurrentUserProfileProvider);
+      expect(state.hasError, isFalse);
+      expect(state.valueOrNull?.id, 'user-a');
+      verifyNever(repository.watchCurrentUserProfile);
+    });
+
     test('stops serving the previous user profile while signed out', () async {
       final repository = MockUserStreamRepository();
-      when(repository.watchCurrentUserProfile).thenAnswer(
-        (_) => Stream.value(Profile(id: currentId()!, pseudo: 'p')),
+      when(() => repository.watchProfileById(any())).thenAnswer(
+        (i) => Stream.value(
+          Profile(id: i.positionalArguments.first as String, pseudo: 'p'),
+        ),
       );
       start(
         userId: 'user-a',

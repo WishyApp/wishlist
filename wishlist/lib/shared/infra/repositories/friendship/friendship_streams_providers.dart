@@ -11,11 +11,12 @@ final watchFriendsIdsProvider =
 
 final watchCurrentUserFriendsIdsProvider =
     StreamProvider.autoDispose<ISet<String>>((ref) {
-  if (ref.watch(currentUserIdProvider) == null) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) {
     return Stream.value(const ISetConst({}));
   }
   final repository = ref.watch(friendshipStreamRepositoryProvider);
-  return repository.watchCurrentUserFriendsIds();
+  return repository.watchFriendsIds(userId);
 });
 
 final watchCurrentUserPendingFriendsIdsProvider =

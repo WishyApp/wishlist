@@ -11,10 +11,11 @@ final watchProfileByIdProvider =
 
 final watchCurrentUserProfileProvider =
     StreamProvider.autoDispose<Profile?>((ref) {
-  if (ref.watch(currentUserIdProvider) == null) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) {
     // Signed out: a null profile replaces the previous user's one.
     return Stream.value(null);
   }
   final repository = ref.watch(userStreamRepositoryProvider);
-  return repository.watchCurrentUserProfile();
+  return repository.watchProfileById(userId);
 });
