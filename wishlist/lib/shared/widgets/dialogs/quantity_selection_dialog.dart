@@ -227,6 +227,7 @@ Future<void> showQuantitySelectionDialog(
   required Wish wish,
   int initialQuantity = 1,
   bool isModifying = false,
+  int receivedQuantity = 0,
 }) async {
   final l10n = context.l10n;
   var selectedQuantity = initialQuantity;
@@ -238,7 +239,8 @@ Future<void> showQuantitySelectionDialog(
     context,
     title: l10n.selectQuantityToGive,
     content: _QuantitySelectionDialogContent(
-      maxQuantity: wish.availableQuantity + (isModifying ? initialQuantity : 0),
+      maxQuantity: wish.bookableQuantity(receivedQuantity: receivedQuantity) +
+          (isModifying ? initialQuantity : 0),
       initialQuantity: initialQuantity,
       onQuantityChanged: (quantity) {
         selectedQuantity = quantity;

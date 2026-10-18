@@ -40,6 +40,12 @@ class Wish with _$Wish implements Updatable {
   /// Quantité disponible restante
   int get availableQuantity => quantity - totalBookedQuantity;
 
+  /// Quantité qu'un ami peut encore réserver : la quantité reçue par le
+  /// propriétaire ([receivedQuantity]) n'est plus à offrir. Même règle que le
+  /// serveur (réservations + quantité reçue <= quantité du wish).
+  int bookableQuantity({int receivedQuantity = 0}) =>
+      (availableQuantity - receivedQuantity).clamp(0, quantity);
+
   /// Vérifie si le wish est entièrement réservé
   bool get isFullyBooked => availableQuantity <= 0;
 

@@ -8,6 +8,7 @@ import 'package:wishlist/modules/wishs/view/widgets/consult_box_shadow.dart';
 import 'package:wishlist/modules/wishs/view/widgets/scrollable_content_with_indicator.dart';
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/infra/wish_taken_by_user_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
@@ -53,7 +54,11 @@ class ConsultWishInfoContainer extends ConsumerWidget {
     }
   }
 
-  Future<void> _onGiveItTap(BuildContext context, WidgetRef ref) async {
+  Future<void> _onGiveItTap(
+    BuildContext context,
+    WidgetRef ref, {
+    required int receivedQuantity,
+  }) async {
     final currentUserId = ref.read(userServiceProvider).getCurrentUserId();
     final isWishTakenByMe = wish.takenByUser.any(
       (element) => element.userId == currentUserId,
@@ -69,13 +74,16 @@ class ConsultWishInfoContainer extends ConsumerWidget {
 
     // Si l'utilisateur a déjà réservé OU si quantité disponible > 1,
     // afficher le dialog de sélection
-    if (isWishTakenByMe || wish.availableQuantity > 1) {
+    final bookableQuantity =
+        wish.bookableQuantity(receivedQuantity: receivedQuantity);
+    if (isWishTakenByMe || bookableQuantity > 1) {
       await showQuantitySelectionDialog(
         context,
         ref,
         wish: wish,
         initialQuantity: isWishTakenByMe ? currentQuantity : 1,
         isModifying: isWishTakenByMe,
+        receivedQuantity: receivedQuantity,
       );
       return;
     }
@@ -188,7 +196,25 @@ class ConsultWishInfoContainer extends ConsumerWidget {
     final isFullyCompleted = completedQuantity >= wish.quantity;
 
     final hasQuantity = wish.quantity > 1;
-    final hasAvailableQuantity = wish.availableQuantity > 0;
+    // Quantité déjà reçue par le propriétaire : le serveur refuse une
+    // réservation qui la dépasse (réservations + reçu <= quantité du wish).
+    final ownerId = isMyWishlist
+        ? null
+        : ref
+            .watch(watchWishlistByIdProvider(wish.wishlistId))
+            .valueOrNull
+            ?.idOwner;
+    final receivedQuantity = ownerId == null
+        ? 0
+        : ref
+                .watch(completedWishesByUserRealtimeProvider(ownerId))
+                .valueOrNull
+                ?.where((c) => c.wish.id == wish.id)
+                .firstOrNull
+                ?.quantity ??
+            0;
+    final hasAvailableQuantity =
+        wish.bookableQuantity(receivedQuantity: receivedQuantity) > 0;
 
     // Logique d'affichage des boutons basée sur la réservation de l'utilisateur
     final shouldShowGiveItButton = !isWishTakenByMe && hasAvailableQuantity;
@@ -217,7 +243,11 @@ class ConsultWishInfoContainer extends ConsumerWidget {
       primaryActionText = l10n.editButton;
     } else if (shouldShowGiveItButton || shouldShowModifyButton) {
       showPrimaryAction = true;
-      primaryActionOnPressed = () => _onGiveItTap(context, ref);
+      primaryActionOnPressed = () => _onGiveItTap(
+            context,
+            ref,
+            receivedQuantity: receivedQuantity,
+          );
       primaryActionText =
           shouldShowGiveItButton ? l10n.iWantToGiveIt : l10n.modifyBooking;
     } else {
