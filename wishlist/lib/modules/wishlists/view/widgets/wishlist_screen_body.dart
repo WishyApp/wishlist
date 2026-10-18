@@ -49,7 +49,6 @@ class WishlistScreenBody extends ConsumerWidget {
       wish.wishlistId,
       wish.id,
       wishIds: wishIds,
-      isMyWishlist: isMyWishlist,
       quantityDisplay: cardType == WishlistStatsCardType.pending
           ? WishQuantityDisplay.pending
           : WishQuantityDisplay.booked,

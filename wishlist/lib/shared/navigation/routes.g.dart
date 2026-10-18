@@ -231,9 +231,6 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
         wishIds:
             state.uri.queryParametersAll['wish-ids']?.map(int.parse).toList() ??
                 const [],
-        isMyWishlist: _$convertMapValue(
-                'is-my-wishlist', state.uri.queryParameters, _$boolConverter) ??
-            false,
         showActions: _$convertMapValue(
                 'show-actions', state.uri.queryParameters, _$boolConverter) ??
             true,
@@ -248,7 +245,6 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
         '/wishlist/${Uri.encodeComponent(wishlistId.toString())}/wish/${Uri.encodeComponent(wishId.toString())}',
         queryParams: {
           'wish-ids': wishIds.map((e) => e.toString()).toList(),
-          if (isMyWishlist != false) 'is-my-wishlist': isMyWishlist.toString(),
           if (showActions != true) 'show-actions': showActions.toString(),
           if (quantityDisplay != WishQuantityDisplay.total)
             'quantity-display': _$WishQuantityDisplayEnumMap[quantityDisplay],

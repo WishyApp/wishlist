@@ -7,6 +7,7 @@ import 'package:wishlist/modules/wishs/view/widgets/consult_wish_image.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_wish_info_container.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/theme/colors.dart';
@@ -19,14 +20,12 @@ class ConsultWishScreen extends ConsumerStatefulWidget {
     super.key,
     required this.wishIds,
     required this.initialIndex,
-    this.isMyWishlist = false,
     this.showActions = true,
     this.quantityDisplay = WishQuantityDisplay.total,
   });
 
   final List<int> wishIds;
   final int initialIndex;
-  final bool isMyWishlist;
   final bool showActions;
   final WishQuantityDisplay quantityDisplay;
 
@@ -81,6 +80,18 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
       body: wish.when(
         data: (wishData) {
           final quantityToDisplay = _quantityToDisplay(wishData);
+          // Le droit d'édition vient du propriétaire de la wishlist, jamais
+          // de l'URL (deep link).
+          final wishlistAsync =
+              ref.watch(watchWishlistByIdProvider(wishData.wishlistId));
+          final ownerId = wishlistAsync.valueOrNull?.idOwner;
+          final currentUserId =
+              ref.read(userServiceProvider).getCurrentUserId();
+          final isMyWishlist = ownerId != null && ownerId == currentUserId;
+          // Tant que le propriétaire n'est pas connu, on masque les actions
+          // pour ne pas afficher brièvement celles d'un invité au propriétaire.
+          final isOwnershipKnown =
+              wishlistAsync.hasValue || wishlistAsync.hasError;
           final wishlistThemeAsync =
               ref.watch(wishlistThemeProvider(wishData.wishlistId));
 
@@ -110,8 +121,9 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
                             ConsultWishInfoContainer(
                               wish: wishData,
                               descriptionText: descriptionText,
-                              isMyWishlist: widget.isMyWishlist,
-                              showActions: widget.showActions,
+                              isMyWishlist: isMyWishlist,
+                              showActions:
+                                  widget.showActions && isOwnershipKnown,
                             ),
                           ],
                         ),
