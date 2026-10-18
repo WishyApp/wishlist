@@ -12,7 +12,7 @@ class FriendshipMutations extends _$FriendshipMutations with Mutation<void> {
   }
 
   Future<void> askFriendship(String userId) async {
-    await mutate(
+    await mutateAsync(
       () async {
         final service = ref.read(friendshipServiceProvider);
         await service.askFriendshipTo(userId);
@@ -21,7 +21,7 @@ class FriendshipMutations extends _$FriendshipMutations with Mutation<void> {
   }
 
   Future<void> cancelFriendshipRequest(String userId) async {
-    await mutate(
+    await mutateAsync(
       () async {
         final service = ref.read(friendshipServiceProvider);
         await service.cancelFriendshipRequest(userId);
@@ -30,7 +30,7 @@ class FriendshipMutations extends _$FriendshipMutations with Mutation<void> {
   }
 
   Future<void> acceptFriendship(String userId) async {
-    await mutate(
+    await mutateAsync(
       () async {
         final service = ref.read(friendshipServiceProvider);
         await service.acceptFriendshipWith(userId);
@@ -39,7 +39,7 @@ class FriendshipMutations extends _$FriendshipMutations with Mutation<void> {
   }
 
   Future<void> declineFriendship(String userId) async {
-    await mutate(
+    await mutateAsync(
       () async {
         final service = ref.read(friendshipServiceProvider);
         await service.declineFriendshipWith(userId);
@@ -48,7 +48,7 @@ class FriendshipMutations extends _$FriendshipMutations with Mutation<void> {
   }
 
   Future<void> removeFriendship(String userId) async {
-    await mutate(
+    await mutateAsync(
       () async {
         final service = ref.read(friendshipServiceProvider);
         await service.removeFriendshipWith(userId);
