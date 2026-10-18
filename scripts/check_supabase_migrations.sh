@@ -28,7 +28,8 @@ TESTS_DIR="supabase-tests"
 cd "$(git rev-parse --show-toplevel)"
 
 # Migrations are compared by file name, not by path, so that moving the
-# folder does not count as deleting and re-adding every migration.
+# folder does not count as deleting and re-adding every migration. The lists
+# below hold one "name blob-id" line per migration, sorted by name.
 added=""
 if [[ -n "$BASE_REF" ]]; then
   echo "==> Checking that merged migrations are unchanged since $BASE_REF"
@@ -37,27 +38,35 @@ if [[ -n "$BASE_REF" ]]; then
   if ! git cat-file -e "$merge_base:$MIGRATIONS_DIR" 2>/dev/null; then
     base_dir="$LEGACY_DIR"
   fi
-  base_names=""
-  changed=""
-  while IFS= read -r path; do
-    name="$(basename "$path")"
-    base_names+="$name"$'\n'
-    if [[ ! -f "$MIGRATIONS_DIR/$name" ]]; then
-      changed+="deleted or renamed: $name"$'\n'
-    elif [[ "$(git rev-parse "$merge_base:$path")" != "$(git hash-object "$MIGRATIONS_DIR/$name")" ]]; then
-      changed+="modified: $name"$'\n'
-    fi
-  done < <(git ls-tree --name-only "$merge_base" -- "$base_dir/" | grep '\.sql$')
+  # The lists below are whitespace-separated.
+  spaced="$(printf '%s\n' "$MIGRATIONS_DIR"/*.sql | sed 's|.*/||' | grep '[[:space:]]' || true)"
+  if [[ -n "$spaced" ]]; then
+    echo "$spaced"
+    echo "::error::Migration file names must not contain whitespace"
+    exit 1
+  fi
+  # ls-tree already gives the blob id of each file: no process per migration.
+  base_list="$(git ls-tree "$merge_base" -- "$base_dir/" 2>/dev/null |
+    awk -F'\t' '{ split($1, meta, " "); n = split($2, parts, "/"); if (parts[n] ~ /\.sql$/) print parts[n], meta[3] }' |
+    LC_ALL=C sort)"
+  if [[ -z "$base_list" ]]; then
+    echo "::error::No migration found in $MIGRATIONS_DIR or $LEGACY_DIR at $merge_base (merge base of $BASE_REF and HEAD), cannot tell which migrations are new"
+    exit 1
+  fi
+  current_list="$(paste -d' ' \
+    <(printf '%s\n' "$MIGRATIONS_DIR"/*.sql | sed 's|.*/||') \
+    <(git hash-object "$MIGRATIONS_DIR"/*.sql) |
+    LC_ALL=C sort)"
+  changed="$(
+    LC_ALL=C join -v1 <(echo "$base_list") <(echo "$current_list") | sed 's/ .*//; s/^/deleted or renamed: /'
+    LC_ALL=C join <(echo "$base_list") <(echo "$current_list") | awk '$2 != $3 { print "modified: " $1 }'
+  )"
   if [[ -n "$changed" ]]; then
-    printf '%s' "$changed"
+    echo "$changed"
     echo "::error::Merged migrations must not be modified, add a new migration instead"
     exit 1
   fi
-  for file in "$MIGRATIONS_DIR"/*.sql; do
-    if ! grep -qxF "$(basename "$file")" <<<"$base_names"; then
-      added+="$file"$'\n'
-    fi
-  done
+  added="$(LC_ALL=C join -v2 <(echo "$base_list") <(echo "$current_list") | sed "s|^\([^ ]*\) .*|$MIGRATIONS_DIR/\1|")"
 fi
 
 ERR_FILE="$(mktemp)"
