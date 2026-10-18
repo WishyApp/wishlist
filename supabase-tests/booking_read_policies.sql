@@ -67,7 +67,7 @@ INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility,
   (960003, 'O3 private, visible','00000000-0000-4000-d000-0000000000a3', '#FFFFFF', '00000000-0000-4000-d000-0000000000a3', 'private', true),
   (960004, 'O4 private, hidden', '00000000-0000-4000-d000-0000000000a4', '#FFFFFF', '00000000-0000-4000-d000-0000000000a4', 'private', false);
 INSERT INTO public.wishs (id, name, description, quantity, wishlist_id, updated_by) VALUES
-  (970001, 'O1 wish', '', 3, 960001, '00000000-0000-4000-d000-0000000000a1'),
+  (970001, 'O1 wish', '', 4, 960001, '00000000-0000-4000-d000-0000000000a1'),
   (970002, 'O2 wish', '', 3, 960002, '00000000-0000-4000-d000-0000000000a2'),
   (970003, 'O3 wish', '', 3, 960003, '00000000-0000-4000-d000-0000000000a3'),
   (970004, 'O4 wish', '', 3, 960004, '00000000-0000-4000-d000-0000000000a4');
