@@ -6,6 +6,11 @@
 
 BEGIN;
 
+-- Functions created by postgres have no EXECUTE for PUBLIC by default
+-- (20261012110000_restrict_anon_privileges): the helpers below are called
+-- after switching role. Rolled back with the rest.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres GRANT EXECUTE ON FUNCTIONS TO PUBLIC;
+
 -- Expects the number of rows a SELECT returns, with the current role.
 CREATE FUNCTION pg_temp.expect_count(label text, statement text, expected int)
 RETURNS void LANGUAGE plpgsql AS $$
