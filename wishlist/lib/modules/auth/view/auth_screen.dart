@@ -160,12 +160,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (_isSigningIn) {
         await ref.read(authServiceProvider).signIn(
               identifier: _pseudoOrEmailController.text.trim(),
-              password: _passwordController.text.trim(),
+              password: _passwordController.text,
             );
       } else {
         await ref.read(authServiceProvider).signUp(
               email: _pseudoOrEmailController.text.trim(),
-              password: _passwordController.text.trim(),
+              password: _passwordController.text,
             );
       }
 

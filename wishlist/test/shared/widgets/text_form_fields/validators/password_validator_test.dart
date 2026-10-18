@@ -12,9 +12,11 @@ void main() {
       expect(PasswordValidator.hasMinLength('Abcdef1!'), isTrue);
     });
 
-    test('hasMinLength ignores surrounding whitespace, trimmed on submit', () {
-      expect(PasswordValidator.hasMinLength(' Abcde1! '), isFalse);
-      expect(PasswordValidator.isValid('Abcde1! '), isFalse);
+    test('hasMinLength measures the raw length, whitespace included', () {
+      expect(PasswordValidator.hasMinLength(' Abcde1!'), isTrue);
+      expect(PasswordValidator.hasMinLength('Abcde1! '), isTrue);
+      expect(PasswordValidator.hasMinLength(' Abc1! '), isFalse);
+      expect(PasswordValidator.isValid(' Abcde1! '), isTrue);
     });
 
     test('isValid rejects null, empty and 6-7 character passwords', () {

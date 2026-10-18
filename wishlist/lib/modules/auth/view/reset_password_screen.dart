@@ -70,7 +70,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
       try {
         await ref.read(authServiceProvider).resetPassword(
-              newPassword: _newPasswordController.text.trim(),
+              newPassword: _newPasswordController.text,
             );
 
         await _onSuccess();
