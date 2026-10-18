@@ -7,6 +7,12 @@ AppUserMessageKey? userMessageKeyForPostgrestException(PostgrestException e) {
   if (e.code == '23514' && e.message.contains('_max_length')) {
     return AppUserMessageKey.inputTooLong;
   }
+  if (e.code == '23514' && e.message.contains('wish_overbooked')) {
+    return AppUserMessageKey.wishOverbooked;
+  }
+  if (e.code == '23514' && e.message.contains('wish_quantity_below_booked')) {
+    return AppUserMessageKey.wishQuantityBelowBooked;
+  }
   if (e.code == '23505' && e.message.contains('pseudo')) {
     return AppUserMessageKey.pseudoAlreadyExists;
   }

@@ -3,6 +3,8 @@ import 'package:wishlist/l10n/l10n.dart';
 /// Clés des messages utilisateur localisés (snackbars, etc.).
 enum AppUserMessageKey {
   inputTooLong,
+  wishOverbooked,
+  wishQuantityBelowBooked,
   pseudoAlreadyExists,
   newPasswordShouldBeDifferent,
   oldPasswordIncorrect;
@@ -12,6 +14,10 @@ enum AppUserMessageKey {
     switch (this) {
       case AppUserMessageKey.inputTooLong:
         return l10n.inputTooLong;
+      case AppUserMessageKey.wishOverbooked:
+        return l10n.wishOverbooked;
+      case AppUserMessageKey.wishQuantityBelowBooked:
+        return l10n.wishQuantityBelowBooked;
       case AppUserMessageKey.pseudoAlreadyExists:
         return l10n.pseudoAlreadyExists;
       case AppUserMessageKey.newPasswordShouldBeDifferent:
