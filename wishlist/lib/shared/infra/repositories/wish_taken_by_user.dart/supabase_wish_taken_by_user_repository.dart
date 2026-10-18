@@ -44,10 +44,17 @@ class SupabaseWishTakenByUserRepository implements WishTakenByUserRepository {
   }
 
   @override
-  Future<void> cancelWishTaken(int wishId) async {
+  Future<void> cancelWishTaken({
+    required int wishId,
+    required String userId,
+  }) async {
     return executeSafely(
       () async {
-        await _client.from(_wishTakenByUser).delete().eq('wish_id', wishId);
+        await _client
+            .from(_wishTakenByUser)
+            .delete()
+            .eq('wish_id', wishId)
+            .eq('user_id', userId);
       },
       errorMessage: 'Failed to cancel wish taken by user',
     );

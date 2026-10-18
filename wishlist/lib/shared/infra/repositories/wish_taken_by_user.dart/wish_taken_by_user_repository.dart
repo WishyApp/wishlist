@@ -9,5 +9,5 @@ abstract class WishTakenByUserRepository {
     required String userId,
     required int newQuantity,
   });
-  Future<void> cancelWishTaken(int wishId);
+  Future<void> cancelWishTaken({required int wishId, required String userId});
 }
