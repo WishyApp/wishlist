@@ -70,6 +70,13 @@ class _InputPasswordState extends State<InputPassword> {
       ),
       controller: widget.controller,
       obscureText: _obscureText,
+      // The password is sent exactly as typed: once revealed, the keyboard
+      // must not autocorrect it, add a space after a suggestion or turn
+      // quotes and dashes into typographic ones.
+      autocorrect: false,
+      enableSuggestions: false,
+      smartDashesType: SmartDashesType.disabled,
+      smartQuotesType: SmartQuotesType.disabled,
     );
 
     return Column(
