@@ -226,6 +226,41 @@ BEGIN
   RAISE NOTICE 'ok   restore_completed_wish keeps at least the booked total';
 END $$;
 
+-- Archived wishlist (F089, 20261018130000): A cannot book a wish of an
+-- archived wishlist of B, nor update a booking made before the archiving, but
+-- can cancel it. Once B restores the completed wish to an active wishlist, the
+-- booking follows the wish and can be updated again.
+RESET ROLE;
+INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility, is_closed, deleted_at) VALUES
+  (900201, 'B archived 3', '00000000-0000-4000-a000-00000000000b', '#FFFFFF', '00000000-0000-4000-a000-00000000000b', 'public', false, now());
+INSERT INTO public.wishs (id, name, description, wishlist_id, updated_by, quantity) VALUES
+  (910201, 'B completed not booked', '', 900201, '00000000-0000-4000-a000-00000000000b', 2),
+  (910202, 'B completed booked',     '', 900201, '00000000-0000-4000-a000-00000000000b', 2),
+  (910203, 'B completed restored',   '', 900201, '00000000-0000-4000-a000-00000000000b', 2);
+INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES
+  (910202, '00000000-0000-4000-a000-00000000000a', 1),
+  (910203, '00000000-0000-4000-a000-00000000000a', 1);
+INSERT INTO public.user_completed_wishs (user_id, wish_id, from_wishlist_id, quantity) VALUES
+  ('00000000-0000-4000-a000-00000000000b', 910203, 900201, 2);
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000a", "role": "authenticated"}', true);
+SELECT pg_temp.expect_denied('booking in an archived wishlist',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910201, '00000000-0000-4000-a000-00000000000a', 1)$q$);
+SELECT pg_temp.expect_denied('own booking updated in an archived wishlist',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 2 WHERE wish_id = 910202 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$);
+SELECT pg_temp.expect_rows('own booking cancelled in an archived wishlist',
+  $q$DELETE FROM public.wish_taken_by_user WHERE wish_id = 910202 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$, 1);
+SELECT pg_temp.expect_denied('own booking updated before the restore',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 2 WHERE wish_id = 910203 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000b', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000b", "role": "authenticated"}', true);
+SELECT public.restore_completed_wish(910203, 900003);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000a", "role": "authenticated"}', true);
+SELECT pg_temp.expect_rows('own booking updated after the restore to an active wishlist',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 2 WHERE wish_id = 910203 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$, 1);
+
 -- Quantity 0 is refused by the booking policy and by the CHECK constraint.
 RESET ROLE;
 DO $$
