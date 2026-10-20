@@ -337,6 +337,16 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Deployed by CI (supabase functions deploy, see README), never by hand.
+# verify_jwt stays true: the CI deploy never passes --no-verify-jwt.
+[functions.link-preview]
+enabled = true
+verify_jwt = true
+
+[functions.delete-user-account]
+enabled = true
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327

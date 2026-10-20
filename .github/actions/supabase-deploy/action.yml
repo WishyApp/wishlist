@@ -1,5 +1,5 @@
 name: Supabase deploy
-description: Check that a Supabase project has not drifted, push pending migrations, then check that its public schema matches the migrations.
+description: Check that a Supabase project has not drifted, push pending migrations, then check that its public schema matches the migrations. Optionally deploy the Edge Functions.
 
 inputs:
   environment:
@@ -21,6 +21,9 @@ inputs:
   pre-push-check:
     description: Check drift before pushing. Set to 'false' only to catch up a project already changed outside of migrations.
     default: 'true'
+  deploy-functions:
+    description: Deploy every Edge Function of supabase/functions after the migrations and drift checks succeeded. Ignored when push is 'false'.
+    default: 'false'
 
 runs:
   using: composite
@@ -111,3 +114,13 @@ runs:
           "${{ github.action_path }}/check_drift.sh" "${{ inputs.environment }}" \
             "$RUNNER_TEMP/pending-migrations.txt"
         fi
+
+    # All functions of supabase/functions, bundled server-side (no Docker).
+    # verify_jwt comes from supabase/config.toml. Runs even when there is no
+    # pending migration, and only after the drift check above succeeded.
+    - name: Deploy Edge Functions
+      if: inputs.push == 'true' && inputs.deploy-functions == 'true'
+      shell: bash
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+      run: supabase functions deploy --use-api --project-ref "${{ inputs.project-ref }}"
