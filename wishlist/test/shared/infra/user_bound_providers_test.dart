@@ -471,7 +471,6 @@ void main() {
       final state = container.read(watchCurrentUserProfileProvider);
       expect(state.hasError, isFalse);
       expect(state.valueOrNull?.id, 'user-a');
-      verifyNever(repository.watchCurrentUserProfile);
     });
 
     test('stops serving the previous user profile while signed out', () async {

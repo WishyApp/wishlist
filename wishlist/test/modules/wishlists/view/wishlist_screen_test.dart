@@ -572,7 +572,11 @@ void main() {
 
   testWidgets('writes the wishlist theme cache only when the theme changes',
       (tester) async {
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [
+        supabaseClientProvider.overrideWithValue(createMockSupabaseClient()),
+      ],
+    );
     addTearDown(container.dispose);
     final sub = container.listen(wishlistScreenNotifierProvider(2), (_, __) {});
     addTearDown(sub.close);

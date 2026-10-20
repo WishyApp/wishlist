@@ -7,9 +7,6 @@ abstract class UserStreamRepository {
   /// Émet le profile mis à jour à chaque changement
   Stream<Profile?> watchProfileById(String userId);
 
-  /// Écoute les changements sur le profile de l'utilisateur courant
-  Stream<Profile?> watchCurrentUserProfile();
-
   /// Ferme tous les streams et libère les ressources
   Future<void> dispose();
 }
