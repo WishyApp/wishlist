@@ -7,6 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_floating_actions.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wishs_tab.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_display_provider.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
@@ -166,6 +167,31 @@ void main() {
       expect(find.byType(WishlistScreen), findsOneWidget);
       expect(find.byIcon(Icons.add), findsOneWidget);
       expect(find.byIcon(Icons.delete), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'extends the list container to the bottom edge of the screen',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.viewPadding = const FakeViewPadding(bottom: 34);
+      tester.view.padding = const FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.reset);
+
+      await tester.pumpRouterApp(
+        WishlistRoute(wishlistId: 2).location,
+        overrides: wishlistScreenOverrides(
+          wishlistId: 2,
+          wishlist: fakeWishlist2,
+          wishes: fakeWishes,
+          currentUserId: fakeCurrentUserId,
+        ),
+      );
+
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+
+      final listBottom = tester.getBottomLeft(find.byType(WishsTab).first).dy;
+      expect(listBottom, tester.view.physicalSize.height);
     },
   );
 

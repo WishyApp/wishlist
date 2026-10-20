@@ -32,7 +32,7 @@ class WishlistFloatingActions extends ConsumerWidget {
     );
 
     return Positioned(
-      bottom: 24,
+      bottom: 24 + MediaQuery.viewPaddingOf(context).bottom,
       right: 24,
       child: SizedBox(
         height: 320,
