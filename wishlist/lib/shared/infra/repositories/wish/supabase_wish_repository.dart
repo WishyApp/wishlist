@@ -7,6 +7,15 @@ import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with
 import 'package:wishlist/shared/models/wish/create_request/wish_create_request.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 
+/// Chemin d'une image de wish dans le bucket : préfixé par l'id de
+/// l'utilisateur, comme les avatars (les policies storage le vérifient).
+String wishImageStoragePath({
+  required String userId,
+  required int wishId,
+  required String fileName,
+}) =>
+    '$userId/$wishId/$fileName';
+
 class SupabaseWishRepository implements WishRepository {
   SupabaseWishRepository(this._client);
   final SupabaseClient _client;
@@ -179,13 +188,18 @@ class SupabaseWishRepository implements WishRepository {
 
   @override
   Future<String> uploadWishImage({
+    required String userId,
     required int wishId,
     required Uint8List imageData,
     required String fileName,
   }) async {
     return executeSafely(
       () async {
-        final filePath = '$wishId/$fileName';
+        final filePath = wishImageStoragePath(
+          userId: userId,
+          wishId: wishId,
+          fileName: fileName,
+        );
 
         try {
           await _client.storage

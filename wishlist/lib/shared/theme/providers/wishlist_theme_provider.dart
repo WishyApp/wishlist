@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/theme/theme.dart';
 import 'package:wishlist/shared/theme/utils/get_wishlist_theme.dart';
 
 /// Provider qui stocke le thème actuel par wishlistId (cache)
 /// Permet de partager le thème entre WishlistScreen et ConsultWishScreen
+///
+/// Pas d'autoDispose (écrit sans écouteur par WishlistScreen), mais remis à
+/// null quand l'utilisateur change : le thème d'une wishlist privée ne doit pas
+/// être servi à la session suivante.
 final wishlistThemeCacheProvider =
-    StateProvider.family<ThemeData?, int>((ref, wishlistId) => null);
+    StateProvider.family<ThemeData?, int>((ref, wishlistId) {
+  ref.watch(currentUserIdProvider);
+  return null;
+});
 
 /// Provider qui retourne un AsyncValue<ThemeData>
 /// - Utilise le cache s'il existe
 /// - Sinon, récupère la wishlist et génère le thème
 /// - Reste en loading si la wishlist n'est pas disponible
 /// - Utilise le thème de base si la wishlist a été supprimée ou archivée
-final wishlistThemeProvider = Provider.family<AsyncValue<ThemeData>, int>(
+final wishlistThemeProvider =
+    Provider.autoDispose.family<AsyncValue<ThemeData>, int>(
   (ref, wishlistId) {
     // 1. Vérifier le cache
     final cachedTheme = ref.watch(wishlistThemeCacheProvider(wishlistId));
