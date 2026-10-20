@@ -80,6 +80,9 @@ INSERT INTO public.user_completed_wishs (user_id, wish_id, from_wishlist_id, qua
   ('00000000-0000-4000-e000-00000000005e', 987002, 986002, 1),
   ('00000000-0000-4000-e000-00000000005e', 987007, 986006, 1),
   ('00000000-0000-4000-e000-0000000000c9', 987008, 986007, 1);
+-- Received quantity counts against bookings (max(booked, received) <= quantity):
+-- quantity 2 leaves room for A's booking beside Q's completion.
+UPDATE public.wishs SET quantity = 2 WHERE id = 987008;
 INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES
   (987008, '00000000-0000-4000-e000-00000000000a', 1);
 -- The wish was moved to a private wishlist after being completed: the row
