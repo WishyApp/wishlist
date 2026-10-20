@@ -6,6 +6,9 @@ on:
       - 'v*'
   # Lancement manuel pour valider le build (signing, extension iOS) sans
   # publier : les étapes d'upload ne tournent que sur tag ou si publish=true.
+  # Depuis main, il migre quand même la base prod et y déploie les Edge
+  # Functions (job migrate-database), comme une release. Depuis une autre
+  # branche, la garde de migrate-database échoue et les builds ne partent pas.
   workflow_dispatch:
     inputs:
       publish:
