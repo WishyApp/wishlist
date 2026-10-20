@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:wishlist/shared/infra/utils/update_entity.dart';
@@ -39,6 +41,19 @@ class Wish with _$Wish implements Updatable {
 
   /// Quantité disponible restante
   int get availableQuantity => quantity - totalBookedQuantity;
+
+  /// Quantité encore en attente : quantité - max(réservé, reçu). La quantité
+  /// reçue par le propriétaire ([receivedQuantity]) consomme d'abord les
+  /// réservations (l'ami réserve, offre, puis le propriétaire marque reçu).
+  /// Même règle que le serveur : max(réservé, reçu) <= quantité du wish.
+  int pendingQuantity({int receivedQuantity = 0}) =>
+      (quantity - max(totalBookedQuantity, receivedQuantity))
+          .clamp(0, quantity)
+          .toInt();
+
+  /// Quantité qu'un ami peut encore réserver (= quantité en attente).
+  int bookableQuantity({int receivedQuantity = 0}) =>
+      pendingQuantity(receivedQuantity: receivedQuantity);
 
   /// Vérifie si le wish est entièrement réservé
   bool get isFullyBooked => availableQuantity <= 0;

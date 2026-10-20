@@ -226,6 +226,125 @@ BEGIN
   RAISE NOTICE 'ok   restore_completed_wish keeps at least the booked total';
 END $$;
 
+-- Archived wishlist (F089, 20261018130000): A cannot book a wish of an
+-- archived wishlist of B, nor update a booking made before the archiving, but
+-- can cancel it. Once B restores the completed wish to an active wishlist, the
+-- booking follows the wish and can be updated again.
+RESET ROLE;
+INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility, is_closed, deleted_at) VALUES
+  (900201, 'B archived 3', '00000000-0000-4000-a000-00000000000b', '#FFFFFF', '00000000-0000-4000-a000-00000000000b', 'public', false, now());
+INSERT INTO public.wishs (id, name, description, wishlist_id, updated_by, quantity) VALUES
+  (910201, 'B completed not booked', '', 900201, '00000000-0000-4000-a000-00000000000b', 2),
+  (910202, 'B completed booked',     '', 900201, '00000000-0000-4000-a000-00000000000b', 2),
+  (910203, 'B completed restored',   '', 900201, '00000000-0000-4000-a000-00000000000b', 2);
+INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES
+  (910202, '00000000-0000-4000-a000-00000000000a', 1),
+  (910203, '00000000-0000-4000-a000-00000000000a', 1);
+INSERT INTO public.user_completed_wishs (user_id, wish_id, from_wishlist_id, quantity) VALUES
+  ('00000000-0000-4000-a000-00000000000b', 910203, 900201, 2);
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000a", "role": "authenticated"}', true);
+SELECT pg_temp.expect_denied('booking in an archived wishlist',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910201, '00000000-0000-4000-a000-00000000000a', 1)$q$);
+SELECT pg_temp.expect_denied('own booking updated in an archived wishlist',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 2 WHERE wish_id = 910202 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$);
+SELECT pg_temp.expect_rows('own booking cancelled in an archived wishlist',
+  $q$DELETE FROM public.wish_taken_by_user WHERE wish_id = 910202 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$, 1);
+SELECT pg_temp.expect_denied('own booking updated before the restore',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 2 WHERE wish_id = 910203 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000b', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000b", "role": "authenticated"}', true);
+SELECT public.restore_completed_wish(910203, 900003);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000a", "role": "authenticated"}', true);
+SELECT pg_temp.expect_rows('own booking updated after the restore to an active wishlist',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 2 WHERE wish_id = 910203 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$, 1);
+
+-- A received quantity consumes the bookings first (20261018140000):
+-- GREATEST(booked, received) <= quantity. B (owner) has wishes 910301 (quantity
+-- 2, 1 received, no booking), 910302 (quantity 1, fully received), 910305
+-- (quantity 3, booked 1 by A, 1 received) and 910303 (quantity 2, booked 2 by A,
+-- received later by B).
+RESET ROLE;
+INSERT INTO public.wishs (id, name, description, wishlist_id, updated_by, quantity) VALUES
+  (910301, 'B wish x2 one received', '', 900003, '00000000-0000-4000-a000-00000000000b', 2),
+  (910302, 'B wish fully received',  '', 900003, '00000000-0000-4000-a000-00000000000b', 1),
+  (910303, 'B wish booked then received', '', 900003, '00000000-0000-4000-a000-00000000000b', 2),
+  (910305, 'B wish x3 booked 1 received 1', '', 900003, '00000000-0000-4000-a000-00000000000b', 3);
+INSERT INTO public.user_completed_wishs (user_id, wish_id, from_wishlist_id, quantity) VALUES
+  ('00000000-0000-4000-a000-00000000000b', 910301, 900003, 1),
+  ('00000000-0000-4000-a000-00000000000b', 910302, 900003, 1),
+  ('00000000-0000-4000-a000-00000000000b', 910305, 900003, 1);
+INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES
+  (910303, '00000000-0000-4000-a000-00000000000a', 2),
+  (910305, '00000000-0000-4000-a000-00000000000a', 1);
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000a", "role": "authenticated"}', true);
+SELECT pg_temp.expect_overbooked('booking of a fully received wish',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910302, '00000000-0000-4000-a000-00000000000a', 1)$q$);
+SELECT pg_temp.expect_overbooked('booking above the pending quantity (2 with 1 received, nothing booked)',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910301, '00000000-0000-4000-a000-00000000000a', 2)$q$);
+SELECT pg_temp.expect_rows('booking the pending quantity (1 with 1 received, nothing booked)',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910301, '00000000-0000-4000-a000-00000000000a', 1)$q$, 1);
+SELECT pg_temp.expect_rows('booking raised to the quantity (booked 2 includes the received one)',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 2 WHERE wish_id = 910301 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$, 1);
+SELECT pg_temp.expect_rows('own booking lowered (always allowed)',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 1 WHERE wish_id = 910301 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$, 1);
+SELECT pg_temp.expect_overbooked('booking moved onto a fully received wish',
+  $q$UPDATE public.wish_taken_by_user SET wish_id = 910302 WHERE wish_id = 910301 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$);
+
+-- Booked 1 and received 1 on a quantity of 3: the received item is the booked
+-- one, so 2 remain. C books 2 (total booked 3), a third booking is refused.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000c', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000c", "role": "authenticated"}', true);
+SELECT pg_temp.expect_overbooked('booking 3 when 1 is booked and 1 received (quantity 3)',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910305, '00000000-0000-4000-a000-00000000000c', 3)$q$);
+SELECT pg_temp.expect_rows('booking the 2 pending when 1 is booked and 1 received (quantity 3)',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910305, '00000000-0000-4000-a000-00000000000c', 2)$q$, 1);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000a", "role": "authenticated"}', true);
+SELECT pg_temp.expect_overbooked('raising a booking once booked reaches the quantity (quantity 3, booked 3)',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 2 WHERE wish_id = 910305 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$);
+
+-- Marking as received is not blocked while bookings exist (910303: booked 2 by
+-- A, quantity 2, owner receives 1 then 2).
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000b', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000b", "role": "authenticated"}', true);
+SELECT pg_temp.expect_rows('marking received a wish booked in full (insert)',
+  $q$INSERT INTO public.user_completed_wishs (user_id, wish_id, from_wishlist_id, quantity) VALUES ('00000000-0000-4000-a000-00000000000b', 910303, 900003, 1)$q$, 1);
+SELECT pg_temp.expect_rows('raising the received quantity up to the bookings (update)',
+  $q$UPDATE public.user_completed_wishs SET quantity = 2 WHERE wish_id = 910303$q$, 1);
+
+-- A still lowers a booking of a wish booked and received in full (910303:
+-- booked 2, received 2, quantity 2); raising it back is refused, and so is a
+-- new booking of C (GREATEST(1, 2) + 1 > 2).
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000a", "role": "authenticated"}', true);
+SELECT pg_temp.expect_rows('own booking lowered on a wish booked and received in full',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 1 WHERE wish_id = 910303 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$, 1);
+SELECT pg_temp.expect_overbooked('own booking raised back (received 2 leaves nothing to book)',
+  $q$UPDATE public.wish_taken_by_user SET quantity = 2 WHERE wish_id = 910303 AND user_id = '00000000-0000-4000-a000-00000000000a'$q$);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000c', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000c", "role": "authenticated"}', true);
+SELECT pg_temp.expect_overbooked('new booking on a wish with nothing pending (booked 1, received 2)',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910303, '00000000-0000-4000-a000-00000000000c', 1)$q$);
+
+-- Only the owner's completion counts: a completion row of another user on the
+-- wish (possible before the insert policy of 20260516000000) does not block
+-- the bookings (910304, quantity 1, "received" by C).
+RESET ROLE;
+INSERT INTO public.wishs (id, name, description, wishlist_id, updated_by, quantity) VALUES
+  (910304, 'B wish completed by C', '', 900003, '00000000-0000-4000-a000-00000000000b', 1);
+INSERT INTO public.user_completed_wishs (user_id, wish_id, from_wishlist_id, quantity) VALUES
+  ('00000000-0000-4000-a000-00000000000c', 910304, 900003, 1);
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000a", "role": "authenticated"}', true);
+SELECT pg_temp.expect_rows('booking a wish whose only completion is not the owner''s',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910304, '00000000-0000-4000-a000-00000000000a', 1)$q$, 1);
+
 -- Quantity 0 is refused by the booking policy and by the CHECK constraint.
 RESET ROLE;
 DO $$

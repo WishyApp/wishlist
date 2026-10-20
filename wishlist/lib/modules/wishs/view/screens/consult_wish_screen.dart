@@ -79,7 +79,6 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
       backgroundColor: AppColors.gainsboro,
       body: wish.when(
         data: (wishData) {
-          final quantityToDisplay = _quantityToDisplay(wishData);
           // Le droit d'édition vient du propriétaire de la wishlist, jamais
           // de l'URL (deep link).
           final wishlistAsync =
@@ -87,6 +86,11 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
           final ownerId = wishlistAsync.valueOrNull?.idOwner;
           final currentUserId = ref.watch(currentUserIdProvider);
           final isMyWishlist = ownerId != null && ownerId == currentUserId;
+          final quantityToDisplay = _quantityToDisplay(
+            wishData,
+            ownerId: ownerId,
+            isMyWishlist: isMyWishlist,
+          );
           // Tant que le propriétaire n'est pas connu, on masque les actions
           // pour ne pas afficher brièvement celles d'un invité au propriétaire.
           // hasValue (et non hasError) : si le premier chargement échoue,
@@ -145,7 +149,11 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
     );
   }
 
-  int _quantityToDisplay(Wish wish) {
+  int _quantityToDisplay(
+    Wish wish, {
+    required String? ownerId,
+    required bool isMyWishlist,
+  }) {
     final completedQuantity = ref
             .watch(completedWishesRealtimeProvider)
             .valueOrNull
@@ -154,14 +162,31 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
             ?.quantity ??
         0;
 
+    // Quantité reçue par le propriétaire de la wishlist (celle que compte le
+    // serveur) : pour un ami, ce n'est pas la sienne.
+    int ownerReceivedQuantity() {
+      if (isMyWishlist) {
+        return completedQuantity;
+      }
+      if (ownerId == null) {
+        return 0;
+      }
+      return ref
+              .watch(completedWishesByUserRealtimeProvider(ownerId))
+              .valueOrNull
+              ?.where((item) => item.wish.id == wish.id)
+              .firstOrNull
+              ?.quantity ??
+          0;
+    }
+
     switch (widget.quantityDisplay) {
       case WishQuantityDisplay.total:
         return wish.quantity;
       case WishQuantityDisplay.pending:
-        return (wish.quantity - wish.totalBookedQuantity - completedQuantity)
-            .clamp(0, wish.quantity);
+        return wish.pendingQuantity(receivedQuantity: ownerReceivedQuantity());
       case WishQuantityDisplay.booked:
-        return (wish.totalBookedQuantity - completedQuantity).clamp(
+        return (wish.totalBookedQuantity - ownerReceivedQuantity()).clamp(
           0,
           wish.totalBookedQuantity,
         );

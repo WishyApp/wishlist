@@ -16,6 +16,7 @@ import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_comp
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
+import 'package:wishlist/shared/models/wish_taken_by_user/wish_taken_by_user.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
@@ -496,6 +497,87 @@ void main() {
 
     expect(badges('2'), findsNWidgets(3));
     expect(badges('1'), findsNothing);
+  });
+
+  test('derives pending quantities as quantity - max(booked, received)',
+      () async {
+    Wish wishWithId(
+      int id, {
+      required int quantity,
+      required IList<WishTakenByUser> takenByUser,
+    }) =>
+        Wish(
+          id: id,
+          createdAt: fakeWish1.createdAt,
+          name: 'wish $id',
+          description: '',
+          price: 10,
+          linkUrl: '',
+          quantity: quantity,
+          wishlistId: fakeWishlist2.id,
+          updatedBy: fakeCurrentUserId,
+          updatedAt: fakeWish1.updatedAt,
+          takenByUser: takenByUser,
+        );
+
+    final wishBooked1Received1 = wishWithId(
+      101,
+      quantity: 3,
+      takenByUser: [fakeWishTakenByUser.copyWith(quantity: 1)].toIList(),
+    );
+    final wishBooked1Received2 = wishWithId(
+      102,
+      quantity: 3,
+      takenByUser: [fakeWishTakenByUser.copyWith(quantity: 1)].toIList(),
+    );
+    final wishFullyReceived = wishWithId(
+      103,
+      quantity: 2,
+      takenByUser: IList(),
+    );
+    final wishFullyBooked = wishWithId(
+      104,
+      quantity: 2,
+      takenByUser: [fakeWishTakenByUser.copyWith(quantity: 2)].toIList(),
+    );
+    final container = ProviderContainer(
+      overrides: wishlistScreenOverrides(
+        wishlistId: 2,
+        wishlist: fakeWishlist2,
+        wishes: [
+          wishBooked1Received1,
+          wishBooked1Received2,
+          wishFullyReceived,
+          wishFullyBooked,
+        ],
+        completedWishes: [
+          completedWish(wishBooked1Received1, 1),
+          completedWish(wishBooked1Received2, 2),
+          completedWish(wishFullyReceived, 2),
+        ],
+        currentUserId: fakeCurrentUserId,
+      ),
+    );
+    addTearDown(container.dispose);
+    container
+      ..listen(wishlistScreenDisplayProvider(2), (_, __) {})
+      ..listen(wishlistScreenNotifierProvider(2), (_, __) {});
+    await pumpEventQueue();
+
+    final display = container.read(wishlistScreenDisplayProvider(2));
+
+    // Un wish entièrement reçu est exclu partout
+    expect(display.all.map((w) => w.id), isNot(contains(103)));
+    expect(display.booked.map((w) => w.id), isNot(contains(103)));
+    // Quantité 3, réservé 1, reçu 1 -> en attente 2 ; reçu 2 -> en attente 1
+    expect(display.pendingQuantityOverrides[101], 2);
+    expect(display.pendingQuantityOverrides[102], 1);
+    expect(display.available.map((w) => w.id), unorderedEquals([101, 102]));
+    // Entièrement réservé : plus rien en attente
+    expect(display.pendingQuantityOverrides[104], 0);
+    // Réservé affiché = max(réservé - reçu, 0)
+    expect(display.bookedQuantityOverrides[101], 0);
+    expect(display.bookedQuantityOverrides[102], 0);
   });
 
   test('does not recompute the displayed wishs on selection change', () async {
