@@ -206,6 +206,18 @@ abstract class AppLocalizations {
   /// **'La saisie est trop longue.'**
   String get inputTooLong;
 
+  /// No description provided for @wishOverbooked.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce wish vient d\'être réservé par quelqu\'un d\'autre. Actualise et réessaie.'**
+  String get wishOverbooked;
+
+  /// No description provided for @wishQuantityBelowBooked.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de baisser la quantité : une partie de ce wish est déjà réservée.'**
+  String get wishQuantityBelowBooked;
+
   /// No description provided for @pseudoField.
   ///
   /// In fr, this message translates to:

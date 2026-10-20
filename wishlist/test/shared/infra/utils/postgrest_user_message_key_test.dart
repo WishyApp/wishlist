@@ -56,6 +56,31 @@ void main() {
       expect(userMessageKeyForPostgrestException(e), isNull);
     });
 
+    test(
+        'should return wishOverbooked when code is 23514 and message is '
+        'wish_overbooked', () {
+      const e = PostgrestException(message: 'wish_overbooked', code: '23514');
+
+      expect(
+        userMessageKeyForPostgrestException(e),
+        AppUserMessageKey.wishOverbooked,
+      );
+    });
+
+    test(
+        'should return wishQuantityBelowBooked when code is 23514 and message '
+        'is wish_quantity_below_booked', () {
+      const e = PostgrestException(
+        message: 'wish_quantity_below_booked',
+        code: '23514',
+      );
+
+      expect(
+        userMessageKeyForPostgrestException(e),
+        AppUserMessageKey.wishQuantityBelowBooked,
+      );
+    });
+
     test('should return null when code is null', () {
       const e = PostgrestException(
         message: 'something with _max_length',

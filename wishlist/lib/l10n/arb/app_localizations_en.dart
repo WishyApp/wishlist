@@ -64,6 +64,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inputTooLong => 'The input is too long.';
 
   @override
+  String get wishOverbooked =>
+      'This wish has just been booked by someone else. Refresh and try again.';
+
+  @override
+  String get wishQuantityBelowBooked =>
+      'You can\'t lower the quantity: part of this wish is already booked.';
+
+  @override
   String get pseudoField => 'Pseudo';
 
   @override

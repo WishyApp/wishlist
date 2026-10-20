@@ -18,6 +18,8 @@
   "userAlreadyRegistered": "This email is already registered",
   "genericError": "An error occurred, please try again!",
   "inputTooLong": "The input is too long.",
+  "wishOverbooked": "This wish has just been booked by someone else. Refresh and try again.",
+  "wishQuantityBelowBooked": "You can't lower the quantity: part of this wish is already booked.",
   "pseudoField": "Pseudo",
   "validPseudoError": "Pseudo cannot be empty",
   "pseudoAlreadyExists": "This pseudo is already used",
