@@ -6,9 +6,9 @@ import 'package:wishlist/modules/wishs/view/widgets/consult_wish_back_button.dar
 import 'package:wishlist/modules/wishs/view/widgets/consult_wish_image.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_wish_info_container.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
@@ -20,14 +20,12 @@ class ConsultWishScreen extends ConsumerStatefulWidget {
     super.key,
     required this.wishIds,
     required this.initialIndex,
-    this.isMyWishlist = false,
     this.showActions = true,
     this.quantityDisplay = WishQuantityDisplay.total,
   });
 
   final List<int> wishIds;
   final int initialIndex;
-  final bool isMyWishlist;
   final bool showActions;
   final WishQuantityDisplay quantityDisplay;
 
@@ -81,7 +79,25 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
       backgroundColor: AppColors.gainsboro,
       body: wish.when(
         data: (wishData) {
-          final quantityToDisplay = _quantityToDisplay(wishData);
+          // Le droit d'édition vient du propriétaire de la wishlist, jamais
+          // de l'URL (deep link).
+          final wishlistAsync =
+              ref.watch(watchWishlistByIdProvider(wishData.wishlistId));
+          final ownerId = wishlistAsync.valueOrNull?.idOwner;
+          final currentUserId = ref.watch(currentUserIdProvider);
+          final isMyWishlist = ownerId != null && ownerId == currentUserId;
+          final quantityToDisplay = _quantityToDisplay(
+            wishData,
+            ownerId: ownerId,
+            isMyWishlist: isMyWishlist,
+          );
+          // Tant que le propriétaire n'est pas connu, on masque les actions
+          // pour ne pas afficher brièvement celles d'un invité au propriétaire.
+          // hasValue (et non hasError) : si le premier chargement échoue,
+          // le propriétaire reste inconnu et on ne montre pas les actions
+          // d'un invité. Après un premier succès, Riverpod conserve la
+          // valeur précédente lors d'une erreur de rechargement.
+          final isOwnershipKnown = wishlistAsync.hasValue;
           final wishlistThemeAsync =
               ref.watch(wishlistThemeProvider(wishData.wishlistId));
 
@@ -111,8 +127,9 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
                             ConsultWishInfoContainer(
                               wish: wishData,
                               descriptionText: descriptionText,
-                              isMyWishlist: widget.isMyWishlist,
-                              showActions: widget.showActions,
+                              isMyWishlist: isMyWishlist,
+                              showActions:
+                                  widget.showActions && isOwnershipKnown,
                             ),
                           ],
                         ),
@@ -132,7 +149,11 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
     );
   }
 
-  int _quantityToDisplay(Wish wish) {
+  int _quantityToDisplay(
+    Wish wish, {
+    required String? ownerId,
+    required bool isMyWishlist,
+  }) {
     final completedQuantity = ref
             .watch(completedWishesRealtimeProvider)
             .valueOrNull
@@ -144,13 +165,9 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
     // Quantité reçue par le propriétaire de la wishlist (celle que compte le
     // serveur) : pour un ami, ce n'est pas la sienne.
     int ownerReceivedQuantity() {
-      if (widget.isMyWishlist) {
+      if (isMyWishlist) {
         return completedQuantity;
       }
-      final ownerId = ref
-          .watch(watchWishlistByIdProvider(wish.wishlistId))
-          .valueOrNull
-          ?.idOwner;
       if (ownerId == null) {
         return 0;
       }
@@ -174,7 +191,7 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
           wish.totalBookedQuantity,
         );
       case WishQuantityDisplay.myBooked:
-        final currentUserId = ref.read(userServiceProvider).getCurrentUserId();
+        final currentUserId = ref.watch(currentUserIdProvider);
         return wish.takenByUser
                 .where((reservation) => reservation.userId == currentUserId)
                 .firstOrNull

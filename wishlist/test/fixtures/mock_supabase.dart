@@ -1,5 +1,6 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_repository.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
@@ -40,8 +41,72 @@ MockSupabaseClient createMockSupabaseClient({
   when(() => mockSupabaseClient.auth).thenReturn(mockAuth);
   when(() => mockAuth.currentUser).thenReturn(mockUser);
   when(() => mockUser.id).thenReturn(effectiveUserId);
+  when(() => mockAuth.onAuthStateChange)
+      .thenAnswer((_) => const Stream.empty());
 
   return mockSupabaseClient;
+}
+
+// =============================================================================
+// FAKE AUTH SESSION
+// =============================================================================
+
+/// Faux client Supabase dont l'utilisateur courant peut changer au fil du test.
+///
+/// `onAuthStateChange` est un BehaviorSubject comme celui de gotrue : un
+/// nouvel abonné reçoit le dernier évènement. `currentUser` est mis à jour
+/// avant l'évènement, et peut l'être sans évènement via [setUserSilently]
+/// (cas où `currentUser` passe à null avant `signedOut`).
+class FakeAuthSession {
+  FakeAuthSession({String? userId}) {
+    when(() => client.auth).thenReturn(auth);
+    when(() => auth.currentUser).thenAnswer((_) => _user);
+    when(() => auth.onAuthStateChange).thenAnswer((_) => _events);
+    setUserSilently(userId);
+    _events = BehaviorSubject.seeded(
+      AuthState(
+        userId == null
+            ? AuthChangeEvent.initialSession
+            : AuthChangeEvent.signedIn,
+        null,
+      ),
+    );
+  }
+
+  final MockSupabaseClient client = MockSupabaseClient();
+  final MockGoTrueClient auth = MockGoTrueClient();
+  late final BehaviorSubject<AuthState> _events;
+  User? _user;
+
+  void setUserSilently(String? userId) {
+    if (userId == null) {
+      _user = null;
+      return;
+    }
+    final user = MockUser();
+    when(() => user.id).thenReturn(userId);
+    _user = user;
+  }
+
+  void signIn(String userId) {
+    setUserSilently(userId);
+    _events.add(const AuthState(AuthChangeEvent.signedIn, null));
+  }
+
+  void signOut() {
+    setUserSilently(null);
+    _events.add(const AuthState(AuthChangeEvent.signedOut, null));
+  }
+
+  /// Évènement sans changement d'utilisateur (ex. renouvellement du token).
+  void refreshToken() {
+    _events.add(const AuthState(AuthChangeEvent.tokenRefreshed, null));
+  }
+
+  /// Exception poussée dans le stream, comme gotrue (notifyException).
+  void addAuthError(Object error) => _events.addError(error);
+
+  Future<void> close() => _events.close();
 }
 
 // =============================================================================

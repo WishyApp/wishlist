@@ -51,6 +51,8 @@
   "oldPasswordIncorrect": "Ancien mot de passe incorrect.",
   "changePasswordConfirm": "Modifier",
   "newPasswordShouldBeDifferent": "Le nouveau mot de passe doit être différent de l'ancien.",
+  "passwordTooWeak": "Le mot de passe est trop faible, choisissez-en un autre.",
+  "reauthenticationNeeded": "Votre session a expiré, veuillez recommencer.",
   "changePseudoScreenTitle": "Pseudo",
   "newPseudoField": "Nouveau pseudo",
   "changePseudoConfirm": "Modifier",

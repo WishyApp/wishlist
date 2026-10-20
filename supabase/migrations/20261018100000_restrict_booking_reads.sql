@@ -22,6 +22,10 @@
 --
 -- can_owner_see_taken_wish is a setting of the owner: turning it on, or
 -- moving a wish to a wishlist where it is on, shows the bookings already made.
+-- The wishlist screen reloads the wishes of the wishlist when the setting
+-- changes (listener on wishlists in supabase_wish_stream_repository.dart),
+-- since the bookings it reads change without any change on wishs or
+-- wish_taken_by_user.
 --
 -- The lookup lives in a SECURITY DEFINER function that reads wishs and
 -- wishlists only, so that the policy of wish_taken_by_user never evaluates the

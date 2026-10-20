@@ -116,7 +116,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _isLoading = false;
       });
       final statusCode = authException.statusCode;
-      if (statusCode != null) {
+      if (authException is AuthWeakPasswordException) {
+        showAppSnackBar(
+          context,
+          l10n.passwordTooWeak,
+          type: SnackBarType.error,
+        );
+      } else if (statusCode != null) {
         switch (int.parse(statusCode)) {
           case 422:
             showAppSnackBar(
@@ -154,12 +160,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (_isSigningIn) {
         await ref.read(authServiceProvider).signIn(
               identifier: _pseudoOrEmailController.text.trim(),
-              password: _passwordController.text.trim(),
+              password: _passwordController.text,
             );
       } else {
         await ref.read(authServiceProvider).signUp(
               email: _pseudoOrEmailController.text.trim(),
-              password: _passwordController.text.trim(),
+              password: _passwordController.text,
             );
       }
 

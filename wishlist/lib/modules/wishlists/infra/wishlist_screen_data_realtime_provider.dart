@@ -8,8 +8,11 @@ import 'package:wishlist/shared/models/completed_wish_with_details/completed_wis
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
-final wishlistScreenDataRealtimeProvider =
-    Provider.family<AsyncValue<WishlistScreenData>, int>((ref, wishlistId) {
+// autoDispose: keyed by wishlist id, not by user. Kept alive, it would hold
+// the streams (and their channels) opened under a previous session, and serve
+// them to the next user opening the same wishlist.
+final wishlistScreenDataRealtimeProvider = Provider.autoDispose
+    .family<AsyncValue<WishlistScreenData>, int>((ref, wishlistId) {
   final wishlistAsync = ref.watch(watchWishlistByIdProvider(wishlistId));
   final wishs = ref.watch(watchWishsFromWishlistProvider(wishlistId));
   final wishlist = wishlistAsync.valueOrNull;

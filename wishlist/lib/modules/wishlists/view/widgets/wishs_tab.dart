@@ -42,7 +42,6 @@ class WishsTab extends StatelessWidget {
   final Function(
     BuildContext,
     Wish, {
-    required bool isMyWishlist,
     required IList<Wish> wishsToDisplay,
     WishlistStatsCardType? cardType,
   }) onTapWish;
@@ -133,7 +132,6 @@ class _WishList extends StatelessWidget {
   final Function(
     BuildContext,
     Wish, {
-    required bool isMyWishlist,
     required IList<Wish> wishsToDisplay,
     WishlistStatsCardType? cardType,
   }) onTapWish;
@@ -146,11 +144,15 @@ class _WishList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return AppRefreshIndicator(
       onRefresh: onRefresh,
       child: AnimatedListView<Wish>(
         items: wishsToDisplay.toList(),
-        padding: const EdgeInsets.only(bottom: _WishList._bottomPadding),
+        padding: EdgeInsets.only(
+          bottom: _WishList._bottomPadding + bottomInset,
+        ),
         animationDuration: const Duration(milliseconds: 500),
         itemSpacing: _WishList._itemSpacing,
         itemEquality: (oldItem, newItem) => oldItem.id == newItem.id,
@@ -160,7 +162,6 @@ class _WishList extends StatelessWidget {
             onTap: () => onTapWish(
               context,
               wish,
-              isMyWishlist: isMyWishlist,
               wishsToDisplay: wishsToDisplay,
               cardType: statCardSelected,
             ),
@@ -200,12 +201,14 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
 
     return Padding(
-      padding: const EdgeInsets.only(top: _topPadding),
+      padding: EdgeInsets.only(top: _topPadding, bottom: bottomInset),
       child: PageLayoutEmptyContent(
         illustrationUrl: Assets.svg.noWishlist,
-        illustrationHeight: constraints.maxHeight * _illustrationHeightRatio,
+        illustrationHeight:
+            (constraints.maxHeight - bottomInset) * _illustrationHeightRatio,
         title: title,
         titleTextStyle: AppTextStyles.medium,
         callToAction: shouldShowCallToAction ? l10n.wishlistAddWish : null,

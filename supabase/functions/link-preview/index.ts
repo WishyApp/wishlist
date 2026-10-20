@@ -1,5 +1,7 @@
 // Link Preview Edge Function: lecture directe de la page (OG / meta) puis Jina Reader en fallback, renvoie title + imageUrl (pas de prix).
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { assertPublicUrl, fetchPublic, UrlRejectedError } from "./url_guard.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -259,13 +261,12 @@ async function fetchViaHtml(targetUrl: string): Promise<Preview> {
   try {
     // Signal d'annulation : withTimeout abandonne la promesse mais
     // n'interromprait pas la requête, qui continuerait en arrière-plan.
-    const res = await fetch(targetUrl, {
+    const res = await fetchPublic(targetUrl, {
       headers: {
         "User-Agent": BROWSER_UA,
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
       },
-      redirect: "follow",
       signal: AbortSignal.timeout(HTML_FETCH_TIMEOUT_MS),
     });
     status = res.status;
@@ -336,21 +337,48 @@ async function fetchPreview(targetUrl: string): Promise<PreviewResult> {
   return result;
 }
 
+function jsonError(error: string, status: number): Response {
+  return new Response(JSON.stringify({ error }), {
+    status,
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * Vrai si la requête porte le JWT d'un utilisateur connecté. La clé anon est
+ * aussi un JWT valide pour la plateforme (verify_jwt) : seul getUser() la
+ * distingue d'une vraie session.
+ */
+async function isAuthenticatedUser(req: Request): Promise<boolean> {
+  const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) return false;
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+  const { data, error } = await supabase.auth.getUser(token);
+  return !error && !!data.user;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: CORS_HEADERS });
   }
 
   try {
+    if (!(await isAuthenticatedUser(req))) return jsonError("Unauthorized", 401);
+
     const { url } = (await req.json()) as { url?: string };
-    if (!url || typeof url !== "string" || !url.startsWith("http")) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or missing url" }),
-        { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
-      );
-    }
+    if (!url || typeof url !== "string") return jsonError("Invalid or missing url", 400);
 
     const targetUrl = url.trim();
+    try {
+      await assertPublicUrl(targetUrl);
+    } catch (e) {
+      if (e instanceof UrlRejectedError) return jsonError(e.message, 400);
+      throw e;
+    }
     const maxAttempts = 2;
     const empty: PreviewResult = {
       title: null,
