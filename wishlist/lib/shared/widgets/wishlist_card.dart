@@ -7,6 +7,7 @@ import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/app_wave_pattern.dart';
+import 'package:wishlist/shared/widgets/word_fit_text.dart';
 
 class WishlistCard extends ConsumerWidget {
   const WishlistCard({
@@ -73,7 +74,7 @@ class WishlistCard extends ConsumerWidget {
               Expanded(
                 child: Align(
                   alignment: Alignment.bottomLeft,
-                  child: Text(
+                  child: WordFitText(
                     wishlist.name,
                     style: AppTextStyles.titleSmall.copyWith(
                       color: Colors.white,
