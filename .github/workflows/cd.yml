@@ -6,9 +6,11 @@ on:
       - 'v*'
   # Lancement manuel pour valider le build (signing, extension iOS) sans
   # publier : les étapes d'upload ne tournent que sur tag ou si publish=true.
-  # Depuis main, il migre quand même la base prod et y déploie les Edge
-  # Functions (job migrate-database), comme une release. Depuis une autre
-  # branche, la garde de migrate-database échoue et les builds ne partent pas.
+  # Depuis main, il migre quand même la base prod (job migrate-database),
+  # comme une release, mais ne déploie les Edge Functions que si le commit
+  # lancé est la pointe de main (sinon : warning, fonctions non déployées).
+  # Depuis une autre branche, la garde de migrate-database échoue et les
+  # builds ne partent pas.
   workflow_dispatch:
     inputs:
       publish:
@@ -92,7 +94,13 @@ jobs:
       # Only migrations reviewed, validated and applied on dev reach prod:
       # a tag on a commit outside main must neither migrate the database nor
       # deploy Edge Functions.
+      # Functions are overwritten by the code of the deployed commit, unlike
+      # migrations which never go back: they are deployed only from the latest
+      # state of main (latest v* tag on main for a tag, tip of main for a
+      # manual run). Otherwise they are skipped with a warning, migrations and
+      # builds still run (re-running an old release to retry an upload).
       - name: Ensure the tag is on main
+        id: guard
         if: vars.SUPABASE_DEPLOY_ENABLED == 'true'
         run: |
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
@@ -100,12 +108,30 @@ jobs:
             exit 1
           fi
 
+          git fetch --tags --force origin
+          deploy_functions=false
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            latest_tag="$(git describe --tags --abbrev=0 --match 'v*' origin/main || true)"
+            if [ -n "$latest_tag" ] && [ "$GITHUB_REF_NAME" = "$latest_tag" ]; then
+              deploy_functions=true
+            else
+              echo "::warning::Tag ${GITHUB_REF_NAME} is not the latest release tag on main (${latest_tag:-none}), Edge Functions are not deployed (migrations still run)"
+            fi
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_SHA" = "$(git rev-parse origin/main)" ]; then
+              deploy_functions=true
+            else
+              echo "::warning::${GITHUB_SHA} is not the tip of main, Edge Functions are not deployed (migrations still run)"
+            fi
+          fi
+          echo "deploy_functions=${deploy_functions}" >> "$GITHUB_OUTPUT"
+
       - name: Push migrations, check drift and deploy functions
         if: vars.SUPABASE_DEPLOY_ENABLED == 'true'
         uses: ./.github/actions/supabase-deploy
         with:
           environment: prod
-          deploy-functions: 'true'
+          deploy-functions: ${{ steps.guard.outputs.deploy_functions }}
           project-ref: cbcrtjggsmtwvqljzbnl
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           db-password: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
