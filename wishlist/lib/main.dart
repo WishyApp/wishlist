@@ -56,7 +56,6 @@ void main() async {
           ..dsn = sentryDsn
           ..environment = environment.name
           ..sendDefaultPii = false
-          ..tracesSampleRate = 0
           ..attachScreenshot = false;
       },
       appRunner: startApp,
