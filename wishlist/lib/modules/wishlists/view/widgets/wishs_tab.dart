@@ -42,7 +42,6 @@ class WishsTab extends StatelessWidget {
   final Function(
     BuildContext,
     Wish, {
-    required bool isMyWishlist,
     required IList<Wish> wishsToDisplay,
     WishlistStatsCardType? cardType,
   }) onTapWish;
@@ -133,7 +132,6 @@ class _WishList extends StatelessWidget {
   final Function(
     BuildContext,
     Wish, {
-    required bool isMyWishlist,
     required IList<Wish> wishsToDisplay,
     WishlistStatsCardType? cardType,
   }) onTapWish;
@@ -164,7 +162,6 @@ class _WishList extends StatelessWidget {
             onTap: () => onTapWish(
               context,
               wish,
-              isMyWishlist: isMyWishlist,
               wishsToDisplay: wishsToDisplay,
               cardType: statCardSelected,
             ),

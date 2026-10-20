@@ -30,7 +30,6 @@ class WishlistScreenBody extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     Wish wish, {
-    required bool isMyWishlist,
     required IList<Wish> wishsToDisplay,
     required WishlistStatsCardType cardType,
   }) {
@@ -78,7 +77,6 @@ class WishlistScreenBody extends ConsumerWidget {
       onTapWish: (
         context,
         wish, {
-        required isMyWishlist,
         required wishsToDisplay,
         cardType,
       }) =>
@@ -86,7 +84,6 @@ class WishlistScreenBody extends ConsumerWidget {
         context,
         ref,
         wish,
-        isMyWishlist: isMyWishlist,
         wishsToDisplay: wishsToDisplay,
         cardType: cardType!,
       ),
