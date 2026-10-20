@@ -143,10 +143,11 @@ CREATE POLICY "Users can delete their own wish images"
   );
 
 
--- 4. Permissive policies add up (OR): fail if any INSERT, UPDATE, DELETE or ALL
--- permissive policy on storage.objects is not in the list below, whatever its
--- condition says, for instance one created by hand on a project. Adding a
--- bucket with its own write policies means adding their names here (or in the
+-- 4. Permissive policies add up (OR): fail if any SELECT, INSERT, UPDATE,
+-- DELETE or ALL permissive policy on storage.objects is not in the list below,
+-- whatever its condition says, for instance one created by hand on a project
+-- (an open SELECT policy would let any signed-in user list the bucket). Adding
+-- a bucket with its own policies means adding their names here (or in the
 -- migration that introduces them).
 
 DO $$
@@ -159,20 +160,22 @@ BEGIN
   WHERE schemaname = 'storage'
     AND tablename = 'objects'
     AND permissive = 'PERMISSIVE'
-    AND cmd IN ('INSERT', 'UPDATE', 'DELETE', 'ALL')
+    AND cmd IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'ALL')
     AND policyname NOT IN (
       -- wish-images, this migration
+      'Users can read their own wish images',
       'Users can upload their own wish images',
       'Users can update their own wish images',
       'Users can delete their own wish images',
       -- avatars, 20251111150215_remote_schema
       'Auth users can upload their own avatar',
       'Auth users can update their own avatar',
-      'Auth users can delete their own avatar'
+      'Auth users can delete their own avatar',
+      'Authenticated users can view all avatars'
     );
 
   IF extra IS NOT NULL THEN
-    RAISE EXCEPTION 'Unexpected write policies on storage.objects: %', extra;
+    RAISE EXCEPTION 'Unexpected policies on storage.objects: %', extra;
   END IF;
 END $$;
 
