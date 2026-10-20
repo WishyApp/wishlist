@@ -1,11 +1,25 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_stream_repository_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/app_user.dart';
 
 final friendshipsRealtimeProvider =
     StreamProvider.autoDispose<FriendsData>((ref) {
+  // Rebuilt on logout / user switch: the widgets listening to it (the nav bar)
+  // can outlive a session. Signed out, it emits an empty value (which replaces
+  // the previous user's one) instead of reading the repository without a user.
+  if (ref.watch(currentUserIdProvider) == null) {
+    return Stream.value(
+      const FriendsData(
+        friends: IListConst([]),
+        pendingFriends: IListConst([]),
+        requestedFriends: IListConst([]),
+      ),
+    );
+  }
+
   final userService = ref.watch(userServiceProvider);
   final friendshipRepo = ref.watch(friendshipStreamRepositoryProvider);
 

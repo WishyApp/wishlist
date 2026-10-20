@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_stream_repository.dart';
 import 'package:wishlist/shared/models/profile.dart';
 
@@ -50,12 +49,6 @@ class SupabaseUserStreamRepository implements UserStreamRepository {
     _channels[key] = channel;
 
     return controller.stream;
-  }
-
-  @override
-  Stream<Profile?> watchCurrentUserProfile() {
-    final currentUserId = _client.auth.currentUserNonNull.id;
-    return watchProfileById(currentUserId);
   }
 
   Future<void> _loadInitialProfile(

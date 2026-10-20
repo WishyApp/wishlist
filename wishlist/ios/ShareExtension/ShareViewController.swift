@@ -47,80 +47,60 @@ class ShareViewController: SLComposeServiceViewController {
         }
         
         var shareData: [String: Any] = [:]
-        var allFilePaths: [String] = []
-        var allTextContent: [String] = []
+        let collector = SharedContentCollector(count: attachments.count)
         let group = DispatchGroup()
         
         for (attachmentIndex, attachment) in attachments.enumerated() {
             group.enter()
             
             // Process files first (prioritize files over text/URLs)
-            if attachment.hasItemConformingToTypeIdentifier("public.file-url") {
-                attachment.loadItem(forTypeIdentifier: "public.file-url", options: nil) { [weak self] (item, error) in
-                    self?.processFileItem(item: item, error: error, index: attachmentIndex, allFilePaths: &allFilePaths)
-                    group.leave()
-                }
-            } else if attachment.hasItemConformingToTypeIdentifier("public.image") {
-                attachment.loadItem(forTypeIdentifier: "public.image", options: nil) { [weak self] (item, error) in
-                    self?.processFileItem(item: item, error: error, index: attachmentIndex, allFilePaths: &allFilePaths)
-                    group.leave()
-                }
-            } else if attachment.hasItemConformingToTypeIdentifier("public.movie") {
-                attachment.loadItem(forTypeIdentifier: "public.movie", options: nil) { [weak self] (item, error) in
-                    self?.processFileItem(item: item, error: error, index: attachmentIndex, allFilePaths: &allFilePaths)
-                    group.leave()
-                }
-            } else if attachment.hasItemConformingToTypeIdentifier("public.audio") {
-                attachment.loadItem(forTypeIdentifier: "public.audio", options: nil) { [weak self] (item, error) in
-                    self?.processFileItem(item: item, error: error, index: attachmentIndex, allFilePaths: &allFilePaths)
-                    group.leave()
-                }
-            } else if attachment.hasItemConformingToTypeIdentifier("com.adobe.pdf") {
-                attachment.loadItem(forTypeIdentifier: "com.adobe.pdf", options: nil) { [weak self] (item, error) in
-                    self?.processFileItem(item: item, error: error, index: attachmentIndex, allFilePaths: &allFilePaths)
+            let fileTypes = ["public.file-url", "public.image", "public.movie", "public.audio", "com.adobe.pdf"]
+            if let type = fileTypes.first(where: attachment.hasItemConformingToTypeIdentifier) {
+                attachment.loadItem(forTypeIdentifier: type, options: nil) { item, error in
+                    ShareViewController.processFileItem(item: item, error: error, index: attachmentIndex, collector: collector)
                     group.leave()
                 }
             } else if attachment.hasItemConformingToTypeIdentifier("public.url") {
                 // Vérifier public.url avant public.data : Safari envoie souvent l’URL sous ce type.
-                attachment.loadItem(forTypeIdentifier: "public.url", options: nil) { [weak self] (item, error) in
+                attachment.loadItem(forTypeIdentifier: "public.url", options: nil) { (item, error) in
                     if let url = item as? URL {
-                        allTextContent.append(url.absoluteString)
+                        collector.addText(url.absoluteString, at: attachmentIndex)
                     }
                     group.leave()
                 }
             } else if attachment.hasItemConformingToTypeIdentifier("public.plain-text") {
-                attachment.loadItem(forTypeIdentifier: "public.plain-text", options: nil) { [weak self] (item, error) in
-                    if let text = item as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        allTextContent.append(text.trimmingCharacters(in: .whitespacesAndNewlines))
+                attachment.loadItem(forTypeIdentifier: "public.plain-text", options: nil) { (item, error) in
+                    if let text = (item as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
+                        collector.addText(text, at: attachmentIndex)
                     }
                     group.leave()
                 }
             } else if attachment.hasItemConformingToTypeIdentifier("text/uri-list") {
                 // Souvent utilisé pour partager des liens (ex. Safari, certaines apps).
-                attachment.loadItem(forTypeIdentifier: "text/uri-list", options: nil) { [weak self] (item, error) in
+                attachment.loadItem(forTypeIdentifier: "text/uri-list", options: nil) { (item, error) in
                     if let data = item as? Data, let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
-                        allTextContent.append(text)
-                    } else if let text = item as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        allTextContent.append(text.trimmingCharacters(in: .whitespacesAndNewlines))
+                        collector.addText(text, at: attachmentIndex)
+                    } else if let text = (item as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
+                        collector.addText(text, at: attachmentIndex)
                     }
                     group.leave()
                 }
             } else if attachment.hasItemConformingToTypeIdentifier("public.data") {
-                attachment.loadItem(forTypeIdentifier: "public.data", options: nil) { [weak self] (item, error) in
-                    self?.processFileItem(item: item, error: error, index: attachmentIndex, allFilePaths: &allFilePaths)
+                attachment.loadItem(forTypeIdentifier: "public.data", options: nil) { (item, error) in
+                    ShareViewController.processFileItem(item: item, error: error, index: attachmentIndex, collector: collector)
                     group.leave()
                 }
             } else {
                 let typeIdentifier = attachment.registeredTypeIdentifiers.first ?? "public.data"
-                attachment.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { [weak self] (item, error) in
+                attachment.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { (item, error) in
                     if let url = item as? URL {
                         if url.isFileURL {
-                            allFilePaths.append(url.path)
+                            collector.addFilePath(url.path, at: attachmentIndex)
                         } else {
-                            allTextContent.append(url.absoluteString)
+                            collector.addText(url.absoluteString, at: attachmentIndex)
                         }
-                    } else if let text = item as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        allTextContent.append(text.trimmingCharacters(in: .whitespacesAndNewlines))
+                    } else if let text = (item as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
+                        collector.addText(text, at: attachmentIndex)
                     }
                     group.leave()
                 }
@@ -128,7 +108,9 @@ class ShareViewController: SLComposeServiceViewController {
         }
         
         group.notify(queue: .main) { [weak self] in
-            
+            let allFilePaths = collector.filePaths
+            let allTextContent = collector.texts
+
             // Prepare share data
             if !allFilePaths.isEmpty {
                 shareData["filePaths"] = allFilePaths
@@ -157,9 +139,9 @@ class ShareViewController: SLComposeServiceViewController {
         }
     }
     
-    private func processFileItem(item: Any?, error: Error?, index: Int, allFilePaths: inout [String]) {
+    private static func processFileItem(item: Any?, error: Error?, index: Int, collector: SharedContentCollector) {
         if let url = item as? URL {
-            allFilePaths.append(url.path)
+            collector.addFilePath(url.path, at: index)
         }
     }
     
@@ -316,5 +298,40 @@ class ShareViewController: SLComposeServiceViewController {
     
     private func closeShareExtension() {
         extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+    }
+}
+
+/// Collects what each attachment yields. `loadItem` calls back on arbitrary
+/// background queues, so writes are guarded by a lock. The attachment count is
+/// known up front, so each attachment owns a slot and results come back in
+/// attachment order rather than completion order.
+private final class SharedContentCollector {
+    private let lock = NSLock()
+    private var filePathSlots: [String?]
+    private var textSlots: [String?]
+
+    init(count: Int) {
+        filePathSlots = Array(repeating: nil, count: count)
+        textSlots = Array(repeating: nil, count: count)
+    }
+
+    func addFilePath(_ path: String, at index: Int) {
+        lock.lock(); defer { lock.unlock() }
+        filePathSlots[index] = path
+    }
+
+    func addText(_ text: String, at index: Int) {
+        lock.lock(); defer { lock.unlock() }
+        textSlots[index] = text
+    }
+
+    var filePaths: [String] {
+        lock.lock(); defer { lock.unlock() }
+        return filePathSlots.compactMap { $0 }
+    }
+
+    var texts: [String] {
+        lock.lock(); defer { lock.unlock() }
+        return textSlots.compactMap { $0 }
     }
 }

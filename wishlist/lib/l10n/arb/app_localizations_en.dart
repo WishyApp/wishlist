@@ -147,6 +147,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'New password should be different from the old one.';
 
   @override
+  String get passwordTooWeak =>
+      'This password is too weak, please choose another one.';
+
+  @override
+  String get reauthenticationNeeded =>
+      'Your session has expired, please start again.';
+
+  @override
   String get changePseudoScreenTitle => 'Pseudo';
 
   @override

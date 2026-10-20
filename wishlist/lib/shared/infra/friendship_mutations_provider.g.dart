@@ -7,7 +7,7 @@ part of 'friendship_mutations_provider.dart';
 // **************************************************************************
 
 String _$friendshipMutationsHash() =>
-    r'3c6f9be9748e583fbe9da81f5e4b61ca5d313267';
+    r'0e1cee2cad26e60963880375e9ee7bfc6a7e7e44';
 
 /// See also [FriendshipMutations].
 @ProviderFor(FriendshipMutations)

@@ -17,6 +17,8 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
   final WishRepository _wishRepository;
   static const _wishsTableName = 'wishs';
   static const _wishTakenByUserTableName = 'wish_taken_by_user';
+  static const _wishlistsTableName = 'wishlists';
+  static const _canOwnerSeeTakenWishColumn = 'can_owner_see_taken_wish';
 
   final Map<String, RealtimeChannel> _channels = {};
   final Map<String, StreamController<IList<Wish>>> _controllers = {};
@@ -83,6 +85,28 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
             // Quand une réservation change, recharger tous les wishs
             // pour récupérer les données à jour avec le JOIN
             _handleWishChange(wishlistId, controller);
+          },
+        )
+        // Écouter aussi la wishlist elle-même : quand
+        // can_owner_see_taken_wish change, les réservations lues par le
+        // propriétaire changent (RLS) sans qu'aucune ligne de wishs ou de
+        // wish_taken_by_user ne bouge. wishlists est en REPLICA IDENTITY FULL,
+        // l'ancienne valeur est donc fournie ; à défaut on recharge.
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: _wishlistsTableName,
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: wishlistId,
+          ),
+          callback: (payload) {
+            final oldValue = payload.oldRecord[_canOwnerSeeTakenWishColumn];
+            final newValue = payload.newRecord[_canOwnerSeeTakenWishColumn];
+            if (oldValue == null || oldValue != newValue) {
+              _handleWishChange(wishlistId, controller);
+            }
           },
         )
         .subscribe();
