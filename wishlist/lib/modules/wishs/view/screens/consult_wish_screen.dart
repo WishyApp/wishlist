@@ -90,8 +90,11 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
           final isMyWishlist = ownerId != null && ownerId == currentUserId;
           // Tant que le propriétaire n'est pas connu, on masque les actions
           // pour ne pas afficher brièvement celles d'un invité au propriétaire.
-          final isOwnershipKnown =
-              wishlistAsync.hasValue || wishlistAsync.hasError;
+          // hasValue (et non hasError) : si le premier chargement échoue,
+          // le propriétaire reste inconnu et on ne montre pas les actions
+          // d'un invité. Après un premier succès, Riverpod conserve la
+          // valeur précédente lors d'une erreur de rechargement.
+          final isOwnershipKnown = wishlistAsync.hasValue;
           final wishlistThemeAsync =
               ref.watch(wishlistThemeProvider(wishData.wishlistId));
 
