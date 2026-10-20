@@ -33,12 +33,12 @@ class WordFitText extends StatelessWidget {
   /// Pas de réduction de la taille de police, en sp.
   static const double _step = 0.5;
 
-  /// Points où le moteur de texte peut passer à la ligne sans couper un mot :
-  /// les espaces, et après un trait d'union suivi d'une lettre
-  /// (« Saint-|Valentin », mais pas « Noël-2026 », que l'algorithme Unicode
-  /// garde d'un seul tenant).
-  static final RegExp _breakOpportunity =
-      RegExp(r'\s+|(?<=-)(?=\p{L})', unicode: true);
+  /// Coupures après un tiret suivi d'une lettre (« Saint-|Valentin »), que
+  /// [TextPainter.minIntrinsicWidth] ignore alors que le rendu les utilise.
+  /// Pas devant un chiffre (« Noël-2026 » reste d'un seul tenant), ni après
+  /// un tiret en début de mot (« -Valentin »).
+  static final RegExp _dashBreak =
+      RegExp(r'(?<=\p{L}[-\u2010\u2013])(?=\p{L})', unicode: true);
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +52,8 @@ class WordFitText extends StatelessWidget {
     }
     final textScaler = MediaQuery.textScalerOf(context);
     final textDirection = Directionality.of(context);
+    // Même locale que [RichText], qui influe sur les règles de coupure.
+    final locale = Localizations.maybeLocaleOf(context);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -59,6 +61,7 @@ class WordFitText extends StatelessWidget {
           style: effectiveStyle,
           textScaler: textScaler,
           textDirection: textDirection,
+          locale: locale,
           maxWidth: constraints.maxWidth,
         );
 
@@ -77,37 +80,43 @@ class WordFitText extends StatelessWidget {
     required TextStyle style,
     required TextScaler textScaler,
     required TextDirection textDirection,
+    required Locale? locale,
     required double maxWidth,
   }) {
-    final words = text.split(_breakOpportunity).where((w) => w.isNotEmpty);
-    if (words.isEmpty || !maxWidth.isFinite) {
+    if (!maxWidth.isFinite) {
       return style.fontSize;
     }
 
     final baseSize = style.fontSize ?? 14;
 
-    double measure(String word, double size) {
+    final segments = text.split(_dashBreak);
+
+    // Largeur du plus large segment insécable. Hors tirets, le moteur
+    // applique lui-même les règles Unicode (UAX #14) : pas de coupure avant
+    // « ! » ni à une espace insécable (« Anniversaire ! », « Noël ! »).
+    double widestUnbreakable(double size) {
       final painter = TextPainter(
-        text: TextSpan(text: word, style: style.copyWith(fontSize: size)),
         textDirection: textDirection,
         textScaler: textScaler,
-        maxLines: 1,
-      )..layout();
-      final width = painter.width;
+        locale: locale,
+      );
+      var widest = 0.0;
+      for (final segment in segments) {
+        painter
+          ..text = TextSpan(
+            text: segment,
+            style: style.copyWith(fontSize: size),
+          )
+          ..layout();
+        if (painter.minIntrinsicWidth > widest) {
+          widest = painter.minIntrinsicWidth;
+        }
+      }
       painter.dispose();
-      return width;
+      return widest;
     }
 
-    // Le mot le plus large (pas forcément le plus long en caractères).
-    var widest = words.first;
-    var baseWidth = measure(widest, baseSize);
-    for (final word in words.skip(1)) {
-      final width = measure(word, baseSize);
-      if (width > baseWidth) {
-        widest = word;
-        baseWidth = width;
-      }
-    }
+    final baseWidth = widestUnbreakable(baseSize);
     if (baseWidth <= maxWidth) {
       return style.fontSize;
     }
@@ -116,8 +125,8 @@ class WordFitText extends StatelessWidget {
     var size =
         (baseSize * maxWidth / baseWidth / _step).floorToDouble() * _step;
     // La largeur n'est pas strictement proportionnelle à la taille (crénage,
-    // arrondis) : on descend jusqu'à ce que le mot tienne vraiment.
-    while (size > minSize && measure(widest, size) > maxWidth) {
+    // arrondis) : on descend jusqu'à ce que le segment tienne vraiment.
+    while (size > minSize && widestUnbreakable(size) > maxWidth) {
       size -= _step;
     }
     // Sous le plancher, on s'arrête à minScale : Flutter coupe alors le mot.

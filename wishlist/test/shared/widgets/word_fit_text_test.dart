@@ -81,6 +81,30 @@ void main() {
     expect(_lineCount(tester), 1);
   });
 
+  testWidgets('keeps a word and its spaced French punctuation together',
+      (tester) async {
+    // Unicode interdit la coupure avant « ! », même après une espace.
+    await _pump(tester, 'Anniversaire !');
+
+    expect(_fontSize(tester), lessThan(22));
+    expect(_lineCount(tester), 1);
+    expect(_paragraph(tester).size.width, lessThanOrEqualTo(200));
+  });
+
+  testWidgets('does not break at a no-break space', (tester) async {
+    await _pump(tester, 'Noël\u00A0!', width: 100);
+
+    expect(_fontSize(tester), lessThan(22));
+    expect(_lineCount(tester), 1);
+  });
+
+  testWidgets('lets a compound wrap after an en dash', (tester) async {
+    await _pump(tester, 'Saint\u2013Valentin');
+
+    expect(_fontSize(tester), 22);
+    expect(_lineCount(tester), 2);
+  });
+
   testWidgets('stops at minScale for a very long word', (tester) async {
     await _pump(tester, 'Anticonstitutionnellement');
 
