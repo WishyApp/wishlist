@@ -10,6 +10,7 @@ import 'package:wishlist/app/config/config_provider.dart';
 import 'package:wishlist/app/config/environment.dart';
 import 'package:wishlist/app/config/environment_provider.dart';
 import 'package:wishlist/app/config/environment_service.dart';
+import 'package:wishlist/app/dev/store_screenshot_mode.dart';
 import 'package:wishlist/shared/infra/sentry_user_sync.dart';
 
 void main() async {
@@ -34,6 +35,8 @@ void main() async {
         authStateChanges: Supabase.instance.client.auth.onAuthStateChange,
       ).start();
     }
+
+    await StoreScreenshotMode.setUp();
 
     runApp(
       ProviderScope(

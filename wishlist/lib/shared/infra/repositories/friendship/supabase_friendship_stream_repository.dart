@@ -16,45 +16,87 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   final FriendshipRepository _friendshipRepository;
   static const _friendshipsTableName = 'friendships';
 
-  final Map<String, RealtimeChannel> _channels = {};
-  final Map<String, StreamController<ISet<String>>> _controllers = {};
+  static const _bothUserColumns = ['requester_id', 'receiver_id'];
 
-  StreamController<FriendshipIds>? _allFriendshipsController;
+  final Map<String, RealtimeChannel> _channels = {};
+  final Map<String, StreamController<dynamic>> _controllers = {};
+
+  /// Les controllers de clés différentes n'ont pas le même type d'événement :
+  /// la clé détermine le type attendu.
+  StreamController<T>? _existingController<T>(String key) =>
+      _controllers[key] as StreamController<T>?;
+
+  /// Abonne un channel aux lignes de `friendships` où [userId] figure dans
+  /// l'une des [columns] (un filtre `eq` par colonne, donc un listener par
+  /// colonne).
+  ///
+  /// Le filtre réduit le trafic, ce n'est pas une barrière d'accès : le client
+  /// en choisit la valeur, et la RLS n'est pas appliquée aux DELETE.
+  ///
+  /// Les DELETE sont filtrés comme les autres événements. Realtime évalue le
+  /// filtre sur l'ancienne ligne complète, que Postgres journalise parce que
+  /// `friendships` est en `REPLICA IDENTITY FULL` (vérifié par
+  /// `supabase-tests/friendships_realtime.sql`). Avec la RLS, le payload reçu
+  /// ne contient ensuite que la clé primaire dans `oldRecord` : il ne sert que
+  /// de déclencheur de rechargement, ne pas y lire `requester_id`.
+  RealtimeChannel _subscribeToFriendships({
+    required String channelName,
+    required String userId,
+    required List<String> columns,
+    required void Function() onChange,
+  }) {
+    var channel = _client.channel(channelName);
+    for (final column in columns) {
+      channel = channel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: _friendshipsTableName,
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: column,
+          value: userId,
+        ),
+        callback: (payload) => onChange(),
+      );
+    }
+    return channel.subscribe();
+  }
 
   @override
   Stream<FriendshipIds> watchCurrentUserAllFriendships() {
     final currentUserId = _client.auth.currentUserNonNull.id;
     final key = 'all_friendships_$currentUserId';
 
-    final existingController = _allFriendshipsController;
+    // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
+    final existingController = _existingController<FriendshipIds>(key);
     if (existingController != null) {
       return existingController.stream;
     }
 
-    // ignore: close_sinks - Le controller sera fermé dans _cleanupAllFriendshipsStream
-    final newController = StreamController<FriendshipIds>.broadcast(
-      onCancel: _cleanupAllFriendshipsStream,
+    late final StreamController<FriendshipIds> controller;
+    controller = StreamController<FriendshipIds>.broadcast(
+      onCancel: () => _cleanupStream(key, controller),
     );
-    _allFriendshipsController = newController;
+    _controllers[key] = controller;
 
-    _loadAllFriendships(currentUserId);
+    _loadAllFriendships(currentUserId, controller);
 
-    final channel = _client
-        .channel('friendships_all_$currentUserId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: _friendshipsTableName,
-          callback: (payload) => _handleAllFriendshipsChange(currentUserId),
-        )
-        .subscribe();
+    final channel = _subscribeToFriendships(
+      channelName: 'friendships_all_$currentUserId',
+      userId: currentUserId,
+      columns: _bothUserColumns,
+      onChange: () => _loadAllFriendships(currentUserId, controller),
+    );
 
     _channels[key] = channel;
 
-    return newController.stream;
+    return controller.stream;
   }
 
-  Future<void> _loadAllFriendships(String userId) async {
+  Future<void> _loadAllFriendships(
+    String userId,
+    StreamController<FriendshipIds> controller,
+  ) async {
     try {
       final results = await Future.wait([
         _friendshipRepository.getFriendsIds(userId),
@@ -62,47 +104,20 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         _friendshipRepository.getCurrentUserRequestedFriendsIds(),
       ]);
 
-      final friendsIds = results[0];
-      final pendingIds = results[1];
-      final requestedIds = results[2];
-
-      final allFriendshipsController = _allFriendshipsController;
-      if (allFriendshipsController == null) {
-        return;
-      }
-
-      if (!allFriendshipsController.isClosed) {
-        allFriendshipsController.add(
+      if (!controller.isClosed) {
+        controller.add(
           FriendshipIds(
-            friendsIds: friendsIds,
-            pendingIds: pendingIds,
-            requestedIds: requestedIds,
+            friendsIds: results[0],
+            pendingIds: results[1],
+            requestedIds: results[2],
           ),
         );
       }
     } catch (e) {
-      final allFriendshipsController = _allFriendshipsController;
-      if (allFriendshipsController == null) {
-        return;
-      }
-
-      if (!allFriendshipsController.isClosed) {
-        allFriendshipsController.addError(e);
+      if (!controller.isClosed) {
+        controller.addError(e);
       }
     }
-  }
-
-  void _handleAllFriendshipsChange(String userId) {
-    _loadAllFriendships(userId);
-  }
-
-  void _cleanupAllFriendshipsStream() {
-    final currentUserId = _client.auth.currentUserNonNull.id;
-    final key = 'all_friendships_$currentUserId';
-    _channels[key]?.unsubscribe();
-    _channels.remove(key);
-    _allFriendshipsController?.close();
-    _allFriendshipsController = null;
   }
 
   @override
@@ -110,27 +125,25 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     final key = 'friends_$userId';
 
     // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
-    final existingController = _controllers[key];
+    final existingController = _existingController<ISet<String>>(key);
     if (existingController != null) {
       return existingController.stream;
     }
 
-    final controller = StreamController<ISet<String>>.broadcast(
-      onCancel: () => _cleanupStream(key),
+    late final StreamController<ISet<String>> controller;
+    controller = StreamController<ISet<String>>.broadcast(
+      onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
     _loadInitialFriends(userId, controller);
 
-    final channel = _client
-        .channel('friendships_$userId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: _friendshipsTableName,
-          callback: (payload) => _handleFriendshipChange(userId, controller),
-        )
-        .subscribe();
+    final channel = _subscribeToFriendships(
+      channelName: 'friendships_$userId',
+      userId: userId,
+      columns: _bothUserColumns,
+      onChange: () => _handleFriendshipChange(userId, controller),
+    );
 
     _channels[key] = channel;
 
@@ -149,28 +162,26 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     final key = 'pending_$currentUserId';
 
     // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
-    final existingController = _controllers[key];
+    final existingController = _existingController<ISet<String>>(key);
     if (existingController != null) {
       return existingController.stream;
     }
 
-    final controller = StreamController<ISet<String>>.broadcast(
-      onCancel: () => _cleanupStream(key),
+    late final StreamController<ISet<String>> controller;
+    controller = StreamController<ISet<String>>.broadcast(
+      onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
     _loadInitialPending(currentUserId, controller);
 
-    final channel = _client
-        .channel('friendships_pending_$currentUserId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: _friendshipsTableName,
-          callback: (payload) =>
-              _handlePendingChange(currentUserId, controller),
-        )
-        .subscribe();
+    // Les demandes envoyées par l'utilisateur : il en est le requester.
+    final channel = _subscribeToFriendships(
+      channelName: 'friendships_pending_$currentUserId',
+      userId: currentUserId,
+      columns: const ['requester_id'],
+      onChange: () => _handlePendingChange(currentUserId, controller),
+    );
 
     _channels[key] = channel;
 
@@ -183,28 +194,26 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     final key = 'requested_$currentUserId';
 
     // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
-    final existingController = _controllers[key];
+    final existingController = _existingController<ISet<String>>(key);
     if (existingController != null) {
       return existingController.stream;
     }
 
-    final controller = StreamController<ISet<String>>.broadcast(
-      onCancel: () => _cleanupStream(key),
+    late final StreamController<ISet<String>> controller;
+    controller = StreamController<ISet<String>>.broadcast(
+      onCancel: () => _cleanupStream(key, controller),
     );
     _controllers[key] = controller;
 
     _loadInitialRequested(currentUserId, controller);
 
-    final channel = _client
-        .channel('friendships_requested_$currentUserId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: _friendshipsTableName,
-          callback: (payload) =>
-              _handleRequestedChange(currentUserId, controller),
-        )
-        .subscribe();
+    // Les demandes reçues par l'utilisateur : il en est le receiver.
+    final channel = _subscribeToFriendships(
+      channelName: 'friendships_requested_$currentUserId',
+      userId: currentUserId,
+      columns: const ['receiver_id'],
+      onChange: () => _handleRequestedChange(currentUserId, controller),
+    );
 
     _channels[key] = channel;
 
@@ -314,23 +323,32 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     }
   }
 
-  void _cleanupStream(String key) {
+  void _cleanupStream(String key, StreamController<dynamic> controller) {
+    // Ignore un cancel tardif d'un ancien controller (ex: pendant dispose) si
+    // la clé a été reprise par un nouveau.
+    if (!identical(_controllers[key], controller)) {
+      return;
+    }
     _channels[key]?.unsubscribe();
     _channels.remove(key);
-    _controllers[key]?.close();
+    controller.close();
     _controllers.remove(key);
   }
 
   @override
   Future<void> dispose() async {
-    for (final channel in _channels.values) {
+    // Un cancel pendant les await déclenche onCancel -> _cleanupStream, qui
+    // modifie _channels et _controllers : on itère donc sur des copies.
+    final channels = _channels.values.toList();
+    _channels.clear();
+    for (final channel in channels) {
       await channel.unsubscribe();
     }
-    _channels.clear();
 
-    for (final controller in _controllers.values) {
+    final controllers = _controllers.values.toList();
+    _controllers.clear();
+    for (final controller in controllers) {
       await controller.close();
     }
-    _controllers.clear();
   }
 }
