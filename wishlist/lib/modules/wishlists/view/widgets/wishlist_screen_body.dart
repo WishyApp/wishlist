@@ -6,12 +6,13 @@ import 'package:wishlist/modules/wishlists/view/widgets/wishlist_search_bar.dart
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_section.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishs_tab.dart';
+import 'package:wishlist/modules/wishlists/view/wishlist_screen_display_provider.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
+import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
-import 'package:wishlist/shared/utils/wish_sort_utils.dart';
 
 class WishlistScreenBody extends ConsumerWidget {
   const WishlistScreenBody({
@@ -31,6 +32,7 @@ class WishlistScreenBody extends ConsumerWidget {
     Wish wish, {
     required bool isMyWishlist,
     required IList<Wish> wishsToDisplay,
+    required WishlistStatsCardType cardType,
   }) {
     final screenState = ref.read(wishlistScreenNotifierProvider(wishlistId));
 
@@ -48,6 +50,9 @@ class WishlistScreenBody extends ConsumerWidget {
       wish.id,
       wishIds: wishIds,
       isMyWishlist: isMyWishlist,
+      quantityDisplay: cardType == WishlistStatsCardType.pending
+          ? WishQuantityDisplay.pending
+          : WishQuantityDisplay.booked,
     ).push(context);
   }
 
@@ -61,6 +66,7 @@ class WishlistScreenBody extends ConsumerWidget {
     required bool isWishsBookedHidden,
     required WishlistScreenState screenState,
     required WishlistScreenNotifier notifier,
+    Map<int, int>? quantityOverrideMap,
   }) {
     return WishsTab(
       wishlist: wishlist,
@@ -69,6 +75,7 @@ class WishlistScreenBody extends ConsumerWidget {
       statCardSelected: cardType,
       isWishsBookedHidden: isWishsBookedHidden,
       isMyWishlist: isMyWishlist,
+      quantityOverrideMap: quantityOverrideMap,
       onTapWish: (
         context,
         wish, {
@@ -82,6 +89,7 @@ class WishlistScreenBody extends ConsumerWidget {
         wish,
         isMyWishlist: isMyWishlist,
         wishsToDisplay: wishsToDisplay,
+        cardType: cardType!,
       ),
       onAddWish: (context, wishlist) =>
           CreateWishRoute(wishlistId: wishlist.id).push(context),
@@ -108,20 +116,15 @@ class WishlistScreenBody extends ConsumerWidget {
         ref.read(wishlistScreenNotifierProvider(wishlistId).notifier);
 
     final wishlist = wishlistScreenData.wishlist;
-    final wishs = WishSortUtils.sortAndFilterWishs(
-      wishlistScreenData.wishs,
-      wishSort: screenState.wishSort,
-      searchQuery: screenState.searchQuery,
-    );
 
+    // Le calcul des listes ne dépend que des données, du tri et de la
+    // recherche : la sélection et la carte de stats ne le relancent pas
+    final display = ref.watch(wishlistScreenDisplayProvider(wishlistId));
+    final wishs = display.all;
+    final wishsBooked = display.booked;
+    final bookedQuantityOverrides = display.bookedQuantityOverrides;
     final isWishsBookedHidden = !wishlist.canOwnerSeeTakenWish && isMyWishlist;
-
-    final wishsPending = isWishsBookedHidden
-        ? wishs.toIList()
-        : wishs.where((wish) => wish.availableQuantity > 0).toIList();
-
-    final wishsBooked =
-        wishs.where((wish) => wish.totalBookedQuantity > 0).toIList();
+    final wishsPending = isWishsBookedHidden ? wishs : display.available;
 
     final nbWishsPending = wishsPending.length;
     final nbWishsBooked = wishsBooked.length;
@@ -171,6 +174,9 @@ class WishlistScreenBody extends ConsumerWidget {
                 isWishsBookedHidden: isWishsBookedHidden,
                 screenState: screenState,
                 notifier: notifier,
+                quantityOverrideMap: bookedQuantityOverrides.isNotEmpty
+                    ? bookedQuantityOverrides.unlockView
+                    : null,
               ),
             ],
           ),

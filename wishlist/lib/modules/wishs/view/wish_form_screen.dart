@@ -247,6 +247,17 @@ class _WishFormScreenState extends ConsumerState<WishFormScreen> {
         watchWishlistByIdProvider(widget.wishlistId).future,
       );
 
+      if (wishlist == null) {
+        if (mounted) {
+          showAppSnackBar(
+            context,
+            context.l10n.wishlistDeleted,
+            type: SnackBarType.error,
+          );
+        }
+        return;
+      }
+
       final wish = WishCreateRequest(
         name: name,
         price: double.tryParse(price),

@@ -4,6 +4,7 @@ import 'package:wishlist/modules/auth/view/auth_screen.dart';
 import 'package:wishlist/modules/auth/view/forgot_password_screen.dart';
 import 'package:wishlist/modules/auth/view/pseudo_screen.dart';
 import 'package:wishlist/modules/auth/view/reset_password_screen.dart';
+import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/modules/friends/view/screens/friend_details_screen.dart';
 import 'package:wishlist/modules/settings/change_password/view/change_password_screen.dart';
 import 'package:wishlist/modules/settings/change_pseudo/view/change_pseudo_screen.dart';
@@ -36,6 +37,9 @@ part 'routes.g.dart';
         TypedGoRoute<ChangePseudoRoute>(
           path: 'change-pseudo',
         ),
+        TypedGoRoute<CompletedWishesRoute>(
+          path: 'completed-wishes',
+        ),
       ],
     ),
     // Wishlist et ses sous-routes
@@ -67,8 +71,23 @@ part 'routes.g.dart';
 )
 class HomeRoute extends GoRouteData {
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      const FloatingNavBarNavigator();
+  Widget build(BuildContext context, GoRouterState state) {
+    final tab = homeTabFromQuery(state.uri.queryParameters['tab']);
+    return FloatingNavBarNavigator(
+      key: ValueKey(tab),
+      currentTab: tab,
+    );
+  }
+}
+
+/// Parses the optional `?tab=<index>` of the home route (opens a tab
+/// directly). Falls back to the home tab when missing or invalid.
+FloatingNavBarTab homeTabFromQuery(String? value) {
+  final index = int.tryParse(value ?? '');
+  if (index == null || index < 0 || index >= FloatingNavBarTab.values.length) {
+    return FloatingNavBarTab.home;
+  }
+  return FloatingNavBarTab.values[index];
 }
 
 class PseudoRoute extends GoRouteData {
@@ -136,11 +155,15 @@ class ConsultWishRoute extends GoRouteData {
     this.wishId, {
     required this.wishIds,
     this.isMyWishlist = false,
+    this.showActions = true,
+    this.quantityDisplay = WishQuantityDisplay.total,
   });
   final int wishlistId;
   final int wishId;
   final List<int> wishIds;
   final bool isMyWishlist;
+  final bool showActions;
+  final WishQuantityDisplay quantityDisplay;
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
@@ -151,6 +174,8 @@ class ConsultWishRoute extends GoRouteData {
       wishIds: wishIds,
       initialIndex: initialIndex,
       isMyWishlist: isMyWishlist,
+      showActions: showActions,
+      quantityDisplay: quantityDisplay,
     );
   }
 }
@@ -186,6 +211,12 @@ class ChangePseudoRoute extends GoRouteData {
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       const ChangePseudoScreen();
+}
+
+class CompletedWishesRoute extends GoRouteData {
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      const CompletedWishesScreen();
 }
 
 class FriendDetailsRoute extends GoRouteData {

@@ -15,7 +15,7 @@ Welcome to the Wishy App! This Flutter application is designed to help you effor
 
 ### ✅ Prerequisites
 
-* **🛠 Flutter**: Ensure you have Flutter installed on your machine. You can follow the installation guide [here](https://flutter.dev/docs/get-started/install).
+* **🛠 Flutter**: Ensure you have Flutter installed on your machine. You can follow the installation guide [here](https://flutter.dev/docs/get-started/install). The project uses the exact version set in `wishlist/pubspec.yaml` (`environment: flutter:`, currently 3.41.4), the one CI and CD install; `flutter pub get` fails with an older one.
 * **🎯 Dart**: Flutter requires Dart, which is included with the Flutter SDK.
 
 ### 📦 Installation
@@ -27,23 +27,47 @@ Welcome to the Wishy App! This Flutter application is designed to help you effor
    cd wishlist
    ```
 
-2. **📥 Install Dependencies**
+2. **🔐 Decrypt the Secrets**
+
+   `wishlist/env/.env.dev`, `wishlist/env/.env.prod` and `wishlist/android/key.properties` are encrypted in git with [transcrypt](https://github.com/elasticdog/transcrypt) (see `.gitattributes`). Ask a maintainer for the password, then:
 
    ```bash
-   flutter pub get
+   transcrypt -p '<password>'
    ```
 
-3. **▶️ Run the App**
+   Without it these files stay encrypted and the app fails to load its config at startup.
+
+3. **📥 Install Dependencies**
+
+   The Flutter project lives in the `wishlist/` subfolder of the repository: run the commands below from there.
 
    ```bash
-   flutter run
+   cd wishlist
+   flutter pub get   # also generates the localization files (`generate: true`)
    ```
 
-4. **📱 Build for Production**
+4. **⚙️ Generate the Code**
+
+   Generated files (Freezed, Riverpod, routes, assets) are committed and CI fails if they are out of date: regenerate them after `pub get` and after any change to an annotated class.
 
    ```bash
-   flutter build appbundle   # For Android  
-   flutter build ios         # For iOS
+   dart run build_runner build --delete-conflicting-outputs
+   dart format lib   # CI compares the generated files after formatting them
+   ```
+
+5. **▶️ Run the App**
+
+   ```bash
+   flutter run   # dev environment by default
+   ```
+
+   The environment comes from `--dart-define=APP_ENV=<env>`; accepted values are `dev` (default) and `prod` (`lib/app/config/environment.dart`, `environment_service.dart`).
+
+6. **📱 Build for Production**
+
+   ```bash
+   flutter build appbundle --dart-define=APP_ENV=prod   # For Android
+   flutter build ios --dart-define=APP_ENV=prod         # For iOS
    ```
 
 ---
@@ -88,28 +112,22 @@ Each developer must use their own Supabase account and Personal Access Token (PA
 
 ### 🗂 Project Linking
 
-The project includes two Supabase environments:
+A single `supabase/` folder (migrations, config) describes both Supabase environments:
 
-| Environment | Folder           | Supabase Project | Project Ref            |
-| ----------- | ---------------- | ---------------- | ---------------------- |
-| Development | `supabase-dev/`  | wishlist-dev     | `qedynftuclpdisocgzuv` |
-| Production  | `supabase-prod/` | wishy-prod       | `cbcrtjggsmtwvqljzbnl` |
+| Environment | Supabase Project | Project Ref            | Postgres |
+| ----------- | ---------------- | ---------------------- | -------- |
+| Development | wishlist-dev     | `qedynftuclpdisocgzuv` | 17       |
+| Production  | wishy-prod       | `cbcrtjggsmtwvqljzbnl` | 17       |
 
-Each developer must manually link both projects once.
+Locally, link the dev project, from the repository root:
 
-#### 👉 Link dev
+From the repository root:
 
 ```bash
-cd supabase-dev
 supabase link --project-ref qedynftuclpdisocgzuv
 ```
 
-#### 👉 Link prod
-
-```bash
-cd ../supabase-prod
-supabase link --project-ref cbcrtjggsmtwvqljzbnl
-```
+The CLI works on the linked project. Prod is migrated by the CD only (see below): do not link it to run `db push` from your machine.
 
 Verify with:
 
@@ -119,21 +137,11 @@ supabase projects list
 
 ---
 
-### 🔄 Syncing schemas between dev and prod
+### 🔄 Schema changes
 
-1. **Pull the latest schema from dev**
+Every schema change goes through an idempotent migration file, applied to dev with `supabase db push` (the linked project) and to prod by the CD at the next tag. Never run `db push` on prod from your machine, and never edit the schema from the dashboard.
 
-   ```bash
-   cd supabase-dev
-   supabase db pull
-   ```
-
-2. **Push the schema to prod**
-
-   ```bash
-   cd ../supabase-prod
-   supabase db push
-   ```
+See [docs/supabase-migrations.md](docs/supabase-migrations.md) for the workflow, how to write idempotent migrations and how to check for drift.
 
 ---
 
@@ -160,8 +168,8 @@ La CD se déclenche lors du push d'un **tag de version** (`v*`).
 #### Déclencher un déploiement
 
 ```bash
-git tag v0.2.3
-git push origin v0.2.3
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 #### Destinations
@@ -170,6 +178,33 @@ git push origin v0.2.3
 | ---------- | ---------------- |
 | Android    | Internal Testing |
 | iOS        | TestFlight       |
+
+Avant les builds, le job `migrate-database` applique les migrations Supabase en prod (cf. ci-dessous).
+
+### 🗄️ Migrations Supabase
+
+Le workflow `supabase.yml` :
+
+| Déclencheur | Ce qu'il fait |
+| ----------- | ------------- |
+| PR qui touche une migration | Vérifie qu'aucune migration déjà mergée n'est modifiée, renommée ou supprimée, les rejoue sur une base vide en Postgres 17 (la version de dev et de prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que les schémas `public` et `storage` ne changent pas (idempotence, ordre de `--include-all`). Il les rejoue aussi avec la CLI sur la version exacte de Postgres de dev et de prod, et échoue si `supabase-dev/` ou `supabase-prod/` contient encore des fichiers. Ces vérifications tournent aussi à chaque push sur `main`, et le déploiement sur dev attend le rejeu en 17.11 |
+| Merge sur `main` | Contrôle de dérive, `db push` sur dev, puis nouveau contrôle de dérive |
+| Chaque lundi | Contrôle de dérive sur dev et prod, migrations mergées mais pas encore déployées mises de côté |
+| Tag `v*` (workflow CD) | Mêmes étapes sur prod, avant les builds, uniquement si le commit tagué est sur `main` |
+
+Les jobs qui touchent aux projets Supabase sont inactifs tant que la variable de repo `SUPABASE_DEPLOY_ENABLED` ne vaut pas `true`. Avant chaque push, le job liste dans ses logs les migrations qu'il va appliquer, puis vérifie que le projet n'a pas dérivé (migrations en attente mises de côté) : un état de départ inconnu fait échouer le job sans rien appliquer.
+
+Rattrapage d'un projet modifié hors migrations (objets créés à la main que de nouvelles migrations viennent capturer) : le contrôle d'avant push échoue forcément, puisque le projet contient déjà ce que les migrations en attente vont créer. Passer la variable de repo `SUPABASE_SKIP_PRE_PUSH_DRIFT_DEV` (dev) ou `SUPABASE_SKIP_PRE_PUSH_DRIFT_PROD` (prod) à `true` le temps du déploiement de rattrapage de cet environnement (le contrôle d'après push reste actif), puis la supprimer dès que le contrôle d'après push est vert.
+
+Le contrôle de dérive n'affiche ni le diff ni le détail des erreurs de la CLI : en cas d'échec, lancer `supabase db diff --linked --schema public` en local. Workflow complet : [docs/supabase-migrations.md](docs/supabase-migrations.md).
+
+Pour tester les migrations en local (Docker requis) :
+
+```bash
+scripts/check_supabase_migrations.sh origin/main
+```
+
+Limites du contrôle d'idempotence : il compare les schémas `public` et `storage`, pas les données ni le schéma `auth`. Une migration rejouée qui insère des lignes (un `INSERT` sans `ON CONFLICT`, par exemple) passe ce contrôle : c'est à la relecture de s'en assurer.
 
 #### Secrets GitHub requis
 
@@ -182,12 +217,16 @@ git push origin v0.2.3
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | JSON du service account Google Play |
 | `IOS_P12_BASE64` | Certificat Apple Distribution encodé en base64 |
 | `IOS_P12_PASSWORD` | Mot de passe du certificat |
-| `IOS_PROVISIONING_PROFILE_BASE64` | Provisioning profile encodé en base64 |
+| `IOS_PROVISIONING_PROFILE_BASE64` | Provisioning profile de l'app (Runner) encodé en base64 |
+| `IOS_SHARE_EXTENSION_PROFILE_BASE64` | Provisioning profile de la Share Extension encodé en base64 |
 | `APP_STORE_CONNECT_ISSUER_ID` | Issuer ID App Store Connect |
 | `APP_STORE_CONNECT_API_KEY_ID` | Key ID App Store Connect |
 | `APP_STORE_CONNECT_API_PRIVATE_KEY` | Contenu du fichier .p8 |
 | `SUPABASE_URL` | URL Supabase production |
 | `SUPABASE_ANON_KEY` | Clé anonyme Supabase production |
+| `SUPABASE_ACCESS_TOKEN` | Token Supabase limité aux projets dev et prod (Project Settings : read ; Database, Migrations : read & write ; Connection Pooling : read) |
+| `SUPABASE_DB_PASSWORD_DEV` | Optionnel : mot de passe de la base dev, si la CLI ne peut pas utiliser son rôle de connexion temporaire |
+| `SUPABASE_DB_PASSWORD_PROD` | Optionnel : idem pour la prod |
 
 ---
 

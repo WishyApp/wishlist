@@ -1,0 +1,201 @@
+name: Supabase
+
+# Deploy jobs stay disabled until the repository variable
+# SUPABASE_DEPLOY_ENABLED is set to 'true' (see docs/supabase-migrations.md).
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
+      - 'supabase-dev/**'
+      - 'supabase-prod/**'
+      - 'scripts/check_supabase_migrations.sh'
+      - 'supabase-tests/**'
+      - '.github/workflows/supabase.yml'
+      - '.github/actions/supabase-deploy/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
+      - 'supabase-dev/**'
+      - 'supabase-prod/**'
+      - 'supabase-tests/**'
+      - '.github/workflows/supabase.yml'
+      - '.github/actions/supabase-deploy/**'
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate migrations
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Same major version as the projects (major_version in
+      # supabase/config.toml), not the same minor: the projects run
+      # 17.11.0.003, which no longer creates the storage tables (the Storage
+      # service does) while the first migration needs them. The replay job
+      # below covers 17.11.0.003, started by the Supabase CLI.
+      POSTGRES_IMAGE: public.ecr.aws/supabase/postgres:17.6.1.043
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The deploy only reads supabase/migrations: a migration left in the
+      # former folders would never reach dev or prod.
+      - name: Check that the former supabase folders are gone
+        run: |
+          files="$(git ls-files supabase-dev supabase-prod)"
+          if [ -n "$files" ]; then
+            echo "$files"
+            echo "::error::supabase-dev/ and supabase-prod/ were merged into supabase/, move these files to supabase/ (rebase on main)"
+            exit 1
+          fi
+
+      # The image is kept in the Actions cache: most runs then pull nothing
+      # from the registries, whose anonymous quotas are shared by the runners.
+      - name: Restore Postgres image
+        id: image-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/postgres-image.tar
+          key: postgres-image-${{ env.POSTGRES_IMAGE }}
+
+      - name: Load Postgres image
+        if: steps.image-cache.outputs.cache-hit == 'true'
+        run: docker load -q -i "$RUNNER_TEMP/postgres-image.tar"
+
+      - name: Apply migrations on an empty database
+        env:
+          SUPABASE_POSTGRES_IMAGE: ${{ env.POSTGRES_IMAGE }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+          else
+            base="${{ github.event.before }}"
+            # Unreachable after a force-push, all zeros on a new branch.
+            if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              base="HEAD~1"
+            fi
+          fi
+          scripts/check_supabase_migrations.sh "$base"
+
+      - name: Export Postgres image
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        run: docker save -o "$RUNNER_TEMP/postgres-image.tar" "$POSTGRES_IMAGE"
+
+      - name: Save Postgres image
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/postgres-image.tar
+          key: postgres-image-${{ env.POSTGRES_IMAGE }}
+
+  # The projects' version of Postgres, as the deploy jobs get it: started by
+  # the CLI, which also creates the auth and storage schemas, and replaying
+  # every migration from scratch like the shadow database of the drift check.
+  replay:
+    name: Replay migrations on the projects' Postgres
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Update with the projects (Dashboard > Infrastructure) when they upgrade.
+      PROJECTS_POSTGRES_VERSION: 17.11.0.003
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          # Keep in sync with .github/actions/supabase-deploy/action.yml.
+          version: 2.119.0
+
+      # The CLI picks the image from the version of the linked project, which
+      # is recorded in this file.
+      - name: Start the database and apply migrations
+        run: |
+          mkdir -p supabase/.temp
+          printf '%s' "$PROJECTS_POSTGRES_VERSION" > supabase/.temp/postgres-version
+          # The image comes from ECR Public, whose anonymous quota is shared
+          # by the runners: retry, like the pulls of the validate job.
+          for attempt in 1 2 3; do
+            if supabase db start; then
+              exit 0
+            fi
+            supabase stop --no-backup || true
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::supabase db start failed (attempt $attempt/3), retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            fi
+          done
+          echo "::error::supabase db start failed on Postgres $PROJECTS_POSTGRES_VERSION"
+          exit 1
+
+  deploy-dev:
+    name: Deploy to dev
+    needs: [validate, replay]
+    if: github.event_name == 'push' && vars.SUPABASE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: supabase-dev
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Push migrations and check drift
+        uses: ./.github/actions/supabase-deploy
+        with:
+          environment: dev
+          project-ref: qedynftuclpdisocgzuv
+          access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          db-password: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
+          # Catch-up of a project changed outside of migrations, see README.
+          pre-push-check: ${{ vars.SUPABASE_SKIP_PRE_PUSH_DRIFT_DEV != 'true' }}
+
+  drift:
+    name: Check drift (${{ matrix.env }})
+    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && vars.SUPABASE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Same groups as deploy-dev and migrate-database: never check a project
+    # while migrations are being pushed to it.
+    concurrency:
+      group: supabase-${{ matrix.env }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: dev
+            project-ref: qedynftuclpdisocgzuv
+            password-secret: SUPABASE_DB_PASSWORD_DEV
+          - env: prod
+            project-ref: cbcrtjggsmtwvqljzbnl
+            password-secret: SUPABASE_DB_PASSWORD_PROD
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check drift
+        uses: ./.github/actions/supabase-deploy
+        with:
+          environment: ${{ matrix.env }}
+          project-ref: ${{ matrix.project-ref }}
+          access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          db-password: ${{ secrets[matrix.password-secret] }}
+          push: 'false'

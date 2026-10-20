@@ -2,43 +2,47 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/shared/infra/avatar_service.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
+import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 
-class AvatarNotifier extends StateNotifier<AsyncValue<String?>> {
-  AvatarNotifier(this._avatarService, this._userService)
-      : super(const AsyncValue.loading()) {
-    _loadCurrentUserAvatar();
-  }
+/// Holds only the state of the running avatar action (upload or delete).
+/// The displayed avatar comes from `watchCurrentUserProfileProvider`, which
+/// emits the new `avatar_url` whatever notifier started the action.
+class AvatarEditNotifier extends StateNotifier<AsyncValue<void>> {
+  AvatarEditNotifier(this._avatarService, this._refreshProfile)
+      : super(const AsyncValue.data(null));
 
   final AvatarService _avatarService;
-  final UserService _userService;
+  final Future<void> Function() _refreshProfile;
 
-  Future<void> _loadCurrentUserAvatar() async {
+  // The realtime channel can be rejoining when the action commits (the app is
+  // paused by the camera or cropper on Android) and postgres_changes does not
+  // replay missed events. Reload the profile and keep the loading state until
+  // it is back, so the old avatar is never shown again.
+  Future<void> _reloadProfile() async {
     try {
-      final currentUserId = _userService.getCurrentUserId();
-      final appUser = await _userService.getAppUserById(currentUserId);
-      final avatarUrl = appUser.profile.avatarUrl;
+      await _refreshProfile().timeout(const Duration(seconds: 10));
+    } catch (_) {
+      // The action succeeded, the stream still catches up on its own.
+    }
+  }
 
-      if (avatarUrl != null && avatarUrl.isNotEmpty) {
-        final fullAvatarUrl = _avatarService.getAvatarUrl(avatarUrl);
-        state = AsyncValue.data(fullAvatarUrl);
-      } else {
-        state = const AsyncValue.data(null);
-      }
-    } catch (e, stack) {
-      state = AsyncValue.error(e, stack);
+  // The notifier can be disposed while an async call is still running.
+  void _setIfMounted(AsyncValue<void> value) {
+    if (mounted) {
+      state = value;
     }
   }
 
   Future<void> uploadAvatar(File imageFile) async {
     try {
       state = const AsyncValue.loading();
-      final avatarPath = await _avatarService.uploadAvatar(imageFile);
-      final fullAvatarUrl = _avatarService.getAvatarUrl(avatarPath);
-
-      state = AsyncValue.data(fullAvatarUrl);
+      await _avatarService.uploadAvatar(imageFile);
+      if (mounted) {
+        await _reloadProfile();
+      }
+      _setIfMounted(const AsyncValue.data(null));
     } catch (e, stack) {
-      state = AsyncValue.error(e, stack);
+      _setIfMounted(AsyncValue.error(e, stack));
     }
   }
 
@@ -46,20 +50,28 @@ class AvatarNotifier extends StateNotifier<AsyncValue<String?>> {
     try {
       state = const AsyncValue.loading();
       await _avatarService.deleteAvatar();
-      state = const AsyncValue.data(null);
+      if (mounted) {
+        await _reloadProfile();
+      }
+      _setIfMounted(const AsyncValue.data(null));
     } catch (e, stack) {
-      state = AsyncValue.error(e, stack);
+      _setIfMounted(AsyncValue.error(e, stack));
     }
-  }
-
-  void refresh() {
-    _loadCurrentUserAvatar();
   }
 }
 
-final currentUserAvatarProvider =
-    StateNotifierProvider<AvatarNotifier, AsyncValue<String?>>((ref) {
-  final avatarService = ref.watch(avatarServiceProvider);
-  final userService = ref.watch(userServiceProvider);
-  return AvatarNotifier(avatarService, userService);
+// autoDispose: disposed each time Settings is left. An action still running
+// then completes in the service, and the profile stream carries its result.
+// watchCurrentUserProfileProvider reads the current user once, so it only
+// follows the user across sessions thanks to the Home route lifetime (F015
+// again for any consumer outside it) until a shared currentUserIdProvider
+// lands.
+final avatarEditProvider =
+    StateNotifierProvider.autoDispose<AvatarEditNotifier, AsyncValue<void>>((
+  ref,
+) {
+  return AvatarEditNotifier(
+    ref.watch(avatarServiceProvider),
+    () => ref.refresh(watchCurrentUserProfileProvider.future),
+  );
 });

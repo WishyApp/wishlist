@@ -28,6 +28,7 @@ class WishsTab extends StatelessWidget {
     this.isSelectionMode = false,
     this.selectedWishIds = const {},
     this.onLongPressWish,
+    this.quantityOverrideMap,
   });
 
   static const double _verticalPadding = 16;
@@ -51,6 +52,7 @@ class WishsTab extends StatelessWidget {
   final bool isSelectionMode;
   final Set<int> selectedWishIds;
   final Function(int)? onLongPressWish;
+  final Map<int, int>? quantityOverrideMap;
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +93,7 @@ class WishsTab extends StatelessWidget {
                   isSelectionMode: isSelectionMode,
                   selectedWishIds: selectedWishIds,
                   onLongPressWish: onLongPressWish,
+                  quantityOverrideMap: quantityOverrideMap,
                 )
               : _EmptyState(
                   constraints: constraints,
@@ -117,6 +120,7 @@ class _WishList extends StatelessWidget {
     this.isSelectionMode = false,
     this.selectedWishIds = const {},
     this.onLongPressWish,
+    this.quantityOverrideMap,
   });
 
   static const double _bottomPadding = 120;
@@ -138,14 +142,19 @@ class _WishList extends StatelessWidget {
   final bool isSelectionMode;
   final Set<int> selectedWishIds;
   final Function(int)? onLongPressWish;
+  final Map<int, int>? quantityOverrideMap;
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return AppRefreshIndicator(
       onRefresh: onRefresh,
       child: AnimatedListView<Wish>(
         items: wishsToDisplay.toList(),
-        padding: const EdgeInsets.only(bottom: _WishList._bottomPadding),
+        padding: EdgeInsets.only(
+          bottom: _WishList._bottomPadding + bottomInset,
+        ),
         animationDuration: const Duration(milliseconds: 500),
         itemSpacing: _WishList._itemSpacing,
         itemEquality: (oldItem, newItem) => oldItem.id == newItem.id,
@@ -166,6 +175,7 @@ class _WishList extends StatelessWidget {
                 ? () => onLongPressWish!(wish.id)
                 : null,
             isSelected: selectedWishIds.contains(wish.id),
+            quantityOverride: quantityOverrideMap?[wish.id],
           );
         },
       ),
@@ -194,12 +204,14 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
 
     return Padding(
-      padding: const EdgeInsets.only(top: _topPadding),
+      padding: EdgeInsets.only(top: _topPadding, bottom: bottomInset),
       child: PageLayoutEmptyContent(
         illustrationUrl: Assets.svg.noWishlist,
-        illustrationHeight: constraints.maxHeight * _illustrationHeightRatio,
+        illustrationHeight:
+            (constraints.maxHeight - bottomInset) * _illustrationHeightRatio,
         title: title,
         titleTextStyle: AppTextStyles.medium,
         callToAction: shouldShowCallToAction ? l10n.wishlistAddWish : null,

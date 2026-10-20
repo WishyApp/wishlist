@@ -13,6 +13,7 @@ class WishlistFloatingActions extends ConsumerWidget {
     required this.onAdd,
     required this.onDelete,
     required this.onMove,
+    required this.onComplete,
   });
 
   final int wishlistId;
@@ -20,22 +21,45 @@ class WishlistFloatingActions extends ConsumerWidget {
   final VoidCallback onAdd;
   final VoidCallback onDelete;
   final VoidCallback onMove;
+  final VoidCallback onComplete;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final screenState = ref.watch(wishlistScreenNotifierProvider(wishlistId));
-    final isSelection = screenState.isSelectionMode;
-    final badgeCount = screenState.selectedWishIds.length;
+    final (isSelection, badgeCount) = ref.watch(
+      wishlistScreenNotifierProvider(wishlistId).select(
+        (state) => (state.isSelectionMode, state.selectedWishIds.length),
+      ),
+    );
 
     return Positioned(
-      bottom: 24,
+      bottom: 24 + MediaQuery.viewPaddingOf(context).bottom,
       right: 24,
       child: SizedBox(
-        height: 240,
+        height: 320,
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
           children: [
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+              bottom: isSelection ? 160 : 0,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: isSelection ? 1 : 0,
+                child: IgnorePointer(
+                  ignoring: !isSelection,
+                  child: _ActionButton(
+                    icon: Icons.check_circle_outline,
+                    onPressed: onComplete,
+                    color: wishlistTheme.primaryColor,
+                    colorDark: wishlistTheme.primaryColorDark,
+                    showBadge: isSelection,
+                    badgeCount: badgeCount,
+                  ),
+                ),
+              ),
+            ),
             AnimatedPositioned(
               duration: const Duration(milliseconds: 250),
               curve: Curves.easeOut,
