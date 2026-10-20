@@ -6,7 +6,7 @@ part of 'wishlist_mutations_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$wishlistMutationsHash() => r'c4183e9d6bf9c16d7add96d081b9de09711bfb7a';
+String _$wishlistMutationsHash() => r'5dcdf85bff121feaccc59ad2a6c003a568975277';
 
 /// See also [WishlistMutations].
 @ProviderFor(WishlistMutations)

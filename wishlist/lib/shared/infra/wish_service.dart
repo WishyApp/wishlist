@@ -5,6 +5,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository_provider.dart';
+import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/infra/utils/update_entity.dart';
 import 'package:wishlist/shared/models/wish/create_request/wish_create_request.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
@@ -43,8 +44,13 @@ class WishService {
   Future<void> deleteWish(int wishId, {String? iconUrl}) async {
     // Supprimer les images si elles existent (principale + miniature)
     if (iconUrl != null && iconUrl.isNotEmpty) {
-      // Supprimer l'image principale
-      await _wishRepository.deleteWishImage(iconUrl);
+      // Le nettoyage des images est "best effort" : une erreur de stockage ne
+      // doit jamais empêcher la suppression du wish.
+      try {
+        await _wishRepository.deleteWishImage(iconUrl);
+      } catch (e) {
+        // Ignorer : l'image principale sera orpheline mais le wish est supprimé
+      }
 
       // Supprimer la miniature
       final thumbnailPath = iconUrl.replaceAll('.webp', '_thumb.webp');
@@ -141,6 +147,8 @@ class WishService {
 
   /// Upload une image pour un wish
   Future<String> uploadWishImage(File imageFile, int wishId) async {
+    final currentUserId = ref.read(userServiceProvider).getCurrentUserId();
+
     // Compression de l'image principale
     final processedImageData = await _processImage(imageFile);
 
@@ -155,6 +163,7 @@ class WishService {
 
     // Upload de l'image principale via le repository
     final filePath = await _wishRepository.uploadWishImage(
+      userId: currentUserId,
       wishId: wishId,
       imageData: processedImageData,
       fileName: fileName,
@@ -162,6 +171,7 @@ class WishService {
 
     // Upload de la miniature
     await _wishRepository.uploadWishImage(
+      userId: currentUserId,
       wishId: wishId,
       imageData: thumbnailData,
       fileName: thumbnailFileName,
@@ -178,8 +188,9 @@ class WishService {
 
     // Si on veut la miniature, on remplace .webp par _thumb.webp dans le path
     if (thumbnail) {
-      // imagePath est du type: "wishId/wish_image_timestamp.webp"
-      // On veut obtenir: "wishId/wish_image_timestamp_thumb.webp"
+      // imagePath est du type: "userId/wishId/wish_image_timestamp.webp"
+      // (ou "wishId/wish_image_timestamp.webp" pour les images envoyées avant
+      // F010). On veut obtenir le même chemin avec "_thumb.webp".
       final thumbnailPath = imagePath.replaceFirst('.webp', '_thumb.webp');
       return _wishRepository.getWishImageUrl(thumbnailPath);
     }

@@ -6,8 +6,8 @@ import 'package:wishlist/modules/wishs/view/widgets/consult_wish_back_button.dar
 import 'package:wishlist/modules/wishs/view/widgets/consult_wish_image.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_wish_info_container.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
@@ -152,7 +152,7 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
           wish.totalBookedQuantity,
         );
       case WishQuantityDisplay.myBooked:
-        final currentUserId = ref.read(userServiceProvider).getCurrentUserId();
+        final currentUserId = ref.watch(currentUserIdProvider);
         return wish.takenByUser
                 .where((reservation) => reservation.userId == currentUserId)
                 .firstOrNull

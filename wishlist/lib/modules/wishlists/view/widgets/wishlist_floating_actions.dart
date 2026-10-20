@@ -25,12 +25,14 @@ class WishlistFloatingActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final screenState = ref.watch(wishlistScreenNotifierProvider(wishlistId));
-    final isSelection = screenState.isSelectionMode;
-    final badgeCount = screenState.selectedWishIds.length;
+    final (isSelection, badgeCount) = ref.watch(
+      wishlistScreenNotifierProvider(wishlistId).select(
+        (state) => (state.isSelectionMode, state.selectedWishIds.length),
+      ),
+    );
 
     return Positioned(
-      bottom: 24,
+      bottom: 24 + MediaQuery.viewPaddingOf(context).bottom,
       right: 24,
       child: SizedBox(
         height: 320,

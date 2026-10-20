@@ -362,6 +362,18 @@ abstract class AppLocalizations {
   /// **'Le nouveau mot de passe doit être différent de l\'ancien.'**
   String get newPasswordShouldBeDifferent;
 
+  /// No description provided for @passwordTooWeak.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le mot de passe est trop faible, choisissez-en un autre.'**
+  String get passwordTooWeak;
+
+  /// No description provided for @reauthenticationNeeded.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre session a expiré, veuillez recommencer.'**
+  String get reauthenticationNeeded;
+
   /// No description provided for @changePseudoScreenTitle.
   ///
   /// In fr, this message translates to:

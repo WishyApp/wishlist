@@ -5,6 +5,7 @@ import 'package:wishlist/shared/infra/friendship_status_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/models/friendship/friendship.dart';
 import 'package:wishlist/shared/theme/colors.dart';
+import 'package:wishlist/shared/utils/app_snackbar.dart';
 
 class AskFriendshipButton extends ConsumerStatefulWidget {
   const AskFriendshipButton({
@@ -36,8 +37,8 @@ class _AskFriendshipButtonState extends ConsumerState<AskFriendshipButton> {
     } catch (e) {
       if (mounted) {
         setState(() => _optimisticStatus = null);
+        showGenericError(context, error: e);
       }
-      rethrow;
     }
   }
 
