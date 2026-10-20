@@ -1,6 +1,7 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/shared/infra/repositories/friendship/friendship_repository.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 
 import 'fake_data.dart';
@@ -17,6 +18,10 @@ class MockGoTrueClient extends Mock implements GoTrueClient {}
 class MockUser extends Mock implements User {}
 
 class MockUserService extends Mock implements UserService {}
+
+class MockFriendshipRepository extends Mock implements FriendshipRepository {}
+
+class MockRealtimeChannel extends Mock implements RealtimeChannel {}
 
 // =============================================================================
 // MOCK SUPABASE

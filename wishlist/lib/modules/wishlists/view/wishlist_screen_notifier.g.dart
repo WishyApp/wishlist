@@ -7,7 +7,7 @@ part of 'wishlist_screen_notifier.dart';
 // **************************************************************************
 
 String _$wishlistScreenNotifierHash() =>
-    r'2ddfced0ae3b5eb8b33fe6f59f70e79b3ffe4cb0';
+    r'b761e790449084e9eaad7ec0ef7a3fc657ef05ec';
 
 /// Copied from Dart SDK
 class _SystemHash {

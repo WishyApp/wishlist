@@ -8,6 +8,7 @@ import 'package:wishlist/app/config/config_provider.dart';
 import 'package:wishlist/app/config/environment.dart';
 import 'package:wishlist/app/config/environment_provider.dart';
 import 'package:wishlist/app/config/environment_service.dart';
+import 'package:wishlist/app/dev/store_screenshot_mode.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +20,8 @@ void main() async {
     url: config.supabaseConfig.url,
     anonKey: config.supabaseConfig.anonKey,
   );
+
+  await StoreScreenshotMode.setUp();
 
   runApp(
     ProviderScope(
