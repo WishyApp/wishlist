@@ -218,12 +218,6 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   }
 
   @override
-  Stream<ISet<String>> watchCurrentUserFriendsIds() {
-    final currentUserId = _client.auth.currentUserNonNull.id;
-    return watchFriendsIds(currentUserId);
-  }
-
-  @override
   Stream<ISet<String>> watchCurrentUserPendingFriendsIds() {
     final currentUserId = _client.auth.currentUserNonNull.id;
     final key = 'pending_$currentUserId';

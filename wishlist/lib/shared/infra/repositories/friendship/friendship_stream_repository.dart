@@ -38,9 +38,6 @@ abstract class FriendshipStreamRepository {
   /// Émet un nouveau set à chaque changement (ajout/suppression d'ami)
   Stream<ISet<String>> watchFriendsIds(String userId);
 
-  /// Écoute les changements sur les IDs des amis de l'utilisateur courant
-  Stream<ISet<String>> watchCurrentUserFriendsIds();
-
   /// Écoute les changements sur les demandes d'amitié en attente (reçues)
   Stream<ISet<String>> watchCurrentUserPendingFriendsIds();
 

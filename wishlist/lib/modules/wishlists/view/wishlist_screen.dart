@@ -14,8 +14,8 @@ import 'package:wishlist/modules/wishlists/view/widgets/wishlist_settings_bottom
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/colors.dart';
@@ -256,8 +256,11 @@ class WishlistScreen extends ConsumerWidget {
       data: (data) {
         final wishlist = data.wishlist;
         final wishlistTheme = getWishlistTheme(context, wishlist);
-        final isMyWishlist = wishlist.idOwner ==
-            ref.read(userServiceProvider).getCurrentUserId();
+        // read, not watch: the screen outlives the session for a few frames
+        // until the router redirects, and must not turn into a visitor view
+        // of one's own wishlist when the id becomes null.
+        final isMyWishlist =
+            wishlist.idOwner == ref.read(currentUserIdProvider);
         final canShareWishlist =
             wishlist.visibility == WishlistVisibility.public;
 
