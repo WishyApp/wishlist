@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:wishlist/app/config/deeplink_config.dart';
+import 'package:wishlist/app/navigation/sentry_route_name_extractor.dart';
 import 'package:wishlist/main.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 
@@ -64,6 +66,9 @@ final router = GoRouter(
   initialLocation: HomeRoute().location,
   refreshListenable: _authStateNotifier,
   routes: $appRoutes,
+  observers: [
+    SentryNavigatorObserver(routeNameExtractor: sentryRouteNameExtractor),
+  ],
   redirect: (context, state) {
     final activeSession = supabase.auth.currentSession;
     final redirectTo = _sanitizeRedirectTarget(

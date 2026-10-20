@@ -161,6 +161,7 @@ jobs:
           cat > env/.env.prod << EOF
           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          SENTRY_DSN=${{ secrets.SENTRY_DSN }}
           EOF
 
       - name: Build App Bundle
@@ -222,6 +223,7 @@ jobs:
           cat > env/.env.prod << EOF
           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          SENTRY_DSN=${{ secrets.SENTRY_DSN }}
           EOF
 
       - name: Install Apple Certificate

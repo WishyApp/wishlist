@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:wishlist/app/config/environment.dart';
 import 'package:wishlist/gen/assets.gen.dart';
@@ -6,9 +7,39 @@ import 'package:wishlist/gen/assets.gen.dart';
 class Config extends Equatable {
   const Config({
     required this.supabaseConfig,
+    this.sentryDsn,
   });
 
+  @visibleForTesting
+  factory Config.fromDotEnv(DotEnv dotEnvConfig) {
+    final sentryDsn = dotEnvConfig.maybeGet('SENTRY_DSN')?.trim();
+
+    return Config(
+      supabaseConfig: SupabaseConfig(
+        url: dotEnvConfig.get('SUPABASE_URL'),
+        anonKey: dotEnvConfig.get('SUPABASE_ANON_KEY'),
+      ),
+      sentryDsn:
+          sentryDsn != null && _isValidSentryDsn(sentryDsn) ? sentryDsn : null,
+    );
+  }
+
+  /// A malformed DSN must never prevent the app from starting, it just
+  /// disables crash reporting.
+  static bool _isValidSentryDsn(String dsn) {
+    final uri = Uri.tryParse(dsn);
+
+    return uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty &&
+        uri.userInfo.isNotEmpty &&
+        uri.pathSegments.any((segment) => segment.isNotEmpty);
+  }
+
   final SupabaseConfig supabaseConfig;
+
+  /// Sentry DSN, null when crash reporting is not configured.
+  final String? sentryDsn;
 
   // Load all environment variables from .env.{environment} file
   static Future<void> _loadEnvironment(
@@ -33,17 +64,13 @@ class Config extends Equatable {
 
     await _loadEnvironment(environment, dotEnvConfig: dotEnvConfig);
 
-    return Config(
-      supabaseConfig: SupabaseConfig(
-        url: dotEnvConfig.get('SUPABASE_URL'),
-        anonKey: dotEnvConfig.get('SUPABASE_ANON_KEY'),
-      ),
-    );
+    return Config.fromDotEnv(dotEnvConfig);
   }
 
   @override
   List<Object?> get props => [
         supabaseConfig,
+        sentryDsn,
       ];
 }
 
