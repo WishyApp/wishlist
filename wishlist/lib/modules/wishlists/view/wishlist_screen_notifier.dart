@@ -131,6 +131,11 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   }
 
   void cacheWishlistTheme(int id, ThemeData theme) {
+    // Évite de programmer une écriture à chaque reconstruction quand le thème
+    // n'a pas changé (ThemeData compare par valeur)
+    if (ref.read(wishlistThemeCacheProvider(id)) == theme) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(wishlistThemeCacheProvider(id).notifier).state = theme;
     });

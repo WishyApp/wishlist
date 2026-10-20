@@ -71,8 +71,23 @@ part 'routes.g.dart';
 )
 class HomeRoute extends GoRouteData {
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      const FloatingNavBarNavigator();
+  Widget build(BuildContext context, GoRouterState state) {
+    final tab = homeTabFromQuery(state.uri.queryParameters['tab']);
+    return FloatingNavBarNavigator(
+      key: ValueKey(tab),
+      currentTab: tab,
+    );
+  }
+}
+
+/// Parses the optional `?tab=<index>` of the home route (opens a tab
+/// directly). Falls back to the home tab when missing or invalid.
+FloatingNavBarTab homeTabFromQuery(String? value) {
+  final index = int.tryParse(value ?? '');
+  if (index == null || index < 0 || index >= FloatingNavBarTab.values.length) {
+    return FloatingNavBarTab.home;
+  }
+  return FloatingNavBarTab.values[index];
 }
 
 class PseudoRoute extends GoRouteData {

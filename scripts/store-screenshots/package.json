@@ -1,0 +1,9 @@
+{
+  "name": "store-screenshots",
+  "private": true,
+  "type": "module",
+  "description": "Seed + capture + render tooling for the Wishy store screenshots",
+  "dependencies": {
+    "@supabase/supabase-js": "2.45.4"
+  }
+}
