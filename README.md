@@ -39,17 +39,31 @@ Welcome to the Wishy App! This Flutter application is designed to help you effor
 
 3. **📥 Install Dependencies**
 
+   The Flutter project lives in the `wishlist/` subfolder of the repository: run the commands below from there.
+
    ```bash
-   flutter pub get
+   cd wishlist
+   flutter pub get   # also generates the localization files (`generate: true`)
    ```
 
-4. **▶️ Run the App**
+4. **⚙️ Generate the Code**
+
+   Generated files (Freezed, Riverpod, routes, assets) are committed and CI fails if they are out of date: regenerate them after `pub get` and after any change to an annotated class.
+
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
+   dart format lib   # CI compares the generated files after formatting them
+   ```
+
+5. **▶️ Run the App**
 
    ```bash
    flutter run   # dev environment by default
    ```
 
-5. **📱 Build for Production**
+   The environment comes from `--dart-define=APP_ENV=<env>`; accepted values are `dev` (default) and `prod` (`lib/app/config/environment.dart`, `environment_service.dart`).
+
+6. **📱 Build for Production**
 
    ```bash
    flutter build appbundle --dart-define=APP_ENV=prod   # For Android
@@ -107,6 +121,8 @@ A single `supabase/` folder (migrations, config) describes both Supabase environ
 
 Locally, link the dev project, from the repository root:
 
+From the repository root:
+
 ```bash
 supabase link --project-ref qedynftuclpdisocgzuv
 ```
@@ -152,8 +168,8 @@ La CD se déclenche lors du push d'un **tag de version** (`v*`).
 #### Déclencher un déploiement
 
 ```bash
-git tag v0.2.3
-git push origin v0.2.3
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 #### Destinations
@@ -201,7 +217,8 @@ Limites du contrôle d'idempotence : il compare les schémas `public` et `storag
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | JSON du service account Google Play |
 | `IOS_P12_BASE64` | Certificat Apple Distribution encodé en base64 |
 | `IOS_P12_PASSWORD` | Mot de passe du certificat |
-| `IOS_PROVISIONING_PROFILE_BASE64` | Provisioning profile encodé en base64 |
+| `IOS_PROVISIONING_PROFILE_BASE64` | Provisioning profile de l'app (Runner) encodé en base64 |
+| `IOS_SHARE_EXTENSION_PROFILE_BASE64` | Provisioning profile de la Share Extension encodé en base64 |
 | `APP_STORE_CONNECT_ISSUER_ID` | Issuer ID App Store Connect |
 | `APP_STORE_CONNECT_API_KEY_ID` | Key ID App Store Connect |
 | `APP_STORE_CONNECT_API_PRIVATE_KEY` | Contenu du fichier .p8 |
