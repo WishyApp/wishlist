@@ -154,26 +154,27 @@ class ConsultWishRoute extends GoRouteData {
     this.wishlistId,
     this.wishId, {
     required this.wishIds,
-    this.isMyWishlist = false,
     this.showActions = true,
     this.quantityDisplay = WishQuantityDisplay.total,
   });
   final int wishlistId;
   final int wishId;
   final List<int> wishIds;
-  final bool isMyWishlist;
   final bool showActions;
   final WishQuantityDisplay quantityDisplay;
 
+  /// Liste ordonnée des wishs à afficher. Retombe sur `[wishId]` si le
+  /// paramètre `wish-ids` est absent (deep link) ou ne contient pas `wishId`.
+  List<int> get effectiveWishIds =>
+      wishIds.contains(wishId) ? wishIds : [wishId];
+
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    // On calcule l'index du wishId dans la liste (0 si non trouvé)
-    final initialIndex = wishIds.indexOf(wishId).clamp(0, wishIds.length - 1);
+    final ids = effectiveWishIds;
 
     return ConsultWishScreen(
-      wishIds: wishIds,
-      initialIndex: initialIndex,
-      isMyWishlist: isMyWishlist,
+      wishIds: ids,
+      initialIndex: ids.indexOf(wishId),
       showActions: showActions,
       quantityDisplay: quantityDisplay,
     );
