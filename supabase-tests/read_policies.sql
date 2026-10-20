@@ -197,13 +197,16 @@ SELECT pg_temp.expect_count('public wishlist read, private wishlist of the recei
 SELECT pg_temp.expect_count('private wishlist with a booking not read by a non-booker P',
   $q$SELECT count(*) FROM public.wishlists WHERE id = 940005$q$, 0);
 
--- As B: the owner reads everything of their own and the profile of A
+-- As B: the owner reads everything of their own and the profile of A (a
+-- friend, who also booked wish 950005; the booking clause of can_read_profile
+-- does not apply here since 940005 has can_owner_see_taken_wish false: it is
+-- covered by booking_read_policies.sql)
 SELECT pg_temp.act_as('00000000-0000-4000-c000-00000000000b');
 SELECT pg_temp.expect_count('own wishlists read by the owner',
   $q$SELECT count(*) FROM public.wishlists WHERE id_owner = '00000000-0000-4000-c000-00000000000b'$q$, 4);
 SELECT pg_temp.expect_count('own wishes read by the owner',
   $q$SELECT count(*) FROM public.wishs WHERE wishlist_id BETWEEN 940002 AND 940005$q$, 5);
-SELECT pg_temp.expect_count('profile of a user who booked an own wish read',
+SELECT pg_temp.expect_count('profile of a friend who booked an own wish read (friendship)',
   $q$SELECT count(*) FROM public.profiles WHERE id = '00000000-0000-4000-c000-00000000000a'$q$, 1);
 
 -- As A: what the app sends, PostgREST turns insert().select() and
