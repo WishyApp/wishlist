@@ -219,7 +219,13 @@ class WishlistScreen extends ConsumerWidget {
       }
     });
 
-    final screenState = ref.watch(wishlistScreenNotifierProvider(wishlistId));
+    // Seul le mode sélection est utilisé ici : la recherche, le tri et la
+    // sélection sont watchés par le body et les actions flottantes, sinon tout
+    // l'écran se reconstruirait à chaque frappe
+    final isSelectionMode = ref.watch(
+      wishlistScreenNotifierProvider(wishlistId)
+          .select((state) => state.isSelectionMode),
+    );
     final notifier =
         ref.read(wishlistScreenNotifierProvider(wishlistId).notifier);
     final isWishlistDeleted = ref.watch(
@@ -262,9 +268,9 @@ class WishlistScreen extends ConsumerWidget {
           child: Builder(
             builder: (context) {
               return PopScope(
-                canPop: !screenState.isSelectionMode,
+                canPop: !isSelectionMode,
                 onPopInvokedWithResult: (didPop, result) {
-                  if (!didPop && screenState.isSelectionMode) {
+                  if (!didPop && isSelectionMode) {
                     notifier.exitSelectionMode();
                   }
                 },
@@ -285,6 +291,9 @@ class WishlistScreen extends ConsumerWidget {
                     ),
                   ),
                   body: SafeArea(
+                    // Le bas est géré par les enfants pour que le fond gris
+                    // de la liste aille jusqu'au bord de l'écran
+                    bottom: false,
                     child: Stack(
                       children: [
                         WishlistScreenBody(

@@ -8,6 +8,7 @@ import 'package:wishlist/shared/infra/friendship_mutations_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
+import 'package:wishlist/shared/utils/app_snackbar.dart';
 
 class UserPill extends ConsumerWidget {
   const UserPill({
@@ -19,21 +20,37 @@ class UserPill extends ConsumerWidget {
   final AppUser appUser;
   final bool isRequest;
 
-  Future<void> _onAccept(WidgetRef ref) async => ref
-      .read(friendshipMutationsProvider.notifier)
-      .acceptFriendship(appUser.user.id);
+  Future<void> _onAccept(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref
+          .read(friendshipMutationsProvider.notifier)
+          .acceptFriendship(appUser.user.id);
+    } catch (e) {
+      if (context.mounted) {
+        showGenericError(context, error: e);
+      }
+    }
+  }
 
-  Future<void> _onDecline(WidgetRef ref) async => ref
-      .read(friendshipMutationsProvider.notifier)
-      .declineFriendship(appUser.user.id);
+  Future<void> _onDecline(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref
+          .read(friendshipMutationsProvider.notifier)
+          .declineFriendship(appUser.user.id);
+    } catch (e) {
+      if (context.mounted) {
+        showGenericError(context, error: e);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final buttons = isRequest
         ? <Widget>[
             AcceptOrDeclineFriendshipButton(
-              onAccept: () => _onAccept(ref),
-              onDecline: () => _onDecline(ref),
+              onAccept: () => _onAccept(context, ref),
+              onDecline: () => _onDecline(context, ref),
             ),
           ]
         : <Widget>[
