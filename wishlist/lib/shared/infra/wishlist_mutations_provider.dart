@@ -14,7 +14,7 @@ class WishlistMutations extends _$WishlistMutations with Mutation<void> {
   }
 
   Future<void> create(WishlistCreateRequest request) async {
-    await mutate(
+    await mutateAsync(
       () async {
         final service = ref.read(wishlistServiceProvider);
         await service.createWishlist(request);
@@ -23,7 +23,7 @@ class WishlistMutations extends _$WishlistMutations with Mutation<void> {
   }
 
   Future<void> update(Wishlist wishlist) async {
-    await mutate(
+    await mutateAsync(
       () async {
         final service = ref.read(wishlistServiceProvider);
         await service.updateWishlist(wishlist);
@@ -32,7 +32,7 @@ class WishlistMutations extends _$WishlistMutations with Mutation<void> {
   }
 
   Future<void> delete(int wishlistId) async {
-    await mutate(
+    await mutateAsync(
       () async {
         final service = ref.read(wishlistServiceProvider);
         await service.deleteWishlist(wishlistId);
