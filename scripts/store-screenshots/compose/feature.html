@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wishy feature graphic</title>
+<style>
+  @font-face { font-family: Jakarta; src: url(../../../wishlist/fonts/PlusJakartaSans-Medium.ttf); font-weight: 500; }
+  @font-face { font-family: Jakarta; src: url(../../../wishlist/fonts/PlusJakartaSans-ExtraBold.ttf); font-weight: 800; }
+  :root { --bg: #F7F6F0; --ink: #2C2C2C; --muted: #887A6B; --orange-dk: #DF733D; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { width: 1024px; height: 500px; overflow: hidden; background: var(--bg); }
+  body { font-family: Jakarta, sans-serif; color: var(--ink); position: relative; }
+  svg { position: absolute; inset: 0; }
+  .left { position: absolute; left: 64px; top: 0; bottom: 0; width: 480px; display: flex; flex-direction: column; justify-content: center; }
+  .brand { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
+  .brand img { width: 76px; height: 76px; border-radius: 18px; box-shadow: 0 6px 18px rgba(120,70,30,.18); }
+  .brand span { font-weight: 800; font-size: 44px; letter-spacing: -0.02em; }
+  h1 { font-weight: 800; font-size: 35px; line-height: 1.1; letter-spacing: -0.02em; }
+  h1 em { font-style: normal; color: var(--orange-dk); }
+  p { margin-top: 14px; font-weight: 500; font-size: 20px; color: var(--muted); }
+  .phone { position: absolute; width: 250px; height: 543px; background: #1d1d1f; border-radius: 40px; padding: 7px; box-shadow: 0 24px 50px rgba(120,70,30,.25); }
+  .phone img { width: 100%; height: 100%; border-radius: 33px; display: block; }
+  .p1 { left: 560px; top: 70px; transform: rotate(-6deg); }
+  .p2 { left: 760px; top: 30px; transform: rotate(5deg); }
+</style>
+</head>
+<body>
+<svg viewBox="0 0 1024 500"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#FDB46E"/><stop offset="1" stop-color="#F28C57"/></linearGradient></defs>
+  <path d="M -60 430 C 200 300, 420 520, 640 330 S 950 120, 1100 220" fill="none" stroke="url(#g)" stroke-width="90" stroke-linecap="round" opacity=".25"/></svg>
+<div class="left">
+  <div class="brand"><img src="../../../wishlist/assets/icon/icon.png"><span>Wishy</span></div>
+  <h1 id="h"></h1>
+  <p id="p"></p>
+</div>
+<div class="phone p1"><img id="i1"></div>
+<div class="phone p2"><img id="i2"></div>
+<script>
+const lang = new URLSearchParams(location.search).get('lang') || 'fr';
+const C = {
+  fr: ['Tes <em>wishlists</em><span style="margin-left:-.1em">,</span><br>partagées avec tes proches', 'Fini les cadeaux en double.'],
+  en: ['Your <em>wishlists</em><span style="margin-left:-.1em">,</span><br>shared with your loved ones', 'No more duplicate gifts.'],
+}[lang];
+document.getElementById('h').innerHTML = C[0];
+document.getElementById('p').textContent = C[1];
+document.getElementById('i1').src = `../raw/${lang}-home.png`;
+document.getElementById('i2').src = `../raw/${lang}-wl.png`;
+</script>
+</body>
+</html>

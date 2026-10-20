@@ -6,13 +6,13 @@ import 'package:wishlist/modules/wishlists/view/widgets/wishlist_search_bar.dart
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_section.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishs_tab.dart';
+import 'package:wishlist/modules/wishlists/view/wishlist_screen_display_provider.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
-import 'package:wishlist/shared/utils/wish_sort_utils.dart';
 
 class WishlistScreenBody extends ConsumerWidget {
   const WishlistScreenBody({
@@ -117,43 +117,14 @@ class WishlistScreenBody extends ConsumerWidget {
 
     final wishlist = wishlistScreenData.wishlist;
 
-    final completedWishes = wishlistScreenData.completedWishes;
-    final completedByWishId = <int, int>{
-      for (final c in completedWishes) c.wish.id: c.quantity,
-    };
-
-    final adjustedWishs = wishlistScreenData.wishs
-        .where((w) => (completedByWishId[w.id] ?? 0) < w.quantity)
-        .map((w) {
-      final completedQty = completedByWishId[w.id] ?? 0;
-      if (completedQty == 0) {
-        return w;
-      }
-      return w.copyWith(quantity: w.quantity - completedQty);
-    }).toIList();
-
-    final wishs = WishSortUtils.sortAndFilterWishs(
-      adjustedWishs,
-      wishSort: screenState.wishSort,
-      searchQuery: screenState.searchQuery,
-    );
-
+    // Le calcul des listes ne dépend que des données, du tri et de la
+    // recherche : la sélection et la carte de stats ne le relancent pas
+    final display = ref.watch(wishlistScreenDisplayProvider(wishlistId));
+    final wishs = display.all;
+    final wishsBooked = display.booked;
+    final bookedQuantityOverrides = display.bookedQuantityOverrides;
     final isWishsBookedHidden = !wishlist.canOwnerSeeTakenWish && isMyWishlist;
-
-    final wishsPending = isWishsBookedHidden
-        ? wishs.toIList()
-        : wishs.where((wish) => wish.availableQuantity > 0).toIList();
-
-    final wishsBooked =
-        wishs.where((wish) => wish.totalBookedQuantity > 0).toIList();
-
-    final bookedQuantityOverrides = <int, int>{
-      for (final wish in wishsBooked)
-        if ((completedByWishId[wish.id] ?? 0) > 0)
-          wish.id:
-              (wish.totalBookedQuantity - (completedByWishId[wish.id] ?? 0))
-                  .clamp(0, wish.totalBookedQuantity),
-    };
+    final wishsPending = isWishsBookedHidden ? wishs : display.available;
 
     final nbWishsPending = wishsPending.length;
     final nbWishsBooked = wishsBooked.length;
@@ -204,7 +175,7 @@ class WishlistScreenBody extends ConsumerWidget {
                 screenState: screenState,
                 notifier: notifier,
                 quantityOverrideMap: bookedQuantityOverrides.isNotEmpty
-                    ? bookedQuantityOverrides
+                    ? bookedQuantityOverrides.unlockView
                     : null,
               ),
             ],
