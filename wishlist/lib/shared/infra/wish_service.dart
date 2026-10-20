@@ -44,8 +44,13 @@ class WishService {
   Future<void> deleteWish(int wishId, {String? iconUrl}) async {
     // Supprimer les images si elles existent (principale + miniature)
     if (iconUrl != null && iconUrl.isNotEmpty) {
-      // Supprimer l'image principale
-      await _wishRepository.deleteWishImage(iconUrl);
+      // Le nettoyage des images est "best effort" : une erreur de stockage ne
+      // doit jamais empêcher la suppression du wish.
+      try {
+        await _wishRepository.deleteWishImage(iconUrl);
+      } catch (e) {
+        // Ignorer : l'image principale sera orpheline mais le wish est supprimé
+      }
 
       // Supprimer la miniature
       final thumbnailPath = iconUrl.replaceAll('.webp', '_thumb.webp');

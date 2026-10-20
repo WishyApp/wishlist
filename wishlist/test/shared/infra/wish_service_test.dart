@@ -110,4 +110,41 @@ void main() {
       },
     );
   });
+
+  group('WishService.deleteWish', () {
+    late MockWishRepository repository;
+    late WishService service;
+
+    setUp(() {
+      repository = MockWishRepository();
+      final container = ProviderContainer(
+        overrides: [wishRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      service = container.read(wishServiceProvider);
+      when(() => repository.deleteWish(any())).thenAnswer((_) async {});
+    });
+
+    test('still deletes the wish when removing the main image fails', () async {
+      when(() => repository.deleteWishImage(any()))
+          .thenThrow(Exception('storage 5xx'));
+
+      await service.deleteWish(7, iconUrl: 'user-1/7/wish_image_1.webp');
+
+      verify(() => repository.deleteWishImage('user-1/7/wish_image_1.webp'))
+          .called(1);
+      verify(() => repository.deleteWish(7)).called(1);
+    });
+
+    test('still deletes the wish when removing the thumbnail fails', () async {
+      when(() => repository.deleteWishImage(any())).thenAnswer((_) async {});
+      when(
+        () => repository.deleteWishImage('user-1/7/wish_image_1_thumb.webp'),
+      ).thenThrow(Exception('not found'));
+
+      await service.deleteWish(7, iconUrl: 'user-1/7/wish_image_1.webp');
+
+      verify(() => repository.deleteWish(7)).called(1);
+    });
+  });
 }
