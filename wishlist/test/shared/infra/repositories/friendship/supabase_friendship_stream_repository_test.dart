@@ -10,8 +10,14 @@ import 'package:wishlist/shared/infra/repositories/friendship/supabase_friendshi
 import '../../../../fixtures/fake_data.dart';
 import '../../../../fixtures/mock_supabase.dart';
 
+// ignore: avoid_implementing_value_types
+class MockPostgresChangePayload extends Mock implements PostgresChangePayload {}
+
 void main() {
   setUpAll(() => registerFallbackValue(PostgresChangeEvent.all));
+
+  /// Listeners registered on the mock channel, in order.
+  late List<_Listener> listeners;
 
   late MockSupabaseClient client;
   late MockGoTrueClient auth;
@@ -25,15 +31,27 @@ void main() {
     friendshipRepository = MockFriendshipRepository();
     channel = MockRealtimeChannel();
 
+    listeners = [];
     when(() => client.channel(any())).thenReturn(channel);
     when(
       () => channel.onPostgresChanges(
         event: any(named: 'event'),
         schema: any(named: 'schema'),
         table: any(named: 'table'),
+        filter: any(named: 'filter'),
         callback: any(named: 'callback'),
       ),
-    ).thenReturn(channel);
+    ).thenAnswer((invocation) {
+      final callback = invocation.namedArguments[#callback] as _PayloadCallback;
+      listeners.add(
+        _Listener(
+          event: invocation.namedArguments[#event] as PostgresChangeEvent,
+          filter: invocation.namedArguments[#filter] as PostgresChangeFilter?,
+          callback: callback,
+        ),
+      );
+      return channel;
+    });
     when(channel.subscribe).thenReturn(channel);
     when(channel.unsubscribe).thenAnswer((_) async => 'ok');
 
@@ -55,6 +73,71 @@ void main() {
     when(() => user.id).thenReturn(userId);
     when(() => auth.currentUser).thenReturn(user);
   }
+
+  group('realtime filters', () {
+    setUp(() => signInAs('me'));
+
+    void expectFiltered(Set<String> columns) {
+      // Every listener is filtered; `all` includes DELETEs. These tests only
+      // check the channel configuration: that Realtime delivers filtered
+      // DELETEs relies on REPLICA IDENTITY FULL, checked by
+      // supabase-tests/friendships_realtime.sql.
+      expect(listeners.where((l) => l.filter == null), isEmpty);
+      final filtered = listeners;
+      for (final l in filtered) {
+        expect(l.event, PostgresChangeEvent.all);
+        expect(l.filter!.type, PostgresChangeFilterType.eq);
+        expect(l.filter!.value, 'me');
+      }
+      expect({for (final l in filtered) l.filter!.column}, columns);
+      expect(filtered, hasLength(columns.length));
+    }
+
+    test('all friendships listens to both user columns of the current user',
+        () async {
+      final sub = repository.watchCurrentUserAllFriendships().listen((_) {});
+      expectFiltered({'requester_id', 'receiver_id'});
+      await sub.cancel();
+    });
+
+    test('friends of a user listen to both user columns', () async {
+      final sub = repository.watchFriendsIds('me').listen((_) {});
+      expectFiltered({'requester_id', 'receiver_id'});
+      await sub.cancel();
+    });
+
+    test('pending (sent requests) listens to requester_id only', () async {
+      final sub = repository.watchCurrentUserPendingFriendsIds().listen((_) {});
+      expectFiltered({'requester_id'});
+      await sub.cancel();
+    });
+
+    test('requested (received requests) listens to receiver_id only', () async {
+      final sub =
+          repository.watchCurrentUserRequestedFriendsIds().listen((_) {});
+      expectFiltered({'receiver_id'});
+      await sub.cancel();
+    });
+
+    test('each listener triggers a reload', () async {
+      final received = <FriendshipIds>[];
+      final sub =
+          repository.watchCurrentUserAllFriendships().listen(received.add);
+      await pumpEventQueue();
+      expect(received, hasLength(1));
+
+      final payload = MockPostgresChangePayload();
+      for (final l in List.of(listeners)) {
+        l.callback(payload);
+        await pumpEventQueue();
+      }
+
+      // 2 filtered listeners, one reload each.
+      expect(listeners, hasLength(2));
+      expect(received, hasLength(1 + listeners.length));
+      await sub.cancel();
+    });
+  });
 
   group('watchCurrentUserAllFriendships cleanup', () {
     test('unsubscribes and drops the controller after the session is closed',
@@ -178,4 +261,18 @@ void main() {
       expect(received.single.friendsIds, {'friend-of-b'}.lock);
     });
   });
+}
+
+typedef _PayloadCallback = void Function(PostgresChangePayload);
+
+class _Listener {
+  _Listener({
+    required this.event,
+    required this.filter,
+    required this.callback,
+  });
+
+  final PostgresChangeEvent event;
+  final PostgresChangeFilter? filter;
+  final _PayloadCallback callback;
 }
