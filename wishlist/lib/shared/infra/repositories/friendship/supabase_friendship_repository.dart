@@ -10,7 +10,9 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
   SupabaseFriendshipRepository(this._client);
   final SupabaseClient _client;
   static const _friendshipsTableName = 'friendships';
-  late String currentUserId = _client.auth.currentUserNonNull.id;
+  // Read at call time: this repository outlives a session.
+  // Callers that read it more than once, around an await, take a local copy.
+  String get currentUserId => _client.auth.currentUserNonNull.id;
 
   @override
   Future<ISet<String>> getFriendsIds(String userId) async {
@@ -40,15 +42,14 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
 
   @override
   Future<ISet<String>> getCurrentUserFriendsIds() async {
-    final currentUserId = _client.auth.currentUserNonNull.id;
     return getFriendsIds(currentUserId);
   }
 
   @override
   Future<ISet<String>> getCurrentUserPendingFriendsIds() async {
+    final currentUserId = this.currentUserId;
     return executeSafely(
       () async {
-        final currentUserId = _client.auth.currentUserNonNull.id;
         final response = await _client
             .from(_friendshipsTableName)
             .select()
@@ -68,9 +69,9 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
 
   @override
   Future<ISet<String>> getCurrentUserRequestedFriendsIds() async {
+    final currentUserId = this.currentUserId;
     return executeSafely(
       () async {
-        final currentUserId = _client.auth.currentUserNonNull.id;
         final response = await _client
             .from(_friendshipsTableName)
             .select()
@@ -100,6 +101,7 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
   Future<FriendshipStatus> currentUserFriendshipStatusWith(
     String userId,
   ) async {
+    final currentUserId = this.currentUserId;
     return executeSafely(
       () async {
         final response = await _client
@@ -122,6 +124,7 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
 
   @override
   Future<void> askFriendshipTo(String userId) async {
+    final currentUserId = this.currentUserId;
     return executeSafely(
       () async {
         // Check if there is already a friendship request
@@ -195,6 +198,7 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
 
   @override
   Future<void> removeFriendshipWith(String userId) async {
+    final currentUserId = this.currentUserId;
     return executeSafely(
       () async {
         await _client

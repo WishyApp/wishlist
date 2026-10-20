@@ -39,17 +39,31 @@ Welcome to the Wishy App! This Flutter application is designed to help you effor
 
 3. **📥 Install Dependencies**
 
+   The Flutter project lives in the `wishlist/` subfolder of the repository: run the commands below from there.
+
    ```bash
-   flutter pub get
+   cd wishlist
+   flutter pub get   # also generates the localization files (`generate: true`)
    ```
 
-4. **▶️ Run the App**
+4. **⚙️ Generate the Code**
+
+   Generated files (Freezed, Riverpod, routes, assets) are committed and CI fails if they are out of date: regenerate them after `pub get` and after any change to an annotated class.
+
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
+   dart format lib   # CI compares the generated files after formatting them
+   ```
+
+5. **▶️ Run the App**
 
    ```bash
    flutter run   # dev environment by default
    ```
 
-5. **📱 Build for Production**
+   The environment comes from `--dart-define=APP_ENV=<env>`; accepted values are `dev` (default) and `prod` (`lib/app/config/environment.dart`, `environment_service.dart`).
+
+6. **📱 Build for Production**
 
    ```bash
    flutter build appbundle --dart-define=APP_ENV=prod   # For Android
@@ -98,28 +112,22 @@ Each developer must use their own Supabase account and Personal Access Token (PA
 
 ### 🗂 Project Linking
 
-The project includes two Supabase environments:
+A single `supabase/` folder (migrations, config) describes both Supabase environments:
 
-| Environment | Folder           | Supabase Project | Project Ref            |
-| ----------- | ---------------- | ---------------- | ---------------------- |
-| Development | `supabase-dev/`  | wishlist-dev     | `qedynftuclpdisocgzuv` |
-| Production  | `supabase-prod/` | wishy-prod       | `cbcrtjggsmtwvqljzbnl` |
+| Environment | Supabase Project | Project Ref            | Postgres |
+| ----------- | ---------------- | ---------------------- | -------- |
+| Development | wishlist-dev     | `qedynftuclpdisocgzuv` | 17       |
+| Production  | wishy-prod       | `cbcrtjggsmtwvqljzbnl` | 17       |
 
-Each developer must manually link both projects once.
+Locally, link the dev project, from the repository root:
 
-#### 👉 Link dev
+From the repository root:
 
 ```bash
-cd supabase-dev
 supabase link --project-ref qedynftuclpdisocgzuv
 ```
 
-#### 👉 Link prod
-
-```bash
-cd ../supabase-prod
-supabase link --project-ref cbcrtjggsmtwvqljzbnl
-```
+The CLI works on the linked project. Prod is migrated by the CD only (see below): do not link it to run `db push` from your machine.
 
 Verify with:
 
@@ -131,7 +139,7 @@ supabase projects list
 
 ### 🔄 Schema changes
 
-Every schema change goes through an idempotent migration file, applied to dev then to prod with `supabase db push`. Never edit the schema from the dashboard.
+Every schema change goes through an idempotent migration file, applied to dev with `supabase db push` (the linked project) and to prod by the CD at the next tag. Never run `db push` on prod from your machine, and never edit the schema from the dashboard.
 
 See [docs/supabase-migrations.md](docs/supabase-migrations.md) for the workflow, how to write idempotent migrations and how to check for drift.
 
@@ -160,8 +168,8 @@ La CD se déclenche lors du push d'un **tag de version** (`v*`).
 #### Déclencher un déploiement
 
 ```bash
-git tag v0.2.3
-git push origin v0.2.3
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 #### Destinations
@@ -179,7 +187,7 @@ Le workflow `supabase.yml` :
 
 | Déclencheur | Ce qu'il fait |
 | ----------- | ------------- |
-| PR qui touche une migration | Vérifie que `supabase-dev` et `supabase-prod` ont les mêmes migrations et qu'aucune migration déjà mergée n'est modifiée, les rejoue sur une base vide en Postgres 15 (dev) et 17 (prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que les schémas `public` et `storage` ne changent pas (idempotence, ordre de `--include-all`) |
+| PR qui touche une migration | Vérifie qu'aucune migration déjà mergée n'est modifiée, renommée ou supprimée, les rejoue sur une base vide en Postgres 17 (la version de dev et de prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que les schémas `public` et `storage` ne changent pas (idempotence, ordre de `--include-all`). Il les rejoue aussi avec la CLI sur la version exacte de Postgres de dev et de prod, et échoue si `supabase-dev/` ou `supabase-prod/` contient encore des fichiers. Ces vérifications tournent aussi à chaque push sur `main`, et le déploiement sur dev attend le rejeu en 17.11 |
 | Merge sur `main` | Contrôle de dérive, `db push` sur dev, puis nouveau contrôle de dérive |
 | Chaque lundi | Contrôle de dérive sur dev et prod, migrations mergées mais pas encore déployées mises de côté |
 | Tag `v*` (workflow CD) | Mêmes étapes sur prod, avant les builds, uniquement si le commit tagué est sur `main` |
@@ -209,7 +217,8 @@ Limites du contrôle d'idempotence : il compare les schémas `public` et `storag
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | JSON du service account Google Play |
 | `IOS_P12_BASE64` | Certificat Apple Distribution encodé en base64 |
 | `IOS_P12_PASSWORD` | Mot de passe du certificat |
-| `IOS_PROVISIONING_PROFILE_BASE64` | Provisioning profile encodé en base64 |
+| `IOS_PROVISIONING_PROFILE_BASE64` | Provisioning profile de l'app (Runner) encodé en base64 |
+| `IOS_SHARE_EXTENSION_PROFILE_BASE64` | Provisioning profile de la Share Extension encodé en base64 |
 | `APP_STORE_CONNECT_ISSUER_ID` | Issuer ID App Store Connect |
 | `APP_STORE_CONNECT_API_KEY_ID` | Key ID App Store Connect |
 | `APP_STORE_CONNECT_API_PRIVATE_KEY` | Contenu du fichier .p8 |

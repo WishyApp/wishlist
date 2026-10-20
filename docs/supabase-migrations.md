@@ -2,7 +2,7 @@
 
 On développe les features directement sur la base Supabase de dev. Ce document fixe les règles pour que ce qui tourne sur dev et prod reste décrit par les fichiers de `supabase/migrations/`, et que la mise en prod se fasse en rejouant ces fichiers, sans rien refaire à la main.
 
-Tant que les deux dossiers `supabase-dev/` et `supabase-prod/` coexistent, chaque migration est copiée à l'identique dans les deux.
+Un seul dossier `supabase/` sert aux deux projets. En local, on travaille sur le projet dev, lié une fois depuis la racine du repo (`supabase link --project-ref qedynftuclpdisocgzuv`, cf. README). La prod n'est migrée que par la CD.
 
 ## Les règles
 
@@ -16,11 +16,9 @@ La règle 1 est la plus importante. L'idempotence n'est qu'un filet : sans la r�
 ## Workflow d'une feature
 
 ```bash
-cd supabase-dev
 supabase migration new add_something      # crée supabase/migrations/<timestamp>_add_something.sql
 # écrire la migration (idempotente)
-supabase db push                          # applique sur dev les migrations pas encore enregistrées
-cp supabase/migrations/<timestamp>_add_something.sql ../supabase-prod/supabase/migrations/
+supabase db push                          # applique sur dev (projet lié) les migrations pas encore enregistrées
 ```
 
 Si on a appliqué la migration autrement (SQL editor pendant qu'on itère dessus), on l'enregistre comme faite pour que `db push` ne la rejoue pas :
@@ -31,9 +29,9 @@ supabase migration repair --status applied <timestamp>
 
 Grâce à la règle 2, l'oubli de cette étape n'est pas grave : le `db push` suivant rejouera la migration sans rien casser.
 
-La mise en prod se fait depuis `supabase-prod/` avec `supabase db push`, après le merge de la PR.
+Au merge de la PR, la CI applique la migration sur dev ; la prod la reçoit au tag suivant, avant les builds (cf. README, section CI/CD).
 
-`db push` refuse une migration dont le timestamp est plus ancien que la dernière déjà appliquée (cas d'une branche longue mergée après une autre). Dans ce cas, `supabase db push --include-all`, après avoir vérifié la liste avec `supabase migration list`.
+`db push` refuse une migration dont le timestamp est plus ancien que la dernière déjà appliquée (cas d'une branche longue mergée après une autre). Dans ce cas, `supabase db push --include-all`, après avoir vérifié la liste avec `supabase migration list`. La CI utilise toujours `--include-all`.
 
 ## Écrire une migration idempotente
 
@@ -106,9 +104,10 @@ REVOKE EXECUTE ON FUNCTION public.ma_fonction() FROM PUBLIC, anon;
 Docker doit tourner.
 
 ```bash
-cd supabase-dev
 supabase db reset     # recrée la base locale et rejoue toutes les migrations
 ```
+
+Ou, sans démarrer la stack locale : `scripts/check_supabase_migrations.sh origin/main` (base vide, idempotence, tests SQL).
 
 Pour tester l'idempotence, rejouer ensuite la nouvelle migration une deuxième fois sur la base locale :
 
@@ -119,9 +118,10 @@ psql "postgresql://postgres:postgres@localhost:54322/postgres" -f supabase/migra
 ## Vérifier la dérive
 
 ```bash
-cd supabase-dev    # puis supabase-prod
-supabase db diff --linked --schema public
+supabase db diff --linked --schema public    # sur le projet lié
 ```
+
+La CI le fait après chaque déploiement et chaque lundi, sur dev et prod.
 
 La commande rejoue les migrations du repo dans une base temporaire, la compare au projet distant et affiche le SQL qui manque au repo pour décrire le distant. Elle ne modifie rien sur le projet distant.
 
