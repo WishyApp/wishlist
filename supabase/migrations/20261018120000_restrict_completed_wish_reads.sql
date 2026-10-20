@@ -14,16 +14,19 @@
 --   that INSERT ... RETURNING (what insert().select() sends) checks the
 --   policy on the new row without reading anything back;
 -- - otherwise, the current user reads the wish the row points to
---   (can_read_wish): its wishlist is public, archived or not (the app shows
---   "Wishlist supprimée" for an archived one), or they booked the wish. A
---   private wishlist keeps its completed wishes out of reach of other users.
+--   (can_read_wish): its wishlist is theirs or public, archived or not (the
+--   app shows "Wishlist supprimée" for an archived one), or they booked the
+--   wish. A private wishlist keeps its completed wishes out of reach of
+--   other users.
 --
 -- The wish is read through its current wishlist, not through from_wishlist_id:
 -- a wish moved to a private wishlist stops being readable, even though the row
 -- still holds the wishlist it was completed from. wish_id is a foreign key
--- with ON DELETE CASCADE, so the wish exists as long as the row does; the
--- fallback on from_wishlist_id (can_read_wishlist) only covers a wish that
--- cannot be found, and never overrides a wish that exists.
+-- with ON DELETE CASCADE, so the wish exists as long as the row does: there is
+-- no fallback, a wish that cannot be found is not readable. (A fallback on
+-- from_wishlist_id would be unreachable from the policy, and the function,
+-- callable through RPC with arbitrary arguments, would then tell whether a
+-- private wish exists.)
 --
 -- Writes are unchanged (INSERT, UPDATE and DELETE are limited to the owner of
 -- the wish or the row).
@@ -41,8 +44,7 @@
 -- 20261012100000_restrict_private_wishlist_reads. It only answers about the
 -- current user (auth.uid()).
 CREATE OR REPLACE FUNCTION public.can_read_completed_wish(
-  p_wish_id bigint,
-  p_from_wishlist_id bigint
+  p_wish_id bigint
 )
 RETURNS boolean
 LANGUAGE sql
@@ -56,12 +58,12 @@ AS $$
       FROM public.wishs w
       WHERE w.id = p_wish_id
     ),
-    public.can_read_wishlist(p_from_wishlist_id)
+    false
   );
 $$;
 
-REVOKE ALL ON FUNCTION public.can_read_completed_wish(bigint, bigint) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.can_read_completed_wish(bigint, bigint) TO authenticated;
+REVOKE ALL ON FUNCTION public.can_read_completed_wish(bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.can_read_completed_wish(bigint) TO authenticated;
 
 
 -- 2. user_completed_wishs
@@ -74,7 +76,7 @@ CREATE POLICY "Users can read their own and readable completed wishes"
   TO authenticated
   USING (
     user_id = (SELECT auth.uid())
-    OR public.can_read_completed_wish(wish_id, from_wishlist_id)
+    OR public.can_read_completed_wish(wish_id)
   );
 
 

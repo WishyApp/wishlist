@@ -147,14 +147,13 @@ SELECT pg_temp.expect_count('stranger does not read the private wishlist complet
 SELECT pg_temp.expect_count('stranger does not read the completions of A',
   $q$SELECT count(*) FROM public.user_completed_wishs WHERE user_id = '00000000-0000-4000-e000-00000000000a'$q$, 0);
 
--- Fallback on from_wishlist_id when the wish cannot be found (cannot happen
+-- No fallback: a wish that cannot be found is not readable (cannot happen
 -- through the foreign key, so the helper is called directly).
 RESET ROLE;
 SELECT pg_temp.act_as('00000000-0000-4000-e000-00000000000a');
-SELECT pg_temp.expect_count('fallback on a public wishlist',
-  $q$SELECT count(*) FROM (SELECT 1 WHERE public.can_read_completed_wish(999999, 986002)) t$q$, 1);
-SELECT pg_temp.expect_count('fallback on a private wishlist',
-  $q$SELECT count(*) FROM (SELECT 1 WHERE public.can_read_completed_wish(999999, 986003)) t$q$, 0);
+-- IS FALSE, not just "not true": the helper answers false, never NULL.
+SELECT pg_temp.expect_count('nonexistent wish is not readable',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.can_read_completed_wish(999999) IS FALSE) t$q$, 1);
 
 -- As anon: no access
 RESET ROLE;
