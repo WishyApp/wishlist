@@ -3,10 +3,10 @@ import 'package:wishlist/l10n/l10n.dart';
 class PasswordValidator {
   static const int minLength = 8;
 
-  /// Mesuré sur la valeur rognée : les écrans d'auth envoient
-  /// `text.trim()` au serveur, qui exige aussi [minLength] caractères.
+  /// Mesuré sur la valeur brute : le mot de passe n'est jamais rogné, il est
+  /// envoyé tel que saisi au serveur, qui exige aussi [minLength] caractères.
   static bool hasMinLength(String password) {
-    return password.trim().length >= minLength;
+    return password.length >= minLength;
   }
 
   static bool hasUppercase(String password) {
