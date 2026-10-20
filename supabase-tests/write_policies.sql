@@ -6,6 +6,11 @@
 
 BEGIN;
 
+-- Functions created by postgres have no EXECUTE for PUBLIC by default
+-- (20261012110000_restrict_anon_privileges): the helpers below are called
+-- after switching role. Rolled back with the rest.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres GRANT EXECUTE ON FUNCTIONS TO PUBLIC;
+
 -- Expectations, run with the current role.
 CREATE FUNCTION pg_temp.expect_denied(label text, statement text)
 RETURNS void LANGUAGE plpgsql AS $$
@@ -29,24 +34,28 @@ BEGIN
   RAISE NOTICE 'ok   % (% row(s))', label, n;
 END $$;
 
--- Fixtures: A (acting user) and B, each with wishlists and wishes.
+-- Fixtures: A (acting user), B and C, each with wishlists and wishes.
 INSERT INTO auth.users (id) VALUES
   ('00000000-0000-4000-a000-00000000000a'),
-  ('00000000-0000-4000-a000-00000000000b');
+  ('00000000-0000-4000-a000-00000000000b'),
+  ('00000000-0000-4000-a000-00000000000c');
 INSERT INTO public.profiles (id, pseudo) VALUES
   ('00000000-0000-4000-a000-00000000000a', 'test_a'),
-  ('00000000-0000-4000-a000-00000000000b', 'test_b');
+  ('00000000-0000-4000-a000-00000000000b', 'test_b'),
+  ('00000000-0000-4000-a000-00000000000c', 'test_c');
 INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility, is_closed) VALUES
   (900001, 'A public',  '00000000-0000-4000-a000-00000000000a', '#FFFFFF', '00000000-0000-4000-a000-00000000000a', 'public',  false),
   (900002, 'A other',   '00000000-0000-4000-a000-00000000000a', '#FFFFFF', '00000000-0000-4000-a000-00000000000a', 'public',  false),
   (900003, 'B public',  '00000000-0000-4000-a000-00000000000b', '#FFFFFF', '00000000-0000-4000-a000-00000000000b', 'public',  false),
   (900004, 'B private', '00000000-0000-4000-a000-00000000000b', '#FFFFFF', '00000000-0000-4000-a000-00000000000b', 'private', false),
-  (900005, 'B closed',  '00000000-0000-4000-a000-00000000000b', '#FFFFFF', '00000000-0000-4000-a000-00000000000b', 'public',  true);
+  (900005, 'B closed',  '00000000-0000-4000-a000-00000000000b', '#FFFFFF', '00000000-0000-4000-a000-00000000000b', 'public',  true),
+  (900007, 'C public', '00000000-0000-4000-a000-00000000000c', '#FFFFFF', '00000000-0000-4000-a000-00000000000c', 'public', false);
 INSERT INTO public.wishs (id, name, description, wishlist_id, updated_by, quantity) VALUES
   (910001, 'A wish',         '', 900001, '00000000-0000-4000-a000-00000000000a', 1),
   (910003, 'B wish',         '', 900003, '00000000-0000-4000-a000-00000000000b', 2),
   (910004, 'B private wish', '', 900004, '00000000-0000-4000-a000-00000000000b', 1),
-  (910005, 'B closed wish',  '', 900005, '00000000-0000-4000-a000-00000000000b', 1);
+  (910005, 'B closed wish',  '', 900005, '00000000-0000-4000-a000-00000000000b', 1),
+  (910007, 'C wish',         '', 900007, '00000000-0000-4000-a000-00000000000c', 1);
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
@@ -87,10 +96,12 @@ SELECT pg_temp.expect_denied('booking in the name of another user',
   $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910003, '00000000-0000-4000-a000-00000000000b', 1)$q$);
 SELECT pg_temp.expect_denied('booking of an own wish',
   $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910001, '00000000-0000-4000-a000-00000000000a', 1)$q$);
-SELECT pg_temp.expect_denied('booking in a private wishlist',
+SELECT pg_temp.expect_denied('booking of a wish of a private wishlist of another user',
   $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910004, '00000000-0000-4000-a000-00000000000a', 1)$q$);
 SELECT pg_temp.expect_denied('booking in a closed wishlist',
   $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910005, '00000000-0000-4000-a000-00000000000a', 1)$q$);
+SELECT pg_temp.expect_rows('booking of a public wish of a user without relation',
+  $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910007, '00000000-0000-4000-a000-00000000000a', 1)$q$, 1);
 SELECT pg_temp.expect_denied('booking of quantity 0',
   $q$INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES (910003, '00000000-0000-4000-a000-00000000000a', 0)$q$);
 SELECT pg_temp.expect_denied('booking above the wish quantity',

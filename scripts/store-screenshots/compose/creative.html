@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wishy creative asset</title>
+<style>
+  @font-face { font-family: Jakarta; src: url(../../../wishlist/fonts/PlusJakartaSans-Medium.ttf); font-weight: 500; }
+  @font-face { font-family: Jakarta; src: url(../../../wishlist/fonts/PlusJakartaSans-ExtraBold.ttf); font-weight: 800; }
+  :root { --bg: #F7F6F0; --ink: #2C2C2C; --muted: #887A6B; --orange-dk: #DF733D; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { overflow: hidden; background: var(--bg); }
+  body { font-family: Jakarta, sans-serif; color: var(--ink); position: relative; }
+  svg { position: absolute; left: 0; top: 0; }
+  .text { position: absolute; display: flex; flex-direction: column; justify-content: center; }
+  .brand { display: flex; align-items: center; }
+  .brand img { box-shadow: 0 8px 24px rgba(120,70,30,.18); }
+  .brand span { font-weight: 800; letter-spacing: -0.02em; }
+  h1 { font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; white-space: nowrap; }
+  h1 em { font-style: normal; color: var(--orange-dk); }
+  h1 .c { margin-left: -0.1em; }
+  .phone { position: absolute; background: #1d1d1f; box-shadow: 0 30px 70px rgba(120,70,30,.25); }
+  .phone img { width: 100%; height: 100%; display: block; }
+  #safe { position: absolute; outline: 6px dashed #0c0; display: none; }
+</style>
+</head>
+<body>
+<svg id="ribbon"></svg>
+<div id="decor"></div>
+<div class="text" id="text"></div>
+<div id="phones"></div>
+<div id="safe"></div>
+<script>
+// Canvas and art safe area of each App Store creative asset, measured on
+// Apple's templates (developer.apple.com/app-store/asset-best-practices).
+const TYPES = {
+  header: { w: 3840, h: 1646, safe: { x: 1100, y: 494, w: 1640, h: 658 } },
+  search: { w: 3840, h: 2560, safe: { x: 838, y: 768, w: 2164, h: 1022 } },
+  universal: { w: 5244, h: 2950, safe: { x: 1922, y: 662, w: 1400, h: 958 } },
+};
+const COPY = {
+  fr: {
+    header: 'Tes <em>wishlists</em><span class="c">,</span><br>partagées avec<br>tes proches',
+    search: 'Offre le bon cadeau<span class="c">,</span><br><em>garde la surprise</em>',
+    universal: 'Tes <em>wishlists</em><span class="c">,</span><br>partagées avec<br>tes proches',
+  },
+  en: {
+    header: 'Your <em>wishlists</em><span class="c">,</span><br>shared with<br>your loved ones',
+    search: 'Give the right gift<span class="c">,</span><br><em>keep the surprise</em>',
+    universal: 'Your <em>wishlists</em><span class="c">,</span><br>shared with<br>your loved ones',
+  },
+};
+const q = new URLSearchParams(location.search);
+const lang = q.get('lang') || 'fr', type = q.get('type') || 'header';
+const { w: W, h: H, safe: S } = TYPES[type];
+document.documentElement.style.width = document.body.style.width = W + 'px';
+document.documentElement.style.height = document.body.style.height = H + 'px';
+const raw = (shot) => `../raw/${lang}-${shot}.png`;
+const SR = 2868 / 1320;
+
+function phone(parent, shot, x, y, sw, rot, opacity = 1) {
+  const bezel = sw * 0.03, r = sw * 0.135;
+  const el = document.createElement('div');
+  el.className = 'phone';
+  Object.assign(el.style, {
+    left: x + 'px', top: y + 'px', width: sw + bezel * 2 + 'px', height: sw * SR + bezel * 2 + 'px',
+    padding: bezel + 'px', borderRadius: r + bezel + 'px', transform: `rotate(${rot}deg)`, opacity,
+  });
+  el.innerHTML = `<img src="${raw(shot)}" style="border-radius:${r}px">`;
+  parent.appendChild(el);
+  return el;
+}
+
+// Load the fonts before measuring the headline: nothing uses them until it is injected.
+Promise.all([document.fonts.load('800 100px Jakarta'), document.fonts.load('500 100px Jakarta')]).then(() => {
+  const ribbon = document.getElementById('ribbon');
+  ribbon.setAttribute('width', W); ribbon.setAttribute('height', H);
+  ribbon.innerHTML = `<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#FDB46E"/><stop offset="1" stop-color="#F28C57"/></linearGradient></defs>
+    <path d="M ${-W * .05} ${H * .78} C ${W * .25} ${H * .45}, ${W * .42} ${H * 1.02}, ${W * .62} ${H * .62} S ${W * .9} ${H * .18}, ${W * 1.05} ${H * .35}"
+      fill="none" stroke="url(#g)" stroke-width="${H * .16}" stroke-linecap="round" opacity=".25"/>`;
+
+  // Key content, inside the safe area: headline on the left, two phones on the right.
+  const pad = S.h * 0.06;
+  const phoneW = (S.h - pad * 2) / SR * 0.94;
+  const textOnly = type === 'universal';
+  const phonesW = textOnly ? -pad : phoneW * 2.2;
+  const text = document.getElementById('text');
+  const withBrand = type === 'universal';
+  const iconSize = S.h * 0.16;
+  text.innerHTML = (withBrand ? `<div class="brand" style="gap:${iconSize * .3}px;margin-bottom:${iconSize * .35}px">
+      <img src="../../../wishlist/assets/icon/icon.png" style="width:${iconSize}px;height:${iconSize}px;border-radius:${iconSize * .23}px">
+      <span style="font-size:${iconSize * .62}px">Wishy</span></div>` : '') + `<h1>${COPY[lang][type]}</h1>`;
+  Object.assign(text.style, { left: S.x + pad + 'px', top: S.y + 'px', height: S.h + 'px', width: S.w - phonesW - pad * 3 + 'px' });
+  if (textOnly) Object.assign(text.style, { alignItems: 'center', textAlign: 'center' });
+  const h1 = text.querySelector('h1');
+  let size = S.h * (type === 'search' ? 0.13 : 0.15);
+  h1.style.fontSize = size + 'px';
+  const contentHeight = () => [...text.children].reduce((sum, el) => sum + el.offsetHeight, 0);
+  while (size > 20 && (contentHeight() > S.h - pad * 2 || h1.scrollWidth > h1.clientWidth)) {
+    size *= 0.96;
+    h1.style.fontSize = size + 'px';
+  }
+
+  const phones = document.getElementById('phones');
+  const px = S.x + S.w - pad - phonesW, py = S.y + pad;
+  if (!textOnly) {
+    phone(phones, 'home', px, py + phoneW * 0.05, phoneW, -5);
+    phone(phones, 'wl', px + phoneW * 1.15, py, phoneW, 4);
+  }
+
+  // Decoration outside the safe area: may be cropped on narrow devices.
+  const decor = document.getElementById('decor');
+  const dw = phoneW * 0.9;
+  if (textOnly) {
+    phone(decor, 'home', S.x - dw * 2.5, S.y + S.h * 0.02, dw, -8, 0.95);
+    phone(decor, 'wl', S.x - dw * 1.25, S.y + S.h * 0.12, dw, 4, 0.95);
+    phone(decor, 'friendwish', S.x + S.w + dw * 0.25, S.y + S.h * 0.12, dw, -4, 0.95);
+    phone(decor, 'booked', S.x + S.w + dw * 1.5, S.y + S.h * 0.02, dw, 8, 0.95);
+  } else {
+    phone(decor, 'friendwish', S.x - dw * 1.45, S.y + S.h * 0.1, dw, -8, 0.85);
+    phone(decor, 'booked', S.x + S.w + dw * 0.45, S.y + S.h * 0.02, dw, 7, 0.85);
+  }
+
+  if (q.has('debug')) Object.assign(document.getElementById('safe').style, { display: 'block', left: S.x + 'px', top: S.y + 'px', width: S.w + 'px', height: S.h + 'px' });
+});
+</script>
+</body>
+</html>
