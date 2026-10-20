@@ -22,7 +22,11 @@ AppUserMessageKey? userMessageKeyForAuthException(AuthException e) {
 
   switch (e.statusCode) {
     case '403':
-      return AppUserMessageKey.oldPasswordIncorrect;
+      // Sans code d'erreur (ancienne API) seulement : avec un code, c'est une
+      // erreur de session (session_not_found, bad_jwt...). Le vrai « ancien
+      // mot de passe incorrect » est levé par AuthService.changePassword
+      // avant updateUser.
+      return e.code == null ? AppUserMessageKey.oldPasswordIncorrect : null;
     case '422':
       // Réponse sans code d'erreur (ancienne API) : seul cas 422 historique.
       return e.code == null

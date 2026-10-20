@@ -5,13 +5,23 @@ import 'package:wishlist/shared/infra/utils/auth_user_message_key.dart';
 
 void main() {
   group('userMessageKeyForAuthException', () {
-    test('returns oldPasswordIncorrect when statusCode is 403', () {
+    test('returns oldPasswordIncorrect for a 403 without code', () {
       const e = AuthException('Forbidden', statusCode: '403');
 
       expect(
         userMessageKeyForAuthException(e),
         AppUserMessageKey.oldPasswordIncorrect,
       );
+    });
+
+    test('returns null for a 403 with an error code (session error)', () {
+      const e = AuthException(
+        'Session not found',
+        statusCode: '403',
+        code: 'session_not_found',
+      );
+
+      expect(userMessageKeyForAuthException(e), isNull);
     });
 
     test('returns newPasswordShouldBeDifferent for a 422 without code', () {
