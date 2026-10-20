@@ -122,15 +122,10 @@ class WishlistScreenBody extends ConsumerWidget {
       for (final c in completedWishes) c.wish.id: c.quantity,
     };
 
+    // Un wish entièrement reçu n'est ni en attente ni à offrir.
     final adjustedWishs = wishlistScreenData.wishs
         .where((w) => (completedByWishId[w.id] ?? 0) < w.quantity)
-        .map((w) {
-      final completedQty = completedByWishId[w.id] ?? 0;
-      if (completedQty == 0) {
-        return w;
-      }
-      return w.copyWith(quantity: w.quantity - completedQty);
-    }).toIList();
+        .toIList();
 
     final wishs = WishSortUtils.sortAndFilterWishs(
       adjustedWishs,
@@ -140,9 +135,19 @@ class WishlistScreenBody extends ConsumerWidget {
 
     final isWishsBookedHidden = !wishlist.canOwnerSeeTakenWish && isMyWishlist;
 
+    // En attente = quantité - max(réservé, reçu), comme sur l'écran du wish
+    // et côté serveur.
+    int pendingQuantityOf(Wish wish) => wish.pendingQuantity(
+          receivedQuantity: completedByWishId[wish.id] ?? 0,
+        );
+
     final wishsPending = isWishsBookedHidden
         ? wishs.toIList()
-        : wishs.where((wish) => wish.availableQuantity > 0).toIList();
+        : wishs.where((wish) => pendingQuantityOf(wish) > 0).toIList();
+
+    final pendingQuantityOverrides = <int, int>{
+      for (final wish in wishsPending) wish.id: pendingQuantityOf(wish),
+    };
 
     final wishsBooked =
         wishs.where((wish) => wish.totalBookedQuantity > 0).toIList();
@@ -192,6 +197,7 @@ class WishlistScreenBody extends ConsumerWidget {
                 isWishsBookedHidden: isWishsBookedHidden,
                 screenState: screenState,
                 notifier: notifier,
+                quantityOverrideMap: pendingQuantityOverrides,
               ),
               _buildWishsTab(
                 context,

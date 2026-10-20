@@ -40,9 +40,14 @@ void main() {
     WidgetTester tester, {
     required Wish wish,
     required int receivedQuantity,
+    WishQuantityDisplay quantityDisplay = WishQuantityDisplay.total,
   }) async {
     await tester.pumpApp(
-      const ConsultWishScreen(wishIds: [1], initialIndex: 0),
+      ConsultWishScreen(
+        wishIds: const [1],
+        initialIndex: 0,
+        quantityDisplay: quantityDisplay,
+      ),
       overrides: [
         ...wishScreenOverrides(
           wishId: wish.id,
@@ -86,5 +91,48 @@ void main() {
     );
 
     expect(find.text(giveItLabel(tester)), findsNothing);
+  });
+
+  testWidgets('shows the give button when the received item was booked',
+      (tester) async {
+    // Quantité 2, 1 réservé et 1 reçu : 2 - max(1, 1) = 1 encore à offrir.
+    final wish = fakeWish1.copyWith(
+      quantity: 2,
+      takenByUser:
+          [fakeWishTakenByUser.copyWith(wishId: fakeWish1.id)].toIList(),
+    );
+    await pumpFriendView(tester, wish: wish, receivedQuantity: 1);
+
+    expect(find.text(giveItLabel(tester)), findsWidgets);
+  });
+
+  testWidgets('hides the give button when received covers the quantity',
+      (tester) async {
+    final wish = fakeWish1.copyWith(
+      quantity: 1,
+      takenByUser:
+          [fakeWishTakenByUser.copyWith(wishId: fakeWish1.id)].toIList(),
+    );
+    await pumpFriendView(tester, wish: wish, receivedQuantity: 1);
+
+    expect(find.text(giveItLabel(tester)), findsNothing);
+  });
+
+  testWidgets('pending quantity counts what the owner received',
+      (tester) async {
+    // Quantité 4, 1 réservé, 2 reçus par le propriétaire : 4 - max(1, 2) = 2.
+    final wish = fakeWish1.copyWith(
+      quantity: 4,
+      takenByUser:
+          [fakeWishTakenByUser.copyWith(wishId: fakeWish1.id)].toIList(),
+    );
+    await pumpFriendView(
+      tester,
+      wish: wish,
+      receivedQuantity: 2,
+      quantityDisplay: WishQuantityDisplay.pending,
+    );
+
+    expect(find.text('x2'), findsOneWidget);
   });
 }

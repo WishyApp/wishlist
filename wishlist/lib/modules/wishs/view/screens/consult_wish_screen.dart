@@ -7,6 +7,7 @@ import 'package:wishlist/modules/wishs/view/widgets/consult_wish_image.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_wish_info_container.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/theme/colors.dart';
@@ -140,14 +141,35 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
             ?.quantity ??
         0;
 
+    // Quantité reçue par le propriétaire de la wishlist (celle que compte le
+    // serveur) : pour un ami, ce n'est pas la sienne.
+    int ownerReceivedQuantity() {
+      if (widget.isMyWishlist) {
+        return completedQuantity;
+      }
+      final ownerId = ref
+          .watch(watchWishlistByIdProvider(wish.wishlistId))
+          .valueOrNull
+          ?.idOwner;
+      if (ownerId == null) {
+        return 0;
+      }
+      return ref
+              .watch(completedWishesByUserRealtimeProvider(ownerId))
+              .valueOrNull
+              ?.where((item) => item.wish.id == wish.id)
+              .firstOrNull
+              ?.quantity ??
+          0;
+    }
+
     switch (widget.quantityDisplay) {
       case WishQuantityDisplay.total:
         return wish.quantity;
       case WishQuantityDisplay.pending:
-        return (wish.quantity - wish.totalBookedQuantity - completedQuantity)
-            .clamp(0, wish.quantity);
+        return wish.pendingQuantity(receivedQuantity: ownerReceivedQuantity());
       case WishQuantityDisplay.booked:
-        return (wish.totalBookedQuantity - completedQuantity).clamp(
+        return (wish.totalBookedQuantity - ownerReceivedQuantity()).clamp(
           0,
           wish.totalBookedQuantity,
         );

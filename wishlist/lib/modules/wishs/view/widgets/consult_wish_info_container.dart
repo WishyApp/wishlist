@@ -196,8 +196,9 @@ class ConsultWishInfoContainer extends ConsumerWidget {
     final isFullyCompleted = completedQuantity >= wish.quantity;
 
     final hasQuantity = wish.quantity > 1;
-    // Quantité déjà reçue par le propriétaire : le serveur refuse une
-    // réservation qui la dépasse (réservations + reçu <= quantité du wish).
+    // Quantité déjà reçue par le propriétaire : elle consomme d'abord les
+    // réservations, le serveur refuse une réservation au-delà de
+    // quantité - max(réservé, reçu).
     final ownerId = isMyWishlist
         ? null
         : ref
