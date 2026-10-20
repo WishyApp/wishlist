@@ -62,10 +62,8 @@ class AvatarEditNotifier extends StateNotifier<AsyncValue<void>> {
 
 // autoDispose: disposed each time Settings is left. An action still running
 // then completes in the service, and the profile stream carries its result.
-// watchCurrentUserProfileProvider reads the current user once, so it only
-// follows the user across sessions thanks to the Home route lifetime (F015
-// again for any consumer outside it) until a shared currentUserIdProvider
-// lands.
+// watchCurrentUserProfileProvider follows currentUserIdProvider, so the
+// avatar it emits is always the one of the signed-in user.
 final avatarEditProvider =
     StateNotifierProvider.autoDispose<AvatarEditNotifier, AsyncValue<void>>((
   ref,

@@ -1,6 +1,8 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:flutter/foundation.dart';
 
 /// Données de tous les types de friendships pour l'utilisateur courant
+@immutable
 class FriendshipIds {
   const FriendshipIds({
     required this.friendsIds,
@@ -11,6 +13,16 @@ class FriendshipIds {
   final ISet<String> friendsIds;
   final ISet<String> pendingIds;
   final ISet<String> requestedIds;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FriendshipIds &&
+      other.friendsIds == friendsIds &&
+      other.pendingIds == pendingIds &&
+      other.requestedIds == requestedIds;
+
+  @override
+  int get hashCode => Object.hash(friendsIds, pendingIds, requestedIds);
 }
 
 /// Interface pour écouter les changements en temps réel sur les friendships
@@ -25,9 +37,6 @@ abstract class FriendshipStreamRepository {
   ///
   /// Émet un nouveau set à chaque changement (ajout/suppression d'ami)
   Stream<ISet<String>> watchFriendsIds(String userId);
-
-  /// Écoute les changements sur les IDs des amis de l'utilisateur courant
-  Stream<ISet<String>> watchCurrentUserFriendsIds();
 
   /// Écoute les changements sur les demandes d'amitié en attente (reçues)
   Stream<ISet<String>> watchCurrentUserPendingFriendsIds();

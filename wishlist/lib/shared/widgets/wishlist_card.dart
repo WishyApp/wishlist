@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
-import 'package:wishlist/shared/infra/supabase_client_provider.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/colors.dart';
@@ -21,8 +21,9 @@ class WishlistCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final borderRadius = BorderRadius.circular(36);
-    final currentUserId =
-        ref.watch(supabaseClientProvider).auth.currentUser?.id;
+    // read, not watch: the card must not change look when the session ends
+    // and its screen is still leaving. A user switch rebuilds the list anyway.
+    final currentUserId = ref.read(currentUserIdProvider);
     final isOwner = currentUserId == wishlist.idOwner;
 
     void onTap() {

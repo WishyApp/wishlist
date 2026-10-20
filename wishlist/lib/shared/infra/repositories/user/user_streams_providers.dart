@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_stream_repository_provider.dart';
 import 'package:wishlist/shared/models/profile.dart';
 
@@ -10,6 +11,11 @@ final watchProfileByIdProvider =
 
 final watchCurrentUserProfileProvider =
     StreamProvider.autoDispose<Profile?>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) {
+    // Signed out: a null profile replaces the previous user's one.
+    return Stream.value(null);
+  }
   final repository = ref.watch(userStreamRepositoryProvider);
-  return repository.watchCurrentUserProfile();
+  return repository.watchProfileById(userId);
 });

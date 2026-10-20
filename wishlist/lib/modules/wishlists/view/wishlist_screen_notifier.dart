@@ -1,3 +1,4 @@
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -103,8 +104,21 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
 
   Future<void> deleteSelectedWishs() async {
     final selectedIds = state.selectedWishIds;
+    // Les wishs sont déjà chargés : on lit l'iconUrl sans aller-retour réseau
+    // (et sans échouer si un wish a déjà été supprimé ailleurs).
+    final wishs = ref
+            .read(wishlistScreenDataRealtimeProvider(wishlistId))
+            .valueOrNull
+            ?.wishs ??
+        <Wish>[].lock;
+    final iconUrlById = {for (final w in wishs) w.id: w.iconUrl};
     for (final wishId in selectedIds) {
-      await ref.read(wishMutationsProvider.notifier).delete(wishId);
+      // Les images (principale + miniature) sont supprimées avec le wish,
+      // tant que la RLS du bucket autorise encore le propriétaire.
+      await ref.read(wishMutationsProvider.notifier).delete(
+            wishId,
+            iconUrl: iconUrlById[wishId],
+          );
     }
     exitSelectionMode();
   }

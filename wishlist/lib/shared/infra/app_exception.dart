@@ -5,7 +5,9 @@ enum AppUserMessageKey {
   inputTooLong,
   pseudoAlreadyExists,
   newPasswordShouldBeDifferent,
-  oldPasswordIncorrect;
+  oldPasswordIncorrect,
+  passwordTooWeak,
+  reauthenticationNeeded;
 
   /// Message localisé pour cette clé.
   String toLocalizedString(AppLocalizations l10n) {
@@ -18,6 +20,10 @@ enum AppUserMessageKey {
         return l10n.newPasswordShouldBeDifferent;
       case AppUserMessageKey.oldPasswordIncorrect:
         return l10n.oldPasswordIncorrect;
+      case AppUserMessageKey.passwordTooWeak:
+        return l10n.passwordTooWeak;
+      case AppUserMessageKey.reauthenticationNeeded:
+        return l10n.reauthenticationNeeded;
     }
   }
 }

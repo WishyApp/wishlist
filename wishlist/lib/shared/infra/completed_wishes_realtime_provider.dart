@@ -1,8 +1,8 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_stream_repository_provider.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 
 part 'completed_wishes_realtime_provider.g.dart';
@@ -19,7 +19,11 @@ part 'completed_wishes_realtime_provider.g.dart';
 Stream<IList<CompletedWishWithDetails>> completedWishesRealtime(
   Ref ref,
 ) {
-  final userId = ref.watch(userServiceProvider).getCurrentUserId();
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) {
+    // Signed out: an empty value replaces the previous user's one.
+    return Stream.value(const IListConst([]));
+  }
   final streamRepository = ref.watch(userCompletedWishStreamRepositoryProvider);
 
   return streamRepository.watchCompletedWishesByUser(userId);
