@@ -8,6 +8,7 @@ on:
     paths:
       - 'supabase/migrations/**'
       - 'supabase/config.toml'
+      - 'supabase/functions/**'
       - 'supabase-dev/**'
       - 'supabase-prod/**'
       - 'scripts/check_supabase_migrations.sh'
@@ -20,6 +21,7 @@ on:
     paths:
       - 'supabase/migrations/**'
       - 'supabase/config.toml'
+      - 'supabase/functions/**'
       - 'supabase-dev/**'
       - 'supabase-prod/**'
       - 'supabase-tests/**'
@@ -144,9 +146,36 @@ jobs:
           echo "::error::supabase db start failed on Postgres $PROJECTS_POSTGRES_VERSION"
           exit 1
 
+  # Edge Functions: type-check and unit tests with the Deno of the Supabase
+  # Edge Runtime, so a broken function cannot be merged (nor deployed).
+  functions:
+    name: Check Edge Functions
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.1.4
+
+      - name: Type-check functions
+        working-directory: supabase/functions
+        run: |
+          for entry in */index.ts; do
+            echo "deno check $entry"
+            deno check "$entry"
+          done
+
+      - name: Test functions
+        run: deno test --allow-net supabase/functions/
+
   deploy-dev:
     name: Deploy to dev
-    needs: [validate, replay]
+    needs: [validate, replay, functions]
     if: github.event_name == 'push' && vars.SUPABASE_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -157,10 +186,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Push migrations and check drift
+      - name: Push migrations, check drift and deploy functions
         uses: ./.github/actions/supabase-deploy
         with:
           environment: dev
+          deploy-functions: 'true'
           project-ref: qedynftuclpdisocgzuv
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           db-password: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}

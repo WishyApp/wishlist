@@ -179,7 +179,7 @@ git push origin vX.Y.Z
 | Android    | Internal Testing |
 | iOS        | TestFlight       |
 
-Avant les builds, le job `migrate-database` applique les migrations Supabase en prod (cf. ci-dessous).
+Avant les builds, le job `migrate-database` applique les migrations Supabase et déploie les Edge Functions en prod (cf. ci-dessous).
 
 ### 🗄️ Migrations Supabase
 
@@ -188,9 +188,10 @@ Le workflow `supabase.yml` :
 | Déclencheur | Ce qu'il fait |
 | ----------- | ------------- |
 | PR qui touche une migration | Vérifie qu'aucune migration déjà mergée n'est modifiée, renommée ou supprimée, les rejoue sur une base vide en Postgres 17 (la version de dev et de prod), puis rejoue une 2e fois celles ajoutées par la PR et vérifie que les schémas `public` et `storage` ne changent pas (idempotence, ordre de `--include-all`). Il les rejoue aussi avec la CLI sur la version exacte de Postgres de dev et de prod, et échoue si `supabase-dev/` ou `supabase-prod/` contient encore des fichiers. Ces vérifications tournent aussi à chaque push sur `main`, et le déploiement sur dev attend le rejeu en 17.11 |
-| Merge sur `main` | Contrôle de dérive, `db push` sur dev, puis nouveau contrôle de dérive |
+| PR ou push qui touche `supabase/functions/**` | Job `functions` : `deno check` de chaque `index.ts` et `deno test --allow-net supabase/functions/` avec Deno 2.1.4 (celui de l'Edge Runtime). Le déploiement sur dev l'attend |
+| Merge sur `main` | Contrôle de dérive, `db push` sur dev, nouveau contrôle de dérive, puis déploiement des Edge Functions sur dev |
 | Chaque lundi | Contrôle de dérive sur dev et prod, migrations mergées mais pas encore déployées mises de côté |
-| Tag `v*` (workflow CD) | Mêmes étapes sur prod, avant les builds, uniquement si le commit tagué est sur `main` |
+| Tag `v*` (workflow CD) | Mêmes étapes (migrations puis Edge Functions) sur prod, avant les builds, uniquement si le commit tagué est sur `main` |
 
 Les jobs qui touchent aux projets Supabase sont inactifs tant que la variable de repo `SUPABASE_DEPLOY_ENABLED` ne vaut pas `true`. Avant chaque push, le job liste dans ses logs les migrations qu'il va appliquer, puis vérifie que le projet n'a pas dérivé (migrations en attente mises de côté) : un état de départ inconnu fait échouer le job sans rien appliquer.
 
@@ -205,6 +206,13 @@ scripts/check_supabase_migrations.sh origin/main
 ```
 
 Limites du contrôle d'idempotence : il compare les schémas `public` et `storage`, pas les données ni le schéma `auth`. Une migration rejouée qui insère des lignes (un `INSERT` sans `ON CONFLICT`, par exemple) passe ce contrôle : c'est à la relecture de s'en assurer.
+
+### ⚡ Edge Functions Supabase
+
+Les Edge Functions vivent dans `supabase/functions/<nom>/index.ts` et sont déployées par la CI, jamais à la main : dev à chaque merge sur `main` (job `deploy-dev`), prod à chaque tag `v*` (job `migrate-database`, avant les builds). L'action `supabase-deploy` lance `supabase functions deploy --use-api --project-ref <ref>` (toutes les fonctions du dossier, bundle côté serveur, sans Docker) après les migrations et le contrôle de dérive, y compris quand aucune migration n'est en attente. Le contrôle de dérive du lundi ne déploie rien. Le token `SUPABASE_ACCESS_TOKEN` doit donc aussi avoir la permission Edge Functions en read & write (déploiement et mise à jour des fonctions, cf. secrets ci-dessous) ; Edge Function Secrets n'est pas nécessaire.
+
+* `verify_jwt` se règle fonction par fonction dans `supabase/config.toml` (`[functions.<nom>]`), le déploiement ne passe jamais `--no-verify-jwt`. Toute nouvelle fonction y déclare sa section.
+* Une fonction supprimée du dépôt n'est pas supprimée des projets : la retirer à la main avec `supabase functions delete <nom> --project-ref <ref>` (dev et prod).
 
 #### Secrets GitHub requis
 
@@ -224,7 +232,7 @@ Limites du contrôle d'idempotence : il compare les schémas `public` et `storag
 | `APP_STORE_CONNECT_API_PRIVATE_KEY` | Contenu du fichier .p8 |
 | `SUPABASE_URL` | URL Supabase production |
 | `SUPABASE_ANON_KEY` | Clé anonyme Supabase production |
-| `SUPABASE_ACCESS_TOKEN` | Token Supabase limité aux projets dev et prod (Project Settings : read ; Database, Migrations : read & write ; Connection Pooling : read) |
+| `SUPABASE_ACCESS_TOKEN` | Token Supabase limité aux projets dev et prod (Project Settings : read ; Database, Migrations, Edge Functions : read & write ; Connection Pooling : read) |
 | `SUPABASE_DB_PASSWORD_DEV` | Optionnel : mot de passe de la base dev, si la CLI ne peut pas utiliser son rôle de connexion temporaire |
 | `SUPABASE_DB_PASSWORD_PROD` | Optionnel : idem pour la prod |
 
