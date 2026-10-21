@@ -29,12 +29,18 @@ class ConsultWishInfoContainer extends ConsumerWidget {
     required this.descriptionText,
     this.isMyWishlist = false,
     this.showActions = true,
+    this.areReceiptsKnown = true,
   });
 
   final Wish wish;
   final String descriptionText;
   final bool isMyWishlist;
   final bool showActions;
+
+  /// False tant que les réceptions du propriétaire ne sont pas connues : la
+  /// quantité reçue vaudrait 0 à tort, donc les actions qui en dépendent
+  /// (offrir, modifier ma réservation, marquer comme reçu) sont masquées.
+  final bool areReceiptsKnown;
 
   Future<void> _onOpenLinkTap(BuildContext context, Uri linkUri) async {
     var isLaunched = false;
@@ -200,6 +206,8 @@ class ConsultWishInfoContainer extends ConsumerWidget {
         .firstOrNull;
     final completedQuantity = completedEntry?.quantity ?? 0;
     final isFullyCompleted = completedQuantity >= wish.quantity;
+    final canMarkAsCompleted =
+        isMyWishlist && areReceiptsKnown && !isFullyCompleted;
 
     final hasQuantity = wish.quantity > 1;
     // Quantité déjà reçue par le propriétaire : elle consomme d'abord les
@@ -224,8 +232,10 @@ class ConsultWishInfoContainer extends ConsumerWidget {
         wish.bookableQuantity(receivedQuantity: receivedQuantity) > 0;
 
     // Logique d'affichage des boutons basée sur la réservation de l'utilisateur
-    final shouldShowGiveItButton = !isWishTakenByMe && hasAvailableQuantity;
-    final shouldShowModifyButton = isWishTakenByMe && hasQuantity;
+    final shouldShowGiveItButton =
+        areReceiptsKnown && !isWishTakenByMe && hasAvailableQuantity;
+    final shouldShowModifyButton =
+        areReceiptsKnown && isWishTakenByMe && hasQuantity;
     final shouldShowCancelButton = isWishTakenByMe;
 
     final price = wish.price;
@@ -372,7 +382,7 @@ class ConsultWishInfoContainer extends ConsumerWidget {
                         text: l10n.cancelBooking,
                         isStretched: true,
                       ),
-                    if (isMyWishlist && !isFullyCompleted)
+                    if (canMarkAsCompleted)
                       SecondaryButton(
                         style: BaseButtonStyle.medium,
                         onPressed: () => _onMarkAsCompletedTap(

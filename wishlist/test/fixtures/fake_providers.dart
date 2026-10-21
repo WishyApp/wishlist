@@ -279,12 +279,25 @@ List<Override> wishScreenOverrides({
   Wish? wish,
   Wishlist? wishlist,
   String? currentUserId,
+  List<CompletedWishWithDetails>? completedWishes,
+  Stream<IList<CompletedWishWithDetails>> Function()? receipts,
 }) {
+  Stream<IList<CompletedWishWithDetails>> receiptsStream() =>
+      receipts?.call() ?? Stream.value((completedWishes ?? const []).toIList());
+
   return [
     supabaseClientOverride(userId: currentUserId),
     userServiceOverride(userId: currentUserId),
     watchWishByIdOverride(wishId, wish: wish),
     watchWishlistByIdOverride(wishlistId, wishlist: wishlist),
+    completedWishesRealtimeProvider.overrideWith(
+      (ref) => receiptsStream(),
+    ),
+    completedWishesByUserRealtimeProvider(
+      wishlist?.idOwner ?? fakeWishlist1.idOwner,
+    ).overrideWith(
+      (ref) => receiptsStream(),
+    ),
   ];
 }
 
