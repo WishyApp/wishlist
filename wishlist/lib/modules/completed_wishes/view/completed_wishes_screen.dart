@@ -11,10 +11,10 @@ import 'package:wishlist/shared/models/completed_wish_sort_type.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish_sort_type.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
+import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/pill.dart';
-import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/utils/string_utils.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
@@ -101,14 +101,11 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
       padding: EdgeInsets.zero,
       child: completedWishesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) {
-              showGenericError(context, error: error);
-            }
-          });
-          return const SizedBox.shrink();
-        },
+        error: (error, _) => PageLayoutError(
+          error: error,
+          onRetry: () => ref.invalidate(completedWishesRealtimeProvider),
+          isRetrying: completedWishesAsync.isLoading,
+        ),
         data: (completedWishes) {
           if (completedWishes.isEmpty) {
             return Center(

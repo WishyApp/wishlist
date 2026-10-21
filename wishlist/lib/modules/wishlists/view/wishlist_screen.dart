@@ -15,9 +15,11 @@ import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
+import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
+import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/utils/get_wishlist_theme.dart';
@@ -211,6 +213,20 @@ class WishlistScreen extends ConsumerWidget {
     }
   }
 
+  /// Re-opens the streams the screen data is built from: invalidating
+  /// [wishlistScreenDataRealtimeProvider] alone would keep their errors.
+  void _retryLoading(WidgetRef ref) {
+    final ownerId =
+        ref.read(watchWishlistByIdProvider(wishlistId)).valueOrNull?.idOwner;
+
+    ref
+      ..invalidate(watchWishlistByIdProvider(wishlistId))
+      ..invalidate(watchWishsFromWishlistProvider(wishlistId));
+    if (ownerId != null) {
+      ref.invalidate(completedWishesByUserRealtimeProvider(ownerId));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(watchWishlistByIdProvider(wishlistId), (_, next) {
@@ -238,6 +254,12 @@ class WishlistScreen extends ConsumerWidget {
     );
     final wishlistScreenData =
         ref.watch(wishlistScreenDataRealtimeProvider(wishlistId));
+    // The screen data rebuilds a fresh AsyncError while the wishlist reloads,
+    // so a retry is only visible on the wishlist stream itself
+    final isWishlistReloading = ref.watch(
+      watchWishlistByIdProvider(wishlistId)
+          .select((wishlist) => wishlist.isLoading),
+    );
 
     if (isWishlistDeleted) {
       return Scaffold(
@@ -331,7 +353,11 @@ class WishlistScreen extends ConsumerWidget {
       ),
       error: (error, stackTrace) => Scaffold(
         appBar: AppBar(backgroundColor: AppColors.background),
-        body: const SizedBox.shrink(),
+        body: PageLayoutError(
+          error: error,
+          onRetry: () => _retryLoading(ref),
+          isRetrying: wishlistScreenData.isLoading || isWishlistReloading,
+        ),
       ),
     );
   }

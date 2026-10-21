@@ -8,8 +8,8 @@ import 'package:wishlist/modules/friends/view/widgets/user_pill.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/page_layout_empty/page_layout_empty.dart';
+import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/widgets/app_scaffold.dart';
-import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/utils/app_user_utils.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
@@ -54,14 +54,6 @@ class FriendsScreen extends ConsumerWidget {
     return combinedList;
   }
 
-  void _onError(BuildContext context, Object error) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (context.mounted) {
-        showGenericError(context, error: error, isTopSnackBar: true);
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -78,10 +70,12 @@ class FriendsScreen extends ConsumerWidget {
       loading: () => const Center(
         child: CircularProgressIndicator(),
       ),
-      error: (error, stackTrace) {
-        _onError(context, error);
-        return const SizedBox.shrink();
-      },
+      error: (error, stackTrace) => PageLayoutError(
+        error: error,
+        onRetry: () => ref.invalidate(friendshipsRealtimeProvider),
+        isRetrying: friendsData.isLoading,
+        appBarTitle: l10n.fiendsScreenTitle,
+      ),
       data: (data) => data.isEmpty
           ? PageLayoutEmpty(
               illustrationUrl: Assets.svg.noFriend,

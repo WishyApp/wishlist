@@ -14,9 +14,9 @@ import 'package:wishlist/shared/models/booked_wish_sort_type.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/page_layout_empty/page_layout_empty.dart';
+import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/widgets/app_scaffold.dart';
-import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/utils/booked_wish_sort_utils.dart';
 import 'package:wishlist/shared/utils/string_utils.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
@@ -98,10 +98,12 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
 
     return bookedWishesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) {
-        showGenericError(context, error: error, isTopSnackBar: true);
-        return const SizedBox.shrink();
-      },
+      error: (error, stackTrace) => PageLayoutError(
+        error: error,
+        onRetry: () => ref.invalidate(bookedWishesRealtimeProvider),
+        isRetrying: bookedWishesAsync.isLoading,
+        appBarTitle: l10n.bookedWishesScreenTitle,
+      ),
       data: (bookedWishes) {
         if (bookedWishes.isEmpty) {
           return _buildEmptyState(l10n);
