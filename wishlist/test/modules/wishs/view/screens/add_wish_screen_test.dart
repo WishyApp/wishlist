@@ -31,6 +31,20 @@ void main() {
     await tester.expectGolden<AddWishScreen>(variant);
   });
 
+  testWidgets('$AddWishScreen shows a back button while it loads',
+      (tester) async {
+    await tester.pumpPushedScreen(
+      const AddWishScreen(),
+      overrides: [
+        wishlistsRealtimeProvider.overrideWith((ref) => const Stream.empty()),
+      ],
+      settle: false,
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+  });
+
   testWidgets('$AddWishScreen explains a load error and retries',
       (tester) async {
     final l10n = AppLocalizationsFr();

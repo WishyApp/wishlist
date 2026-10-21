@@ -102,6 +102,18 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
     ).go(context);
   }
 
+  /// AppBar with a back button, shared by every state of the screen so the
+  /// user can always leave it, including while the wishlists are loading.
+  AppBar _buildBackAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.background,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.pop(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -129,13 +141,7 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
         if (wishlists.isEmpty) {
           return Scaffold(
             backgroundColor: AppColors.background,
-            appBar: AppBar(
-              backgroundColor: AppColors.background,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.pop(),
-              ),
-            ),
+            appBar: _buildBackAppBar(),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -149,9 +155,10 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
           );
         }
         if (wishlists.length == 1) {
-          return const Scaffold(
+          return Scaffold(
             backgroundColor: AppColors.background,
-            body: Center(child: CircularProgressIndicator()),
+            appBar: _buildBackAppBar(),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
         return _WishlistSelectionContent(
@@ -159,19 +166,14 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
           onSelectWishlist: _goToCreateWish,
         );
       },
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
+        appBar: _buildBackAppBar(),
+        body: const Center(child: CircularProgressIndicator()),
       ),
       error: (error, _) => Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
-          ),
-        ),
+        appBar: _buildBackAppBar(),
         body: PageLayoutError(
           error: error,
           onRetry: () async {
