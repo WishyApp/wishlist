@@ -1,0 +1,7 @@
+# Impeccable 4.7.0 (skill + agents), installed locally, not versioned:
+# see the "Site" section of README.md
+.claude/
+.impeccable/config.local.json
+.impeccable/tmp/
+.impeccable/review/
+.impeccable/mocks/
