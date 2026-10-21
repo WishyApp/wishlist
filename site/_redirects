@@ -1,0 +1,3 @@
+# Cloudflare Pages : les liens partagés affichent la page de secours,
+# tous les autres chemins inconnus retombent sur l'accueil (index.html).
+/w/*  /share  200

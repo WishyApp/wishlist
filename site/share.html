@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wishy</title>
+    <meta
+      name="description"
+      content="Wishy : crée tes listes d'envies et partage-les avec tes proches."
+    />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#F7F6F0" />
+
+    <!-- Aperçu du lien dans les messageries -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Wishy" />
+    <!-- Lu sans JavaScript : textes valables pour / comme pour /w/<id> -->
+    <meta property="og:title" content="Wishy · Listes d'envies" />
+    <meta
+      property="og:description"
+      content="Crée, partage et découvre des listes d'envies avec tes proches."
+    />
+    <meta property="og:image" content="https://wishy-app.fr/icon-512.png" />
+
+    <!-- Servie pour /w/<id> (cf. _redirects) : chemins absolus uniquement -->
+    <link rel="icon" type="image/png" href="/icon-180.png" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/stores.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body class="share">
+    <header class="share-top">
+      <a class="brand" href="/">
+        <img src="/icon-180.png" alt="" width="32" height="32" />
+        <span>Wishy</span>
+      </a>
+    </header>
+
+    <main class="share-card">
+      <h1 id="title">Wishy</h1>
+      <p id="subtitle" hidden>Crée tes listes d'envies et partage-les avec tes proches.</p>
+
+      <a id="open-app" class="button button-primary" hidden>Ouvrir dans Wishy</a>
+
+      <!-- iOS : sans l'app, wishy:// n'a pas de repli (Safari affiche une
+           erreur), d'où l'App Store en premier et l'ouverture de l'app en lien
+           secondaire. -->
+      <a id="get-app" class="button button-primary" hidden>App Store</a>
+      <p id="already-installed" class="hint" hidden>
+        <span id="already-installed-label">Déjà installée ?</span>
+        <a id="open-app-link">Ouvrir dans Wishy</a>
+      </p>
+
+      <!-- Liens renseignés par app.js depuis stores.js -->
+      <section class="stores" hidden>
+        <a id="app-store" class="button button-secondary" hidden>App Store</a>
+        <a id="play-store" class="button button-secondary" hidden>Google Play</a>
+      </section>
+      <a id="stores-soon" class="button button-secondary share-soon" href="/" hidden>
+        <span id="soon-label">Découvrir Wishy</span>
+        <small id="soon-note">L'app arrive bientôt sur les stores</small>
+      </a>
+    </main>
+
+    <!-- Décor : écrans de démonstration de l'app (aucune donnée de la liste
+         partagée) et illustrations à l'encre, sur ordinateur seulement. -->
+    <div class="share-deco" aria-hidden="true">
+      <span class="phone share-phone share-phone-left"><img id="share-img-wish" src="/img/app-friendwish.webp" alt="" width="600" height="1304" /></span>
+      <span class="phone share-phone share-phone-right"><img id="share-img-booked" src="/img/app-booked.webp" alt="" width="600" height="1304" /></span>
+      <img class="share-ink share-ink-1" src="/img/no_wish_flashlight.svg" alt="" width="160" height="160" />
+      <img class="share-ink share-ink-2" src="/img/no_wish_bag.svg" alt="" width="160" height="160" />
+      <img class="share-ink share-ink-3" src="/img/no_booked_wish.svg" alt="" width="160" height="160" />
+    </div>
+  </body>
+</html>

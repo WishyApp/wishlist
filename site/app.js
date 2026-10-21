@@ -10,38 +10,34 @@ const APP_SCHEME = "wishy";
 const APP_HOST = "com.raphtang.wishy";
 const ANDROID_PACKAGE = "com.raphtang.wishy";
 
-const PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details?id=" + ANDROID_PACKAGE;
-// Identifiant Apple de l'app (App Store Connect → Informations sur l'app).
-// Le bouton App Store est masqué si la valeur est null.
-const APP_STORE_URL = "https://apps.apple.com/app/id6755930972";
+// Liens des boutons, réglés dans stores.js : un bouton reste masqué tant que
+// son lien est vide.
+const STORES = window.WISHY_STORES || {};
+const APP_STORE_URL = STORES.appStore || null;
+const PLAY_STORE_URL = STORES.playStore || null;
 
 const TEXTS = {
   fr: {
     homeTitle: "Wishy",
     homeSubtitle: "Crée tes listes d'envies et partage-les avec tes proches.",
     wishlistTitle: "Une wishlist t'attend",
-    wishlistSubtitle:
-      "Ouvre-la dans l'app Wishy pour découvrir les envies et réserver un cadeau.",
     openApp: "Ouvrir dans Wishy",
     getAppIos: "Télécharger sur l'App Store",
     alreadyInstalled: "Déjà installée ?",
-    storesTitle: "Pas encore l'app ?",
-    storesTitleHome: "Télécharger l'app",
-    desktopHint: "Ouvre ce lien depuis ton téléphone pour voir la wishlist.",
+    desktopHint: "Ouvre ce lien sur ton téléphone.",
+    discover: "Découvrir Wishy",
+    storesSoon: "L'app arrive bientôt sur les stores",
   },
   en: {
     homeTitle: "Wishy",
     homeSubtitle: "Create your wishlists and share them with your loved ones.",
     wishlistTitle: "A wishlist is waiting for you",
-    wishlistSubtitle:
-      "Open it in the Wishy app to discover the wishes and book a gift.",
     openApp: "Open in Wishy",
     getAppIos: "Download on the App Store",
     alreadyInstalled: "Already installed?",
-    storesTitle: "Don't have the app yet?",
-    storesTitleHome: "Download the app",
-    desktopHint: "Open this link on your phone to see the wishlist.",
+    desktopHint: "Open this link on your phone.",
+    discover: "Discover Wishy",
+    storesSoon: "The app is coming soon to the stores",
   },
 };
 
@@ -83,7 +79,8 @@ function appLink(wishlistId, platform) {
       ";package=" +
       ANDROID_PACKAGE +
       ";S.browser_fallback_url=" +
-      encodeURIComponent(PLAY_STORE_URL) +
+      // Sans l'app : le Play Store une fois publié, l'accueil avant.
+      encodeURIComponent(PLAY_STORE_URL || window.location.origin + "/") +
       ";end"
     );
   }
@@ -100,6 +97,10 @@ function render() {
   const wishlistId = sharedWishlistId();
 
   document.documentElement.lang = texts === TEXTS.fr ? "fr" : "en";
+  if (texts === TEXTS.en) {
+    document.getElementById("share-img-wish").src = "/img/app-friendwish-en.webp";
+    document.getElementById("share-img-booked").src = "/img/app-booked-en.webp";
+  }
 
   const title = document.getElementById("title");
   const subtitle = document.getElementById("subtitle");
@@ -111,37 +112,41 @@ function render() {
   );
   const openAppLink = document.getElementById("open-app-link");
   const stores = document.querySelector(".stores");
-  const storesTitle = document.getElementById("stores-title");
   const appStore = document.getElementById("app-store");
   const playStore = document.getElementById("play-store");
-  const desktopHint = document.getElementById("desktop-hint");
+  const storesSoon = document.getElementById("stores-soon");
 
+  // Les boutons des stores apparaissent dès que leur lien est renseigné
+  // (stores.js) ; avant, un bouton renvoie vers l'accueil.
   const showAppStore = APP_STORE_URL !== null && platform !== "android";
-  const showPlayStore = platform !== "ios";
+  const showPlayStore = PLAY_STORE_URL !== null && platform !== "ios";
 
   if (APP_STORE_URL !== null) {
     appStore.href = APP_STORE_URL;
   }
-  playStore.href = PLAY_STORE_URL;
+  if (PLAY_STORE_URL !== null) {
+    playStore.href = PLAY_STORE_URL;
+  }
   show(appStore, showAppStore);
   show(playStore, showPlayStore);
   show(stores, showAppStore || showPlayStore);
+  document.getElementById("soon-label").textContent = texts.discover;
+  document.getElementById("soon-note").textContent = texts.storesSoon;
+  show(storesSoon, !showAppStore && !showPlayStore);
 
   if (wishlistId === null) {
     title.textContent = texts.homeTitle;
     subtitle.textContent = texts.homeSubtitle;
-    storesTitle.textContent = texts.storesTitleHome;
+    show(subtitle, true);
     return;
   }
 
   document.title = texts.wishlistTitle + " · Wishy";
   title.textContent = texts.wishlistTitle;
-  subtitle.textContent = texts.wishlistSubtitle;
-  storesTitle.textContent = texts.storesTitle;
 
   if (platform === "desktop") {
-    desktopHint.textContent = texts.desktopHint;
-    show(desktopHint, true);
+    subtitle.textContent = texts.desktopHint;
+    show(subtitle, true);
     return;
   }
 
