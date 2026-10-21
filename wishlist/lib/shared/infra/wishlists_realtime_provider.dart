@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_stream_repository_provider.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
+import 'package:wishlist/shared/utils/first_event_timeout.dart';
 
 final wishlistsRealtimeProvider =
     StreamProvider.autoDispose<List<Wishlist>>((ref) {
@@ -14,5 +15,6 @@ final wishlistsRealtimeProvider =
 
   return repository
       .watchWishlistsByUser(userId)
-      .map((wishlists) => wishlists.toList());
+      .map((wishlists) => wishlists.toList())
+      .timeoutFirstEvent();
 });

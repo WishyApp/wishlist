@@ -4,6 +4,7 @@ import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_stream_repository_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/app_user.dart';
+import 'package:wishlist/shared/utils/first_event_timeout.dart';
 
 final friendshipsRealtimeProvider =
     StreamProvider.autoDispose<FriendsData>((ref) {
@@ -41,7 +42,7 @@ final friendshipsRealtimeProvider =
       pendingFriends: pendingFriends,
       requestedFriends: requestedFriends,
     );
-  });
+  }).timeoutFirstEvent();
 });
 
 Future<IList<AppUser>> _loadUsersFromIds(
