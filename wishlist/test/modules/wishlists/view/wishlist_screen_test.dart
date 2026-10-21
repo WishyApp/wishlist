@@ -28,6 +28,7 @@ import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wish_taken_by_user/wish_taken_by_user.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
+import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/wishlist_illustration_extension.dart';
@@ -691,37 +692,38 @@ void main() {
     expect(container.exists(wishlistScreenNotifierProvider(2)), isFalse);
   });
 
-  testWidgets('writes the wishlist theme cache only when the theme changes',
+  testWidgets('caches the wishlist theme once, outside of build',
       (tester) async {
-    final container = ProviderContainer(
-      overrides: [
-        supabaseClientProvider.overrideWithValue(createMockSupabaseClient()),
-      ],
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 2).location,
+      overrides: wishlistScreenOverrides(
+        wishlistId: 2,
+        wishlist: fakeWishlist2,
+        wishes: fakeWishes,
+      ),
     );
-    addTearDown(container.dispose);
-    final sub = container.listen(wishlistScreenNotifierProvider(2), (_, __) {});
-    addTearDown(sub.close);
-    final notifier = container.read(wishlistScreenNotifierProvider(2).notifier);
-
-    // StateController notifie à chaque écriture d'une autre instance
+    final container =
+        ProviderScope.containerOf(tester.element(find.byType(WishlistScreen)));
     var writes = 0;
     container.listen(wishlistThemeCacheProvider(2), (_, __) => writes++);
 
-    notifier.cacheWishlistTheme(2, ThemeData.light());
-    tester.binding.scheduleFrame();
-    await tester.pump();
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    // Available to the screens that read it (wish cards, consult wish)
+    final cached = container.read(wishlistThemeCacheProvider(2));
+    expect(cached, isNotNull);
+    expect(
+      cached!.primaryColor,
+      AppColors.getColorFromHexValue(fakeWishlist2.color),
+    );
     expect(writes, 1);
 
-    // Un thème égal par valeur (mais autre instance) n'est pas réécrit
-    notifier.cacheWishlistTheme(2, ThemeData.light());
-    tester.binding.scheduleFrame();
-    await tester.pump();
+    // Rebuilding the screen does not write the cache again
+    container
+        .read(wishlistScreenNotifierProvider(2).notifier)
+        .enableSelectionMode(fakeWishes.first.id);
+    await tester.pumpAndSettle(const Duration(seconds: 1));
     expect(writes, 1);
-
-    notifier.cacheWishlistTheme(2, ThemeData.dark());
-    tester.binding.scheduleFrame();
-    await tester.pump();
-    expect(writes, 2);
   });
 
   group('when loading fails', () {
