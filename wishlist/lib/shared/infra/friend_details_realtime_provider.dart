@@ -10,6 +10,7 @@ import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/infra/wish_service.dart';
 import 'package:wishlist/shared/infra/wishlist_service.dart';
 import 'package:wishlist/shared/models/friend_details/friend_details.dart';
+import 'package:wishlist/shared/utils/first_event_timeout.dart';
 
 final friendDetailsRealtimeProvider =
     StreamProvider.family.autoDispose<FriendDetails, String>((ref, userId) {
@@ -57,5 +58,5 @@ final friendDetailsRealtimeProvider =
         rethrow;
       }
     },
-  ).asyncMap((future) => future);
+  ).asyncMap((future) => future).timeoutFirstEvent();
 });

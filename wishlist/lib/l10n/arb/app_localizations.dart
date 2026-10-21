@@ -908,6 +908,12 @@ abstract class AppLocalizations {
   /// **'Cette wishlist a été supprimée'**
   String get wishlistDeleted;
 
+  /// No description provided for @wishUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce wish n\'est plus disponible'**
+  String get wishUnavailable;
+
   /// No description provided for @wishlistColor.
   ///
   /// In fr, this message translates to:

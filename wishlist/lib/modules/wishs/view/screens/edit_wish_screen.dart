@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wishlist/modules/wishs/view/widgets/wish_load_error.dart';
 import 'package:wishlist/modules/wishs/view/wish_form_screen.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
+import 'package:wishlist/shared/infra/utils/not_found_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 
 class EditWishScreen extends ConsumerWidget {
@@ -17,17 +19,25 @@ class EditWishScreen extends ConsumerWidget {
     final wishAsync = ref.watch(watchWishByIdProvider(wishId));
 
     return wishAsync.when(
+      // A failed refetch must not unmount the form and lose the user's edits,
+      // unless the wish is gone
+      skipError: wishAsync.hasValue && !isNotFoundError(wishAsync.error),
       data: (wish) => WishFormScreen(
         wishlistId: wish.wishlistId,
         wish: wish,
       ),
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
+        appBar: AppBar(backgroundColor: AppColors.background),
+        body: const Center(child: CircularProgressIndicator()),
       ),
-      error: (error, stackTrace) => const Scaffold(
-        backgroundColor: AppColors.background,
-        body: SizedBox.shrink(),
+      error: (error, stackTrace) => WishLoadError(
+        error: error,
+        onRetry: () async {
+          ref.invalidate(watchWishByIdProvider(wishId));
+          await ref.read(watchWishByIdProvider(wishId).future);
+        },
+        isRetrying: wishAsync.isLoading,
       ),
     );
   }

@@ -7,6 +7,7 @@ import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
+import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/widgets/wishlist_list_tile.dart';
@@ -162,7 +163,7 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
         backgroundColor: AppColors.background,
         body: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => Scaffold(
+      error: (error, _) => Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
           backgroundColor: AppColors.background,
@@ -171,12 +172,13 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
             onPressed: () => context.pop(),
           ),
         ),
-        body: Center(
-          child: Text(
-            l10n.errorLoadingWishlists,
-            style: AppTextStyles.small.copyWith(color: AppColors.makara),
-            textAlign: TextAlign.center,
-          ),
+        body: PageLayoutError(
+          error: error,
+          onRetry: () async {
+            ref.invalidate(wishlistsRealtimeProvider);
+            await ref.read(wishlistsRealtimeProvider.future);
+          },
+          isRetrying: wishlistsAsync.isLoading,
         ),
       ),
     );

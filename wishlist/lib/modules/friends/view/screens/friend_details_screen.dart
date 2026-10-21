@@ -10,6 +10,7 @@ import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/friend_details/friend_details.dart';
+import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/app_refresh_indicator.dart';
@@ -32,7 +33,13 @@ class FriendDetailsScreen extends ConsumerWidget {
       await ref.read(friendDetailsRealtimeProvider(friendId).future);
     }
 
+    final loadedDetails = friendDetails.valueOrNull;
+
+    // The back button stays available whatever the state of the data
     return Scaffold(
+      appBar: loadedDetails == null
+          ? const _PlaceholderAppBar()
+          : FriendDetailsAppBar(friend: loadedDetails.appUser),
       body: SafeArea(
         child: friendDetails.when(
           data: (friendDetails) => _FriendDetailsScreen(
@@ -40,7 +47,11 @@ class FriendDetailsScreen extends ConsumerWidget {
             onRefresh: refreshFriendDetails,
           ),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => const SizedBox.shrink(),
+          error: (error, stack) => PageLayoutError(
+            error: error,
+            onRetry: refreshFriendDetails,
+            isRetrying: friendDetails.isLoading,
+          ),
         ),
       ),
     );
@@ -57,47 +68,42 @@ class _FriendDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: FriendDetailsAppBar(
-        friend: friendDetails.appUser,
-      ),
-      body: AppRefreshIndicator(
-        onRefresh: onRefresh,
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(30, 16, 30, 16),
-              sliver: SliverMainAxisGroup(
-                slivers: [
-                  SliverList(
-                    delegate: SliverChildListDelegate([
-                      // Stats
-                      _FriendStatsSection(friendDetails: friendDetails),
-                      const Gap(24),
+    return AppRefreshIndicator(
+      onRefresh: onRefresh,
+      child: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(30, 16, 30, 16),
+            sliver: SliverMainAxisGroup(
+              slivers: [
+                SliverList(
+                  delegate: SliverChildListDelegate([
+                    // Stats
+                    _FriendStatsSection(friendDetails: friendDetails),
+                    const Gap(24),
 
-                      // Mutual friends
-                      _MutualFriendsTitleAndSection(
-                        friendDetails: friendDetails,
-                      ),
-                      const Gap(24),
+                    // Mutual friends
+                    _MutualFriendsTitleAndSection(
+                      friendDetails: friendDetails,
+                    ),
+                    const Gap(24),
 
-                      // Completed wishes
-                      _FriendCompletedWishesSection(
-                        friendId: friendDetails.appUser.user.id,
-                      ),
-                      const Gap(24),
+                    // Completed wishes
+                    _FriendCompletedWishesSection(
+                      friendId: friendDetails.appUser.user.id,
+                    ),
+                    const Gap(24),
 
-                      // Wishlists
-                      const _WishlistsTitle(),
-                      const Gap(12),
-                    ]),
-                  ),
-                  _WishlistsSection(friendDetails: friendDetails),
-                ],
-              ),
+                    // Wishlists
+                    const _WishlistsTitle(),
+                    const Gap(12),
+                  ]),
+                ),
+                _WishlistsSection(friendDetails: friendDetails),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -384,4 +390,26 @@ class _FriendCompletedWishTile extends StatelessWidget {
       ],
     );
   }
+}
+
+/// App bar shown while the friend is not loaded: only the back button, at the
+/// same place as in [FriendDetailsAppBar] so that it does not jump.
+class _PlaceholderAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _PlaceholderAppBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: AppBar(
+        scrolledUnderElevation: 0,
+        backgroundColor: AppColors.background,
+        iconTheme: const IconThemeData(color: AppColors.darkGrey),
+      ),
+    );
+  }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }

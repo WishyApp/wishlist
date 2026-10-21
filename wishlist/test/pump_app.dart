@@ -66,6 +66,37 @@ extension EnhancedWidgetTester on WidgetTester {
     return pumpWidget(app);
   }
 
+  /// Pumps [screen] pushed on top of another route, like in the app: it gets a
+  /// back button, unlike a screen pumped as the home route.
+  ///
+  /// Ends with `pumpAndSettle`, which never returns while a spinner is shown:
+  /// pass `settle: false` to only pump the route transition for such screens.
+  Future<void> pumpPushedScreen(
+    Widget screen, {
+    List<Override>? overrides,
+    bool settle = true,
+  }) async {
+    await pumpApp(
+      Builder(
+        builder: (context) => TextButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => screen),
+          ),
+          child: const Text('open'),
+        ),
+      ),
+      overrides: overrides,
+    );
+    await tap(find.text('open'));
+    if (settle) {
+      await pumpAndSettle();
+    } else {
+      // Route transition: the first frame only starts its animation
+      await pump();
+      await pump(const Duration(seconds: 1));
+    }
+  }
+
   Future<void> pumpRouterApp(
     String path, {
     WindowConfigData? windowConfig,

@@ -5,6 +5,7 @@ import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_wish_back_button.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_wish_image.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_wish_info_container.dart';
+import 'package:wishlist/modules/wishs/view/widgets/wish_load_error.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
@@ -66,48 +67,78 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
       itemBuilder: (context, index) {
         final wishId = wishIds[index];
         final wish = ref.watch(watchWishByIdProvider(wishId));
-        return _buildSingleWish(wish, l10n);
+        return _buildSingleWish(wishId, wish, l10n);
       },
     );
   }
 
+  /// Only re-opens the providers that failed: the healthy ones keep their data.
+  Future<void> _retryLoading(int wishId, int? wishlistId) async {
+    final failed = _sourceProviders(wishId, wishlistId)
+        .where((provider) => ref.read(provider).hasError)
+        .toList();
+
+    failed.forEach(ref.invalidate);
+    await Future.wait(failed.map((provider) => ref.read(provider.future)));
+  }
+
+  /// A failed provider reloads as a loading state that still holds its error.
+  bool _isRetrying(int wishId, int? wishlistId) {
+    return _sourceProviders(wishId, wishlistId).any(
+      (provider) => ref.watch(
+        provider.select((source) => source.hasError && source.isLoading),
+      ),
+    );
+  }
+
+  List<AutoDisposeStreamProvider<Object?>> _sourceProviders(
+    int wishId,
+    int? wishlistId,
+  ) {
+    return [
+      watchWishByIdProvider(wishId),
+      if (wishlistId != null) watchWishlistByIdProvider(wishlistId),
+    ];
+  }
+
   Widget _buildSingleWish(
+    int wishId,
     AsyncValue<Wish> wish,
     AppLocalizations l10n,
   ) {
-    return Scaffold(
-      backgroundColor: AppColors.gainsboro,
-      body: wish.when(
-        data: (wishData) {
-          // Le droit d'édition vient du propriétaire de la wishlist, jamais
-          // de l'URL (deep link).
-          final wishlistAsync =
-              ref.watch(watchWishlistByIdProvider(wishData.wishlistId));
-          final ownerId = wishlistAsync.valueOrNull?.idOwner;
-          final currentUserId = ref.watch(currentUserIdProvider);
-          final isMyWishlist = ownerId != null && ownerId == currentUserId;
-          final quantityToDisplay = _quantityToDisplay(
-            wishData,
-            ownerId: ownerId,
-            isMyWishlist: isMyWishlist,
-          );
-          // Tant que le propriétaire n'est pas connu, on masque les actions
-          // pour ne pas afficher brièvement celles d'un invité au propriétaire.
-          // hasValue (et non hasError) : si le premier chargement échoue,
-          // le propriétaire reste inconnu et on ne montre pas les actions
-          // d'un invité. Après un premier succès, Riverpod conserve la
-          // valeur précédente lors d'une erreur de rechargement.
-          final isOwnershipKnown = wishlistAsync.hasValue;
-          final wishlistThemeAsync =
-              ref.watch(wishlistThemeProvider(wishData.wishlistId));
+    return wish.when(
+      data: (wishData) {
+        // Le droit d'édition vient du propriétaire de la wishlist, jamais
+        // de l'URL (deep link).
+        final wishlistAsync =
+            ref.watch(watchWishlistByIdProvider(wishData.wishlistId));
+        final ownerId = wishlistAsync.valueOrNull?.idOwner;
+        final currentUserId = ref.watch(currentUserIdProvider);
+        final isMyWishlist = ownerId != null && ownerId == currentUserId;
+        final quantityToDisplay = _quantityToDisplay(
+          wishData,
+          ownerId: ownerId,
+          isMyWishlist: isMyWishlist,
+        );
+        // Tant que le propriétaire n'est pas connu, on masque les actions
+        // pour ne pas afficher brièvement celles d'un invité au propriétaire.
+        // hasValue (et non hasError) : si le premier chargement échoue,
+        // le propriétaire reste inconnu et on ne montre pas les actions
+        // d'un invité. Après un premier succès, Riverpod conserve la
+        // valeur précédente lors d'une erreur de rechargement.
+        final isOwnershipKnown = wishlistAsync.hasValue;
+        final wishlistThemeAsync =
+            ref.watch(wishlistThemeProvider(wishData.wishlistId));
 
-          return wishlistThemeAsync.when(
-            data: (wishlistTheme) {
-              final descriptionText = wishData.description.isNotEmpty
-                  ? wishData.description
-                  : l10n.noDescription;
+        return wishlistThemeAsync.when(
+          data: (wishlistTheme) {
+            final descriptionText = wishData.description.isNotEmpty
+                ? wishData.description
+                : l10n.noDescription;
 
-              return AnimatedTheme(
+            return Scaffold(
+              backgroundColor: AppColors.gainsboro,
+              body: AnimatedTheme(
                 data: wishlistTheme,
                 child: SafeArea(
                   bottom: false,
@@ -137,15 +168,31 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
                     ],
                   ),
                 ),
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => const SizedBox.shrink(),
-          );
-        },
-        error: (error, stackTrace) => const SizedBox.shrink(),
-        loading: () => const Center(child: CircularProgressIndicator()),
+              ),
+            );
+          },
+          loading: _loadingScaffold,
+          error: (error, _) => WishLoadError(
+            error: error,
+            onRetry: () => _retryLoading(wishId, wishData.wishlistId),
+            isRetrying: _isRetrying(wishId, wishData.wishlistId),
+          ),
+        );
+      },
+      error: (error, stackTrace) => WishLoadError(
+        error: error,
+        onRetry: () => _retryLoading(wishId, null),
+        isRetrying: _isRetrying(wishId, null),
       ),
+      loading: _loadingScaffold,
+    );
+  }
+
+  Widget _loadingScaffold() {
+    return Scaffold(
+      backgroundColor: AppColors.gainsboro,
+      appBar: AppBar(backgroundColor: AppColors.gainsboro),
+      body: const Center(child: CircularProgressIndicator()),
     );
   }
 
