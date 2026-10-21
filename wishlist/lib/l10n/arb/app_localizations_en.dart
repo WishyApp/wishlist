@@ -72,6 +72,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'You can\'t lower the quantity: part of this wish is already booked.';
 
   @override
+  String get networkError =>
+      'No internet connection. Check your network and try again.';
+
+  @override
+  String get networkErrorTitle => 'No internet connection';
+
+  @override
+  String get networkErrorDescription =>
+      'Check your Wi-Fi or mobile data, then try again.';
+
+  @override
+  String get loadingErrorTitle => 'This page couldn\'t be loaded';
+
+  @override
+  String get loadingErrorDescription =>
+      'The problem is probably on our side. Try again in a few moments.';
+
+  @override
+  String get retryButton => 'Try again';
+
+  @override
   String get pseudoField => 'Pseudo';
 
   @override

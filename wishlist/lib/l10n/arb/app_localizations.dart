@@ -218,6 +218,42 @@ abstract class AppLocalizations {
   /// **'Impossible de baisser la quantité : une partie de ce wish est déjà réservée.'**
   String get wishQuantityBelowBooked;
 
+  /// No description provided for @networkError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas de connexion internet. Vérifie ton réseau puis réessaie.'**
+  String get networkError;
+
+  /// No description provided for @networkErrorTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas de connexion internet'**
+  String get networkErrorTitle;
+
+  /// No description provided for @networkErrorDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vérifie ton Wi-Fi ou tes données mobiles, puis réessaie.'**
+  String get networkErrorDescription;
+
+  /// No description provided for @loadingErrorTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de charger cette page'**
+  String get loadingErrorTitle;
+
+  /// No description provided for @loadingErrorDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le problème vient sûrement de chez nous. Réessaie dans quelques instants.'**
+  String get loadingErrorDescription;
+
+  /// No description provided for @retryButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réessayer'**
+  String get retryButton;
+
   /// No description provided for @pseudoField.
   ///
   /// In fr, this message translates to:

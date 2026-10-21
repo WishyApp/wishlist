@@ -1,0 +1,48 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/shared/infra/app_exception.dart';
+import 'package:wishlist/shared/infra/utils/network_error.dart';
+
+void main() {
+  group('isNetworkError', () {
+    test('recognizes the errors of a missing or slow network', () {
+      expect(isNetworkError(const SocketException('Failed host lookup')), true);
+      expect(isNetworkError(TimeoutException('No event received')), true);
+      expect(isNetworkError(http.ClientException('Connection closed')), true);
+      expect(isNetworkError(AuthRetryableFetchException()), true);
+    });
+
+    test('looks through the AppException wrapping the original error', () {
+      final error = AppException(
+        statusCode: 500,
+        message: 'Failed to fetch wishlists',
+        cause: const SocketException('Network is unreachable'),
+      );
+
+      expect(isNetworkError(error), true);
+    });
+
+    test('rejects server and unknown errors', () {
+      expect(
+        isNetworkError(const PostgrestException(message: 'boom', code: '500')),
+        false,
+      );
+      expect(
+        isNetworkError(
+          AppException(
+            statusCode: 500,
+            cause: const PostgrestException(message: 'boom'),
+          ),
+        ),
+        false,
+      );
+      expect(isNetworkError(AppException(statusCode: 500)), false);
+      expect(isNetworkError(Exception('boom')), false);
+      expect(isNetworkError(null), false);
+    });
+  });
+}

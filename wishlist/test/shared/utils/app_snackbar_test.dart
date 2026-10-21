@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
@@ -73,5 +75,37 @@ void main() {
         findsOneWidget,
       );
     });
+  });
+
+  testWidgets(
+      'showGenericError asks to check the connection on a network '
+      'error', (tester) async {
+    await tester.pumpApp(
+      Builder(
+        builder: (context) {
+          return ElevatedButton(
+            onPressed: () {
+              showGenericError(
+                context,
+                error: AppException(
+                  statusCode: 500,
+                  message: 'Failed to update wish',
+                  cause: const SocketException('Failed host lookup'),
+                ),
+              );
+            },
+            child: const Text('Trigger error'),
+          );
+        },
+      ),
+    );
+
+    final l10n = AppLocalizationsFr();
+
+    await tester.tap(find.text('Trigger error'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text(l10n.networkError), findsOneWidget);
   });
 }
