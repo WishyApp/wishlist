@@ -79,8 +79,8 @@ const EN = {
   finalPromise: "Free · no ads · your data isn't sold",
   madeBy: "made by Raphaël & Tanguy",
   legalLabel: "Legal links",
-  privacy: "Privacy",
-  terms: "Terms of use",
+  privacy: "Privacy (in French)",
+  terms: "Terms of use (in French)",
 };
 
 const EN_IMAGES = {

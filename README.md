@@ -165,6 +165,7 @@ Le dossier `site/` est servi tel quel par Cloudflare Pages, sans étape de build
 | Domaine personnalisé | `wishy-app.fr` |
 
 - `site/index.html` est la page d'accueil de `wishy-app.fr`. `site/_redirects` sert `share.html` pour `/w/<id>` (cible `/share` sans extension, Cloudflare Pages redirigeant `/share.html` vers `/share`) ; `site/` n'a pas de `404.html`, donc les autres chemins inconnus retombent sur l'accueil. Garder des chemins absolus (`/style.css`) dans les pages.
+- `site/confidentialite.html` et `site/conditions.html` (servies en `/confidentialite` et `/conditions`) reprennent la politique de confidentialité et les conditions d'utilisation, jusqu'ici sur Notion. Les modifier ici, puis mettre à jour la date « Dernière mise à jour ». Tant que l'app (`settings_screen.dart`) et les fiches des stores pointent encore vers Notion, garder les deux copies synchronisées.
 - Les liens des stores se règlent dans `site/stores.js`, partagé par les deux pages : tant qu'un lien vaut `null`, l'accueil affiche « bientôt » et la page de secours masque le bouton.
 - Le design du site (contexte produit, contrat de direction, outil [Impeccable](https://github.com/pbakaus/impeccable)) vit dans `site-design/`, hors du dossier publié.
 - `site/.well-known/assetlinks.json` (Android) et `site/.well-known/apple-app-site-association` (iOS) autorisent l'app à ouvrir les liens du domaine. Le type `application/json` est forcé par `site/_headers`.

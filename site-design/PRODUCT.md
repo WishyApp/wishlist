@@ -40,7 +40,7 @@ Le site a un seul objectif : que le visiteur reparte avec l'app installée. Il s
 - **Hébergement** : Cloudflare Pages, dossier `site/` servi tel quel, sans étape de build. CSP stricte (`default-src 'self'`) dans `site/_headers` : aucune ressource externe (polices, scripts, images) n'est chargée.
 - **Page de secours `/w/<id>`** : n'affiche aucune donnée de la liste. Décision explicite des fondateurs pour ne rien faire fuiter. Elle propose « Ouvrir dans Wishy » et les stores. Introduite par la PR #253 (Raphaël).
 - **Langues** : français et anglais.
-- **Pages légales** : politique de confidentialité et conditions d'utilisation hébergées sur des pages Notion publiques. Le site y renvoie, il ne les héberge pas.
+- **Pages légales** : politique de confidentialité (`/confidentialite`) et conditions d'utilisation (`/conditions`) hébergées sur le site, en français uniquement, migrées depuis les pages Notion publiques d'origine. Contact : wishyapp.contact@gmail.com.
 - **Vocabulaire produit** : « wishlist », « wish », « réserver », « Je veux l'offrir », « Réservations ».
 
 ## Brand Commitments
