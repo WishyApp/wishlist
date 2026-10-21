@@ -6,6 +6,7 @@ import 'package:wishlist/shared/infra/keyed_realtime_streams.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_stream_repository.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/utils/first_event_timeout.dart';
 
 class SupabaseUserCompletedWishStreamRepository
     implements UserCompletedWishStreamRepository {
@@ -28,7 +29,15 @@ class SupabaseUserCompletedWishStreamRepository
 
     return _streams.watch<IList<CompletedWishWithDetails>>(
       key,
-      load: () => _repository.getCompletedWishesByUser(userId),
+      // Le délai est sur le chargement partagé, pas sur le stream de chaque
+      // provider : un délai posé en aval n'atteint jamais le subject, qui
+      // resterait sans valeur ni erreur et ne relancerait aucun chargement sur
+      // « Réessayer » tant qu'un autre écran l'écoute. Ici le
+      // TimeoutException entre dans le subject et le retry fonctionne pour
+      // tous les abonnés.
+      load: () => _repository
+          .getCompletedWishesByUser(userId)
+          .timeout(firstEventTimeLimit),
       channelBuilder: (reload) => _client
           .channel('completed_wishes_$userId')
           // Changements sur user_completed_wishs filtrés par user_id

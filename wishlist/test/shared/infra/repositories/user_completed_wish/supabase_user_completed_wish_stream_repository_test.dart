@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/supabase_user_completed_wish_stream_repository.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/utils/first_event_timeout.dart';
 
 import '../../../../fixtures/fake_data.dart';
 import '../../../../fixtures/mock_supabase.dart';
@@ -307,6 +308,44 @@ void main() {
           .called(2);
 
       await secondSub.cancel();
+    });
+
+    testWidgets(
+        'a hanging load times out into the subject and a new subscriber '
+        'triggers a reload', (tester) async {
+      final loads = [Completer<_Wishes>(), Completer<_Wishes>()];
+      stubLoads(loads);
+
+      // The first subscriber (e.g. the completed wishes screen) stays.
+      final firstErrors = <Object>[];
+      repository
+          .watchCompletedWishesByUser('me')
+          .listen((_) {}, onError: firstErrors.add);
+      await tester.pump(firstEventTimeLimit);
+
+      expect(firstErrors, hasLength(1));
+      expect(firstErrors.single, isA<TimeoutException>());
+
+      // A second screen subscribes: the subject holds only the timeout
+      // error, so it retries without replaying it.
+      final values = <_Wishes>[];
+      final errors = <Object>[];
+      repository
+          .watchCompletedWishesByUser('me')
+          .listen(values.add, onError: errors.add);
+      await tester.pump();
+      verify(() => completedWishRepository.getCompletedWishesByUser('me'))
+          .called(2);
+      expect(errors, isEmpty);
+
+      loads[1].complete(IList([_completedWish]));
+      await tester.pump();
+
+      expect(errors, isEmpty);
+      expect(values, [
+        IList([_completedWish]),
+      ]);
+      expect(firstErrors, hasLength(1));
     });
   });
 }
