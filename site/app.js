@@ -12,10 +12,9 @@ const ANDROID_PACKAGE = "com.raphtang.wishy";
 
 const PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=" + ANDROID_PACKAGE;
-// À renseigner avec l'identifiant Apple de l'app (App Store Connect →
-// Informations sur l'app → Identifiant Apple), par ex.
-// "https://apps.apple.com/app/id1234567890". Le bouton reste masqué sinon.
-const APP_STORE_URL = null;
+// Identifiant Apple de l'app (App Store Connect → Informations sur l'app).
+// Le bouton App Store est masqué si la valeur est null.
+const APP_STORE_URL = "https://apps.apple.com/app/id6755930972";
 
 const TEXTS = {
   fr: {
