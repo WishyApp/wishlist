@@ -116,6 +116,7 @@ class AuthService {
         statusCode: statusCodeInt,
         message: e.message,
         userMessageKey: userMessageKeyForAuthException(e),
+        cause: e,
       );
     }
   }
@@ -157,6 +158,7 @@ class AuthService {
       throw AppException(
         statusCode: statusCode != null ? int.parse(statusCode) : 500,
         message: e.message,
+        cause: e,
       );
     }
   }
@@ -172,6 +174,7 @@ class AuthService {
         statusCode: statusCodeInt,
         message: e.message,
         userMessageKey: userMessageKeyForAuthException(e),
+        cause: e,
       );
     }
   }
@@ -190,9 +193,14 @@ class AuthService {
         throw AppException(
           statusCode: statusCode != null ? int.parse(statusCode) : 500,
           message: e.message,
+          cause: e,
         );
       }
-      throw AppException(statusCode: 500, message: 'Failed to delete account');
+      throw AppException(
+        statusCode: 500,
+        message: 'Failed to delete account',
+        cause: e,
+      );
     }
   }
 }

@@ -142,4 +142,54 @@ void main() {
       });
     }
   });
+
+  group('AuthService network errors keep their cause', () {
+    void stubUpdateUser(Object error) {
+      when(() => auth.updateUser(any())).thenThrow(error);
+    }
+
+    test('changePassword, on the updateUser step', () async {
+      when(
+        () => auth.signInWithPassword(
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+        ),
+      ).thenAnswer((_) async => AuthResponse());
+      stubUpdateUser(networkError);
+
+      await expectLater(
+        service.changePassword(oldPassword: 'pwd', newPassword: 'new'),
+        throwsA(
+          isA<AppException>().having((e) => e.cause, 'cause', networkError),
+        ),
+      );
+    });
+
+    test('resetPassword', () async {
+      stubUpdateUser(networkError);
+
+      await expectLater(
+        service.resetPassword(newPassword: 'new'),
+        throwsA(
+          isA<AppException>().having((e) => e.cause, 'cause', networkError),
+        ),
+      );
+    });
+
+    test('sendPasswordResetEmail', () async {
+      when(
+        () => auth.resetPasswordForEmail(
+          any(),
+          redirectTo: any(named: 'redirectTo'),
+        ),
+      ).thenThrow(networkError);
+
+      await expectLater(
+        service.sendPasswordResetEmail(email: 'me@example.com'),
+        throwsA(
+          isA<AppException>().having((e) => e.cause, 'cause', networkError),
+        ),
+      );
+    });
+  });
 }
