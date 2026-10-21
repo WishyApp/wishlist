@@ -19,14 +19,13 @@ import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.d
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
-import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
-import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/utils/get_wishlist_theme.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/dialogs/confirm_dialog.dart';
 import 'package:wishlist/shared/widgets/dialogs/quantity_selection_dialog.dart';
+import 'package:wishlist/shared/widgets/error_page_with_back.dart';
 
 class WishlistScreen extends ConsumerWidget {
   const WishlistScreen({
@@ -260,15 +259,8 @@ class WishlistScreen extends ConsumerWidget {
     final isRetrying = ref.isRetryingAny(_sourceProviders(ref));
 
     if (isWishlistDeleted) {
-      return Scaffold(
-        appBar: AppBar(backgroundColor: AppColors.background),
-        body: Center(
-          child: Text(
-            context.l10n.wishlistDeleted,
-            style: AppTextStyles.medium,
-            textAlign: TextAlign.center,
-          ),
-        ),
+      return ErrorPageWithBack.unavailable(
+        message: context.l10n.wishlistDeleted,
       );
     }
 
@@ -349,13 +341,10 @@ class WishlistScreen extends ConsumerWidget {
         appBar: AppBar(backgroundColor: AppColors.background),
         body: const Center(child: CircularProgressIndicator()),
       ),
-      error: (error, stackTrace) => Scaffold(
-        appBar: AppBar(backgroundColor: AppColors.background),
-        body: PageLayoutError(
-          error: error,
-          onRetry: () => ref.retryFailed(_sourceProviders(ref)),
-          isRetrying: isRetrying,
-        ),
+      error: (error, stackTrace) => ErrorPageWithBack.failure(
+        error: error,
+        onRetry: () => ref.retryFailed(_sourceProviders(ref)),
+        isRetrying: isRetrying,
       ),
     );
   }

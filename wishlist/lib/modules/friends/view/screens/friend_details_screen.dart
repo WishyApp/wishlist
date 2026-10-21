@@ -38,9 +38,7 @@ class FriendDetailsScreen extends ConsumerWidget {
 
     // The back button stays available whatever the state of the data
     return Scaffold(
-      appBar: loadedDetails == null
-          ? const _PlaceholderAppBar()
-          : FriendDetailsAppBar(friend: loadedDetails.appUser),
+      appBar: FriendDetailsAppBar(friend: loadedDetails?.appUser),
       body: SafeArea(
         child: friendDetails.when(
           data: (friendDetails) => _FriendDetailsScreen(
@@ -393,26 +391,4 @@ class _FriendCompletedWishTile extends StatelessWidget {
       ],
     );
   }
-}
-
-/// App bar shown while the friend is not loaded: only the back button, at the
-/// same place as in [FriendDetailsAppBar] so that it does not jump.
-class _PlaceholderAppBar extends StatelessWidget
-    implements PreferredSizeWidget {
-  const _PlaceholderAppBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: AppBar(
-        scrolledUnderElevation: 0,
-        backgroundColor: AppColors.background,
-        iconTheme: const IconThemeData(color: AppColors.darkGrey),
-      ),
-    );
-  }
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }

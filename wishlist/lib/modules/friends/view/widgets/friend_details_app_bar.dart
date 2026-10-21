@@ -15,9 +15,15 @@ class FriendDetailsAppBar extends ConsumerWidget
     implements PreferredSizeWidget {
   const FriendDetailsAppBar({super.key, required this.friend});
 
-  final AppUser friend;
+  /// The friend the menu acts on. While it is not known (loading or failed
+  /// screen), only the back button is shown, at the same place.
+  final AppUser? friend;
 
-  Future<void> _deleteFriend(BuildContext context, WidgetRef ref) async {
+  Future<void> _deleteFriend(
+    BuildContext context,
+    WidgetRef ref,
+    AppUser friend,
+  ) async {
     final l10n = context.l10n;
 
     try {
@@ -43,6 +49,7 @@ class FriendDetailsAppBar extends ConsumerWidget
   Future<void> _onRemoveFriendPressed(
     BuildContext context,
     WidgetRef ref,
+    AppUser friend,
   ) async {
     final l10n = context.l10n;
 
@@ -50,13 +57,14 @@ class FriendDetailsAppBar extends ConsumerWidget
       context,
       title: l10n.friendDetailsRemove,
       explanation: l10n.removeFriendConfirmation,
-      onConfirm: () => _deleteFriend(context, ref),
+      onConfirm: () => _deleteFriend(context, ref, friend),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final friend = this.friend;
 
     const iconsColor = AppColors.darkGrey;
 
@@ -73,36 +81,38 @@ class FriendDetailsAppBar extends ConsumerWidget
         iconTheme: const IconThemeData(
           color: iconsColor,
         ),
-        title: Align(
-          alignment: Alignment.centerRight,
-          child: DropdownButton(
-            icon: const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: Icon(
-                Icons.more_vert,
-                color: iconsColor,
-              ),
-            ),
-            underline: const SizedBox.shrink(),
-            dropdownColor: AppColors.gainsboro,
-            elevation: 1,
-            style: dropdownMenuItemTextStyle,
-            borderRadius: BorderRadius.circular(8),
-            onChanged: (value) {
-              if (value == FriendDetailsAppBarAction.remove) {
-                _onRemoveFriendPressed(context, ref);
-              }
-            },
-            items: [
-              DropdownMenuItem(
-                value: FriendDetailsAppBarAction.remove,
-                child: Text(
-                  l10n.friendDetailsRemove,
+        title: friend == null
+            ? null
+            : Align(
+                alignment: Alignment.centerRight,
+                child: DropdownButton(
+                  icon: const Padding(
+                    padding: EdgeInsets.only(right: 12),
+                    child: Icon(
+                      Icons.more_vert,
+                      color: iconsColor,
+                    ),
+                  ),
+                  underline: const SizedBox.shrink(),
+                  dropdownColor: AppColors.gainsboro,
+                  elevation: 1,
+                  style: dropdownMenuItemTextStyle,
+                  borderRadius: BorderRadius.circular(8),
+                  onChanged: (value) {
+                    if (value == FriendDetailsAppBarAction.remove) {
+                      _onRemoveFriendPressed(context, ref, friend);
+                    }
+                  },
+                  items: [
+                    DropdownMenuItem(
+                      value: FriendDetailsAppBarAction.remove,
+                      child: Text(
+                        l10n.friendDetailsRemove,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }

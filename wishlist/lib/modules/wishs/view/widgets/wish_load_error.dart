@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/utils/not_found_error.dart';
-import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
-import 'package:wishlist/shared/theme/colors.dart';
-import 'package:wishlist/shared/theme/text_styles.dart';
+import 'package:wishlist/shared/widgets/error_page_with_back.dart';
 
 /// Full-page state of a wish screen whose data failed to load.
 ///
@@ -25,22 +23,16 @@ class WishLoadError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(backgroundColor: AppColors.background),
-      body: isNotFoundError(error)
-          ? Center(
-              child: Text(
-                context.l10n.wishUnavailable,
-                style: AppTextStyles.medium,
-                textAlign: TextAlign.center,
-              ),
-            )
-          : PageLayoutError(
-              error: error,
-              onRetry: onRetry,
-              isRetrying: isRetrying,
-            ),
+    if (isNotFoundError(error)) {
+      return ErrorPageWithBack.unavailable(
+        message: context.l10n.wishUnavailable,
+      );
+    }
+
+    return ErrorPageWithBack.failure(
+      error: error,
+      onRetry: onRetry,
+      isRetrying: isRetrying,
     );
   }
 }

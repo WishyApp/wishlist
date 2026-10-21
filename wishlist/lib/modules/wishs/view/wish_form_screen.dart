@@ -15,7 +15,6 @@ import 'package:wishlist/shared/models/wish/create_request/wish_create_request.d
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
-import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -24,6 +23,7 @@ import 'package:wishlist/shared/utils/double_extension.dart';
 import 'package:wishlist/shared/utils/optional.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/dialogs/confirm_dialog.dart';
+import 'package:wishlist/shared/widgets/error_page_with_back.dart';
 
 class WishFormScreen extends ConsumerStatefulWidget {
   const WishFormScreen({
@@ -509,16 +509,12 @@ class _WishFormScreenState extends ConsumerState<WishFormScreen> {
         body: const Center(child: CircularProgressIndicator()),
       ),
       // A wishlist that cannot be seen comes as null, not as a not found error
-      error: (error, _) => Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(backgroundColor: AppColors.background),
-        body: PageLayoutError(
-          error: error,
-          onRetry: () =>
-              ref.retryFailed([watchWishlistByIdProvider(widget.wishlistId)]),
-          isRetrying:
-              ref.isRetryingAny([watchWishlistByIdProvider(widget.wishlistId)]),
-        ),
+      error: (error, _) => ErrorPageWithBack.failure(
+        error: error,
+        onRetry: () =>
+            ref.retryFailed([watchWishlistByIdProvider(widget.wishlistId)]),
+        isRetrying:
+            ref.isRetryingAny([watchWishlistByIdProvider(widget.wishlistId)]),
       ),
     );
   }
