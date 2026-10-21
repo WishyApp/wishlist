@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wishy</title>
+    <meta
+      name="description"
+      content="Wishy : crée tes listes d'envies et partage-les avec tes proches."
+    />
+    <meta name="theme-color" content="#F7F6F0" />
+
+    <!-- Aperçu du lien dans les messageries -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Wishy" />
+    <meta property="og:title" content="Une wishlist t'attend sur Wishy" />
+    <meta
+      property="og:description"
+      content="Ouvre-la dans l'app Wishy pour découvrir les envies et réserver un cadeau."
+    />
+    <meta property="og:image" content="https://wishy-app.fr/icon-512.png" />
+
+    <!-- Chemins absolus : la même page sert aussi /w/<id> -->
+    <link rel="icon" type="image/png" href="/icon-180.png" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main class="card">
+      <img class="logo" src="/icon-180.png" alt="" width="96" height="96" />
+      <h1 id="title">Wishy</h1>
+      <p id="subtitle">Crée tes listes d'envies et partage-les avec tes proches.</p>
+
+      <a id="open-app" class="button button-primary" hidden>Ouvrir dans Wishy</a>
+
+      <section class="stores">
+        <p id="stores-title" class="stores-title">Télécharger l'app</p>
+        <!-- Lien renseigné par app.js (APP_STORE_URL) -->
+        <a id="app-store" class="button button-secondary" hidden>App Store</a>
+        <a
+          id="play-store"
+          class="button button-secondary"
+          href="https://play.google.com/store/apps/details?id=com.raphtang.wishy"
+          >Google Play</a
+        >
+      </section>
+
+      <p id="desktop-hint" class="hint" hidden></p>
+    </main>
+  </body>
+</html>

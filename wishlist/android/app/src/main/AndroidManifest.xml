@@ -28,6 +28,12 @@
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme" />
+
+            <!-- Liens gérés par app_links (DeepLinkNavigator) : le deep linking
+                 de Flutter est coupé pour qu'un lien ne soit traité qu'une fois. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
               
             <!-- Intent filter for launching the app normally -->
             <intent-filter>
@@ -43,6 +49,19 @@
                 <data
                     android:scheme="wishy"
                     android:host="com.raphtang.wishy"/>
+            </intent-filter>
+
+            <!-- App Links : https://wishy-app.fr/w/<id> ouvre l'app sans passer
+                 par le navigateur. Vérifié par site/.well-known/assetlinks.json ;
+                 doit correspondre à DeeplinkConfig.webHost. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="wishy-app.fr"
+                    android:pathPrefix="/w/"/>
             </intent-filter>
         </activity>
 

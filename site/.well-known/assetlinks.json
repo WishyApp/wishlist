@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.raphtang.wishy",
+      "sha256_cert_fingerprints": [
+        "EB:A7:AA:40:0A:88:AF:0A:61:7C:18:0D:C7:B8:9F:E9:4F:9E:F7:8C:A4:BB:7D:0B:74:F6:6E:6D:79:CB:EB:52",
+        "B4:89:39:35:0B:09:50:50:A0:3E:98:06:2C:8C:00:95:AB:3A:7B:03:A7:78:7A:91:64:82:84:26:E9:A3:E4:A7"
+      ]
+    }
+  }
+]

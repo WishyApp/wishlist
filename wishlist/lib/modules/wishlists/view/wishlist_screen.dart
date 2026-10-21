@@ -176,13 +176,13 @@ class WishlistScreen extends ConsumerWidget {
     BuildContext context,
     Wishlist wishlist,
   ) async {
-    final wishlistPath = WishlistRoute(wishlistId: wishlist.id).location;
-    final deeplink =
-        DeeplinkConfig.buildDeeplinkUri(path: wishlistPath).toString();
+    final shareLink =
+        DeeplinkConfig.buildWishlistShareUri(wishlistId: wishlist.id)
+            .toString();
 
     try {
       await SharePlus.instance.share(
-        ShareParams(text: '${wishlist.name}\n$deeplink'),
+        ShareParams(text: '${wishlist.name}\n$shareLink'),
       );
     } catch (e) {
       if (context.mounted) {
