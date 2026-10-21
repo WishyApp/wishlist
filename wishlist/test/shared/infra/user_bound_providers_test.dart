@@ -4,6 +4,8 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_profile_provider.dart';
@@ -195,6 +197,147 @@ void main() {
         await container.read(friendshipsRealtimeProvider.future),
         isNotNull,
       );
+    });
+  });
+
+  group('friendshipsRealtimeProvider profile loading', () {
+    late MockFriendshipStreamRepository repository;
+
+    setUp(() {
+      repository = MockFriendshipStreamRepository();
+      when(repository.watchCurrentUserAllFriendships).thenAnswer(
+        (_) => Stream.value(
+          const FriendshipIds(
+            friendsIds: ISetConst({'ok-1', 'ok-2', 'broken'}),
+            pendingIds: ISetConst({'pending-1'}),
+            requestedIds: ISetConst({}),
+          ),
+        ),
+      );
+    });
+
+    void startWith(Object brokenError) {
+      start(
+        userId: 'user-a',
+        overrides: [
+          friendshipStreamRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      when(() => userService.getAppUserById('broken')).thenAnswer(
+        (_) => Future<AppUser>.error(brokenError),
+      );
+      container.listen(friendshipsRealtimeProvider, (_, __) {});
+    }
+
+    test('emits the error instead of an empty list on a server failure',
+        () async {
+      final error = AppException(statusCode: 500, message: 'offline');
+      startWith(error);
+      await pumpEventQueue();
+
+      final state = container.read(friendshipsRealtimeProvider);
+      expect(state.hasError, isTrue);
+      expect(state.error, error);
+    });
+
+    FriendshipIds friends(Set<String> ids) => FriendshipIds(
+          friendsIds: ids.toISet(),
+          pendingIds: const ISetConst({}),
+          requestedIds: const ISetConst({}),
+        );
+
+    late StreamController<FriendshipIds> ids;
+
+    void startWithController() {
+      ids = StreamController<FriendshipIds>();
+      addTearDown(ids.close);
+      when(repository.watchCurrentUserAllFriendships)
+          .thenAnswer((_) => ids.stream);
+      start(
+        userId: 'user-a',
+        overrides: [
+          friendshipStreamRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      container.listen(friendshipsRealtimeProvider, (_, __) {});
+    }
+
+    List<String> friendIds() => container
+        .read(friendshipsRealtimeProvider)
+        .requireValue
+        .friends
+        .map((u) => u.profile.id)
+        .toList();
+
+    test('recovers from a first load failure when the same ids reload',
+        () async {
+      startWithController();
+      when(() => userService.getAppUserById('broken')).thenAnswer(
+        (_) => Future<AppUser>.error(AppException(statusCode: 500)),
+      );
+
+      ids.add(friends({'broken'}));
+      await pumpEventQueue();
+      expect(container.read(friendshipsRealtimeProvider).hasError, isTrue);
+
+      when(() => userService.getAppUserById('broken')).thenAnswer(
+        (_) async => _appUserFor('broken'),
+      );
+      ids.add(friends({'broken'}));
+      await pumpEventQueue();
+
+      final state = container.read(friendshipsRealtimeProvider);
+      expect(state.hasError, isFalse);
+      expect(friendIds(), ['broken']);
+    });
+
+    test('keeps the last value when a later reload fails', () async {
+      startWithController();
+      when(() => userService.getAppUserById('broken')).thenAnswer(
+        (_) async => _appUserFor('broken'),
+      );
+
+      ids.add(friends({'ok-1'}));
+      await pumpEventQueue();
+      expect(friendIds(), ['ok-1']);
+
+      when(() => userService.getAppUserById('broken')).thenAnswer(
+        (_) => Future<AppUser>.error(AppException(statusCode: 500)),
+      );
+      ids.add(friends({'ok-1', 'broken'}));
+      await pumpEventQueue();
+
+      final state = container.read(friendshipsRealtimeProvider);
+      expect(state.hasError, isFalse);
+      expect(friendIds(), ['ok-1']);
+
+      // Not stuck: the next successful reload replaces the kept value.
+      when(() => userService.getAppUserById('broken')).thenAnswer(
+        (_) async => _appUserFor('broken'),
+      );
+      ids.add(friends({'ok-1', 'broken'}));
+      await pumpEventQueue();
+      expect(friendIds().toSet(), {'ok-1', 'broken'});
+    });
+
+    test('skips only a profile that does not exist', () async {
+      startWith(
+        AppException(
+          statusCode: 500,
+          cause: const PostgrestException(
+            message: 'no rows',
+            code: 'PGRST116',
+          ),
+        ),
+      );
+      await pumpEventQueue();
+
+      final data = container.read(friendshipsRealtimeProvider).requireValue;
+      expect(
+        data.friends.map((u) => u.profile.id).toSet(),
+        {'ok-1', 'ok-2'},
+      );
+      expect(data.pendingFriends.map((u) => u.profile.id), ['pending-1']);
     });
   });
 
