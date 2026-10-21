@@ -6,6 +6,7 @@ import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/page_layout_empty/page_layout_empty.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/widgets/app_scaffold.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/dialogs/create_dialog.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 import 'package:wishlist/shared/widgets/wishlists_grid.dart';
@@ -31,8 +32,8 @@ class HomeScreen extends ConsumerWidget {
       ),
       error: (error, stackTrace) => PageLayoutError(
         error: error,
-        onRetry: refreshWishlists,
-        isRetrying: wishlists.isLoading,
+        onRetry: () => ref.retryFailed([wishlistsRealtimeProvider]),
+        isRetrying: ref.isRetryingAny([wishlistsRealtimeProvider]),
         appBarTitle: l10n.wishlistsScreenTitle,
       ),
       data: (data) => data.isEmpty

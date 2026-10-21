@@ -24,6 +24,7 @@ import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/utils/get_wishlist_theme.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/dialogs/confirm_dialog.dart';
 import 'package:wishlist/shared/widgets/dialogs/quantity_selection_dialog.dart';
 
@@ -227,16 +228,6 @@ class WishlistScreen extends ConsumerWidget {
     ];
   }
 
-  /// Only re-opens the streams that failed: the healthy ones keep their data.
-  Future<void> _retryLoading(WidgetRef ref) async {
-    final failed = _sourceProviders(ref)
-        .where((provider) => ref.read(provider).hasError)
-        .toList();
-
-    failed.forEach(ref.invalidate);
-    await Future.wait(failed.map((provider) => ref.read(provider.future)));
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(watchWishlistByIdProvider(wishlistId), (_, next) {
@@ -266,11 +257,7 @@ class WishlistScreen extends ConsumerWidget {
         ref.watch(wishlistScreenDataRealtimeProvider(wishlistId));
     // The screen data rebuilds a fresh AsyncError while its sources reload,
     // so a retry is only visible on the failed sources themselves
-    final isRetrying = _sourceProviders(ref).any(
-      (provider) => ref.watch(
-        provider.select((source) => source.hasError && source.isLoading),
-      ),
-    );
+    final isRetrying = ref.isRetryingAny(_sourceProviders(ref));
 
     if (isWishlistDeleted) {
       return Scaffold(
@@ -366,7 +353,7 @@ class WishlistScreen extends ConsumerWidget {
         appBar: AppBar(backgroundColor: AppColors.background),
         body: PageLayoutError(
           error: error,
-          onRetry: () => _retryLoading(ref),
+          onRetry: () => ref.retryFailed(_sourceProviders(ref)),
           isRetrying: isRetrying,
         ),
       ),

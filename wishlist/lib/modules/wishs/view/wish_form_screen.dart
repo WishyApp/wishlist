@@ -22,6 +22,7 @@ import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/utils/double_extension.dart';
 import 'package:wishlist/shared/utils/optional.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/dialogs/confirm_dialog.dart';
 
 class WishFormScreen extends ConsumerStatefulWidget {
@@ -513,15 +514,10 @@ class _WishFormScreenState extends ConsumerState<WishFormScreen> {
         appBar: AppBar(backgroundColor: AppColors.background),
         body: PageLayoutError(
           error: error,
-          onRetry: () async {
-            ref.invalidate(watchWishlistByIdProvider(widget.wishlistId));
-            await ref.read(watchWishlistByIdProvider(widget.wishlistId).future);
-          },
-          isRetrying: ref.watch(
-            watchWishlistByIdProvider(widget.wishlistId).select(
-              (wishlist) => wishlist.hasError && wishlist.isLoading,
-            ),
-          ),
+          onRetry: () =>
+              ref.retryFailed([watchWishlistByIdProvider(widget.wishlistId)]),
+          isRetrying:
+              ref.isRetryingAny([watchWishlistByIdProvider(widget.wishlistId)]),
         ),
       ),
     );

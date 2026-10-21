@@ -15,6 +15,7 @@ import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/app_refresh_indicator.dart';
 import 'package:wishlist/shared/utils/app_user_utils.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/avatar/app_avatar.dart';
 import 'package:wishlist/shared/widgets/wishlists_grid.dart';
 
@@ -49,8 +50,10 @@ class FriendDetailsScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stack) => PageLayoutError(
             error: error,
-            onRetry: refreshFriendDetails,
-            isRetrying: friendDetails.isLoading,
+            onRetry: () =>
+                ref.retryFailed([friendDetailsRealtimeProvider(friendId)]),
+            isRetrying:
+                ref.isRetryingAny([friendDetailsRealtimeProvider(friendId)]),
           ),
         ),
       ),

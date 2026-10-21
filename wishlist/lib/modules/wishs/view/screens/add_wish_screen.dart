@@ -10,6 +10,7 @@ import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/wishlist_list_tile.dart';
 
 /// Écran affiché quand on arrive via partage (add-wish) sans wishlist connue.
@@ -176,11 +177,8 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
         appBar: _buildBackAppBar(),
         body: PageLayoutError(
           error: error,
-          onRetry: () async {
-            ref.invalidate(wishlistsRealtimeProvider);
-            await ref.read(wishlistsRealtimeProvider.future);
-          },
-          isRetrying: wishlistsAsync.isLoading,
+          onRetry: () => ref.retryFailed([wishlistsRealtimeProvider]),
+          isRetrying: ref.isRetryingAny([wishlistsRealtimeProvider]),
         ),
       ),
     );

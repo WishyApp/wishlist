@@ -15,6 +15,7 @@ import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/pill.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/utils/string_utils.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
@@ -103,11 +104,8 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => PageLayoutError(
           error: error,
-          onRetry: () async {
-            ref.invalidate(completedWishesRealtimeProvider);
-            await ref.read(completedWishesRealtimeProvider.future);
-          },
-          isRetrying: completedWishesAsync.isLoading,
+          onRetry: () => ref.retryFailed([completedWishesRealtimeProvider]),
+          isRetrying: ref.isRetryingAny([completedWishesRealtimeProvider]),
         ),
         data: (completedWishes) {
           if (completedWishes.isEmpty) {
