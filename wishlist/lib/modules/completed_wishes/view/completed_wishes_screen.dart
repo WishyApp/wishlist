@@ -103,7 +103,10 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => PageLayoutError(
           error: error,
-          onRetry: () => ref.invalidate(completedWishesRealtimeProvider),
+          onRetry: () async {
+            ref.invalidate(completedWishesRealtimeProvider);
+            await ref.read(completedWishesRealtimeProvider.future);
+          },
           isRetrying: completedWishesAsync.isLoading,
         ),
         data: (completedWishes) {

@@ -221,19 +221,19 @@ abstract class AppLocalizations {
   /// No description provided for @networkError.
   ///
   /// In fr, this message translates to:
-  /// **'Pas de connexion internet. Vérifie ton réseau puis réessaie.'**
+  /// **'Problème de connexion. Vérifie ton réseau puis réessaie.'**
   String get networkError;
 
   /// No description provided for @networkErrorTitle.
   ///
   /// In fr, this message translates to:
-  /// **'Pas de connexion internet'**
+  /// **'Problème de connexion'**
   String get networkErrorTitle;
 
   /// No description provided for @networkErrorDescription.
   ///
   /// In fr, this message translates to:
-  /// **'Vérifie ton Wi-Fi ou tes données mobiles, puis réessaie.'**
+  /// **'Ta connexion internet semble absente ou trop lente. Vérifie ton Wi-Fi ou tes données mobiles, puis réessaie.'**
   String get networkErrorDescription;
 
   /// No description provided for @loadingErrorTitle.

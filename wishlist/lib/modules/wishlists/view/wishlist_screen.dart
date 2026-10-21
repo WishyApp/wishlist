@@ -213,18 +213,28 @@ class WishlistScreen extends ConsumerWidget {
     }
   }
 
-  /// Re-opens the streams the screen data is built from: invalidating
-  /// [wishlistScreenDataRealtimeProvider] alone would keep their errors.
-  void _retryLoading(WidgetRef ref) {
+  /// The streams the screen data is built from. Retrying must re-open them:
+  /// invalidating [wishlistScreenDataRealtimeProvider] alone would keep their
+  /// errors.
+  List<AutoDisposeStreamProvider<Object?>> _sourceProviders(WidgetRef ref) {
     final ownerId =
         ref.read(watchWishlistByIdProvider(wishlistId)).valueOrNull?.idOwner;
 
-    ref
-      ..invalidate(watchWishlistByIdProvider(wishlistId))
-      ..invalidate(watchWishsFromWishlistProvider(wishlistId));
-    if (ownerId != null) {
-      ref.invalidate(completedWishesByUserRealtimeProvider(ownerId));
-    }
+    return [
+      watchWishlistByIdProvider(wishlistId),
+      watchWishsFromWishlistProvider(wishlistId),
+      if (ownerId != null) completedWishesByUserRealtimeProvider(ownerId),
+    ];
+  }
+
+  /// Only re-opens the streams that failed: the healthy ones keep their data.
+  Future<void> _retryLoading(WidgetRef ref) async {
+    final failed = _sourceProviders(ref)
+        .where((provider) => ref.read(provider).hasError)
+        .toList();
+
+    failed.forEach(ref.invalidate);
+    await Future.wait(failed.map((provider) => ref.read(provider.future)));
   }
 
   @override
@@ -254,11 +264,12 @@ class WishlistScreen extends ConsumerWidget {
     );
     final wishlistScreenData =
         ref.watch(wishlistScreenDataRealtimeProvider(wishlistId));
-    // The screen data rebuilds a fresh AsyncError while the wishlist reloads,
-    // so a retry is only visible on the wishlist stream itself
-    final isWishlistReloading = ref.watch(
-      watchWishlistByIdProvider(wishlistId)
-          .select((wishlist) => wishlist.isLoading),
+    // The screen data rebuilds a fresh AsyncError while its sources reload,
+    // so a retry is only visible on the failed sources themselves
+    final isRetrying = _sourceProviders(ref).any(
+      (provider) => ref.watch(
+        provider.select((source) => source.hasError && source.isLoading),
+      ),
     );
 
     if (isWishlistDeleted) {
@@ -356,7 +367,7 @@ class WishlistScreen extends ConsumerWidget {
         body: PageLayoutError(
           error: error,
           onRetry: () => _retryLoading(ref),
-          isRetrying: wishlistScreenData.isLoading || isWishlistReloading,
+          isRetrying: isRetrying,
         ),
       ),
     );

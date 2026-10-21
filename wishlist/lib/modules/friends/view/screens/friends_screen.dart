@@ -72,7 +72,7 @@ class FriendsScreen extends ConsumerWidget {
       ),
       error: (error, stackTrace) => PageLayoutError(
         error: error,
-        onRetry: () => ref.invalidate(friendshipsRealtimeProvider),
+        onRetry: refreshFriends,
         isRetrying: friendsData.isLoading,
         appBarTitle: l10n.fiendsScreenTitle,
       ),

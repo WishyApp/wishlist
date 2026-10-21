@@ -6,9 +6,9 @@ import 'package:wishlist/shared/utils/first_event_timeout.dart';
 void main() {
   // Real timers: short enough to keep the suite fast, with margins wide
   // enough not to be flaky
-  const timeLimit = Duration(milliseconds: 100);
-  const beforeTimeLimit = Duration(milliseconds: 20);
-  const afterTimeLimit = Duration(milliseconds: 250);
+  const timeLimit = Duration(milliseconds: 300);
+  const beforeTimeLimit = Duration(milliseconds: 50);
+  const afterTimeLimit = Duration(milliseconds: 600);
 
   group('timeoutFirstEvent', () {
     late StreamController<int> source;

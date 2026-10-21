@@ -14,6 +14,11 @@ void main() {
       expect(isNetworkError(TimeoutException('No event received')), true);
       expect(isNetworkError(http.ClientException('Connection closed')), true);
       expect(isNetworkError(AuthRetryableFetchException()), true);
+      expect(
+        isNetworkError(const HandshakeException('Handshake error')),
+        true,
+      );
+      expect(isNetworkError(const HttpException('Connection closed')), true);
     });
 
     test('looks through the AppException wrapping the original error', () {
@@ -38,6 +43,10 @@ void main() {
             cause: const PostgrestException(message: 'boom'),
           ),
         ),
+        false,
+      );
+      expect(
+        isNetworkError(AuthRetryableFetchException(statusCode: '503')),
         false,
       );
       expect(isNetworkError(AppException(statusCode: 500)), false);

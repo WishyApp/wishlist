@@ -18,7 +18,9 @@ class PageLayoutError extends StatelessWidget {
   });
 
   final Object error;
-  final VoidCallback onRetry;
+
+  /// Reloads the screen data, and completes once it is reloaded.
+  final Future<void> Function() onRetry;
 
   /// Shows the retry button as loading, while the screen reloads its data.
   final bool isRetrying;
@@ -39,10 +41,18 @@ class PageLayoutError extends StatelessWidget {
           ? l10n.networkErrorDescription
           : l10n.loadingErrorDescription,
       callToAction: l10n.retryButton,
-      onCallToAction: onRetry,
+      onCallToAction: _retrySilently,
       isCallToActionLoading: isRetrying,
-      onRefresh: () async => onRetry(),
+      onRefresh: _retrySilently,
       appBarTitle: appBarTitle,
     );
+  }
+
+  /// The pull to refresh waits for the reload, but a new failure is already
+  /// shown by this page: it must not escape as an uncaught error.
+  Future<void> _retrySilently() async {
+    try {
+      await onRetry();
+    } catch (_) {}
   }
 }

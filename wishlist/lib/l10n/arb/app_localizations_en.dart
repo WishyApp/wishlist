@@ -73,14 +73,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get networkError =>
-      'No internet connection. Check your network and try again.';
+      'Connection problem. Check your network and try again.';
 
   @override
-  String get networkErrorTitle => 'No internet connection';
+  String get networkErrorTitle => 'Connection problem';
 
   @override
   String get networkErrorDescription =>
-      'Check your Wi-Fi or mobile data, then try again.';
+      'Your internet connection seems to be down or too slow. Check your Wi-Fi or mobile data, then try again.';
 
   @override
   String get loadingErrorTitle => 'This page couldn\'t be loaded';

@@ -100,7 +100,10 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stackTrace) => PageLayoutError(
         error: error,
-        onRetry: () => ref.invalidate(bookedWishesRealtimeProvider),
+        onRetry: () async {
+          ref.invalidate(bookedWishesRealtimeProvider);
+          await ref.read(bookedWishesRealtimeProvider.future);
+        },
         isRetrying: bookedWishesAsync.isLoading,
         appBarTitle: l10n.bookedWishesScreenTitle,
       ),

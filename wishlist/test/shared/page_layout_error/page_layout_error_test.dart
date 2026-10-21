@@ -18,7 +18,7 @@ void main() {
           statusCode: 500,
           cause: const SocketException('Failed host lookup'),
         ),
-        onRetry: () {},
+        onRetry: () async {},
       ),
     );
 
@@ -32,7 +32,7 @@ void main() {
     await tester.pumpApp(
       PageLayoutError(
         error: AppException(statusCode: 500, message: 'boom'),
-        onRetry: () {},
+        onRetry: () async {},
       ),
     );
 
@@ -46,7 +46,7 @@ void main() {
     await tester.pumpApp(
       PageLayoutError(
         error: Exception('boom'),
-        onRetry: () => retries++,
+        onRetry: () async => retries++,
       ),
     );
 
@@ -60,7 +60,7 @@ void main() {
     await tester.pumpApp(
       PageLayoutError(
         error: Exception('boom'),
-        onRetry: () => retries++,
+        onRetry: () async => retries++,
         isRetrying: true,
       ),
     );
@@ -70,5 +70,20 @@ void main() {
 
     await tester.tap(find.byType(PrimaryButton));
     expect(retries, 0);
+  });
+
+  testWidgets('keeps a failed retry from escaping as an uncaught error',
+      (tester) async {
+    await tester.pumpApp(
+      PageLayoutError(
+        error: Exception('boom'),
+        onRetry: () async => throw Exception('still offline'),
+      ),
+    );
+
+    await tester.tap(find.byType(PrimaryButton));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 }

@@ -31,7 +31,7 @@ class HomeScreen extends ConsumerWidget {
       ),
       error: (error, stackTrace) => PageLayoutError(
         error: error,
-        onRetry: () => ref.invalidate(wishlistsRealtimeProvider),
+        onRetry: refreshWishlists,
         isRetrying: wishlists.isLoading,
         appBarTitle: l10n.wishlistsScreenTitle,
       ),

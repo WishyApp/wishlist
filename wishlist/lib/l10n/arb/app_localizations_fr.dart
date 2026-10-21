@@ -73,14 +73,14 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get networkError =>
-      'Pas de connexion internet. Vérifie ton réseau puis réessaie.';
+      'Problème de connexion. Vérifie ton réseau puis réessaie.';
 
   @override
-  String get networkErrorTitle => 'Pas de connexion internet';
+  String get networkErrorTitle => 'Problème de connexion';
 
   @override
   String get networkErrorDescription =>
-      'Vérifie ton Wi-Fi ou tes données mobiles, puis réessaie.';
+      'Ta connexion internet semble absente ou trop lente. Vérifie ton Wi-Fi ou tes données mobiles, puis réessaie.';
 
   @override
   String get loadingErrorTitle => 'Impossible de charger cette page';

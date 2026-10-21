@@ -47,6 +47,32 @@ void main() {
     await tester.expectGolden<HomeScreen>(variant, suffix: 'empty');
   });
 
+  testAdaptiveWidgets('$HomeScreen when loading fails',
+      (tester, variant) async {
+    await tester.pumpApp(
+      const FloatingNavBarNavigator(
+        // ignore: avoid_redundant_argument_values
+        currentTab: FloatingNavBarTab.home,
+      ),
+      windowConfig: variant,
+      overrides: [
+        ...homeScreenOverrides(),
+        wishlistsRealtimeProvider.overrideWith(
+          (ref) => Stream.error(
+            AppException(
+              statusCode: 500,
+              cause: const SocketException('Failed host lookup'),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpAndSettle();
+
+    await tester.expectGolden<HomeScreen>(variant, suffix: 'error');
+  });
+
   testWidgets('$HomeScreen explains a network error and retries',
       (tester) async {
     final l10n = AppLocalizationsFr();
@@ -76,8 +102,7 @@ void main() {
 
     expect(find.text(l10n.networkErrorTitle), findsOneWidget);
 
-    await tester
-        .tap(find.widgetWithText(PrimaryButton, l10n.retryButton).first);
+    await tester.tap(find.byType(PrimaryButton));
     await tester.pumpAndSettle();
 
     expect(loads, 2);

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_floating_actions.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
@@ -12,8 +16,12 @@ import 'package:wishlist/modules/wishlists/view/widgets/wishs_tab.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_display_provider.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
+import 'package:wishlist/shared/infra/app_exception.dart';
+import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository_provider.dart';
+import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
@@ -21,6 +29,7 @@ import 'package:wishlist/shared/models/wish_taken_by_user/wish_taken_by_user.dar
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
+import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/wishlist_illustration_extension.dart';
 
 import '../../../fixtures/fake_data.dart';
@@ -713,5 +722,81 @@ void main() {
     tester.binding.scheduleFrame();
     await tester.pump();
     expect(writes, 2);
+  });
+
+  group('when loading fails', () {
+    final l10n = AppLocalizationsFr();
+    final networkError = AppException(
+      statusCode: 500,
+      cause: const SocketException('Failed host lookup'),
+    );
+
+    late int wishlistLoads;
+    late int wishesLoads;
+
+    List<Override> overrides({
+      required Stream<IList<CompletedWishWithDetails>> Function()
+          completedWishes,
+    }) {
+      return [
+        supabaseClientOverride(userId: fakeCurrentUserId),
+        userServiceOverride(userId: fakeCurrentUserId),
+        watchWishlistByIdProvider(1).overrideWith((ref) {
+          wishlistLoads++;
+          return Stream.value(fakeWishlist1);
+        }),
+        watchWishsFromWishlistProvider(1).overrideWith((ref) {
+          wishesLoads++;
+          return wishesLoads == 1
+              ? Stream.error(networkError)
+              : Stream.value(fakeWishes.toIList());
+        }),
+        completedWishesRealtimeProvider.overrideWith(
+          (ref) => Stream.value(const IListConst([])),
+        ),
+        completedWishesByUserRealtimeProvider(fakeWishlist1.idOwner)
+            .overrideWith((ref) => completedWishes()),
+      ];
+    }
+
+    setUp(() {
+      wishlistLoads = 0;
+      wishesLoads = 0;
+    });
+
+    testWidgets('shows the error without waiting for a hanging source',
+        (tester) async {
+      final hanging = StreamController<IList<CompletedWishWithDetails>>();
+      addTearDown(hanging.close);
+
+      await tester.pumpRouterApp(
+        WishlistRoute(wishlistId: 1).location,
+        overrides: overrides(completedWishes: () => hanging.stream),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.networkErrorTitle), findsOneWidget);
+    });
+
+    testWidgets('retries only the source that failed', (tester) async {
+      await tester.pumpRouterApp(
+        WishlistRoute(wishlistId: 1).location,
+        overrides: overrides(
+          completedWishes: () => Stream.value(const IListConst([])),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(PrimaryButton));
+      await tester.pumpAndSettle();
+
+      expect(wishesLoads, 2);
+      expect(wishlistLoads, 1);
+      expect(find.text(l10n.networkErrorTitle), findsNothing);
+      expect(find.text(fakeWishes.first.name), findsWidgets);
+
+      // Lets the delayed list animation and image placeholders run out
+      await tester.pump(const Duration(seconds: 5));
+    });
   });
 }
