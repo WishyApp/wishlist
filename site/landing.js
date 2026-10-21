@@ -24,7 +24,7 @@ const EN = {
   sub4: "Your gifts to give, right at hand.",
   loopCaption: "The Wishy cycle in four steps: your wishes, your people, the secret, the big day.",
   altHome: "The Wishlists screen of the app, with four lists: My birthday, Christmas 2026, Gift ideas, New flat.",
-  altFriendWl: "Léa's housewarming list opened by a friend: a stoneware mug and a scented candle.",
+  altFriendWl: "Olivia's housewarming list opened by a friend: a stoneware mug and a scented candle.",
   altFriendWish: "One of Léa's wishes seen by a friend: a scented candle at €32, with the I want to give it button.",
   altBooked: "The Bookings screen: one gift for Hugo, one for Léa, €210 in total.",
   altBooked2: "The Bookings screen: a leather watch for Hugo, a backpack for Léa, €210 in total.",
@@ -88,6 +88,7 @@ const EN_IMAGES = {
   imgWl: "/img/app-wl-en.webp",
   imgBooked: "/img/app-booked-en.webp",
   imgFriendWish: "/img/app-friendwish-en.webp",
+  imgFriendWl: "/img/app-friendwl-en.webp",
 };
 
 const STORE_LABELS = {
