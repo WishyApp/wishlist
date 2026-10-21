@@ -21,6 +21,7 @@ import 'package:wishlist/shared/models/wish_taken_by_user/wish_taken_by_user.dar
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
+import 'package:wishlist/shared/utils/wishlist_illustration_extension.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
@@ -117,12 +118,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Restreint à l'onglet affiché : l'onglet Réservés (réservations masquées)
+    // affiche la même scène s'il est construit.
     expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is SvgPicture &&
-            (w.bytesLoader as SvgAssetLoader).assetName ==
-                noWishIllustrationFor(fakeWishlist2.id),
+      find.descendant(
+        of: find.byType(WishsTab).first,
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is SvgPicture &&
+              (w.bytesLoader as SvgAssetLoader).assetName ==
+                  fakeWishlist2.noWishIllustration,
+        ),
       ),
       findsOneWidget,
     );
