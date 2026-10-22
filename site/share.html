@@ -47,13 +47,9 @@
       <a id="open-app" class="button button-primary" hidden>Ouvrir dans Wishy</a>
 
       <!-- iOS : sans l'app, wishy:// n'a pas de repli (Safari affiche une
-           erreur), d'où l'App Store en premier et l'ouverture de l'app en lien
-           secondaire. -->
+           erreur), d'où l'App Store (ou l'accueil tant qu'il manque) en
+           premier et l'ouverture de l'app en lien secondaire, plus bas. -->
       <a id="get-app" class="button button-primary" hidden>App Store</a>
-      <p id="already-installed" class="hint" hidden>
-        <span id="already-installed-label">Déjà installée ?</span>
-        <a id="open-app-link">Ouvrir dans Wishy</a>
-      </p>
 
       <!-- Liens renseignés par app.js depuis stores.js -->
       <section class="stores" hidden>
@@ -64,6 +60,10 @@
         <span id="soon-label">Découvrir Wishy</span>
         <small id="soon-note">L'app arrive bientôt sur les stores</small>
       </a>
+      <p id="already-installed" class="hint" hidden>
+        <span id="already-installed-label">Déjà installée ?</span>
+        <a id="open-app-link">Ouvrir dans Wishy</a>
+      </p>
     </main>
 
     <!-- Décor : écrans de démonstration de l'app (aucune donnée de la liste

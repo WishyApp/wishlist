@@ -274,6 +274,23 @@ body.share {
   background: var(--surface);
 }
 
+/* iOS tant que l'App Store manque : l'accueil devient l'action principale. */
+.share-card .share-soon-primary {
+  margin-top: 28px;
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--ink);
+  box-shadow: 0 10px 24px -10px rgba(223, 115, 61, 0.7);
+}
+
+.share-card .share-soon-primary small {
+  color: var(--ink);
+}
+
+.share-card .share-soon-primary:hover {
+  background: #f6a173;
+}
+
 /* Décor : deux écrans de l'app de part et d'autre du texte. */
 
 .share-deco {

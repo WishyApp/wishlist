@@ -159,18 +159,23 @@ function render() {
     return;
   }
 
-  // Sans l'app, wishy:// n'a pas de repli sur iOS : on propose d'abord
-  // l'App Store. Avec l'app (et les Universal Links), on n'arrive
-  // normalement pas sur cette page.
-  if (platform === "ios" && APP_STORE_URL !== null) {
-    getApp.textContent = texts.getAppIos;
-    getApp.href = APP_STORE_URL;
-    show(getApp, true);
+  // Sans l'app, wishy:// n'a pas de repli sur iOS : l'action principale est
+  // l'App Store, ou l'accueil tant que l'app n'y est pas, et l'ouverture de
+  // l'app passe en lien secondaire. Avec l'app (et les Universal Links), on
+  // n'arrive normalement pas sur cette page.
+  if (platform === "ios") {
+    if (APP_STORE_URL !== null) {
+      getApp.textContent = texts.getAppIos;
+      getApp.href = APP_STORE_URL;
+      show(getApp, true);
+      show(stores, false);
+    } else {
+      storesSoon.classList.add("share-soon-primary");
+    }
     alreadyInstalledLabel.textContent = texts.alreadyInstalled;
     openAppLink.textContent = texts.openApp;
     openAppLink.href = appLink(wishlistId, platform);
     show(alreadyInstalled, true);
-    show(stores, false);
     return;
   }
 
