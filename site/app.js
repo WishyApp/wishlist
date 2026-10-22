@@ -2,7 +2,8 @@
 //
 // Quand l'app est installée et le domaine vérifié (App Links / Universal
 // Links), le téléphone ouvre l'app directement et cette page n'est jamais
-// affichée. Sinon, elle propose d'ouvrir l'app ou de la télécharger.
+// affichée. Sinon, elle propose d'ouvrir l'app ou de la télécharger (sur iOS,
+// l'App Store d'abord, car wishy:// n'a pas de repli sans l'app).
 "use strict";
 
 // Doivent correspondre à DeeplinkConfig (lib/app/config/deeplink_config.dart).
@@ -90,7 +91,8 @@ function sharedWishlistId() {
 function appLink(wishlistId, platform) {
   const path = APP_HOST + "/wishlist/" + wishlistId;
   if (platform === "android") {
-    // Ouvre l'app si elle est installée, sinon le Play Store.
+    // Ouvre l'app si elle est installée, sinon le Play Store (ou l'accueil
+    // tant que PLAY_STORE_URL vaut null).
     return (
       "intent://" +
       path +

@@ -150,7 +150,7 @@ See [docs/supabase-migrations.md](docs/supabase-migrations.md) for the workflow,
 Une wishlist se partage avec un lien `https://wishy-app.fr/w/<id>`, cliquable dans toutes les messageries.
 
 - **App installée** : le lien ouvre directement l'app (App Links sur Android, Universal Links sur iOS).
-- **Sinon** : le navigateur affiche la page de secours [`site/share.html`](site/share.html), avec un bouton qui ouvre l'app et les liens vers les stores. Elle n'affiche aucune donnée de la liste.
+- **Sinon** : le navigateur affiche la page de secours [`site/share.html`](site/share.html), avec un bouton qui ouvre l'app et les liens vers les stores (ou vers l'accueil tant qu'ils ne sont pas renseignés). Elle n'affiche aucune donnée de la liste.
 
 Dans l'app, `DeepLinkNavigator` (`lib/shared/infra/deep_link_navigator.dart`) écoute les liens via `app_links` et ouvre l'écran correspondant (`DeeplinkConfig.locationFromUri`). Le deep linking intégré de Flutter est désactivé (`flutter_deeplinking_enabled` / `FlutterDeepLinkingEnabled` à `false`), comme le demande `app_links`, déjà utilisé par Supabase pour les liens d'auth.
 
@@ -166,7 +166,7 @@ Le dossier `site/` est servi tel quel par Cloudflare Pages, sans étape de build
 
 - `site/index.html` est la page d'accueil de `wishy-app.fr`. `site/_redirects` sert `share.html` pour `/w/<id>` (cible `/share` sans extension, Cloudflare Pages redirigeant `/share.html` vers `/share`) ; `site/` n'a pas de `404.html`, donc les autres chemins inconnus retombent sur l'accueil. Garder des chemins absolus (`/style.css`) dans les pages.
 - `site/confidentialite.html` et `site/conditions.html` (servies en `/confidentialite` et `/conditions`) reprennent la politique de confidentialité et les conditions d'utilisation, jusqu'ici sur Notion. Les modifier ici, puis mettre à jour la date « Dernière mise à jour ». Tant que l'app (`settings_screen.dart`) et les fiches des stores pointent encore vers Notion, garder les deux copies synchronisées.
-- Les liens des stores se règlent dans `site/stores.js`, partagé par les deux pages : tant qu'un lien vaut `null`, l'accueil affiche « bientôt » et la page de secours masque le bouton.
+- Les liens des stores se règlent dans `site/stores.js`, partagé par les deux pages : tant qu'un lien vaut `null`, l'accueil affiche « bientôt » à sa place et la page de secours affiche « Découvrir Wishy » (lien vers l'accueil) ; sur Android, le lien `intent://` retombe alors sur l'accueil au lieu du Play Store. Sur iOS, la page de secours propose l'App Store en bouton principal et « Ouvrir dans Wishy » en lien secondaire, `wishy://` n'ayant pas de repli sans l'app.
 - Le design du site (contexte produit, contrat de direction, outil [Impeccable](https://github.com/pbakaus/impeccable)) vit dans `site-design/`, hors du dossier publié.
 - `site/.well-known/assetlinks.json` (Android) et `site/.well-known/apple-app-site-association` (iOS) autorisent l'app à ouvrir les liens du domaine. Le type `application/json` est forcé par `site/_headers`.
 - Le domaine est repris à l'identique dans `DeeplinkConfig.webHost`, l'`intent-filter` https de `AndroidManifest.xml` et `Runner.entitlements` (`applinks:wishy-app.fr`).
