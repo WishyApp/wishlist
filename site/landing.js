@@ -67,7 +67,7 @@ const EN = {
     "Everything you booked for others is sorted by friend, with the total budget. No more “what was it again, for Léa?” in the shop aisle.",
   noteFriend: "sorted by friend",
   noteBudget: "the total budget",
-  nousTitle: "Two brothers, way too many headphones.",
+  nousTitle: "Two brothers, and gifts nobody could coordinate.",
   nousText1:
     "We're Raphaël and Tanguy. Birthdays, then Christmas: several occasions in a row, and duplicate gifts every time. Wishes were passed around by email or word of mouth, and working out who was getting what was a real headache.",
   nousText2:
