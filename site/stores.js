@@ -6,7 +6,8 @@
 
 window.WISHY_STORES = Object.freeze({
   // App Store Connect → Informations sur l'app → Identifiant Apple.
-  appStore: "https://apps.apple.com/app/id6755930972",
+  // "https://apps.apple.com/app/id6755930972" (à activer à la sortie publique)
+  appStore: null,
   // "https://play.google.com/store/apps/details?id=com.raphtang.wishy"
   playStore: null,
 });
