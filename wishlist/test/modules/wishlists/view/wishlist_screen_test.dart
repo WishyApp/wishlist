@@ -2,6 +2,7 @@ import 'package:adaptive_test/adaptive_test.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
@@ -20,6 +21,7 @@ import 'package:wishlist/shared/models/wish_taken_by_user/wish_taken_by_user.dar
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
+import 'package:wishlist/shared/utils/wishlist_illustration_extension.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
@@ -102,6 +104,34 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.expectGolden<WishlistScreen>(variant, suffix: 'empty');
+  });
+
+  testWidgets('shows the per-wishlist illustration when there is no wish',
+      (tester) async {
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 2).location,
+      overrides: wishlistScreenOverrides(
+        wishlistId: 2,
+        wishlist: fakeWishlist2,
+        wishes: [],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Restreint à l'onglet affiché : l'onglet Réservés (réservations masquées)
+    // affiche la même scène s'il est construit.
+    expect(
+      find.descendant(
+        of: find.byType(WishsTab).first,
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is SvgPicture &&
+              (w.bytesLoader as SvgAssetLoader).assetName ==
+                  fakeWishlist2.noWishIllustration,
+        ),
+      ),
+      findsOneWidget,
+    );
   });
 
   testAdaptiveWidgets('$WishlistScreen golden test with booked wishes',

@@ -120,7 +120,7 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
 
   Widget _buildEmptyState(AppLocalizations l10n) {
     return PageLayoutEmpty(
-      illustrationUrl: Assets.svg.noWishlist,
+      illustrationUrl: Assets.svg.noBookedWish,
       title: l10n.bookedWishesEmptyTitle,
       onRefresh: _refreshBookedWishes,
       appBarTitle: l10n.bookedWishesScreenTitle,

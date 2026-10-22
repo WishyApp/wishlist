@@ -23,14 +23,33 @@ class $EnvGen {
 class $AssetsSvgGen {
   const $AssetsSvgGen();
 
+  /// File path: assets/svg/no_booked_wish.svg
+  String get noBookedWish => 'assets/svg/no_booked_wish.svg';
+
   /// File path: assets/svg/no_friend.svg
   String get noFriend => 'assets/svg/no_friend.svg';
+
+  /// File path: assets/svg/no_wish_bag.svg
+  String get noWishBag => 'assets/svg/no_wish_bag.svg';
+
+  /// File path: assets/svg/no_wish_box_hat.svg
+  String get noWishBoxHat => 'assets/svg/no_wish_box_hat.svg';
+
+  /// File path: assets/svg/no_wish_flashlight.svg
+  String get noWishFlashlight => 'assets/svg/no_wish_flashlight.svg';
 
   /// File path: assets/svg/no_wishlist.svg
   String get noWishlist => 'assets/svg/no_wishlist.svg';
 
   /// List of all assets
-  List<String> get values => [noFriend, noWishlist];
+  List<String> get values => [
+        noBookedWish,
+        noFriend,
+        noWishBag,
+        noWishBoxHat,
+        noWishFlashlight,
+        noWishlist,
+      ];
 }
 
 class Assets {

@@ -10,6 +10,7 @@ import 'package:wishlist/shared/page_layout_empty/page_layout_empty_content.dart
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/app_refresh_indicator.dart';
+import 'package:wishlist/shared/utils/wishlist_illustration_extension.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
 
 class WishsTab extends StatelessWidget {
@@ -57,16 +58,22 @@ class WishsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    final pageLayoutEmptyContentTitle =
-        statCardSelected == WishlistStatsCardType.pending
-            ? l10n.wishlistNoWish
-            : isWishsBookedHidden
-                ? l10n.wishlistNoWishBookedDisplayed
-                : l10n.wishlistNoWishBooked;
+    final isPendingTab = statCardSelected == WishlistStatsCardType.pending;
 
-    final shouldShowCallToAction = isMyWishlist &&
-        (!isWishsBookedHidden ||
-            statCardSelected == WishlistStatsCardType.pending);
+    final pageLayoutEmptyContentTitle = isPendingTab
+        ? l10n.wishlistNoWish
+        : isWishsBookedHidden
+            ? l10n.wishlistNoWishBookedDisplayed
+            : l10n.wishlistNoWishBooked;
+
+    // Réservations masquées par le propriétaire : il y en a peut-être, on
+    // n'affiche donc pas le caddie vide mais la scène de la wishlist.
+    final illustrationUrl = isPendingTab || isWishsBookedHidden
+        ? wishlist.noWishIllustration
+        : Assets.svg.noBookedWish;
+
+    final shouldShowCallToAction =
+        isMyWishlist && (!isWishsBookedHidden || isPendingTab);
 
     return Container(
       width: double.infinity,
@@ -97,6 +104,7 @@ class WishsTab extends StatelessWidget {
               : _EmptyState(
                   constraints: constraints,
                   title: pageLayoutEmptyContentTitle,
+                  illustrationUrl: illustrationUrl,
                   shouldShowCallToAction: shouldShowCallToAction,
                   wishlist: wishlist,
                   onAddWish: onAddWish,
@@ -184,6 +192,7 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState({
     required this.constraints,
     required this.title,
+    required this.illustrationUrl,
     required this.shouldShowCallToAction,
     required this.wishlist,
     required this.onAddWish,
@@ -194,6 +203,7 @@ class _EmptyState extends StatelessWidget {
 
   final BoxConstraints constraints;
   final String title;
+  final String illustrationUrl;
   final bool shouldShowCallToAction;
   final Wishlist wishlist;
   final Function(BuildContext, Wishlist) onAddWish;
@@ -206,7 +216,7 @@ class _EmptyState extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(top: _topPadding, bottom: bottomInset),
       child: PageLayoutEmptyContent(
-        illustrationUrl: Assets.svg.noWishlist,
+        illustrationUrl: illustrationUrl,
         illustrationHeight:
             (constraints.maxHeight - bottomInset) * _illustrationHeightRatio,
         title: title,
