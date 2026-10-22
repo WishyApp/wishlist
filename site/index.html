@@ -13,10 +13,11 @@
     <!-- Aperçu du lien dans les messageries -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Wishy" />
-    <meta property="og:title" content="Une wishlist t'attend sur Wishy" />
+    <!-- Lu sans JavaScript : textes valables pour / comme pour /w/<id> -->
+    <meta property="og:title" content="Wishy · Listes d'envies" />
     <meta
       property="og:description"
-      content="Ouvre-la dans l'app Wishy pour découvrir les envies et réserver un cadeau."
+      content="Crée, partage et découvre des listes d'envies avec tes proches."
     />
     <meta property="og:image" content="https://wishy-app.fr/icon-512.png" />
 
@@ -34,10 +35,20 @@
 
       <a id="open-app" class="button button-primary" hidden>Ouvrir dans Wishy</a>
 
+      <!-- iOS : sans l'app, wishy:// n'a pas de repli (Safari affiche une
+           erreur), d'où l'App Store en premier et l'ouverture de l'app en lien
+           secondaire. -->
+      <a id="get-app" class="button button-primary" hidden>App Store</a>
+      <p id="already-installed" class="hint" hidden>
+        <span id="already-installed-label">Déjà installée ?</span>
+        <a id="open-app-link">Ouvrir dans Wishy</a>
+      </p>
+
       <section class="stores">
         <p id="stores-title" class="stores-title">Télécharger l'app</p>
         <!-- Lien renseigné par app.js (APP_STORE_URL) -->
         <a id="app-store" class="button button-secondary" hidden>App Store</a>
+        <!-- Repli sans JavaScript : garder la même URL que PLAY_STORE_URL (app.js) -->
         <a
           id="play-store"
           class="button button-secondary"

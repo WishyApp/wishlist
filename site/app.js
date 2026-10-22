@@ -24,6 +24,8 @@ const TEXTS = {
     wishlistSubtitle:
       "Ouvre-la dans l'app Wishy pour découvrir les envies et réserver un cadeau.",
     openApp: "Ouvrir dans Wishy",
+    getAppIos: "Télécharger sur l'App Store",
+    alreadyInstalled: "Déjà installée ?",
     storesTitle: "Pas encore l'app ?",
     storesTitleHome: "Télécharger l'app",
     desktopHint: "Ouvre ce lien depuis ton téléphone pour voir la wishlist.",
@@ -35,6 +37,8 @@ const TEXTS = {
     wishlistSubtitle:
       "Open it in the Wishy app to discover the wishes and book a gift.",
     openApp: "Open in Wishy",
+    getAppIos: "Download on the App Store",
+    alreadyInstalled: "Already installed?",
     storesTitle: "Don't have the app yet?",
     storesTitleHome: "Download the app",
     desktopHint: "Open this link on your phone to see the wishlist.",
@@ -60,9 +64,9 @@ function detectPlatform() {
 }
 
 // Seuls des identifiants numériques sont acceptés : ils sont insérés dans
-// l'URL de l'app.
+// l'URL de l'app. 18 chiffres au plus, comme DeeplinkConfig (entier 64 bits).
 function sharedWishlistId() {
-  const match = window.location.pathname.match(/^\/w\/([1-9][0-9]*)\/?$/);
+  const match = window.location.pathname.match(/^\/w\/([1-9][0-9]{0,17})\/?$/);
   return match ? match[1] : null;
 }
 
@@ -100,6 +104,12 @@ function render() {
   const title = document.getElementById("title");
   const subtitle = document.getElementById("subtitle");
   const openApp = document.getElementById("open-app");
+  const getApp = document.getElementById("get-app");
+  const alreadyInstalled = document.getElementById("already-installed");
+  const alreadyInstalledLabel = document.getElementById(
+    "already-installed-label",
+  );
+  const openAppLink = document.getElementById("open-app-link");
   const stores = document.querySelector(".stores");
   const storesTitle = document.getElementById("stores-title");
   const appStore = document.getElementById("app-store");
@@ -132,6 +142,21 @@ function render() {
   if (platform === "desktop") {
     desktopHint.textContent = texts.desktopHint;
     show(desktopHint, true);
+    return;
+  }
+
+  // Sans l'app, wishy:// n'a pas de repli sur iOS : on propose d'abord
+  // l'App Store. Avec l'app (et les Universal Links), on n'arrive
+  // normalement pas sur cette page.
+  if (platform === "ios" && APP_STORE_URL !== null) {
+    getApp.textContent = texts.getAppIos;
+    getApp.href = APP_STORE_URL;
+    show(getApp, true);
+    alreadyInstalledLabel.textContent = texts.alreadyInstalled;
+    openAppLink.textContent = texts.openApp;
+    openAppLink.href = appLink(wishlistId, platform);
+    show(alreadyInstalled, true);
+    show(stores, false);
     return;
   }
 

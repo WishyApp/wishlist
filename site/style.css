@@ -130,3 +130,8 @@ p {
 .hint[hidden] {
   display: none;
 }
+
+.hint a {
+  color: var(--primary-dark);
+  font-weight: 700;
+}

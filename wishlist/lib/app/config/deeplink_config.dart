@@ -22,7 +22,9 @@ abstract class DeeplinkConfig {
   /// new ones.
   static const String sharedWishlistSegment = 'w';
 
-  static final RegExp _positiveInteger = RegExp(r'^[1-9][0-9]*$');
+  /// At most 18 digits, so that the id always fits in a 64-bit int (same
+  /// limit in site/app.js).
+  static final RegExp _wishlistId = RegExp(r'^[1-9][0-9]{0,17}$');
 
   static Uri buildDeeplinkUri({
     required String path,
@@ -51,22 +53,20 @@ abstract class DeeplinkConfig {
   /// Router location to open for a link received by the app, or null when the
   /// link is not one of ours.
   ///
-  /// The query is dropped: the links we generate carry none apart from the
-  /// auth parameters (reset password code), which Supabase reads on its own.
+  /// A wishy:// link keeps its query, read by some routes (`?tab=`,
+  /// `?redirectTo=`), as Flutter's deep linking did.
   static String? locationFromUri(Uri uri) {
     if (isValidDeeplink(uri)) {
-      return uri.path.isEmpty ? HomeRoute().location : uri.path;
+      final path = uri.path.isEmpty ? HomeRoute().location : uri.path;
+      return uri.hasQuery ? '$path?${uri.query}' : path;
     }
 
     if (uri.scheme == 'https' && uri.host == webHost) {
       final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
       if (segments.length == 2 &&
           segments.first == sharedWishlistSegment &&
-          _positiveInteger.hasMatch(segments.last)) {
-        final wishlistId = int.tryParse(segments.last);
-        if (wishlistId != null) {
-          return WishlistRoute(wishlistId: wishlistId).location;
-        }
+          _wishlistId.hasMatch(segments.last)) {
+        return WishlistRoute(wishlistId: int.parse(segments.last)).location;
       }
     }
 

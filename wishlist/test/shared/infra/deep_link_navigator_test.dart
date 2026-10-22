@@ -86,6 +86,71 @@ void main() {
     await controller.close();
   });
 
+  test('opens the launch link once when the stream replays it', () async {
+    final controller = StreamController<Uri>.broadcast();
+    final locations = <String>[];
+    final navigator = DeepLinkNavigator(
+      getInitialLink: () async {
+        // The replay arrives before the launch link is read.
+        controller.add(wishlistLink);
+        await pumpEventQueue();
+        return wishlistLink;
+      },
+      links: controller.stream,
+      navigate: locations.add,
+    );
+
+    await navigator.start();
+    controller.add(wishlistLink);
+    await pumpEventQueue();
+
+    expect(locations, ['/wishlist/42']);
+
+    await navigator.dispose();
+    await controller.close();
+  });
+
+  test('opens the same link again once the duplicate window is over', () async {
+    final controller = StreamController<Uri>.broadcast();
+    final locations = <String>[];
+    var now = DateTime(2026, 10, 22, 12);
+    final navigator = DeepLinkNavigator(
+      getInitialLink: () async => wishlistLink,
+      links: controller.stream,
+      navigate: locations.add,
+      now: () => now,
+    );
+
+    await navigator.start();
+    now = now.add(DeepLinkNavigator.duplicateWindow);
+    controller.add(wishlistLink);
+    await pumpEventQueue();
+
+    expect(locations, ['/wishlist/42', '/wishlist/42']);
+
+    await navigator.dispose();
+    await controller.close();
+  });
+
+  test('opens a different link right away', () async {
+    final controller = StreamController<Uri>.broadcast();
+    final locations = <String>[];
+    final navigator = DeepLinkNavigator(
+      getInitialLink: () async => wishlistLink,
+      links: controller.stream,
+      navigate: locations.add,
+    );
+
+    await navigator.start();
+    controller.add(Uri.parse('https://wishy-app.fr/w/7'));
+    await pumpEventQueue();
+
+    expect(locations, ['/wishlist/42', '/wishlist/7']);
+
+    await navigator.dispose();
+    await controller.close();
+  });
+
   test('stops listening once disposed', () async {
     final controller = StreamController<Uri>.broadcast();
     final locations = <String>[];

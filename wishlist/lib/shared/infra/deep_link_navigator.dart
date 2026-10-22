@@ -15,18 +15,27 @@ class DeepLinkNavigator {
     required Future<Uri?> Function() getInitialLink,
     required Stream<Uri> links,
     required void Function(String location) navigate,
+    DateTime Function()? now,
   })  : _getInitialLink = getInitialLink,
         _links = links,
-        _navigate = navigate;
+        _navigate = navigate,
+        _now = now ?? DateTime.now;
+
+  /// A link received again within this delay is the same event delivered
+  /// twice (see [start]), not a new tap.
+  static const duplicateWindow = Duration(seconds: 2);
 
   final Future<Uri?> Function() _getInitialLink;
   final Stream<Uri> _links;
   final void Function(String location) _navigate;
+  final DateTime Function() _now;
   StreamSubscription<Uri>? _subscription;
+  Uri? _lastLink;
+  DateTime? _lastLinkAt;
 
-  /// The link stream only replays the launch link to its first listener,
-  /// which is Supabase: the launch link is read on its own. If the stream
-  /// still delivers it, opening the same location twice is harmless.
+  /// The link stream only replays the launch link to its first listener
+  /// (Supabase, today), so the launch link is read on its own. If the stream
+  /// still replays it to us, before or after that read, the copy is ignored.
   Future<void> start() async {
     if (_subscription != null) {
       return;
@@ -50,6 +59,16 @@ class DeepLinkNavigator {
   }
 
   void _open(Uri uri) {
+    final now = _now();
+    final lastLinkAt = _lastLinkAt;
+    if (uri == _lastLink &&
+        lastLinkAt != null &&
+        now.difference(lastLinkAt) < duplicateWindow) {
+      return;
+    }
+    _lastLink = uri;
+    _lastLinkAt = now;
+
     final location = DeeplinkConfig.locationFromUri(uri);
     if (location != null) {
       _navigate(location);

@@ -23,6 +23,10 @@ void main() {
 
     test('opens a shared wishlist link', () {
       expect(locationOf('https://wishy-app.fr/w/42'), '/wishlist/42');
+      expect(
+        locationOf('https://wishy-app.fr/w/999999999999999999'),
+        '/wishlist/999999999999999999',
+      );
       expect(locationOf('https://wishy-app.fr/w/42/'), '/wishlist/42');
       expect(locationOf('https://wishy-app.fr/w/42?utm=x'), '/wishlist/42');
     });
@@ -32,6 +36,8 @@ void main() {
       expect(locationOf('https://wishy-app.fr/w/0'), isNull);
       expect(locationOf('https://wishy-app.fr/w/-1'), isNull);
       expect(locationOf('https://wishy-app.fr/w/0x10'), isNull);
+      expect(locationOf('https://wishy-app.fr/w/+42'), isNull);
+      expect(locationOf('https://wishy-app.fr/w/9999999999999999999'), isNull);
       expect(locationOf('https://wishy-app.fr/w/42/edit'), isNull);
       expect(locationOf('https://wishy-app.fr/w'), isNull);
       expect(locationOf('https://wishy-app.fr/'), isNull);
@@ -45,16 +51,23 @@ void main() {
       expect(locationOf('SharingMedia-com.raphtang.wishy://dataUrl'), isNull);
     });
 
-    test('opens the path of a wishy:// link without its query', () {
+    test('opens the path and query of a wishy:// link', () {
       expect(
         locationOf('wishy://com.raphtang.wishy/wishlist/42'),
         '/wishlist/42',
       );
       expect(
         locationOf('wishy://com.raphtang.wishy/auth/reset-password?code=abc'),
-        '/auth/reset-password',
+        '/auth/reset-password?code=abc',
+      );
+      expect(
+        locationOf(
+          'wishy://com.raphtang.wishy/auth?redirectTo=%2Fwishlist%2F42',
+        ),
+        '/auth?redirectTo=%2Fwishlist%2F42',
       );
       expect(locationOf('wishy://com.raphtang.wishy'), '/');
+      expect(locationOf('wishy://com.raphtang.wishy?tab=1'), '/?tab=1');
     });
   });
 }
