@@ -100,10 +100,7 @@ function render() {
   const wishlistId = sharedWishlistId();
 
   document.documentElement.lang = lang;
-  if (lang === "en") {
-    document.getElementById("share-img-wish").src = "/img/app-friendwish-en.webp";
-    document.getElementById("share-img-booked").src = "/img/app-booked-en.webp";
-  }
+  window.WISHY_LANG.applyImages(lang);
 
   const title = document.getElementById("title");
   const subtitle = document.getElementById("subtitle");

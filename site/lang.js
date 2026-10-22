@@ -18,6 +18,16 @@
     }
   }
 
+  // Captures de l'app : le français est le src écrit dans le HTML (visible sans
+  // JavaScript), l'anglais est cherché ici via data-i18n-src.
+  const EN_IMAGES = {
+    imgHome: "/img/app-home-en.webp",
+    imgWl: "/img/app-wl-en.webp",
+    imgBooked: "/img/app-booked-en.webp",
+    imgFriendWish: "/img/app-friendwish-en.webp",
+    imgFriendWl: "/img/app-friendwl-en.webp",
+  };
+
   window.WISHY_LANG = Object.freeze({
     // "fr" ou "en".
     initial() {
@@ -31,6 +41,18 @@
       }
       const browser = (navigator.language || "fr").toLowerCase();
       return browser.startsWith("fr") ? "fr" : "en";
+    },
+
+    // Passe les <img data-i18n-src> dans la langue donnée (retour au français
+    // possible : le src d'origine est gardé dans data-fr-src).
+    applyImages(lang) {
+      document.querySelectorAll("[data-i18n-src]").forEach((element) => {
+        if (!("frSrc" in element.dataset)) {
+          element.dataset.frSrc = element.getAttribute("src");
+        }
+        const en = EN_IMAGES[element.dataset.i18nSrc];
+        element.setAttribute("src", lang === "en" && en ? en : element.dataset.frSrc);
+      });
     },
 
     store(lang) {

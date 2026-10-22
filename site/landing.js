@@ -81,14 +81,6 @@ const EN = {
   terms: "Terms of use (in French)",
 };
 
-const EN_IMAGES = {
-  imgHome: "/img/app-home-en.webp",
-  imgWl: "/img/app-wl-en.webp",
-  imgBooked: "/img/app-booked-en.webp",
-  imgFriendWish: "/img/app-friendwish-en.webp",
-  imgFriendWl: "/img/app-friendwl-en.webp",
-};
-
 const STORE_LABELS = {
   fr: { appStore: "Télécharger sur l'App Store", playStore: "Disponible sur Google Play", soon: "bientôt" },
   en: { appStore: "Download on the App Store", playStore: "Get it on Google Play", soon: "coming soon" },
@@ -127,11 +119,7 @@ function applyLang(lang) {
     element.setAttribute(attribute, isEn && EN[key] ? EN[key] : fr);
   });
 
-  document.querySelectorAll("[data-i18n-src]").forEach((element) => {
-    const fr = remember(element, "frSrc", element.getAttribute("src"));
-    const en = EN_IMAGES[element.dataset.i18nSrc];
-    element.setAttribute("src", isEn && en ? en : fr);
-  });
+  window.WISHY_LANG.applyImages(lang);
 
   document.querySelectorAll("[data-lang-toggle]").forEach((button) => {
     button.textContent = isEn ? "FR" : "EN";
