@@ -2,6 +2,8 @@
 // secours (app.js). Laisser à null tant que l'app n'est pas publiée sur le
 // store : l'accueil affiche « bientôt », la page de secours un bouton vers
 // l'accueil, et Android sans l'app retombe sur l'accueil au lieu du Play Store.
+// En renseignant un lien, mettre aussi à jour les rangées « bientôt » écrites
+// en dur dans index.html (affichées sans JavaScript).
 "use strict";
 
 window.WISHY_STORES = Object.freeze({
