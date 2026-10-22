@@ -682,12 +682,6 @@ p {
   font-weight: 700;
 }
 
-.secret-note {
-  margin-top: 20px;
-  font-size: 0.85rem;
-  color: #b9b0a4;
-}
-
 /* Étape 4 : les réservations, annotées. */
 
 .jour-visual {

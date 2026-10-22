@@ -62,7 +62,6 @@ const EN = {
   byHugo: "Hugo's on it",
   byLea: "Léa's on it",
   free: "Free",
-  secretNote: "Example list. The names are made up, the mechanism is real.",
   jourTitle: "On the big day, you know what to buy.",
   jourText:
     "Everything you booked for others is sorted by friend, with the total budget. No more “what was it again, for Léa?” in the shop aisle.",
@@ -70,7 +69,7 @@ const EN = {
   noteBudget: "the total budget",
   nousTitle: "Two brothers, way too many headphones.",
   nousText1:
-    "We're Raphaël and Tanguy. Three gift occasions in a row, three times the duplicates. Around us, families were still emailing each other their lists in documents.",
+    "We're Raphaël and Tanguy. Birthdays, then Christmas: several occasions in a row, and duplicate gifts every time. Wishes were passed around by email or word of mouth, and working out who was getting what was a real headache.",
   nousText2:
     "So we built Wishy, in the evenings and at weekends, also for the fun of building something together. Free, no ads, and your data isn't sold.",
   finalTitle: "No more duplicates.",
