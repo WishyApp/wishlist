@@ -39,6 +39,8 @@ class FloatingNavBar extends ConsumerWidget {
       child: TabBar(
         controller: tabController,
         onTap: (index) => onTabChanged(FloatingNavBarTab.values[index]),
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         tabs: [
           const _TabIcon(icon: Icons.home),
           _TabIcon(icon: Icons.group, showBadge: hasPendingRequests),
