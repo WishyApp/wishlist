@@ -2,28 +2,28 @@
    Couleurs et police de l'app (lib/shared/theme/colors.dart). */
 @font-face {
   font-family: "PlusJakartaSans";
-  src: url("/fonts/PlusJakartaSans-Regular.ttf") format("truetype");
+  src: url("/fonts/PlusJakartaSans-Regular.woff2") format("woff2");
   font-weight: 400;
   font-display: swap;
 }
 
 @font-face {
   font-family: "PlusJakartaSans";
-  src: url("/fonts/PlusJakartaSans-Medium.ttf") format("truetype");
+  src: url("/fonts/PlusJakartaSans-Medium.woff2") format("woff2");
   font-weight: 500;
   font-display: swap;
 }
 
 @font-face {
   font-family: "PlusJakartaSans";
-  src: url("/fonts/PlusJakartaSans-Bold.ttf") format("truetype");
+  src: url("/fonts/PlusJakartaSans-Bold.woff2") format("woff2");
   font-weight: 700;
   font-display: swap;
 }
 
 @font-face {
   font-family: "PlusJakartaSans";
-  src: url("/fonts/PlusJakartaSans-ExtraBold.ttf") format("truetype");
+  src: url("/fonts/PlusJakartaSans-ExtraBold.woff2") format("woff2");
   font-weight: 800;
   font-display: swap;
 }
