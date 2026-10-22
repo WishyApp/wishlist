@@ -103,8 +103,11 @@ extension EnhancedWidgetTester on WidgetTester {
     List<Override>? overrides,
     Object? initialExtra,
     List<RouteBase>? routes,
+    GlobalKey<NavigatorState>? navigatorKey,
+    TransitionBuilder? builder,
   }) async {
     final router = GoRouter(
+      navigatorKey: navigatorKey,
       initialExtra: initialExtra,
       initialLocation: path,
       routes: routes ?? $appRoutes,
@@ -115,6 +118,7 @@ extension EnhancedWidgetTester on WidgetTester {
       child: _addReusableWrapper(
         MaterialApp.router(
           routerConfig: router,
+          builder: builder,
           locale: _defaultTestLocale,
           localizationsDelegates: _localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,

@@ -93,6 +93,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retryButton => 'Try again';
 
   @override
+  String get updateRequiredTitle => 'Update required';
+
+  @override
+  String get updateRequiredDescription =>
+      'This version of Wishy is no longer supported. Update the app to keep going.';
+
+  @override
+  String get updateRequiredNoLinkIosDescription =>
+      'This version of Wishy is no longer supported. Update the app from TestFlight to keep going.';
+
+  @override
+  String get updateRequiredNoLinkAndroidDescription =>
+      'This version of Wishy is no longer supported. Update the app from the Play Store to keep going.';
+
+  @override
+  String get updateAvailableTitle => 'New version available';
+
+  @override
+  String get updateAvailableMessage =>
+      'Update Wishy to get the latest improvements.';
+
+  @override
+  String get updateAvailableNoLinkIosMessage =>
+      'Update Wishy from TestFlight to get the latest improvements.';
+
+  @override
+  String get updateAvailableNoLinkAndroidMessage =>
+      'Update Wishy from the Play Store to get the latest improvements.';
+
+  @override
+  String get updateButton => 'Update';
+
+  @override
+  String get updateLaterButton => 'Later';
+
+  @override
   String get pseudoField => 'Pseudo';
 
   @override

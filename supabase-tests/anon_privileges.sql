@@ -110,9 +110,10 @@ BEGIN
   SELECT count(*) INTO n FROM pg_proc p
    WHERE p.pronamespace = 'public'::regnamespace
      AND has_function_privilege('anon', p.oid, 'EXECUTE')
-     AND p.oid <> 'public.get_email_by_pseudo(text)'::regprocedure;
+     AND p.oid NOT IN ('public.get_email_by_pseudo(text)'::regprocedure,
+                       'public.get_app_version_policy(text)'::regprocedure);
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL anon can execute % public function(s) other than get_email_by_pseudo(text)', n;
+    RAISE EXCEPTION 'FAIL anon can execute % public function(s) other than get_email_by_pseudo(text) and get_app_version_policy(text)', n;
   END IF;
 
   SELECT count(*) INTO n FROM pg_default_acl d, aclexplode(d.defaclacl) a
@@ -197,6 +198,10 @@ SELECT pg_temp.expect_denied('anon executes is_wishlist_owner', $q$SELECT public
 SELECT pg_temp.expect_denied('anon executes can_book_wish', $q$SELECT public.can_book_wish(940001, 1)$q$);
 SELECT pg_temp.expect_ok('anon resolves a pseudo before sign in',
   $q$SELECT public.get_email_by_pseudo('anon_test_a')$q$);
+
+SELECT pg_temp.expect_ok('anon reads the app version policy before sign in',
+  $q$SELECT * FROM public.get_app_version_policy('ios')$q$);
+SELECT pg_temp.expect_denied('anon reads app_versions', $q$SELECT * FROM public.app_versions$q$);
 
 -- As A, the app flows still work
 RESET ROLE;

@@ -99,6 +99,21 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.ma_fonction() FROM PUBLIC, anon;
 ```
 
+## Versions minimale et recommandée de l'app
+
+La table `app_versions` (une ligne par plateforme, `ios` et `android`) dit à l'app quelle version elle doit au moins avoir (`min_version` : écran bloquant) et laquelle est recommandée (`recommended_version` : popup à l'ouverture, une fois par session). Ses valeurs sont des **données**, pas du schéma : on les change à la main avec un `UPDATE` dans le SQL editor, jamais dans une migration, et `check_drift` (qui ne compare que le schéma) ne les signale pas.
+
+Une migration ne doit pas les relever : `cd.yml` migre la prod avant que les builds soient publiés, donc tous les utilisateurs de la version précédente seraient bloqués sans rien à télécharger.
+
+Procédure, par plateforme, sur dev d'abord puis sur prod, et sur prod **seulement une fois la version téléchargeable dans ce store** :
+
+```sql
+UPDATE public.app_versions SET min_version = '0.3.0', updated_at = now() WHERE platform = 'ios';
+SELECT * FROM public.get_app_version_policy('ios');
+```
+
+Toujours vérifier avec le `SELECT` : une coquille (`3.0.0` pour `0.3.0`) bloque tout le monde. Les formats invalides (`^[0-9]+(\.[0-9]+){0,2}$`) sont refusés par la base. Les builds antérieurs à 0.3.0 n'ont pas ce garde-fou : le premier relèvement utile est vers une version ≥ 0.3.0.
+
 ## Tester en local
 
 Docker doit tourner.

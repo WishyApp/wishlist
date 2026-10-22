@@ -254,6 +254,66 @@ abstract class AppLocalizations {
   /// **'Réessayer'**
   String get retryButton;
 
+  /// No description provided for @updateRequiredTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mise à jour requise'**
+  String get updateRequiredTitle;
+
+  /// No description provided for @updateRequiredDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour pour continuer.'**
+  String get updateRequiredDescription;
+
+  /// No description provided for @updateRequiredNoLinkIosDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis TestFlight pour continuer.'**
+  String get updateRequiredNoLinkIosDescription;
+
+  /// No description provided for @updateRequiredNoLinkAndroidDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis le Play Store pour continuer.'**
+  String get updateRequiredNoLinkAndroidDescription;
+
+  /// No description provided for @updateAvailableTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouvelle version disponible'**
+  String get updateAvailableTitle;
+
+  /// No description provided for @updateAvailableMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mets Wishy à jour pour profiter des dernières nouveautés.'**
+  String get updateAvailableMessage;
+
+  /// No description provided for @updateAvailableNoLinkIosMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mets Wishy à jour depuis TestFlight pour profiter des dernières nouveautés.'**
+  String get updateAvailableNoLinkIosMessage;
+
+  /// No description provided for @updateAvailableNoLinkAndroidMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mets Wishy à jour depuis le Play Store pour profiter des dernières nouveautés.'**
+  String get updateAvailableNoLinkAndroidMessage;
+
+  /// No description provided for @updateButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mettre à jour'**
+  String get updateButton;
+
+  /// No description provided for @updateLaterButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus tard'**
+  String get updateLaterButton;
+
   /// No description provided for @pseudoField.
   ///
   /// In fr, this message translates to:

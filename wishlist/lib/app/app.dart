@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:wishlist/app/dev/store_screenshot_mode.dart';
 import 'package:wishlist/app/navigation/router.dart';
+import 'package:wishlist/app/version_gate/app_version_gate.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/share_intent_handler.dart';
 import 'package:wishlist/shared/theme/theme.dart';
@@ -18,10 +19,13 @@ class MyApp extends StatelessWidget {
       restorationScopeId: 'app',
       onGenerateTitle: (context) => 'Wishy',
       builder: (context, child) => ShareIntentHandler(
-        child: child ??
-            const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
+        child: AppVersionGate(
+          navigatorKey: router.routerDelegate.navigatorKey,
+          child: child ??
+              const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              ),
+        ),
       ),
       localizationsDelegates: const [
         AppLocalizations.delegate,
