@@ -2,7 +2,6 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
-import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
@@ -48,22 +47,18 @@ void main() {
         initialIndex: 0,
         quantityDisplay: quantityDisplay,
       ),
-      overrides: [
-        ...wishScreenOverrides(
-          wishId: wish.id,
-          wishlistId: wish.wishlistId,
-          wish: wish,
-          wishlist: friendWishlist,
+      overrides: wishScreenOverrides(
+        wishId: wish.id,
+        wishlistId: wish.wishlistId,
+        wish: wish,
+        wishlist: friendWishlist,
+        receipts: () => Stream.value(
+          (receivedQuantity > 0
+                  ? [received(wish, receivedQuantity)]
+                  : <CompletedWishWithDetails>[])
+              .toIList(),
         ),
-        completedWishesByUserRealtimeProvider(fakeFriendUserId1).overrideWith(
-          (ref) => Stream.value(
-            (receivedQuantity > 0
-                    ? [received(wish, receivedQuantity)]
-                    : <CompletedWishWithDetails>[])
-                .toIList(),
-          ),
-        ),
-      ],
+      ),
     );
     await tester.pumpAndSettle();
   }
