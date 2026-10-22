@@ -156,6 +156,10 @@ function render() {
   document.getElementById("soon-note").textContent = texts.storesSoon;
   show(storesSoon, !showAppStore && !showPlayStore);
 
+  // Le sous-titre est visible dans le HTML (utile sans JavaScript) : il ne
+  // reste que là où il a un texte à porter.
+  show(subtitle, false);
+
   if (wishlistId === null) {
     title.textContent = texts.homeTitle;
     subtitle.textContent = texts.homeSubtitle;
