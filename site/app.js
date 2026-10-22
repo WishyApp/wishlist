@@ -139,9 +139,14 @@ function render() {
   const storesSoon = document.getElementById("stores-soon");
 
   // Les boutons des stores apparaissent dès que leur lien est renseigné
-  // (stores.js) ; avant, un bouton renvoie vers l'accueil.
+  // (stores.js). « Découvrir Wishy » (lien vers l'accueil) apparaît dès qu'un
+  // store utile au visiteur manque : Play sur Android, App Store sur iOS,
+  // l'un ou l'autre sur ordinateur.
   const showAppStore = APP_STORE_URL !== null && platform !== "android";
   const showPlayStore = PLAY_STORE_URL !== null && platform !== "ios";
+  const missingStore =
+    (platform !== "ios" && PLAY_STORE_URL === null) ||
+    (platform !== "android" && APP_STORE_URL === null);
 
   if (APP_STORE_URL !== null) {
     appStore.href = APP_STORE_URL;
@@ -154,7 +159,7 @@ function render() {
   show(stores, showAppStore || showPlayStore);
   document.getElementById("soon-label").textContent = texts.discover;
   document.getElementById("soon-note").textContent = texts.storesSoon;
-  show(storesSoon, !showAppStore && !showPlayStore);
+  show(storesSoon, missingStore);
 
   // Le sous-titre est visible dans le HTML (utile sans JavaScript) : il ne
   // reste que là où il a un texte à porter.
