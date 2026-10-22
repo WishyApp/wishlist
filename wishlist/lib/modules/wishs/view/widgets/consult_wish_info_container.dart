@@ -7,9 +7,7 @@ import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_box_shadow.dart';
 import 'package:wishlist/modules/wishs/view/widgets/scrollable_content_with_indicator.dart';
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
-import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
-import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/infra/wish_taken_by_user_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
@@ -27,9 +25,9 @@ class ConsultWishInfoContainer extends ConsumerWidget {
     super.key,
     required this.wish,
     required this.descriptionText,
+    required this.ownerReceivedQuantity,
     this.isMyWishlist = false,
     this.showActions = true,
-    this.areReceiptsKnown = true,
   });
 
   final Wish wish;
@@ -37,10 +35,11 @@ class ConsultWishInfoContainer extends ConsumerWidget {
   final bool isMyWishlist;
   final bool showActions;
 
-  /// False tant que les réceptions du propriétaire ne sont pas connues : la
-  /// quantité reçue vaudrait 0 à tort, donc les actions qui en dépendent
-  /// (offrir, modifier ma réservation, marquer comme reçu) sont masquées.
-  final bool areReceiptsKnown;
+  /// Quantité de ce wish déjà reçue par le propriétaire de la wishlist, ou
+  /// null tant que ses réceptions ne sont pas connues : elle vaudrait 0 à
+  /// tort, donc les actions qui en dépendent (offrir, modifier ma
+  /// réservation, marquer comme reçu) sont masquées.
+  final int? ownerReceivedQuantity;
 
   Future<void> _onOpenLinkTap(BuildContext context, Uri linkUri) async {
     var isLaunched = false;
@@ -200,36 +199,18 @@ class ConsultWishInfoContainer extends ConsumerWidget {
       (element) => element.userId == currentUserId,
     );
 
-    final completedWishes = ref.watch(completedWishesRealtimeProvider);
-    final completedEntry = completedWishes.valueOrNull
-        ?.where((c) => c.wish.id == wish.id)
-        .firstOrNull;
-    final completedQuantity = completedEntry?.quantity ?? 0;
-    final isFullyCompleted = completedQuantity >= wish.quantity;
+    final receivedQuantity = ownerReceivedQuantity;
+    final areReceiptsKnown = receivedQuantity != null;
+    final isFullyCompleted = (receivedQuantity ?? 0) >= wish.quantity;
     final canMarkAsCompleted =
         isMyWishlist && areReceiptsKnown && !isFullyCompleted;
 
     final hasQuantity = wish.quantity > 1;
-    // Quantité déjà reçue par le propriétaire : elle consomme d'abord les
+    // La quantité déjà reçue par le propriétaire consomme d'abord les
     // réservations, le serveur refuse une réservation au-delà de
     // quantité - max(réservé, reçu).
-    final ownerId = isMyWishlist
-        ? null
-        : ref
-            .watch(watchWishlistByIdProvider(wish.wishlistId))
-            .valueOrNull
-            ?.idOwner;
-    final receivedQuantity = ownerId == null
-        ? 0
-        : ref
-                .watch(completedWishesByUserRealtimeProvider(ownerId))
-                .valueOrNull
-                ?.where((c) => c.wish.id == wish.id)
-                .firstOrNull
-                ?.quantity ??
-            0;
     final hasAvailableQuantity =
-        wish.bookableQuantity(receivedQuantity: receivedQuantity) > 0;
+        wish.bookableQuantity(receivedQuantity: receivedQuantity ?? 0) > 0;
 
     // Logique d'affichage des boutons basée sur la réservation de l'utilisateur
     final shouldShowGiveItButton =
@@ -388,7 +369,7 @@ class ConsultWishInfoContainer extends ConsumerWidget {
                         onPressed: () => _onMarkAsCompletedTap(
                           context,
                           ref,
-                          completedQuantity: completedQuantity,
+                          completedQuantity: receivedQuantity,
                         ),
                         text: l10n.markWishAsCompleted,
                         isStretched: true,

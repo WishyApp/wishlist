@@ -150,6 +150,7 @@ void main() {
       WidgetTester tester, {
       required Wish wish,
       required Stream<IList<CompletedWishWithDetails>> Function() receipts,
+      Stream<IList<CompletedWishWithDetails>> Function()? currentUserReceipts,
       WishQuantityDisplay quantityDisplay = WishQuantityDisplay.total,
     }) async {
       await tester.pumpApp(
@@ -164,6 +165,7 @@ void main() {
           wish: wish,
           wishlist: friendWishlist,
           receipts: receipts,
+          currentUserReceipts: currentUserReceipts,
         ),
       );
       await tester.pumpAndSettle();
@@ -278,6 +280,34 @@ void main() {
       );
 
       expect(find.text(l10n.iWantToGiveIt), findsWidgets);
+      expect(find.text('x2'), findsOneWidget);
+    });
+
+    testWidgets("reads the owner's receipts, not the current user's",
+        (tester) async {
+      final wish = fakeWish1.copyWith(quantity: 1);
+      // I received this wish from someone else, my friend did not.
+      await pumpFriendWish(
+        tester,
+        wish: wish,
+        receipts: () => Stream.value(const IListConst([])),
+        currentUserReceipts: () => Stream.value([received(wish, 1)].toIList()),
+      );
+
+      expect(find.text(l10n.iWantToGiveIt), findsWidgets);
+    });
+
+    testWidgets("ignores the current user's receipts for the pending quantity",
+        (tester) async {
+      final wish = fakeWish1.copyWith(quantity: 3);
+      await pumpFriendWish(
+        tester,
+        wish: wish,
+        quantityDisplay: WishQuantityDisplay.pending,
+        receipts: () => Stream.value([received(wish, 1)].toIList()),
+        currentUserReceipts: () => Stream.value([received(wish, 2)].toIList()),
+      );
+
       expect(find.text('x2'), findsOneWidget);
     });
 

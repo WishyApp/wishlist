@@ -195,6 +195,25 @@ Override watchWishsFromWishlistOverride(
   );
 }
 
+/// Overrides pour les réceptions : celles du propriétaire de la wishlist
+/// (`receipts`) et celles de l'utilisateur courant (`currentUserReceipts`,
+/// les mêmes par défaut). Des flux distincts permettent de vérifier qu'un
+/// écran lit bien celles du propriétaire.
+List<Override> completedWishesOverrides(
+  String ownerId, {
+  required Stream<IList<CompletedWishWithDetails>> Function() receipts,
+  Stream<IList<CompletedWishWithDetails>> Function()? currentUserReceipts,
+}) {
+  return [
+    completedWishesRealtimeProvider.overrideWith(
+      (ref) => (currentUserReceipts ?? receipts)(),
+    ),
+    completedWishesByUserRealtimeProvider(ownerId).overrideWith(
+      (ref) => receipts(),
+    ),
+  ];
+}
+
 /// Overrides pour le WishlistScreen
 List<Override> wishlistScreenOverrides({
   required int wishlistId,
@@ -213,13 +232,9 @@ List<Override> wishlistScreenOverrides({
       isDeleted: isWishlistDeleted,
     ),
     watchWishsFromWishlistOverride(wishlistId, wishes: wishes),
-    completedWishesRealtimeProvider.overrideWith(
-      (ref) => Stream.value((completedWishes ?? const []).toIList()),
-    ),
-    completedWishesByUserRealtimeProvider(
+    ...completedWishesOverrides(
       wishlist?.idOwner ?? fakeWishlist1.idOwner,
-    ).overrideWith(
-      (ref) => Stream.value((completedWishes ?? const []).toIList()),
+      receipts: () => Stream.value((completedWishes ?? const []).toIList()),
     ),
   ];
 }
@@ -273,30 +288,30 @@ Override watchWishByIdOverride(int wishId, {Wish? wish}) {
 }
 
 /// Overrides pour ConsultWishScreen et EditWishScreen
+///
+/// `receipts` : réceptions du propriétaire de la wishlist ;
+/// `currentUserReceipts` : celles de l'utilisateur courant. Aucune par défaut.
 List<Override> wishScreenOverrides({
   required int wishId,
   required int wishlistId,
   Wish? wish,
   Wishlist? wishlist,
   String? currentUserId,
-  List<CompletedWishWithDetails>? completedWishes,
   Stream<IList<CompletedWishWithDetails>> Function()? receipts,
+  Stream<IList<CompletedWishWithDetails>> Function()? currentUserReceipts,
 }) {
-  Stream<IList<CompletedWishWithDetails>> receiptsStream() =>
-      receipts?.call() ?? Stream.value((completedWishes ?? const []).toIList());
+  Stream<IList<CompletedWishWithDetails>> noReceipts() =>
+      Stream.value(const IListConst([]));
 
   return [
     supabaseClientOverride(userId: currentUserId),
     userServiceOverride(userId: currentUserId),
     watchWishByIdOverride(wishId, wish: wish),
     watchWishlistByIdOverride(wishlistId, wishlist: wishlist),
-    completedWishesRealtimeProvider.overrideWith(
-      (ref) => receiptsStream(),
-    ),
-    completedWishesByUserRealtimeProvider(
+    ...completedWishesOverrides(
       wishlist?.idOwner ?? fakeWishlist1.idOwner,
-    ).overrideWith(
-      (ref) => receiptsStream(),
+      receipts: receipts ?? noReceipts,
+      currentUserReceipts: currentUserReceipts ?? noReceipts,
     ),
   ];
 }

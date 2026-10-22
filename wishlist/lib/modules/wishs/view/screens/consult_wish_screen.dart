@@ -98,24 +98,28 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
         final currentUserId = ref.watch(currentUserIdProvider);
         final isMyWishlist = ownerId != null && ownerId == currentUserId;
         // Les réceptions qui comptent sont celles du propriétaire de la
-        // wishlist : les miennes si elle est à moi, sinon les siennes.
-        final ownerReceiptsAsync = isMyWishlist
-            ? ref.watch(completedWishesRealtimeProvider)
-            : ownerId == null
-                ? null
-                : ref.watch(completedWishesByUserRealtimeProvider(ownerId));
+        // wishlist (les miennes si elle est à moi, sinon les siennes) : le
+        // même provider dans les deux cas.
+        final ownerReceiptsAsync = ownerId == null
+            ? null
+            : ref.watch(completedWishesByUserRealtimeProvider(ownerId));
         // Tant que les réceptions ne sont pas connues (chargement, ou
         // échec du premier chargement), la quantité reçue vaudrait 0 à tort :
-        // un wish déjà reçu afficherait « Je veux l'offrir ». Seules les
-        // actions qui en dépendent sont masquées (pas Modifier ni l'annulation
-        // d'une réservation). Même logique que isOwnershipKnown ci-dessous
-        // (hasValue, pas hasError).
-        final areReceiptsKnown = ownerReceiptsAsync?.hasValue ?? false;
+        // un wish déjà reçu afficherait « Je veux l'offrir ». D'où null =
+        // inconnue : seules les actions qui en dépendent sont masquées (pas
+        // Modifier ni l'annulation d'une réservation). Même logique que
+        // isOwnershipKnown ci-dessous (hasValue, pas hasError).
+        final ownerReceipts = ownerReceiptsAsync?.valueOrNull;
+        final ownerReceivedQuantity = ownerReceipts == null
+            ? null
+            : ownerReceipts
+                    .where((item) => item.wish.id == wishData.id)
+                    .firstOrNull
+                    ?.quantity ??
+                0;
         final quantityToDisplay = _quantityToDisplay(
           wishData,
-          ownerId: ownerId,
-          isMyWishlist: isMyWishlist,
-          areReceiptsKnown: areReceiptsKnown,
+          ownerReceivedQuantity: ownerReceivedQuantity,
         );
         // Tant que le propriétaire n'est pas connu, on masque les actions
         // pour ne pas afficher brièvement celles d'un invité au propriétaire.
@@ -158,7 +162,7 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
                               isMyWishlist: isMyWishlist,
                               showActions:
                                   widget.showActions && isOwnershipKnown,
-                              areReceiptsKnown: areReceiptsKnown,
+                              ownerReceivedQuantity: ownerReceivedQuantity,
                             ),
                           ],
                         ),
@@ -198,56 +202,22 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
 
   int _quantityToDisplay(
     Wish wish, {
-    required String? ownerId,
-    required bool isMyWishlist,
-    required bool areReceiptsKnown,
+    required int? ownerReceivedQuantity,
   }) {
-    final completedQuantity = ref
-            .watch(completedWishesRealtimeProvider)
-            .valueOrNull
-            ?.where((item) => item.wish.id == wish.id)
-            .firstOrNull
-            ?.quantity ??
-        0;
-
-    // Quantité reçue par le propriétaire de la wishlist (celle que compte le
-    // serveur) : pour un ami, ce n'est pas la sienne.
-    int ownerReceivedQuantity() {
-      if (isMyWishlist) {
-        return completedQuantity;
-      }
-      if (ownerId == null) {
-        return 0;
-      }
-      return ref
-              .watch(completedWishesByUserRealtimeProvider(ownerId))
-              .valueOrNull
-              ?.where((item) => item.wish.id == wish.id)
-              .firstOrNull
-              ?.quantity ??
-          0;
-    }
-
-    final dependsOnReceipts = switch (widget.quantityDisplay) {
-      WishQuantityDisplay.pending ||
-      WishQuantityDisplay.booked =>
-        !areReceiptsKnown,
-      WishQuantityDisplay.completed =>
-        !ref.watch(completedWishesRealtimeProvider).hasValue,
-      WishQuantityDisplay.total || WishQuantityDisplay.myBooked => false,
-    };
-    // Réceptions inconnues : pas de badge plutôt qu'une quantité fausse.
-    if (dependsOnReceipts) {
-      return 0;
-    }
-
     switch (widget.quantityDisplay) {
       case WishQuantityDisplay.total:
         return wish.quantity;
       case WishQuantityDisplay.pending:
-        return wish.pendingQuantity(receivedQuantity: ownerReceivedQuantity());
+        // Réceptions inconnues : pas de badge plutôt qu'une quantité fausse.
+        if (ownerReceivedQuantity == null) {
+          return 0;
+        }
+        return wish.pendingQuantity(receivedQuantity: ownerReceivedQuantity);
       case WishQuantityDisplay.booked:
-        return (wish.totalBookedQuantity - ownerReceivedQuantity()).clamp(
+        if (ownerReceivedQuantity == null) {
+          return 0;
+        }
+        return (wish.totalBookedQuantity - ownerReceivedQuantity).clamp(
           0,
           wish.totalBookedQuantity,
         );
@@ -259,7 +229,17 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
                 ?.quantity ??
             0;
       case WishQuantityDisplay.completed:
-        return completedQuantity;
+        // Mes propres réceptions (liste des wishs que j'ai reçus), pas
+        // celles du propriétaire de la wishlist.
+        final completedWishes = ref.watch(completedWishesRealtimeProvider);
+        if (!completedWishes.hasValue) {
+          return 0;
+        }
+        return completedWishes.requireValue
+                .where((item) => item.wish.id == wish.id)
+                .firstOrNull
+                ?.quantity ??
+            0;
     }
   }
 }

@@ -23,7 +23,11 @@ void main() {
     final wishTakenByUserService = MockWishTakenByUserService();
 
     await tester.pumpApp(
-      ConsultWishInfoContainer(wish: fakeWish1, descriptionText: ''),
+      ConsultWishInfoContainer(
+        wish: fakeWish1,
+        descriptionText: '',
+        ownerReceivedQuantity: 0,
+      ),
       overrides: [
         supabaseClientProvider.overrideWithValue(session.client),
         userServiceProvider.overrideWithValue(userService),
