@@ -1,18 +1,25 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/shared/infra/app_update_service.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository.dart';
 import 'package:wishlist/shared/models/app_version_policy.dart';
 
 class _FakeRepository implements AppVersionRepository {
-  _FakeRepository({this.policy, this.error});
+  _FakeRepository({this.policy, this.error, this.hangs = false});
 
   final AppVersionPolicy? policy;
   final Exception? error;
+  final bool hangs;
   String? requestedPlatform;
 
   @override
   Future<AppVersionPolicy?> getPolicy(String platform) async {
     requestedPlatform = platform;
+    if (hangs) {
+      return Completer<AppVersionPolicy?>().future;
+    }
     final error = this.error;
     if (error != null) {
       throw error;
@@ -153,6 +160,71 @@ void main() {
           .check(currentVersion: '0.2.0', platform: 'ios');
 
       expect(decision, isNull);
+    });
+  });
+
+  group('AppUpdateService reporting', () {
+    final reports = <({String message, bool capture})>[];
+    setUp(reports.clear);
+
+    AppUpdateService service(AppVersionRepository repository) =>
+        AppUpdateService(
+          repository,
+          report: (message, {capture = true}) =>
+              reports.add((message: message, capture: capture)),
+        );
+
+    test('no policy row is reported to Sentry', () async {
+      await service(_FakeRepository())
+          .check(currentVersion: '0.2.0', platform: 'ios');
+
+      expect(reports, hasLength(1));
+      expect(reports.single.capture, isTrue);
+      expect(reports.single.message, contains('no policy row'));
+    });
+
+    test('an unexpected failure is reported to Sentry', () async {
+      await service(_FakeRepository(error: const FormatException('x')))
+          .check(currentVersion: '0.2.0', platform: 'ios');
+
+      expect(reports.single.capture, isTrue);
+      expect(reports.single.message, contains('FormatException'));
+    });
+
+    test('a network failure only leaves a breadcrumb', () async {
+      await service(_FakeRepository(error: const SocketException('down')))
+          .check(currentVersion: '0.2.0', platform: 'ios');
+
+      expect(reports.single.capture, isFalse);
+    });
+
+    test('a success reports nothing', () async {
+      await service(_FakeRepository(policy: policy()))
+          .check(currentVersion: '0.2.0', platform: 'ios');
+
+      expect(reports, isEmpty);
+    });
+
+    testWidgets('a hung request times out after 10 seconds: pass, breadcrumb',
+        (tester) async {
+      AppUpdateDecision? decision;
+      var done = false;
+      unawaited(
+        service(_FakeRepository(hangs: true))
+            .check(currentVersion: '0.2.0', platform: 'ios')
+            .then((d) {
+          decision = d;
+          done = true;
+        }),
+      );
+
+      await tester.pump(const Duration(seconds: 9));
+      expect(done, isFalse);
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(done, isTrue);
+      expect(decision, isNull);
+      expect(reports.single.capture, isFalse);
     });
   });
 

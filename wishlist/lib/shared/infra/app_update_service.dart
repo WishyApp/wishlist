@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/app_version.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository_provider.dart';
+import 'package:wishlist/shared/infra/utils/network_error.dart';
 import 'package:wishlist/shared/models/app_version_policy.dart';
 
 enum AppUpdateStatus {
@@ -73,25 +77,66 @@ String? _cleanUrl(String? url) {
   return isWeb ? trimmed : null;
 }
 
-class AppUpdateService {
-  AppUpdateService(this._repository);
-  final AppVersionRepository _repository;
+/// Reports a version check problem. [capture] false only leaves a breadcrumb
+/// (expected, frequent failures like a missing network); true also sends a
+/// Sentry warning.
+typedef AppUpdateReporter = void Function(String message, {bool capture});
 
-  /// Null when the check failed (network, missing RPC, bad row...): the caller
-  /// lets the user through. The failure is only logged.
+/// Sentry is only initialized in release builds with a DSN: elsewhere these
+/// calls do nothing. The message holds no user data.
+void reportAppUpdateIssue(String message, {bool capture = true}) {
+  try {
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: message,
+          category: 'app_update',
+          level: SentryLevel.warning,
+        ),
+      ),
+    );
+    if (capture) {
+      unawaited(
+        Sentry.captureMessage(message, level: SentryLevel.warning)
+            .then<void>((_) {}, onError: (Object _) {}),
+      );
+    }
+  } catch (_) {
+    // Reporting must never break the check.
+  }
+}
+
+class AppUpdateService {
+  AppUpdateService(
+    this._repository, {
+    AppUpdateReporter report = reportAppUpdateIssue,
+  }) : _report = report;
+  final AppVersionRepository _repository;
+  final AppUpdateReporter _report;
+
+  static const _timeout = Duration(seconds: 10);
+
+  /// Null when the check failed (network, timeout, missing RPC, bad row...):
+  /// the caller lets the user through. The failure is logged and reported to
+  /// Sentry, never shown.
   Future<AppUpdateDecision?> check({
     required String currentVersion,
     required String platform,
   }) async {
     try {
-      final policy = await _repository.getPolicy(platform);
+      final policy = await _repository.getPolicy(platform).timeout(_timeout);
       if (policy == null) {
         debugPrint('[Wishy AppUpdate] no policy for $platform');
+        _report('App version check: no policy row for $platform');
         return null;
       }
       return decideAppUpdate(currentVersion, policy);
     } catch (e) {
       debugPrint('[Wishy AppUpdate] check failed: $e');
+      _report(
+        'App version check failed ($platform): ${e.runtimeType}',
+        capture: !isNetworkError(e),
+      );
       return null;
     }
   }

@@ -7,11 +7,15 @@ import 'package:wishlist/shared/theme/colors.dart';
 /// Full-screen wall shown when the app version is older than the server's
 /// minimum. No app bar and no back button: there is nowhere to go.
 class AppUpdateRequiredScreen extends StatelessWidget {
-  const AppUpdateRequiredScreen({super.key, this.onUpdate});
+  const AppUpdateRequiredScreen({super.key, this.onUpdate, this.platform});
 
   /// Opens the store. Null when the server gives no store page: the screen
   /// then only explains where to update from.
   final VoidCallback? onUpdate;
+
+  /// `ios` or `android`: names the store in the text shown without a store
+  /// page.
+  final String? platform;
 
   @override
   Widget build(BuildContext context) {
@@ -24,9 +28,11 @@ class AppUpdateRequiredScreen extends StatelessWidget {
         illustrationUrl: Assets.svg.noWishBag,
         illustrationHeight: MediaQuery.sizeOf(context).height / 3.5,
         title: l10n.updateRequiredTitle,
-        description: onUpdate == null
-            ? l10n.updateRequiredNoLinkDescription
-            : l10n.updateRequiredDescription,
+        description: switch ((onUpdate, platform)) {
+          (null, 'ios') => l10n.updateRequiredNoLinkIosDescription,
+          (null, 'android') => l10n.updateRequiredNoLinkAndroidDescription,
+          _ => l10n.updateRequiredDescription,
+        },
         callToAction: l10n.updateButton,
         onCallToAction: onUpdate,
       ),

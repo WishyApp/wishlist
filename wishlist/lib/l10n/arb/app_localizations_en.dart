@@ -100,8 +100,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'This version of Wishy is no longer supported. Update the app to keep going.';
 
   @override
-  String get updateRequiredNoLinkDescription =>
-      'This version of Wishy is no longer supported. Update the app from TestFlight (iOS) or the Play Store (Android) to keep going.';
+  String get updateRequiredNoLinkIosDescription =>
+      'This version of Wishy is no longer supported. Update the app from TestFlight to keep going.';
+
+  @override
+  String get updateRequiredNoLinkAndroidDescription =>
+      'This version of Wishy is no longer supported. Update the app from the Play Store to keep going.';
 
   @override
   String get updateAvailableMessage => 'A new version of Wishy is available.';

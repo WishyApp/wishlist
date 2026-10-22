@@ -143,6 +143,8 @@ Every schema change goes through an idempotent migration file, applied to dev wi
 
 See [docs/supabase-migrations.md](docs/supabase-migrations.md) for the workflow, how to write idempotent migrations and how to check for drift.
 
+The minimum and recommended app versions (`app_versions` table) are raised by hand, never by a migration: see [the procedure](docs/supabase-migrations.md#versions-minimale-et-recommandée-de-lapp).
+
 ---
 
 ## 🔗 Liens de partage (wishy-app.fr)

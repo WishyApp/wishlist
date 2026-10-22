@@ -266,11 +266,17 @@ abstract class AppLocalizations {
   /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour pour continuer.'**
   String get updateRequiredDescription;
 
-  /// No description provided for @updateRequiredNoLinkDescription.
+  /// No description provided for @updateRequiredNoLinkIosDescription.
   ///
   /// In fr, this message translates to:
-  /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis TestFlight (iOS) ou le Play Store (Android) pour continuer.'**
-  String get updateRequiredNoLinkDescription;
+  /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis TestFlight pour continuer.'**
+  String get updateRequiredNoLinkIosDescription;
+
+  /// No description provided for @updateRequiredNoLinkAndroidDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis le Play Store pour continuer.'**
+  String get updateRequiredNoLinkAndroidDescription;
 
   /// No description provided for @updateAvailableMessage.
   ///

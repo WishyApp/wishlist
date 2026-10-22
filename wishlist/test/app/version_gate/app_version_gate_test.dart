@@ -2,16 +2,20 @@ import 'dart:async';
 
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:wishlist/app/version_gate/app_update_required_screen.dart';
 import 'package:wishlist/app/version_gate/app_version_gate.dart';
+import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/app_update_service.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository_provider.dart';
 import 'package:wishlist/shared/models/app_version_policy.dart';
+import 'package:wishlist/shared/theme/theme.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 
 import '../../pump_app.dart';
@@ -21,11 +25,18 @@ class _FakeRepository implements AppVersionRepository {
 
   AppVersionPolicy? policy;
   Exception? error;
+
+  /// Next call never completes (hung request).
+  bool hangNext = false;
   int calls = 0;
 
   @override
   Future<AppVersionPolicy?> getPolicy(String platform) async {
     calls++;
+    if (hangNext) {
+      hangNext = false;
+      return Completer<AppVersionPolicy?>().future;
+    }
     final error = this.error;
     if (error != null) {
       throw error;
@@ -129,30 +140,114 @@ void main() {
 
       expect(find.byType(AppUpdateRequiredScreen), findsOneWidget);
       expect(find.textContaining('TestFlight'), findsOneWidget);
+      expect(find.textContaining('Play Store'), findsNothing);
       expect(find.byType(PrimaryButton), findsNothing);
     });
 
-    testWidgets('cannot be dismissed: no app bar, back button swallowed',
-        (tester) async {
+    testWidgets('without url on Android: names the Play Store', (tester) async {
+      await _pumpGate(
+        tester,
+        _overrides(
+          _FakeRepository(
+            policy: const AppVersionPolicy(
+              minVersion: '0.3.0',
+              recommendedVersion: '0.3.0',
+            ),
+          ),
+          platform: 'android',
+        ),
+      );
+
+      expect(find.textContaining('Play Store'), findsOneWidget);
+      expect(find.textContaining('TestFlight'), findsNothing);
+    });
+
+    testWidgets('has no app bar and no back button', (tester) async {
       await _pumpGate(tester, _overrides(_FakeRepository(policy: required)));
 
       expect(find.byType(AppBar), findsNothing);
       expect(find.byType(BackButton), findsNothing);
+    });
+
+    testWidgets(
+        'system back is not handled by the app: it exits, like from a root '
+        'screen', (tester) async {
+      final exits = <MethodCall>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemNavigator.pop') {
+            exits.add(call);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, __) => const Scaffold(key: _homeKey),
+            routes: [
+              GoRoute(
+                path: 'detail',
+                builder: (_, __) => const Scaffold(),
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: _overrides(_FakeRepository(policy: required)),
+          child: MaterialApp.router(
+            routerConfig: router,
+            locale: const Locale('fr'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: theme,
+            builder: (context, child) => AppVersionGate(child: child!),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(AppUpdateRequiredScreen), findsOneWidget);
 
       final handled = await tester.binding.handlePopRoute();
       await tester.pump();
 
-      expect(handled, isTrue);
-      expect(find.byType(AppUpdateRequiredScreen), findsOneWidget);
+      expect(handled, isFalse);
+      expect(exits, hasLength(1));
     });
 
-    testWidgets('is shown again when the app comes back to the foreground',
-        (tester) async {
+    testWidgets('a re-check on resume keeps the wall', (tester) async {
       final repository = _FakeRepository(policy: required);
       await _pumpGate(tester, _overrides(repository));
       expect(repository.calls, 1);
 
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+
+      expect(repository.calls, 2);
+      expect(find.byType(AppUpdateRequiredScreen), findsOneWidget);
+    });
+
+    testWidgets('a hung check times out, lets through, and a later one runs',
+        (tester) async {
+      final repository = _FakeRepository(policy: required)..hangNext = true;
+      await _pumpGate(tester, _overrides(repository));
+
+      expect(repository.calls, 1);
+      expect(find.byKey(_homeKey), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 11));
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
       await tester.pump();
@@ -247,6 +342,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(opened, ['https://example.com/store']);
+    });
+
+    testWidgets('is hidden when the app is up to date again', (tester) async {
+      final repository = _FakeRepository(policy: recommended);
+      await _pumpGate(tester, _overrides(repository));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(MaterialBanner), findsOneWidget);
+
+      repository.policy = const AppVersionPolicy(
+        minVersion: '0.0.0',
+        recommendedVersion: '0.0.0',
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MaterialBanner), findsNothing);
     });
 
     testWidgets('without url there is only the dismiss action', (tester) async {

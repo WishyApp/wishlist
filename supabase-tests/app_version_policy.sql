@@ -58,6 +58,37 @@ BEGIN
   RAISE NOTICE 'ok   catalog: app_versions seeded, RLS on, no grant';
 END $$;
 
+-- A malformed version is refused (a typo would block or nag every user)
+CREATE FUNCTION pg_temp.expect_check_violation(label text, statement text)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  EXECUTE statement;
+  RAISE EXCEPTION 'FAIL %: accepted, expected a check violation', label;
+EXCEPTION WHEN check_violation THEN
+  RAISE NOTICE 'ok   % (refused)', label;
+END $$;
+
+SELECT pg_temp.expect_check_violation('min_version abc',
+  $q$UPDATE public.app_versions SET min_version = 'abc' WHERE platform = 'ios'$q$);
+SELECT pg_temp.expect_check_violation('min_version empty',
+  $q$UPDATE public.app_versions SET min_version = '' WHERE platform = 'ios'$q$);
+SELECT pg_temp.expect_check_violation('min_version four parts',
+  $q$UPDATE public.app_versions SET min_version = '1.2.3.4' WHERE platform = 'ios'$q$);
+SELECT pg_temp.expect_check_violation('min_version with a v',
+  $q$UPDATE public.app_versions SET min_version = 'v0.3.0' WHERE platform = 'ios'$q$);
+SELECT pg_temp.expect_check_violation('min_version with a build suffix',
+  $q$UPDATE public.app_versions SET min_version = '0.3.0+10' WHERE platform = 'ios'$q$);
+SELECT pg_temp.expect_check_violation('recommended_version abc',
+  $q$UPDATE public.app_versions SET recommended_version = '0.3.x' WHERE platform = 'ios'$q$);
+SELECT pg_temp.expect_check_violation('recommended_version trailing newline',
+  $q$UPDATE public.app_versions SET recommended_version = E'0.3.0\n' WHERE platform = 'ios'$q$);
+SELECT pg_temp.expect_check_violation('platform windows',
+  $q$INSERT INTO public.app_versions (platform) VALUES ('windows')$q$);
+UPDATE public.app_versions SET min_version = '1', recommended_version = '1.2'
+ WHERE platform = 'ios';
+UPDATE public.app_versions SET min_version = '0.2.0', recommended_version = '0.3.0'
+ WHERE platform = 'ios';
+
 -- As anon, before sign in
 SELECT pg_temp.act_as_anon();
 DO $$

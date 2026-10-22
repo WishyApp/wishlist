@@ -8,8 +8,9 @@ import 'package:wishlist/shared/infra/app_update_service.dart';
 /// sign in screens too) and applies the server's version policy:
 ///
 /// - older than the minimum: [AppUpdateRequiredScreen] replaces the app. The
-///   child is not built, so there is no navigation behind it, and the system
-///   back button is swallowed.
+///   child is not built, so there is no navigation behind it. The system back
+///   button is left alone: the router has no Navigator left to pop, nobody
+///   handles it and the app exits, as from any root screen.
 /// - older than the recommended version: a dismissible banner, once per app
 ///   session.
 ///
@@ -46,13 +47,6 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
     if (state == AppLifecycleState.resumed) {
       _check();
     }
-  }
-
-  /// Registered after the router's own observer: only reached when it has not
-  /// handled the back button, which is then not allowed to leave the wall.
-  @override
-  Future<bool> didPopRoute() async {
-    return ref.read(appUpdateProvider).status == AppUpdateStatus.required;
   }
 
   void _check() {
@@ -101,7 +95,7 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
             _showRecommendation(decision.updateUrl);
           }
         case AppUpdateStatus.upToDate:
-          break;
+          ScaffoldMessenger.of(context).clearMaterialBanners();
       }
     });
 
@@ -109,6 +103,7 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
     if (decision.status == AppUpdateStatus.required) {
       final url = decision.updateUrl;
       return AppUpdateRequiredScreen(
+        platform: ref.read(appUpdatePlatformProvider),
         onUpdate: url == null ? null : () => _openStore(url),
       );
     }

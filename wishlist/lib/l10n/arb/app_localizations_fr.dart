@@ -100,8 +100,12 @@ class AppLocalizationsFr extends AppLocalizations {
       'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour pour continuer.';
 
   @override
-  String get updateRequiredNoLinkDescription =>
-      'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis TestFlight (iOS) ou le Play Store (Android) pour continuer.';
+  String get updateRequiredNoLinkIosDescription =>
+      'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis TestFlight pour continuer.';
+
+  @override
+  String get updateRequiredNoLinkAndroidDescription =>
+      'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis le Play Store pour continuer.';
 
   @override
   String get updateAvailableMessage =>
