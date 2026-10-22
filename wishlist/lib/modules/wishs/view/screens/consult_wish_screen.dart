@@ -13,6 +13,7 @@ import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_pro
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 
 enum WishQuantityDisplay { total, pending, booked, myBooked, completed }
 
@@ -69,25 +70,6 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
         final wish = ref.watch(watchWishByIdProvider(wishId));
         return _buildSingleWish(wishId, wish, l10n);
       },
-    );
-  }
-
-  /// Only re-opens the providers that failed: the healthy ones keep their data.
-  Future<void> _retryLoading(int wishId, int? wishlistId) async {
-    final failed = _sourceProviders(wishId, wishlistId)
-        .where((provider) => ref.read(provider).hasError)
-        .toList();
-
-    failed.forEach(ref.invalidate);
-    await Future.wait(failed.map((provider) => ref.read(provider.future)));
-  }
-
-  /// A failed provider reloads as a loading state that still holds its error.
-  bool _isRetrying(int wishId, int? wishlistId) {
-    return _sourceProviders(wishId, wishlistId).any(
-      (provider) => ref.watch(
-        provider.select((source) => source.hasError && source.isLoading),
-      ),
     );
   }
 
@@ -174,15 +156,17 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
           loading: _loadingScaffold,
           error: (error, _) => WishLoadError(
             error: error,
-            onRetry: () => _retryLoading(wishId, wishData.wishlistId),
-            isRetrying: _isRetrying(wishId, wishData.wishlistId),
+            onRetry: () =>
+                ref.retryFailed(_sourceProviders(wishId, wishData.wishlistId)),
+            isRetrying: ref
+                .isRetryingAny(_sourceProviders(wishId, wishData.wishlistId)),
           ),
         );
       },
       error: (error, stackTrace) => WishLoadError(
         error: error,
-        onRetry: () => _retryLoading(wishId, null),
-        isRetrying: _isRetrying(wishId, null),
+        onRetry: () => ref.retryFailed(_sourceProviders(wishId, null)),
+        isRetrying: ref.isRetryingAny(_sourceProviders(wishId, null)),
       ),
       loading: _loadingScaffold,
     );

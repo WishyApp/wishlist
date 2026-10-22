@@ -7,9 +7,10 @@ import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
-import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
+import 'package:wishlist/shared/widgets/error_page_with_back.dart';
 import 'package:wishlist/shared/widgets/wishlist_list_tile.dart';
 
 /// Écran affiché quand on arrive via partage (add-wish) sans wishlist connue.
@@ -171,17 +172,11 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
         appBar: _buildBackAppBar(),
         body: const Center(child: CircularProgressIndicator()),
       ),
-      error: (error, _) => Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: _buildBackAppBar(),
-        body: PageLayoutError(
-          error: error,
-          onRetry: () async {
-            ref.invalidate(wishlistsRealtimeProvider);
-            await ref.read(wishlistsRealtimeProvider.future);
-          },
-          isRetrying: wishlistsAsync.isLoading,
-        ),
+      error: (error, _) => ErrorPageWithBack.failure(
+        error: error,
+        onRetry: () => ref.retryFailed([wishlistsRealtimeProvider]),
+        isRetrying: ref.isRetryingAny([wishlistsRealtimeProvider]),
+        onBack: context.pop,
       ),
     );
   }

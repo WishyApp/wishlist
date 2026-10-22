@@ -11,6 +11,7 @@ import 'package:wishlist/shared/page_layout_empty/page_layout_empty.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/widgets/app_scaffold.dart';
 import 'package:wishlist/shared/utils/app_user_utils.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 
@@ -77,8 +78,8 @@ class FriendsScreen extends ConsumerWidget {
       ),
       error: (error, stackTrace) => PageLayoutError(
         error: error,
-        onRetry: refreshFriends,
-        isRetrying: friendsData.isLoading,
+        onRetry: () => ref.retryFailed([friendshipsRealtimeProvider]),
+        isRetrying: ref.isRetryingAny([friendshipsRealtimeProvider]),
         appBarTitle: l10n.fiendsScreenTitle,
       ),
       data: (data) => data.isEmpty

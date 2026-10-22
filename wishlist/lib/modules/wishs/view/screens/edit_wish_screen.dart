@@ -5,6 +5,7 @@ import 'package:wishlist/modules/wishs/view/wish_form_screen.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/infra/utils/not_found_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 
 class EditWishScreen extends ConsumerWidget {
   const EditWishScreen({
@@ -33,11 +34,8 @@ class EditWishScreen extends ConsumerWidget {
       ),
       error: (error, stackTrace) => WishLoadError(
         error: error,
-        onRetry: () async {
-          ref.invalidate(watchWishByIdProvider(wishId));
-          await ref.read(watchWishByIdProvider(wishId).future);
-        },
-        isRetrying: wishAsync.isLoading,
+        onRetry: () => ref.retryFailed([watchWishByIdProvider(wishId)]),
+        isRetrying: ref.isRetryingAny([watchWishByIdProvider(wishId)]),
       ),
     );
   }

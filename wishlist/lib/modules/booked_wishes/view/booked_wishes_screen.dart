@@ -18,6 +18,7 @@ import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/widgets/app_scaffold.dart';
 import 'package:wishlist/shared/utils/booked_wish_sort_utils.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/utils/string_utils.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
@@ -100,11 +101,8 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stackTrace) => PageLayoutError(
         error: error,
-        onRetry: () async {
-          ref.invalidate(bookedWishesRealtimeProvider);
-          await ref.read(bookedWishesRealtimeProvider.future);
-        },
-        isRetrying: bookedWishesAsync.isLoading,
+        onRetry: () => ref.retryFailed([bookedWishesRealtimeProvider]),
+        isRetrying: ref.isRetryingAny([bookedWishesRealtimeProvider]),
         appBarTitle: l10n.bookedWishesScreenTitle,
       ),
       data: (bookedWishes) {
