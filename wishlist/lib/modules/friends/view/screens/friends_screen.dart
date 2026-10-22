@@ -63,7 +63,12 @@ class FriendsScreen extends ConsumerWidget {
       ref.invalidate(friendshipsRealtimeProvider);
 
       // Attendre que le nouveau stream soit initialisé
-      await ref.read(friendshipsRealtimeProvider.future);
+      try {
+        await ref.read(friendshipsRealtimeProvider.future);
+      } catch (_) {
+        // The provider error state already reports it: don't let it escape
+        // from the RefreshIndicator as an uncaught error.
+      }
     }
 
     return friendsData.when(
