@@ -4,8 +4,8 @@ import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/page_layout_empty/page_layout_empty.dart';
+import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/widgets/app_scaffold.dart';
-import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/widgets/dialogs/create_dialog.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 import 'package:wishlist/shared/widgets/wishlists_grid.dart';
@@ -29,10 +29,12 @@ class HomeScreen extends ConsumerWidget {
       loading: () => const Center(
         child: CircularProgressIndicator(),
       ),
-      error: (error, stackTrace) {
-        showGenericError(context, error: error, isTopSnackBar: true);
-        return const SizedBox.shrink();
-      },
+      error: (error, stackTrace) => PageLayoutError(
+        error: error,
+        onRetry: refreshWishlists,
+        isRetrying: wishlists.isLoading,
+        appBarTitle: l10n.wishlistsScreenTitle,
+      ),
       data: (data) => data.isEmpty
           ? PageLayoutEmpty(
               illustrationUrl: Assets.svg.noWishlist,

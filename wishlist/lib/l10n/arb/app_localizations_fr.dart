@@ -72,6 +72,27 @@ class AppLocalizationsFr extends AppLocalizations {
       'Impossible de baisser la quantité : une partie de ce wish est déjà réservée.';
 
   @override
+  String get networkError =>
+      'Problème de connexion. Vérifie ton réseau puis réessaie.';
+
+  @override
+  String get networkErrorTitle => 'Problème de connexion';
+
+  @override
+  String get networkErrorDescription =>
+      'Ta connexion internet semble absente ou trop lente. Vérifie ton Wi-Fi ou tes données mobiles, puis réessaie.';
+
+  @override
+  String get loadingErrorTitle => 'Impossible de charger cette page';
+
+  @override
+  String get loadingErrorDescription =>
+      'Le problème vient sûrement de chez nous. Réessaie dans quelques instants.';
+
+  @override
+  String get retryButton => 'Réessayer';
+
+  @override
   String get pseudoField => 'Pseudo';
 
   @override

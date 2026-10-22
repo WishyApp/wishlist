@@ -9,8 +9,10 @@ class PageLayoutEmpty extends StatelessWidget {
     required this.illustrationUrl,
     this.illustrationHeight,
     required this.title,
+    this.description,
     this.callToAction,
     this.onCallToAction,
+    this.isCallToActionLoading = false,
     this.onRefresh,
     this.appBarTitle,
     this.actions,
@@ -19,8 +21,10 @@ class PageLayoutEmpty extends StatelessWidget {
   final String illustrationUrl;
   final double? illustrationHeight;
   final String title;
+  final String? description;
   final String? callToAction;
   final Function()? onCallToAction;
+  final bool isCallToActionLoading;
   final Future<void> Function()? onRefresh;
   final String? appBarTitle;
   final List<Widget>? actions;
@@ -38,8 +42,10 @@ class PageLayoutEmpty extends StatelessWidget {
           illustrationUrl: illustrationUrl,
           illustrationHeight: illustrationHeight,
           title: title,
+          description: description,
           callToAction: callToAction,
           onCallToAction: onCallToAction,
+          isCallToActionLoading: isCallToActionLoading,
         ),
       ),
     );

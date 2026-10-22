@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
+import 'package:wishlist/shared/infra/utils/network_error.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 
 enum SnackBarType {
@@ -61,8 +62,8 @@ void showAppSnackBar(
 }
 
 /// Affiche une erreur : si [error] est une [AppException] avec un message
-/// reconnu (ex. saisie trop longue), affiche ce message ; sinon erreur
-/// générique.
+/// reconnu (ex. saisie trop longue), affiche ce message ; si c'est une erreur
+/// réseau, invite à vérifier la connexion ; sinon erreur générique.
 void showGenericError(
   BuildContext context, {
   Object? error,
@@ -72,7 +73,9 @@ void showGenericError(
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final userMessageKey = error is AppException ? error.userMessageKey : null;
     final message = userMessageKey?.toLocalizedString(context.l10n) ??
-        context.l10n.genericError;
+        (isNetworkError(error)
+            ? context.l10n.networkError
+            : context.l10n.genericError);
 
     showAppSnackBar(
       context,

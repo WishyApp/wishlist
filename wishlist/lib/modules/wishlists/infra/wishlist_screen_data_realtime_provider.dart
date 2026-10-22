@@ -29,6 +29,14 @@ final wishlistScreenDataRealtimeProvider = Provider.autoDispose
   final completedWishes =
       ref.watch(completedWishesByUserRealtimeProvider(wishlist.idOwner));
 
+  // group3 reports loading before errors: a source that failed (timed out)
+  // must not wait for another one still hanging
+  for (final source in [wishlistAsync, wishs, completedWishes]) {
+    if (source case AsyncError(:final error, :final stackTrace)) {
+      return AsyncError(error, stackTrace);
+    }
+  }
+
   return AsyncValueGroup.group3(
     wishlistAsync.whenData((_) => wishlist),
     wishs,

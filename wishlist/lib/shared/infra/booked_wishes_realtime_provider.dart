@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_stream_repository_provider.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
+import 'package:wishlist/shared/utils/first_event_timeout.dart';
 
 part 'booked_wishes_realtime_provider.g.dart';
 
@@ -27,5 +28,5 @@ Stream<IList<BookedWishWithDetails>> bookedWishesRealtime(
   }
   final streamRepository = ref.watch(wishStreamRepositoryProvider);
 
-  return streamRepository.watchBookedWishesByUser(userId);
+  return streamRepository.watchBookedWishesByUser(userId).timeoutFirstEvent();
 }
