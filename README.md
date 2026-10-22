@@ -150,7 +150,7 @@ See [docs/supabase-migrations.md](docs/supabase-migrations.md) for the workflow,
 Une wishlist se partage avec un lien `https://wishy-app.fr/w/<id>`, cliquable dans toutes les messageries.
 
 - **App installée** : le lien ouvre directement l'app (App Links sur Android, Universal Links sur iOS).
-- **Sinon** : le navigateur affiche la page de secours [`site/share.html`](site/share.html), avec un bouton qui ouvre l'app et les liens vers les stores (ou vers l'accueil tant qu'ils ne sont pas renseignés). Elle n'affiche aucune donnée de la liste.
+- **Sinon** : le navigateur affiche la page de secours [`site/share.html`](site/share.html), avec un bouton qui ouvre l'app (sur iOS, l'App Store en premier et « Ouvrir dans Wishy » en lien secondaire) et les liens vers les stores (ou vers l'accueil tant qu'ils ne sont pas renseignés). Elle n'affiche aucune donnée de la liste.
 
 Dans l'app, `DeepLinkNavigator` (`lib/shared/infra/deep_link_navigator.dart`) écoute les liens via `app_links` et ouvre l'écran correspondant (`DeeplinkConfig.locationFromUri`). Le deep linking intégré de Flutter est désactivé (`flutter_deeplinking_enabled` / `FlutterDeepLinkingEnabled` à `false`), comme le demande `app_links`, déjà utilisé par Supabase pour les liens d'auth.
 

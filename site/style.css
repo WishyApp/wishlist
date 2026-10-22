@@ -376,13 +376,14 @@ body.share {
   }
 }
 
-.hint {
+/* .share-card p resets margins: the selector must outweigh it. */
+.share-card .hint {
   margin-top: 16px;
   font-size: 1rem;
   color: var(--text-muted);
 }
 
-.hint a {
+.share-card .hint a {
   color: var(--ink);
   font-weight: 700;
   text-decoration: underline;

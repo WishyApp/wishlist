@@ -7,7 +7,7 @@ related_targets: ["https://wishy-app.fr/w"]
 
 # Surface : page d'accueil wishy-app.fr
 
-Mode : Persuade. Fichiers : `site/index.html` (accueil), la page de secours `/w/<id>` passe dans `site/share.html` (réécriture `/w/* /share.html 200` dans `site/_redirects`) et reprend le même système.
+Mode : Persuade. Fichiers : `site/index.html` (accueil), la page de secours `/w/<id>` passe dans `site/share.html` (réécriture `/w/* /share 200` dans `site/_redirects`) et reprend le même système.
 
 Visiteur : famille ou ami qui découvre Wishy. Action : installer l'app (boutons stores, « Bientôt » tant que le lien est vide). Preuve : vraies captures de l'app, mécanique du secret, illustrations à l'encre. Aucun avis ni chiffre inventé. FR/EN, aucune ressource externe (CSP).
 
