@@ -40,6 +40,8 @@ class FriendDetailsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: FriendDetailsAppBar(friend: loadedDetails?.appUser),
       body: SafeArea(
+        // The list scrolls under the home indicator, see its bottom padding
+        bottom: false,
         child: friendDetails.when(
           data: (friendDetails) => _FriendDetailsScreen(
             friendDetails: friendDetails,
@@ -69,12 +71,14 @@ class _FriendDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return AppRefreshIndicator(
       onRefresh: onRefresh,
       child: CustomScrollView(
         slivers: [
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(30, 16, 30, 16),
+            padding: EdgeInsets.fromLTRB(30, 16, 30, 16 + bottomInset),
             sliver: SliverMainAxisGroup(
               slivers: [
                 SliverList(
