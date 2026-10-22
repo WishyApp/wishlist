@@ -41,9 +41,29 @@ const TEXTS = {
   },
 };
 
+// Même choix que l'accueil (initialLang dans landing.js) : ?lang=, puis la
+// langue enregistrée par l'accueil, puis celle du navigateur.
+const LANG_STORAGE_KEY = "wishy-lang";
+
+function readStoredLang() {
+  try {
+    return window.localStorage.getItem(LANG_STORAGE_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
 function pickTexts() {
-  const language = (navigator.language || "fr").toLowerCase();
-  return language.startsWith("fr") ? TEXTS.fr : TEXTS.en;
+  const fromUrl = new URLSearchParams(window.location.search).get("lang");
+  if (fromUrl === "fr" || fromUrl === "en") {
+    return TEXTS[fromUrl];
+  }
+  const stored = readStoredLang();
+  if (stored === "fr" || stored === "en") {
+    return TEXTS[stored];
+  }
+  const browser = (navigator.language || "fr").toLowerCase();
+  return browser.startsWith("fr") ? TEXTS.fr : TEXTS.en;
 }
 
 function detectPlatform() {
