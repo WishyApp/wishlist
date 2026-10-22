@@ -51,6 +51,10 @@
 		<false/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
+		<!-- Liens gérés par app_links (DeepLinkNavigator) : le deep linking de
+		     Flutter est coupé pour qu'un lien ne soit traité qu'une fois. -->
+		<key>FlutterDeepLinkingEnabled</key>
+		<false/>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>

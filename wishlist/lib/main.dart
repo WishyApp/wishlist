@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +14,8 @@ import 'package:wishlist/app/config/environment.dart';
 import 'package:wishlist/app/config/environment_provider.dart';
 import 'package:wishlist/app/config/environment_service.dart';
 import 'package:wishlist/app/dev/store_screenshot_mode.dart';
+import 'package:wishlist/app/navigation/router.dart';
+import 'package:wishlist/shared/infra/deep_link_navigator.dart';
 import 'package:wishlist/shared/infra/sentry_user_sync.dart';
 
 void main() async {
@@ -37,6 +42,16 @@ void main() async {
     }
 
     await StoreScreenshotMode.setUp();
+
+    // Lives as long as the app, so it is never disposed.
+    final appLinks = AppLinks();
+    unawaited(
+      DeepLinkNavigator(
+        getInitialLink: appLinks.getInitialLink,
+        links: appLinks.uriLinkStream,
+        navigate: router.go,
+      ).start(),
+    );
 
     runApp(
       ProviderScope(

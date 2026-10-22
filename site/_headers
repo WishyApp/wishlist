@@ -1,0 +1,13 @@
+# Cloudflare Pages : en-têtes ajoutés aux réponses.
+
+# Apple exige du JSON, mais le fichier n'a pas d'extension.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+
+/.well-known/assetlinks.json
+  Content-Type: application/json
+
+/*
+  Content-Security-Policy: default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer

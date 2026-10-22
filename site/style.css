@@ -1,0 +1,137 @@
+/* Couleurs et police de l'app (lib/shared/theme/colors.dart) */
+@font-face {
+  font-family: "PlusJakartaSans";
+  src: url("/fonts/PlusJakartaSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PlusJakartaSans";
+  src: url("/fonts/PlusJakartaSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --background: #f7f6f0;
+  --surface: #ffffff;
+  --primary: #f28c57;
+  --primary-dark: #df733d;
+  --text: #2c2c2c;
+  --text-muted: #887a6b;
+  --border: #e8e4da;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+  background: var(--background);
+  color: var(--text);
+  font-family: "PlusJakartaSans", system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  line-height: 1.5;
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: 32px 24px;
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: 0 8px 32px rgba(44, 44, 44, 0.08);
+  text-align: center;
+}
+
+.logo {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+}
+
+h1 {
+  margin: 20px 0 8px;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+p {
+  margin: 0;
+}
+
+#subtitle {
+  color: var(--text-muted);
+}
+
+.button {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.button[hidden] {
+  display: none;
+}
+
+.button-primary {
+  margin-top: 28px;
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.button-primary:hover,
+.button-primary:focus-visible {
+  background: var(--primary-dark);
+}
+
+.button-secondary {
+  border: 2px solid var(--border);
+  color: var(--text);
+}
+
+.button-secondary:hover,
+.button-secondary:focus-visible {
+  border-color: var(--primary);
+}
+
+.stores {
+  margin-top: 28px;
+}
+
+.stores-title {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.hint {
+  margin-top: 20px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.hint[hidden] {
+  display: none;
+}
+
+.hint a {
+  color: var(--primary-dark);
+  font-weight: 700;
+}

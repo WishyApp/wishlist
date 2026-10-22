@@ -1,0 +1,18 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["28G92QB84K.com.raphtang.wishy"],
+        "components": [
+          {
+            "/": "/w/*",
+            "comment": "Wishlist partagée, cf. DeeplinkConfig.buildWishlistShareUri"
+          }
+        ],
+        "appID": "28G92QB84K.com.raphtang.wishy",
+        "paths": ["/w/*"]
+      }
+    ]
+  }
+}

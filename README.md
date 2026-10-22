@@ -145,6 +145,44 @@ See [docs/supabase-migrations.md](docs/supabase-migrations.md) for the workflow,
 
 ---
 
+## 🔗 Liens de partage (wishy-app.fr)
+
+Une wishlist se partage avec un lien `https://wishy-app.fr/w/<id>`, cliquable dans toutes les messageries.
+
+- **App installée** : le lien ouvre directement l'app (App Links sur Android, Universal Links sur iOS).
+- **Sinon** : le navigateur affiche la page de secours du dossier [`site/`](site/), avec un bouton qui ouvre l'app et les liens vers les stores.
+
+Dans l'app, `DeepLinkNavigator` (`lib/shared/infra/deep_link_navigator.dart`) écoute les liens via `app_links` et ouvre l'écran correspondant (`DeeplinkConfig.locationFromUri`). Le deep linking intégré de Flutter est désactivé (`flutter_deeplinking_enabled` / `FlutterDeepLinkingEnabled` à `false`), comme le demande `app_links`, déjà utilisé par Supabase pour les liens d'auth.
+
+### Site (Cloudflare Pages)
+
+Le dossier `site/` est servi tel quel par Cloudflare Pages, sans étape de build, et redéployé à chaque push sur `main` :
+
+| Réglage Cloudflare Pages | Valeur |
+| ------------------------ | ------ |
+| Commande de build | *(vide)* |
+| Répertoire de sortie | `site` |
+| Domaine personnalisé | `wishy-app.fr` |
+
+- `site/` n'a pas de `404.html` : Cloudflare Pages sert alors `index.html` pour tous les chemins inconnus, dont `/w/<id>`. Ne pas en ajouter, et garder des chemins absolus (`/style.css`) dans la page.
+- `site/.well-known/assetlinks.json` (Android) et `site/.well-known/apple-app-site-association` (iOS) autorisent l'app à ouvrir les liens du domaine. Le type `application/json` est forcé par `site/_headers`.
+- Le domaine est repris à l'identique dans `DeeplinkConfig.webHost`, l'`intent-filter` https de `AndroidManifest.xml` et `Runner.entitlements` (`applinks:wishy-app.fr`).
+
+Les empreintes SHA-256 d'`assetlinks.json` sont celles de la clé de signature Google Play et de la clé d'importation (Play Console → Intégrité de l'application). Pour tester App Links avec une build de debug, ajouter l'empreinte de la clé de debug (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`).
+
+Vérifier l'état des liens sur un téléphone :
+
+```bash
+# Android : "verified" attendu pour wishy-app.fr
+adb shell pm get-app-links com.raphtang.wishy
+# Android : relancer la vérification après une mise à jour d'assetlinks.json
+adb shell pm verify-app-links --re-verify com.raphtang.wishy
+```
+
+Sur iOS, Apple lit le fichier via son CDN, avec parfois plusieurs heures de retard après une modification. Pour tester, toucher le lien depuis Notes ou Messages : le coller dans la barre d'adresse de Safari n'ouvre jamais l'app.
+
+---
+
 ## 🚀 CI/CD
 
 Le projet utilise **GitHub Actions** pour l'intégration et le déploiement continus.
