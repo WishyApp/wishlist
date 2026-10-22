@@ -2,6 +2,13 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [0.3.1] - 2026-10-22
+
+### Corrections de bugs
+
+- **Remontée des plantages** : les plantages et erreurs arrivent maintenant dans Sentry (la 0.3.0 les envoyait vers un projet qui n'existe plus)
+- **Android** : le build de release ne casse plus sur les classes OkHttp optionnelles du recadrage d'images (déjà inclus dans la 0.3.0 publiée sur Google Play)
+
 ## [0.3.0] - 2026-10-22
 
 ### À savoir
