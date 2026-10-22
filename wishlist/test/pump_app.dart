@@ -39,6 +39,7 @@ extension EnhancedWidgetTester on WidgetTester {
     Widget widget, {
     WindowConfigData? windowConfig,
     List<Override>? overrides,
+    TransitionBuilder? appBuilder,
   }) async {
     final app = ProviderScope(
       overrides: [...overrides ?? []],
@@ -49,14 +50,15 @@ extension EnhancedWidgetTester on WidgetTester {
           localizationsDelegates: _localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           theme: theme,
-          builder: (context, child) {
-            return Scaffold(
-              body: Material(
-                color: Colors.transparent,
-                child: child,
-              ),
-            );
-          },
+          builder: appBuilder ??
+              (context, child) {
+                return Scaffold(
+                  body: Material(
+                    color: Colors.transparent,
+                    child: child,
+                  ),
+                );
+              },
           home: widget,
         ),
         windowConfig: windowConfig,

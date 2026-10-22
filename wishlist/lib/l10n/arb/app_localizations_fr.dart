@@ -93,6 +93,27 @@ class AppLocalizationsFr extends AppLocalizations {
   String get retryButton => 'Réessayer';
 
   @override
+  String get updateRequiredTitle => 'Mise à jour requise';
+
+  @override
+  String get updateRequiredDescription =>
+      'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour pour continuer.';
+
+  @override
+  String get updateRequiredNoLinkDescription =>
+      'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis TestFlight (iOS) ou le Play Store (Android) pour continuer.';
+
+  @override
+  String get updateAvailableMessage =>
+      'Une nouvelle version de Wishy est disponible.';
+
+  @override
+  String get updateButton => 'Mettre à jour';
+
+  @override
+  String get updateLaterButton => 'Plus tard';
+
+  @override
   String get pseudoField => 'Pseudo';
 
   @override

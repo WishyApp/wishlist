@@ -254,6 +254,42 @@ abstract class AppLocalizations {
   /// **'Réessayer'**
   String get retryButton;
 
+  /// No description provided for @updateRequiredTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mise à jour requise'**
+  String get updateRequiredTitle;
+
+  /// No description provided for @updateRequiredDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour pour continuer.'**
+  String get updateRequiredDescription;
+
+  /// No description provided for @updateRequiredNoLinkDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis TestFlight (iOS) ou le Play Store (Android) pour continuer.'**
+  String get updateRequiredNoLinkDescription;
+
+  /// No description provided for @updateAvailableMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une nouvelle version de Wishy est disponible.'**
+  String get updateAvailableMessage;
+
+  /// No description provided for @updateButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mettre à jour'**
+  String get updateButton;
+
+  /// No description provided for @updateLaterButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus tard'**
+  String get updateLaterButton;
+
   /// No description provided for @pseudoField.
   ///
   /// In fr, this message translates to:
