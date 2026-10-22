@@ -42,29 +42,9 @@ const TEXTS = {
   },
 };
 
-// Même choix que l'accueil (initialLang dans landing.js) : ?lang=, puis la
-// langue enregistrée par l'accueil, puis celle du navigateur.
-const LANG_STORAGE_KEY = "wishy-lang";
-
-function readStoredLang() {
-  try {
-    return window.localStorage.getItem(LANG_STORAGE_KEY);
-  } catch (error) {
-    return null;
-  }
-}
-
-function pickTexts() {
-  const fromUrl = new URLSearchParams(window.location.search).get("lang");
-  if (fromUrl === "fr" || fromUrl === "en") {
-    return TEXTS[fromUrl];
-  }
-  const stored = readStoredLang();
-  if (stored === "fr" || stored === "en") {
-    return TEXTS[stored];
-  }
-  const browser = (navigator.language || "fr").toLowerCase();
-  return browser.startsWith("fr") ? TEXTS.fr : TEXTS.en;
+// Langue choisie : ?lang=, puis l'accueil, puis le navigateur (lang.js).
+function pickLang() {
+  return window.WISHY_LANG.initial();
 }
 
 function detectPlatform() {
@@ -114,12 +94,13 @@ function show(element, isVisible) {
 }
 
 function render() {
-  const texts = pickTexts();
+  const lang = pickLang();
+  const texts = TEXTS[lang];
   const platform = detectPlatform();
   const wishlistId = sharedWishlistId();
 
-  document.documentElement.lang = texts === TEXTS.fr ? "fr" : "en";
-  if (texts === TEXTS.en) {
+  document.documentElement.lang = lang;
+  if (lang === "en") {
     document.getElementById("share-img-wish").src = "/img/app-friendwish-en.webp";
     document.getElementById("share-img-booked").src = "/img/app-booked-en.webp";
   }

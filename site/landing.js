@@ -1,8 +1,6 @@
 // Accueil wishy-app.fr : langue (FR par défaut, EN sur demande ou selon le
-// navigateur) et boutons des stores (stores.js).
+// navigateur, cf. lang.js) et boutons des stores (stores.js).
 "use strict";
-
-const LANG_STORAGE_KEY = "wishy-lang";
 
 // Le français est écrit dans index.html ; seules les traductions sont ici.
 const EN = {
@@ -97,35 +95,6 @@ const STORE_LABELS = {
 };
 
 const STORE_NAMES = { appStore: "App Store", playStore: "Google Play" };
-
-function readStoredLang() {
-  try {
-    return window.localStorage.getItem(LANG_STORAGE_KEY);
-  } catch (error) {
-    return null;
-  }
-}
-
-function storeLang(lang) {
-  try {
-    window.localStorage.setItem(LANG_STORAGE_KEY, lang);
-  } catch (error) {
-    // Stockage indisponible (navigation privée) : la langue ne sera pas retenue.
-  }
-}
-
-function initialLang() {
-  const fromUrl = new URLSearchParams(window.location.search).get("lang");
-  if (fromUrl === "fr" || fromUrl === "en") {
-    return fromUrl;
-  }
-  const stored = readStoredLang();
-  if (stored === "fr" || stored === "en") {
-    return stored;
-  }
-  const browser = (navigator.language || "fr").toLowerCase();
-  return browser.startsWith("fr") ? "fr" : "en";
-}
 
 // Garde le français d'origine de chaque élément pour pouvoir y revenir.
 function remember(element, key, value) {
@@ -253,13 +222,13 @@ function drawTrailsOnScroll() {
 
 function init() {
   drawTrailsOnScroll();
-  let lang = initialLang();
+  let lang = window.WISHY_LANG.initial();
   applyLang(lang);
 
   document.querySelectorAll("[data-lang-toggle]").forEach((button) => {
     button.addEventListener("click", () => {
       lang = lang === "fr" ? "en" : "fr";
-      storeLang(lang);
+      window.WISHY_LANG.store(lang);
       applyLang(lang);
     });
   });
