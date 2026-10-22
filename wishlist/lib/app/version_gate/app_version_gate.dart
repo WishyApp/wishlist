@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/app/version_gate/app_update_required_screen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_update_service.dart';
+import 'package:wishlist/shared/theme/colors.dart';
+import 'package:wishlist/shared/theme/text_styles.dart';
 
 /// Wraps the whole app (see `MaterialApp.router`'s builder, so it covers the
 /// sign in screens too) and applies the server's version policy:
@@ -65,11 +67,22 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
     final l10n = context.l10n;
     messenger.showMaterialBanner(
       MaterialBanner(
-        content: Text(l10n.updateAvailableMessage),
+        // App colours and font, as the app snackbar, rather than Material's
+        // defaults
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        dividerColor: AppColors.gainsboro,
+        leading:
+            const Icon(Icons.system_update_outlined, color: AppColors.primary),
+        content: Text(
+          l10n.updateAvailableMessage,
+          style: AppTextStyles.smaller.copyWith(color: AppColors.darkGrey),
+        ),
         actions: [
           TextButton(
             onPressed: messenger.hideCurrentMaterialBanner,
-            child: Text(l10n.updateLaterButton),
+            style: TextButton.styleFrom(foregroundColor: AppColors.makara),
+            child: Text(l10n.updateLaterButton, style: AppTextStyles.smaller),
           ),
           if (updateUrl != null)
             TextButton(
@@ -77,7 +90,13 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
                 messenger.hideCurrentMaterialBanner();
                 _openStore(updateUrl);
               },
-              child: Text(l10n.updateButton),
+              style:
+                  TextButton.styleFrom(foregroundColor: AppColors.darkOrange),
+              child: Text(
+                l10n.updateButton,
+                style:
+                    AppTextStyles.smaller.copyWith(fontWeight: FontWeight.w700),
+              ),
             ),
         ],
       ),

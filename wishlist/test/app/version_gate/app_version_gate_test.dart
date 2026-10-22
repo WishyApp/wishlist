@@ -15,9 +15,11 @@ import 'package:wishlist/shared/infra/app_update_service.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository_provider.dart';
 import 'package:wishlist/shared/models/app_version_policy.dart';
+import 'package:wishlist/shared/navigation/floating_nav_bar_navigator.dart';
 import 'package:wishlist/shared/theme/theme.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 
+import '../../fixtures/fake_providers.dart';
 import '../../pump_app.dart';
 
 class _FakeRepository implements AppVersionRepository {
@@ -470,6 +472,28 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.expectGolden<AppUpdateRequiredScreen>(variant);
+  });
+
+  testAdaptiveWidgets('$AppVersionGate recommendation banner golden test',
+      (tester, variant) async {
+    await tester.pumpApp(
+      // The home screen with its floating navigation bar, as in the app
+      const FloatingNavBarNavigator(
+        // ignore: avoid_redundant_argument_values
+        currentTab: FloatingNavBarTab.home,
+      ),
+      windowConfig: variant,
+      overrides: [
+        ...homeScreenOverrides(),
+        ..._overrides(_FakeRepository(policy: recommended)),
+      ],
+      // Same spot as in app.dart: MaterialApp's builder
+      appBuilder: (context, child) => AppVersionGate(child: child!),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MaterialBanner), findsOneWidget);
+    await tester.expectGolden<AppVersionGate>(variant, suffix: 'banner');
   });
 }
 
