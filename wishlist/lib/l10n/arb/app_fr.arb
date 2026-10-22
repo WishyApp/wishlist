@@ -142,6 +142,7 @@
   "deleteWishlistWishesWarning": "Les wishs non complétés seront supprimés. Les wishs complétés resteront dans ton historique.",
   "deleteWishlistSuccess": "Wishlist supprimée avec succès !",
   "wishlistDeleted": "Cette wishlist a été supprimée",
+  "wishUnavailable": "Ce wish n'est plus disponible",
   "wishlistColor": "Couleur de la wishlist",
   "sortWishs": "Trier les wishs",
   "sortByFavorite": "Par favoris",

@@ -13,5 +13,5 @@ final watchWishsFromWishlistProvider =
 final watchWishByIdProvider =
     StreamProvider.autoDispose.family<Wish, int>((ref, wishId) {
   final repository = ref.watch(wishStreamRepositoryProvider);
-  return repository.watchWishById(wishId);
+  return repository.watchWishById(wishId).timeoutFirstEvent();
 });

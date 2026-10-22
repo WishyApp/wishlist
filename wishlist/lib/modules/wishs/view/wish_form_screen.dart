@@ -15,6 +15,7 @@ import 'package:wishlist/shared/models/wish/create_request/wish_create_request.d
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
+import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -501,13 +502,27 @@ class _WishFormScreenState extends ConsumerState<WishFormScreen> {
           ),
         );
       },
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
+        appBar: AppBar(backgroundColor: AppColors.background),
+        body: const Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => const Scaffold(
+      // A wishlist that cannot be seen comes as null, not as a not found error
+      error: (error, _) => Scaffold(
         backgroundColor: AppColors.background,
-        body: SizedBox.shrink(),
+        appBar: AppBar(backgroundColor: AppColors.background),
+        body: PageLayoutError(
+          error: error,
+          onRetry: () async {
+            ref.invalidate(watchWishlistByIdProvider(widget.wishlistId));
+            await ref.read(watchWishlistByIdProvider(widget.wishlistId).future);
+          },
+          isRetrying: ref.watch(
+            watchWishlistByIdProvider(widget.wishlistId).select(
+              (wishlist) => wishlist.hasError && wishlist.isLoading,
+            ),
+          ),
+        ),
       ),
     );
   }

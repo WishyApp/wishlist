@@ -460,6 +460,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wishlistDeleted => 'This wishlist has been deleted';
 
   @override
+  String get wishUnavailable => 'This wish is no longer available';
+
+  @override
   String get wishlistColor => 'Wishlist color';
 
   @override

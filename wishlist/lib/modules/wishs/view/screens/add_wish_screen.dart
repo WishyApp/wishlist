@@ -7,6 +7,7 @@ import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
+import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/widgets/wishlist_list_tile.dart';
@@ -101,6 +102,18 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
     ).go(context);
   }
 
+  /// AppBar with a back button, shared by every state of the screen so the
+  /// user can always leave it, including while the wishlists are loading.
+  AppBar _buildBackAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.background,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.pop(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -128,13 +141,7 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
         if (wishlists.isEmpty) {
           return Scaffold(
             backgroundColor: AppColors.background,
-            appBar: AppBar(
-              backgroundColor: AppColors.background,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.pop(),
-              ),
-            ),
+            appBar: _buildBackAppBar(),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -148,9 +155,10 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
           );
         }
         if (wishlists.length == 1) {
-          return const Scaffold(
+          return Scaffold(
             backgroundColor: AppColors.background,
-            body: Center(child: CircularProgressIndicator()),
+            appBar: _buildBackAppBar(),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
         return _WishlistSelectionContent(
@@ -158,25 +166,21 @@ class _AddWishScreenState extends ConsumerState<AddWishScreen> {
           onSelectWishlist: _goToCreateWish,
         );
       },
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
+        appBar: _buildBackAppBar(),
+        body: const Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => Scaffold(
+      error: (error, _) => Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
-          ),
-        ),
-        body: Center(
-          child: Text(
-            l10n.errorLoadingWishlists,
-            style: AppTextStyles.small.copyWith(color: AppColors.makara),
-            textAlign: TextAlign.center,
-          ),
+        appBar: _buildBackAppBar(),
+        body: PageLayoutError(
+          error: error,
+          onRetry: () async {
+            ref.invalidate(wishlistsRealtimeProvider);
+            await ref.read(wishlistsRealtimeProvider.future);
+          },
+          isRetrying: wishlistsAsync.isLoading,
         ),
       ),
     );
