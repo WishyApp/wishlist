@@ -1,0 +1,961 @@
+/* Accueil wishy-app.fr. L'orange suit le parcours : la boucle, l'étape
+   active et le mot-clé des titres (comme sur les visuels des stores). */
+
+:root {
+  --gutter: clamp(16px, 4.5vw, 64px);
+  --max: 1280px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing {
+  overflow-x: hidden;
+}
+
+.skip {
+  position: absolute;
+  left: 16px;
+  top: -100px;
+  z-index: 10;
+  padding: 10px 14px;
+  background: var(--ink);
+  color: #ffffff;
+  border-radius: 10px;
+}
+
+.skip:focus {
+  top: 16px;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+h1 em,
+h2 em {
+  font-style: normal;
+  color: var(--primary-text);
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* Le point et la virgule de Plus Jakarta Sans sont très larges : resserrés
+   dans les grands titres (landing.js). */
+.punct {
+  margin-left: -0.1em;
+}
+
+/* Barre du haut */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 24px var(--gutter);
+}
+
+.topbar .brand {
+  font-size: 1.35rem;
+}
+
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2.4vw, 28px);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.topnav a {
+  text-decoration: none;
+}
+
+.topnav a:hover {
+  text-decoration: underline;
+}
+
+.topnav-cta {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.topnav-cta:hover {
+  background: #000000;
+  text-decoration: none !important;
+}
+
+.lang {
+  padding: 6px 10px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.lang:hover {
+  border-color: var(--ink);
+}
+
+/* Premier écran */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 3vw, 48px);
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: clamp(8px, 2vw, 24px) var(--gutter) clamp(24px, 3vw, 40px);
+}
+
+.hero h1 {
+  font-size: clamp(2.9rem, 5.3vw, 4.9rem);
+  line-height: 0.93;
+}
+
+.hero-lede {
+  max-width: 30ch;
+  margin-top: 28px;
+  font-size: clamp(1.1rem, 1.45vw, 1.3rem);
+  color: var(--text-muted);
+}
+
+.stores-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 36px;
+}
+
+.stores-row-center {
+  justify-content: center;
+}
+
+/* La boucle : quatre écrans en orbite (viewBox 740 x 880), de plus en plus
+   petits, reliés par un tracé qui revient au départ. */
+
+.loop {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 0 0 auto;
+  aspect-ratio: 740 / 880;
+  container-type: inline-size;
+}
+
+.loop-path {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.loop-dots {
+  stroke: var(--primary);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 15;
+}
+
+.loop-arrow {
+  stroke: var(--primary);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.loop-draw,
+.trail-draw {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 0;
+}
+
+.loop-step {
+  position: absolute;
+  text-decoration: none;
+  transition: transform 0.35s var(--ease-out);
+}
+
+.loop-step-1 {
+  left: 9.5%;
+  top: 0;
+  width: 27%;
+  transform: rotate(-5deg);
+}
+
+.loop-step-2 {
+  left: 70.3%;
+  top: 21.6%;
+  width: 25%;
+  transform: rotate(4deg);
+}
+
+.loop-step-3 {
+  left: 38.5%;
+  top: 53.4%;
+  width: 22.3%;
+  transform: rotate(-3deg);
+}
+
+.loop-step-4 {
+  left: 5.4%;
+  top: 63.6%;
+  width: 18.9%;
+  transform: rotate(6deg);
+}
+
+.loop-step:hover,
+.loop-step:focus-visible {
+  transform: rotate(0deg) translateY(-6px);
+}
+
+/* Chaque étape porte sa légende, collée au bas de son écran. */
+.loop-tag {
+  position: absolute;
+  left: 50%;
+  top: 92%;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 0.45em;
+  row-gap: 0.1em;
+  width: max-content;
+  max-width: 42cqw;
+  padding: 0.55em 0.95em 0.6em 0.6em;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 8px 22px -8px rgba(44, 44, 44, 0.35);
+  font-size: clamp(13px, 2.3cqw, 17px);
+  line-height: 1.25;
+  transform: translateX(-50%);
+}
+
+.loop-tag b {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--ink);
+  font-size: 0.8em;
+  font-weight: 800;
+}
+
+.loop-name {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.loop-tag small {
+  grid-column: 2;
+  font-size: 0.82em;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-wrap: balance;
+}
+
+/* Le tracé se dessine une fois au chargement, segment par segment ; sans
+   mouvement, il est simplement là. */
+@media (prefers-reduced-motion: no-preference) {
+  .loop-draw {
+    animation: loop-draw 0.9s var(--ease-out) both;
+  }
+
+  .loop-draw-1 {
+    animation-delay: 0.35s;
+  }
+
+  .loop-draw-2 {
+    animation-delay: 0.85s;
+  }
+
+  .loop-draw-3 {
+    animation-delay: 1.35s;
+  }
+
+  .loop-draw-4 {
+    animation-delay: 1.85s;
+  }
+
+  .loop-tag {
+    animation: tag-in 0.7s var(--ease-out) both;
+  }
+
+  .loop-step-1 .loop-tag {
+    animation-delay: 0.15s;
+  }
+
+  .loop-step-2 .loop-tag {
+    animation-delay: 0.65s;
+  }
+
+  .loop-step-3 .loop-tag {
+    animation-delay: 1.15s;
+  }
+
+  .loop-step-4 .loop-tag {
+    animation-delay: 1.65s;
+  }
+
+  /* Les tracés entre les étapes se dessinent quand ils arrivent à l'écran
+     (landing.js ajoute .trails-anim, puis .is-drawn). */
+  .trails-anim .trail-draw {
+    stroke-dashoffset: 1;
+    transition: stroke-dashoffset 1.1s var(--ease-out);
+  }
+
+  .trails-anim .trail.is-drawn .trail-draw {
+    stroke-dashoffset: 0;
+  }
+
+  .trails-anim .trail-node {
+    transform: translateX(-50%) scale(0.6);
+    opacity: 0;
+    transition: transform 0.5s var(--ease-out) 0.7s, opacity 0.3s ease 0.7s;
+  }
+
+  .trails-anim .trail.is-drawn .trail-node {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes loop-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes tag-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+}
+
+/* Le tracé continue entre les étapes, jusqu'à leur numéro. */
+
+.trail {
+  position: relative;
+  max-width: var(--max);
+  height: clamp(150px, 15vw, 200px);
+  margin: 0 auto;
+}
+
+.trail-path {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  width: auto;
+  aspect-ratio: 240 / 200;
+  transform: translateX(-50%);
+  overflow: visible;
+}
+
+.trail-flip .trail-path {
+  transform: translateX(-50%) scaleX(-1);
+}
+
+.trail-node {
+  position: absolute;
+  left: 50%;
+  bottom: -22px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 1.25rem;
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 6px var(--background);
+}
+
+.trail-ink {
+  position: absolute;
+  bottom: 12px;
+  width: auto;
+  height: calc(100% - 24px);
+}
+
+.trail-ink-right {
+  right: calc(var(--gutter) + 4%);
+}
+
+.trail-ink-left {
+  left: calc(var(--gutter) + 4%);
+}
+
+/* Étapes */
+
+.step {
+  display: grid;
+  justify-items: center;
+  gap: clamp(36px, 5vw, 64px);
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: clamp(56px, 7vw, 104px) var(--gutter);
+}
+
+.step h2 {
+  font-size: clamp(2.2rem, 4.4vw, 3.75rem);
+  line-height: 0.98;
+  margin-bottom: 24px;
+}
+
+.step-copy-center {
+  max-width: 720px;
+  text-align: center;
+}
+
+.step-copy-center p {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.step-copy p {
+  max-width: 44ch;
+  font-size: 1.125rem;
+  color: var(--text-muted);
+}
+
+.step-copy p + p {
+  margin-top: 14px;
+}
+
+.step-phones {
+  position: relative;
+  width: min(100%, 600px);
+  height: clamp(420px, 46vw, 600px);
+}
+
+.step-phones .phone {
+  position: absolute;
+  width: clamp(170px, 19vw, 250px);
+}
+
+.phone-back {
+  left: 6%;
+  top: 0;
+  transform: rotate(-6deg);
+  opacity: 0.92;
+}
+
+.phone-front {
+  right: 6%;
+  bottom: 0;
+  transform: rotate(4deg);
+}
+
+/* Étape 2 : le lien dans la conversation de famille, et le profil d'une amie. */
+
+.proches-visual {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) clamp(190px, 18vw, 240px);
+  align-items: center;
+  gap: clamp(28px, 5vw, 72px);
+}
+
+.proches-visual .phone {
+  transform: rotate(4deg);
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 420px;
+  width: 100%;
+  justify-self: center;
+  padding: 22px;
+  border-radius: 28px;
+  background: var(--sand);
+}
+
+.chat-head {
+  margin-bottom: 6px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.bubble {
+  max-width: 82%;
+  padding: 12px 16px;
+  border-radius: 20px;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.bubble-in {
+  align-self: flex-start;
+  background: var(--surface);
+  border-bottom-left-radius: 6px;
+}
+
+.bubble-out {
+  align-self: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--ink);
+  color: #ffffff;
+  border-bottom-right-radius: 6px;
+}
+
+.link-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #3d3a37;
+}
+
+.link-card img {
+  border-radius: 10px;
+}
+
+.link-card b {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.link-card small {
+  color: #d6cfc4;
+}
+
+/* Étape 3 : le secret, bande sombre. */
+
+.secret {
+  padding: clamp(72px, 10vw, 136px) var(--gutter);
+  background: var(--ink);
+  color: #f7f6f0;
+  text-align: center;
+}
+
+.secret h2 {
+  font-size: clamp(2.6rem, 6.4vw, 5.5rem);
+  line-height: 0.95;
+}
+
+.secret h2 em {
+  color: var(--primary);
+}
+
+.secret-lede {
+  max-width: 46ch;
+  margin: 24px auto 0;
+  font-size: 1.15rem;
+  color: #d6cfc4;
+}
+
+.secret-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  max-width: 980px;
+  margin: clamp(40px, 5vw, 64px) auto 0;
+  border-radius: 28px;
+  overflow: hidden;
+  text-align: left;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.5);
+}
+
+.secret-radio {
+  display: none;
+}
+
+.secret-switch {
+  display: none;
+}
+
+.secret-side {
+  padding: clamp(20px, 3vw, 32px);
+}
+
+.secret-me {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.secret-them {
+  background: #3a3632;
+  color: #f7f6f0;
+}
+
+.secret-who {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.secret-count {
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.wish-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wish-list li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1.5px solid rgba(136, 122, 107, 0.25);
+}
+
+.wish-img {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.wish-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.wish-price {
+  min-width: 4.2em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.wish-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 2px dashed #b9ad9e;
+  border-radius: 50%;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.wish-tag,
+.wish-free {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.wish-tag {
+  background: var(--primary);
+  color: var(--ink);
+}
+
+.wish-free {
+  color: #d6cfc4;
+  font-weight: 700;
+}
+
+.secret-note {
+  margin-top: 20px;
+  font-size: 0.85rem;
+  color: #b9b0a4;
+}
+
+/* Étape 4 : les réservations, annotées. */
+
+.jour-visual {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  padding: 0 clamp(90px, 13vw, 170px);
+}
+
+.jour-visual .phone {
+  width: clamp(200px, 21vw, 270px);
+  transform: rotate(3deg);
+}
+
+.note {
+  position: absolute;
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.note-left {
+  left: 0;
+  top: 31%;
+}
+
+.note-right {
+  right: 0;
+  top: 15%;
+}
+
+.note-arrow {
+  position: absolute;
+  width: clamp(44px, 5vw, 60px);
+  height: auto;
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.note-arrow-left {
+  left: clamp(30px, 6vw, 80px);
+  top: 36%;
+}
+
+.note-arrow-right {
+  right: clamp(30px, 6vw, 80px);
+  top: 20%;
+}
+
+/* Vous deux */
+
+.nous {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 72px);
+  max-width: 980px;
+  margin: 0 auto;
+  padding: clamp(48px, 7vw, 96px) var(--gutter);
+  border-top: 2px solid var(--border);
+}
+
+.nous-ink {
+  width: clamp(160px, 20vw, 260px);
+  height: auto;
+}
+
+.nous h2 {
+  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
+  line-height: 1;
+  margin-bottom: 20px;
+}
+
+.nous p {
+  max-width: 52ch;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.nous p + p {
+  margin-top: 14px;
+}
+
+/* Fin */
+
+.final {
+  padding: clamp(56px, 8vw, 112px) var(--gutter) clamp(72px, 9vw, 128px);
+  text-align: center;
+}
+
+.final-ink {
+  width: clamp(200px, 24vw, 300px);
+  height: auto;
+}
+
+.final h2 {
+  margin-top: 8px;
+  font-size: clamp(3rem, 8vw, 6rem);
+  line-height: 0.95;
+}
+
+.final-promise {
+  margin-top: 18px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* Pied de page */
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 28px var(--gutter) 40px;
+  border-top: 2px solid var(--border);
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Tablette et téléphone */
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .loop {
+    max-width: 560px;
+    margin: 8px auto 0;
+  }
+
+  .proches-visual {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .proches-visual .phone {
+    width: min(60%, 240px);
+  }
+
+
+  .step-phones {
+    height: clamp(400px, 110vw, 560px);
+    max-width: 520px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .step-phones .phone {
+    width: min(48%, 240px);
+  }
+}
+
+@media (max-width: 640px) {
+  .topnav a:not(.topnav-cta) {
+    display: none;
+  }
+
+  .loop-tag {
+    max-width: none;
+    padding: 0.4em 0.8em 0.4em 0.4em;
+    font-size: 12px;
+  }
+
+  .loop-tag small {
+    display: none;
+  }
+
+  .trail-ink {
+    display: none;
+  }
+
+  .stores-row .store {
+    flex: 1 1 100%;
+  }
+
+  .jour-visual {
+    padding: 0 0 0 0;
+  }
+
+  .note,
+  .note-arrow {
+    display: none;
+  }
+
+  .secret-board {
+    grid-template-columns: 1fr;
+  }
+
+  .secret-radio {
+    display: block;
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .secret-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 6px;
+    background: #4a4540;
+  }
+
+  .secret-switch label {
+    padding: 10px 8px;
+    border-radius: 999px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+
+  #view-me:checked ~ .secret-switch label[for="view-me"],
+  #view-them:checked ~ .secret-switch label[for="view-them"] {
+    background: var(--primary);
+    color: var(--ink);
+  }
+
+  #view-me:focus-visible ~ .secret-switch label[for="view-me"],
+  #view-them:focus-visible ~ .secret-switch label[for="view-them"] {
+    outline: 3px solid #f7f6f0;
+    outline-offset: 2px;
+  }
+
+  #view-me:checked ~ .secret-them,
+  #view-them:checked ~ .secret-me {
+    display: none;
+  }
+
+  .wish-list li {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .wish-img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .wish-price {
+    display: none;
+  }
+
+  .nous {
+    grid-template-columns: 1fr;
+  }
+
+  .nous-ink {
+    margin: 0 auto;
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

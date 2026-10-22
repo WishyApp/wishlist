@@ -3,61 +3,302 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Wishy</title>
+    <title>Wishy · Les cadeaux, entre amis</title>
     <meta
       name="description"
-      content="Wishy : crée tes listes d'envies et partage-les avec tes proches."
+      content="Fais tes listes d'envies et partage-les. Tes proches se répartissent les cadeaux entre eux, sans doublon, et sans rien te dévoiler."
     />
     <meta name="theme-color" content="#F7F6F0" />
 
-    <!-- Aperçu du lien dans les messageries -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Wishy" />
-    <!-- Lu sans JavaScript : textes valables pour / comme pour /w/<id> -->
-    <meta property="og:title" content="Wishy · Listes d'envies" />
+    <meta property="og:title" content="Wishy · Les cadeaux, entre amis" />
     <meta
       property="og:description"
-      content="Crée, partage et découvre des listes d'envies avec tes proches."
+      content="Tes proches se répartissent les cadeaux entre eux, sans doublon. Toi, tu gardes la surprise."
     />
     <meta property="og:image" content="https://wishy-app.fr/icon-512.png" />
 
-    <!-- Chemins absolus : la même page sert aussi /w/<id> -->
     <link rel="icon" type="image/png" href="/icon-180.png" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
+    <link rel="preload" href="/fonts/PlusJakartaSans-ExtraBold.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/style.css" />
-    <script src="/app.js" defer></script>
+    <link rel="stylesheet" href="/landing.css" />
+    <script src="/stores.js" defer></script>
+    <script src="/lang.js" defer></script>
+    <script src="/landing.js" defer></script>
   </head>
-  <body>
-    <main class="card">
-      <img class="logo" src="/icon-180.png" alt="" width="96" height="96" />
-      <h1 id="title">Wishy</h1>
-      <p id="subtitle">Crée tes listes d'envies et partage-les avec tes proches.</p>
+  <body class="landing">
+    <a class="skip" href="#contenu" data-i18n="skip">Aller au contenu</a>
 
-      <a id="open-app" class="button button-primary" hidden>Ouvrir dans Wishy</a>
+    <header class="topbar">
+      <a class="brand" href="/">
+        <img src="/icon-180.png" alt="" width="36" height="36" />
+        <span>Wishy</span>
+      </a>
+      <nav class="topnav" aria-label="Navigation" data-i18n-attr="aria-label:navLabel">
+        <a href="#envies" data-i18n="navHow">Comment ça marche</a>
+        <a href="#nous" data-i18n="navUs">Qui on est</a>
+        <button class="lang" type="button" data-lang-toggle>EN</button>
+        <a class="topnav-cta" href="#telecharger" data-i18n="navDownload">Télécharger</a>
+      </nav>
+    </header>
 
-      <!-- iOS : sans l'app, wishy:// n'a pas de repli (Safari affiche une
-           erreur), d'où l'App Store en premier et l'ouverture de l'app en lien
-           secondaire. -->
-      <a id="get-app" class="button button-primary" hidden>App Store</a>
-      <p id="already-installed" class="hint" hidden>
-        <span id="already-installed-label">Déjà installée ?</span>
-        <a id="open-app-link">Ouvrir dans Wishy</a>
-      </p>
+    <main id="contenu">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <h1 id="hero-title" data-i18n-html="heroTitle">
+            Les cadeaux,<br />entre <em>amis.</em><br />La surprise,<br />pour toi.
+          </h1>
+          <p class="hero-lede" data-i18n="heroLede">
+            Fais tes listes d'envies, partage-les. Tes proches se répartissent les cadeaux
+            entre eux, sans doublon, et sans rien te dévoiler.
+          </p>
+          <div class="stores-row" data-stores>
+            <span class="store store-soon">App Store <small>· bientôt</small></span>
+            <span class="store store-soon">Google Play <small>· bientôt</small></span>
+          </div>
+        </div>
 
-      <section class="stores">
-        <p id="stores-title" class="stores-title">Télécharger l'app</p>
-        <!-- Lien renseigné par app.js (APP_STORE_URL) -->
-        <a id="app-store" class="button button-secondary" hidden>App Store</a>
-        <!-- Repli sans JavaScript : garder la même URL que PLAY_STORE_URL (app.js) -->
-        <a
-          id="play-store"
-          class="button button-secondary"
-          href="https://play.google.com/store/apps/details?id=com.raphtang.wishy"
-          >Google Play</a
-        >
+        <figure class="loop" aria-labelledby="loop-caption">
+          <svg class="loop-path" viewBox="0 0 740 880" aria-hidden="true" focusable="false">
+            <defs>
+              <marker id="loop-arrow" viewBox="0 0 12 12" refX="7" refY="6" markerWidth="4" markerHeight="4" orient="auto">
+                <path class="loop-arrow" d="M2 1.5 L8 6 L2 10.5" fill="none" />
+              </marker>
+              <mask id="loop-reveal" maskUnits="userSpaceOnUse" x="0" y="0" width="740" height="880">
+                <path class="loop-draw loop-draw-1" d="M275 110 C 380 60, 520 80, 592 172" pathLength="1" fill="none" stroke="#fff" stroke-width="40" />
+                <path class="loop-draw loop-draw-2" d="M666 604 C 682 690, 596 752, 474 748" pathLength="1" fill="none" stroke="#fff" stroke-width="40" />
+                <path class="loop-draw loop-draw-3" d="M282 704 C 252 690, 226 690, 196 702" pathLength="1" fill="none" stroke="#fff" stroke-width="40" />
+                <path class="loop-draw loop-draw-4" d="M58 560 C 22 500, 22 390, 64 336" pathLength="1" fill="none" stroke="#fff" stroke-width="40" />
+              </mask>
+            </defs>
+            <g mask="url(#loop-reveal)">
+              <path class="loop-dots" d="M275 110 C 380 60, 520 80, 592 172" fill="none" marker-end="url(#loop-arrow)" />
+              <path class="loop-dots" d="M666 604 C 682 690, 596 752, 474 748" fill="none" marker-end="url(#loop-arrow)" />
+              <path class="loop-dots" d="M282 704 C 252 690, 226 690, 196 702" fill="none" marker-end="url(#loop-arrow)" />
+              <path class="loop-dots" d="M58 560 C 22 500, 22 390, 64 336" fill="none" marker-end="url(#loop-arrow)" />
+            </g>
+          </svg>
+
+          <a class="loop-step loop-step-1" href="#envies">
+            <span class="phone"><img src="/img/app-home.webp" data-i18n-src="imgHome" alt="L'écran Wishlists de l'app, avec quatre listes : Mon anniversaire, Noël 2026, Idées cadeaux, Nouvel appart." data-i18n-attr="alt:altHome" width="600" height="1304" /></span>
+            <span class="loop-tag"><b>1</b><span class="loop-name" data-i18n="step1">Tes envies</span><small data-i18n="sub1">Une liste par occasion.</small></span>
+          </a>
+          <a class="loop-step loop-step-2" href="#proches">
+            <span class="phone"><img src="/img/app-friendwl.webp" data-i18n-src="imgFriendWl" alt="La liste Crémaillère de Léa ouverte par un ami : un mug en grès et une bougie parfumée." data-i18n-attr="alt:altFriendWl" width="600" height="1304" /></span>
+            <span class="loop-tag"><b>2</b><span class="loop-name" data-i18n="step2">Tes proches</span><small data-i18n="sub2">Un lien, et tout le monde la voit.</small></span>
+          </a>
+          <a class="loop-step loop-step-3" href="#secret">
+            <span class="phone"><img src="/img/app-friendwish.webp" data-i18n-src="imgFriendWish" alt="Un wish de Léa vu par un ami : une bougie parfumée à 32 €, avec le bouton Je veux l'offrir." data-i18n-attr="alt:altFriendWish" width="600" height="1304" /></span>
+            <span class="loop-tag"><b>3</b><span class="loop-name" data-i18n="step3">Le secret</span><small data-i18n="sub3">Ils réservent. Toi, tu ne vois rien.</small></span>
+          </a>
+          <a class="loop-step loop-step-4" href="#jour-j">
+            <span class="phone"><img src="/img/app-booked.webp" data-i18n-src="imgBooked" alt="L'écran Réservations : un cadeau pour Hugo, un pour Léa, 210 € au total." data-i18n-attr="alt:altBooked" width="600" height="1304" /></span>
+            <span class="loop-tag"><b>4</b><span class="loop-name" data-i18n="step4">Le jour J</span><small data-i18n="sub4">Tes cadeaux à offrir, sous la main.</small></span>
+          </a>
+          <figcaption id="loop-caption" class="visually-hidden" data-i18n="loopCaption">
+            Le cycle Wishy en quatre étapes : tes envies, tes proches, le secret, le jour J.
+          </figcaption>
+        </figure>
       </section>
 
-      <p id="desktop-hint" class="hint" hidden></p>
+      <div class="trail" aria-hidden="true">
+        <svg class="trail-path" viewBox="0 0 240 200" focusable="false">
+          <mask id="trail-reveal-1" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="200">
+            <path class="trail-draw" d="M120 0 C 120 60, 40 70, 70 120 S 120 150, 120 172" pathLength="1" fill="none" stroke="#fff" stroke-width="36" />
+          </mask>
+          <g mask="url(#trail-reveal-1)">
+            <path class="loop-dots" d="M120 0 C 120 60, 40 70, 70 120 S 120 150, 120 172" fill="none" />
+          </g>
+        </svg>
+        <span class="trail-node">1</span>
+      </div>
+
+      <section class="step step-envies" id="envies" aria-labelledby="envies-title">
+        <div class="step-copy step-copy-center">
+          <h2 id="envies-title"><span class="visually-hidden" data-i18n="stepOf1">Étape 1 sur 4 :</span><span data-i18n="enviesTitle">Une wishlist par occasion.</span></h2>
+          <p data-i18n="enviesText1">
+            Anniversaire, Noël, crémaillère : chaque occasion a sa liste, et chaque liste sa couleur.
+          </p>
+          <p data-i18n="enviesText2">
+            Tu vois un truc qui te plaît dans une boutique en ligne ? Partage-le vers Wishy depuis
+            n'importe quelle app : photo, prix et lien arrivent tout seuls.
+          </p>
+        </div>
+        <div class="step-phones">
+          <span class="phone phone-back"><img src="/img/app-home.webp" data-i18n-src="imgHome" alt="" width="600" height="1304" loading="lazy" /></span>
+          <span class="phone phone-front"><img src="/img/app-wl.webp" data-i18n-src="imgWl" alt="La liste Mon anniversaire : casque audio, sac à main, montre connectée, baskets, avec leurs prix." data-i18n-attr="alt:altWl" width="600" height="1304" loading="lazy" /></span>
+        </div>
+      </section>
+
+      <div class="trail trail-flip" aria-hidden="true">
+        <svg class="trail-path" viewBox="0 0 240 200" focusable="false">
+          <mask id="trail-reveal-2" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="200">
+            <path class="trail-draw" d="M120 0 C 120 60, 40 70, 70 120 S 120 150, 120 172" pathLength="1" fill="none" stroke="#fff" stroke-width="36" />
+          </mask>
+          <g mask="url(#trail-reveal-2)">
+            <path class="loop-dots" d="M120 0 C 120 60, 40 70, 70 120 S 120 150, 120 172" fill="none" />
+          </g>
+        </svg>
+        <span class="trail-node">2</span>
+        <img class="trail-ink trail-ink-right" src="/img/no_wish_bag.svg" alt="" width="220" height="220" loading="lazy" />
+      </div>
+
+      <section class="step step-proches" id="proches" aria-labelledby="proches-title">
+        <div class="step-copy step-copy-center">
+          <h2 id="proches-title"><span class="visually-hidden" data-i18n="stepOf2">Étape 2 sur 4 :</span><span data-i18n="prochesTitle">Un lien, et toute la famille suit.</span></h2>
+          <p data-i18n="prochesText1">
+            Envoie ta liste dans le groupe WhatsApp, par SMS ou par mail. Le lien ouvre l'app,
+            ou invite à l'installer.
+          </p>
+          <p data-i18n="prochesText2">
+            Ajoute tes amis dans Wishy pour retrouver toutes leurs listes au même endroit, avant
+            chaque anniversaire.
+          </p>
+        </div>
+        <div class="proches-visual">
+          <div class="chat" aria-hidden="true">
+            <p class="chat-head" data-i18n="chatHead">Famille 🎄</p>
+            <p class="bubble bubble-in" data-i18n="chatQ">Tu veux quoi pour Noël cette année ?</p>
+            <div class="bubble bubble-out">
+              <span data-i18n="chatA">Tout est là 👇</span>
+              <span class="link-card">
+                <img src="/icon-180.png" alt="" width="40" height="40" />
+                <span>
+                  <b data-i18n="chatCardTitle">Une wishlist t'attend sur Wishy</b>
+                  <small>wishy-app.fr/w/…</small>
+                </span>
+              </span>
+            </div>
+            <p class="bubble bubble-in" data-i18n="chatR">Parfait, je regarde ce soir</p>
+          </div>
+          <span class="phone"><img src="/img/app-friendwl.webp" data-i18n-src="imgFriendWl" alt="La liste Crémaillère de Léa ouverte par un ami : un mug en grès et une bougie parfumée." data-i18n-attr="alt:altFriendWl" width="600" height="1304" loading="lazy" /></span>
+        </div>
+      </section>
+
+      <div class="trail" aria-hidden="true">
+        <svg class="trail-path" viewBox="0 0 240 200" focusable="false">
+          <mask id="trail-reveal-3" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="200">
+            <path class="trail-draw" d="M120 0 C 120 60, 40 70, 70 120 S 120 150, 120 172" pathLength="1" fill="none" stroke="#fff" stroke-width="36" />
+          </mask>
+          <g mask="url(#trail-reveal-3)">
+            <path class="loop-dots" d="M120 0 C 120 60, 40 70, 70 120 S 120 150, 120 172" fill="none" />
+          </g>
+        </svg>
+        <span class="trail-node">3</span>
+        <img class="trail-ink trail-ink-left" src="/img/no_friend.svg" alt="" width="220" height="220" loading="lazy" />
+      </div>
+
+      <section class="secret" id="secret" aria-labelledby="secret-title">
+        <h2 id="secret-title"><span class="visually-hidden" data-i18n="stepOf3">Étape 3 sur 4 :</span><span data-i18n-html="secretTitle">Tes amis savent. <em>Toi, non.</em></span></h2>
+        <p class="secret-lede" data-i18n="secretLede">
+          Quand un ami réserve un wish, les autres le voient et ne l'offrent pas une deuxième fois.
+          Toi, tu vois juste ta liste.
+        </p>
+
+        <div class="secret-board">
+          <input class="secret-radio" type="radio" name="secret-view" id="view-me" checked />
+          <input class="secret-radio" type="radio" name="secret-view" id="view-them" />
+          <div class="secret-switch" role="group" aria-label="Choisir la vue" data-i18n-attr="aria-label:viewLabel">
+            <label for="view-me" data-i18n="viewMe">Vu par toi</label>
+            <label for="view-them" data-i18n="viewThem">Vu par tes amis</label>
+          </div>
+
+          <div class="secret-side secret-me">
+            <p class="secret-who">
+              <span data-i18n="sideMe">Mon anniversaire, vu par toi</span>
+              <span class="secret-count" data-i18n="countMe">Réservés : ?</span>
+            </p>
+            <ul class="wish-list">
+              <li><img class="wish-img" src="/img/wish-1.webp" alt="" width="128" height="128" loading="lazy" /><span class="wish-name" data-i18n="w1">Casque audio sans fil</span><span class="wish-mark" aria-hidden="true">?</span><span class="visually-hidden" data-i18n="hidden">Réservation cachée</span><span class="wish-price">129 €</span></li>
+              <li><img class="wish-img" src="/img/wish-2.webp" alt="" width="128" height="128" loading="lazy" /><span class="wish-name" data-i18n="w2">Sac à main rouge</span><span class="wish-mark" aria-hidden="true">?</span><span class="visually-hidden" data-i18n="hidden">Réservation cachée</span><span class="wish-price">160 €</span></li>
+              <li><img class="wish-img" src="/img/wish-3.webp" alt="" width="128" height="128" loading="lazy" /><span class="wish-name" data-i18n="w3">Montre connectée</span><span class="wish-mark" aria-hidden="true">?</span><span class="visually-hidden" data-i18n="hidden">Réservation cachée</span><span class="wish-price">199 €</span></li>
+              <li><img class="wish-img" src="/img/wish-4.webp" alt="" width="128" height="128" loading="lazy" /><span class="wish-name" data-i18n="w4">Baskets noires</span><span class="wish-mark" aria-hidden="true">?</span><span class="visually-hidden" data-i18n="hidden">Réservation cachée</span><span class="wish-price">95 €</span></li>
+            </ul>
+          </div>
+
+          <div class="secret-side secret-them">
+            <p class="secret-who">
+              <span data-i18n="sideThem">La même liste, vue par tes amis</span>
+              <span class="secret-count" data-i18n="countThem">Réservés : 2</span>
+            </p>
+            <ul class="wish-list">
+              <li><img class="wish-img" src="/img/wish-1.webp" alt="" width="128" height="128" loading="lazy" /><span class="wish-name" data-i18n="w1">Casque audio sans fil</span><span class="wish-tag" data-i18n="byHugo">Hugo l'offre</span><span class="wish-price">129 €</span></li>
+              <li><img class="wish-img" src="/img/wish-2.webp" alt="" width="128" height="128" loading="lazy" /><span class="wish-name" data-i18n="w2">Sac à main rouge</span><span class="wish-free" data-i18n="free">Libre</span><span class="wish-price">160 €</span></li>
+              <li><img class="wish-img" src="/img/wish-3.webp" alt="" width="128" height="128" loading="lazy" /><span class="wish-name" data-i18n="w3">Montre connectée</span><span class="wish-tag" data-i18n="byLea">Léa l'offre</span><span class="wish-price">199 €</span></li>
+              <li><img class="wish-img" src="/img/wish-4.webp" alt="" width="128" height="128" loading="lazy" /><span class="wish-name" data-i18n="w4">Baskets noires</span><span class="wish-free" data-i18n="free">Libre</span><span class="wish-price">95 €</span></li>
+            </ul>
+          </div>
+        </div>
+        <p class="secret-note" data-i18n="secretNote">Exemple de liste. Les prénoms sont inventés, la mécanique est réelle.</p>
+      </section>
+
+      <div class="trail trail-flip" aria-hidden="true">
+        <svg class="trail-path" viewBox="0 0 240 200" focusable="false">
+          <mask id="trail-reveal-4" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="200">
+            <path class="trail-draw" d="M120 0 C 120 60, 40 70, 70 120 S 120 150, 120 172" pathLength="1" fill="none" stroke="#fff" stroke-width="36" />
+          </mask>
+          <g mask="url(#trail-reveal-4)">
+            <path class="loop-dots" d="M120 0 C 120 60, 40 70, 70 120 S 120 150, 120 172" fill="none" />
+          </g>
+        </svg>
+        <span class="trail-node">4</span>
+        <img class="trail-ink trail-ink-right" src="/img/no_wish_flashlight.svg" alt="" width="220" height="220" loading="lazy" />
+      </div>
+
+      <section class="step step-jour" id="jour-j" aria-labelledby="jour-title">
+        <div class="step-copy step-copy-center">
+          <h2 id="jour-title"><span class="visually-hidden" data-i18n="stepOf4">Étape 4 sur 4 :</span><span data-i18n="jourTitle">Le jour J, tu sais quoi acheter.</span></h2>
+          <p data-i18n="jourText">
+            Tout ce que tu as réservé pour les autres est rangé par ami, avec le budget total.
+            Fini le « c'était quoi déjà, pour Léa ? » devant le rayon.
+          </p>
+        </div>
+        <div class="jour-visual">
+          <span class="phone"><img src="/img/app-booked.webp" data-i18n-src="imgBooked" alt="L'écran Réservations : une montre en cuir pour Hugo, un sac à dos pour Léa, 210 € au total." data-i18n-attr="alt:altBooked2" width="600" height="1304" loading="lazy" /></span>
+          <p class="note note-left" data-i18n="noteFriend">rangé par ami</p>
+          <p class="note note-right" data-i18n="noteBudget">le budget total</p>
+          <svg class="note-arrow note-arrow-left" viewBox="0 0 60 40" aria-hidden="true" focusable="false"><path d="M4 8 C 24 6, 44 14, 54 32 M44 28 L54 32 L56 21" fill="none" /></svg>
+          <svg class="note-arrow note-arrow-right" viewBox="0 0 60 40" aria-hidden="true" focusable="false"><path d="M56 8 C 36 6, 16 14, 6 32 M16 28 L6 32 L4 21" fill="none" /></svg>
+        </div>
+      </section>
+
+      <section class="nous" id="nous" aria-labelledby="nous-title">
+        <img class="nous-ink" src="/img/no_wish_box_hat.svg" alt="" width="260" height="260" loading="lazy" />
+        <div>
+          <h2 id="nous-title" data-i18n="nousTitle">Deux frères, beaucoup trop de casques.</h2>
+          <p data-i18n="nousText1">
+            On est Raphaël et Tanguy. Trois occasions de cadeaux d'affilée, trois fois des
+            doublons. Autour de nous, des familles s'envoyaient encore leurs listes dans des
+            documents par mail.
+          </p>
+          <p data-i18n="nousText2">
+            Alors on a fait Wishy, le soir et le week-end, aussi pour le plaisir de construire un
+            truc ensemble. Gratuite, sans pub, et tes données ne sont pas revendues.
+          </p>
+        </div>
+      </section>
+
+      <section class="final" id="telecharger" aria-labelledby="final-title">
+        <img class="final-ink" src="/img/no_wishlist.svg" alt="" width="300" height="300" loading="lazy" />
+        <h2 id="final-title" data-i18n="finalTitle">Fini les doublons.</h2>
+        <p class="final-promise" data-i18n="finalPromise">Gratuite · sans pub · données non revendues</p>
+        <div class="stores-row stores-row-center" data-stores>
+          <span class="store store-soon">App Store <small>· bientôt</small></span>
+          <span class="store store-soon">Google Play <small>· bientôt</small></span>
+        </div>
+      </section>
     </main>
+
+    <footer class="footer">
+      <p>Wishy · <span data-i18n="madeBy">fait par Raphaël &amp; Tanguy</span></p>
+      <nav aria-label="Liens légaux" data-i18n-attr="aria-label:legalLabel">
+        <a href="/confidentialite" hreflang="fr" data-i18n="privacy">Confidentialité</a>
+        <a href="/conditions" hreflang="fr" data-i18n="terms">Conditions d'utilisation</a>
+        <a href="mailto:wishyapp.contact@gmail.com">Contact</a>
+        <button class="lang" type="button" data-lang-toggle>EN</button>
+      </nav>
+    </footer>
   </body>
 </html>

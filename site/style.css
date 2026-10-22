@@ -1,26 +1,48 @@
-/* Couleurs et police de l'app (lib/shared/theme/colors.dart) */
+/* Base commune : accueil (index.html) et page de secours (share.html).
+   Couleurs et police de l'app (lib/shared/theme/colors.dart). */
 @font-face {
   font-family: "PlusJakartaSans";
-  src: url("/fonts/PlusJakartaSans-Regular.ttf") format("truetype");
+  src: url("/fonts/PlusJakartaSans-Regular.woff2") format("woff2");
   font-weight: 400;
   font-display: swap;
 }
 
 @font-face {
   font-family: "PlusJakartaSans";
-  src: url("/fonts/PlusJakartaSans-Bold.ttf") format("truetype");
+  src: url("/fonts/PlusJakartaSans-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PlusJakartaSans";
+  src: url("/fonts/PlusJakartaSans-Bold.woff2") format("woff2");
   font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PlusJakartaSans";
+  src: url("/fonts/PlusJakartaSans-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
   font-display: swap;
 }
 
 :root {
   --background: #f7f6f0;
   --surface: #ffffff;
+  --sand: #e8e4da;
   --primary: #f28c57;
   --primary-dark: #df733d;
+  /* Orange des titres sur fond clair, assombri pour 3:1 en grand texte */
+  --primary-text: #c8612b;
+  --ink: #2c2c2c;
+  --ink-deep: #1e1e1e;
   --text: #2c2c2c;
-  --text-muted: #887a6b;
-  --border: #e8e4da;
+  /* #887a6b de l'app, assombri pour 4,5:1 sur le fond crème */
+  --text-muted: #6b5e50;
+  --border: #e0dbd0;
+  --radius: 14px;
   color-scheme: light;
 }
 
@@ -31,75 +53,90 @@
 html,
 body {
   margin: 0;
-  min-height: 100%;
 }
 
 body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 24px 16px;
   background: var(--background);
   color: var(--text);
-  font-family: "PlusJakartaSans", system-ui, -apple-system, "Segoe UI", Roboto,
-    sans-serif;
+  font-family: "PlusJakartaSans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-weight: 500;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-.card {
-  width: 100%;
-  max-width: 400px;
-  padding: 32px 24px;
-  border-radius: 24px;
-  background: var(--surface);
-  box-shadow: 0 8px 32px rgba(44, 44, 44, 0.08);
-  text-align: center;
+::selection {
+  background: var(--primary);
+  color: var(--ink);
 }
 
-.logo {
-  width: 96px;
-  height: 96px;
-  border-radius: 22px;
+a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 2px;
 }
 
-h1 {
-  margin: 20px 0 8px;
-  font-size: 1.5rem;
-  font-weight: 700;
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 6px;
 }
 
-p {
-  margin: 0;
+[hidden] {
+  display: none !important;
 }
 
-#subtitle {
-  color: var(--text-muted);
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
-.button {
+/* Écran de l'app dans un téléphone (accueil et page de secours) */
+
+.phone {
+  display: block;
+  overflow: hidden;
+  border: max(4px, 0.9cqw) solid var(--ink-deep);
+  border-radius: 15% / 7%;
+  background: var(--ink-deep);
+  box-shadow: 0 18px 40px -12px rgba(44, 44, 44, 0.35);
+}
+
+.phone img {
   display: block;
   width: 100%;
-  margin-top: 12px;
-  padding: 14px 20px;
-  border-radius: 14px;
+  height: auto;
+}
+
+/* Boutons */
+
+.button,
+.store {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 14px 22px;
+  border-radius: var(--radius);
   font-weight: 700;
+  font-size: 1rem;
   text-decoration: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
-.button[hidden] {
-  display: none;
-}
-
-.button-primary {
-  margin-top: 28px;
-  background: var(--primary);
+.button-primary,
+.store {
+  background: var(--ink);
   color: #ffffff;
 }
 
 .button-primary:hover,
-.button-primary:focus-visible {
-  background: var(--primary-dark);
+.store:hover {
+  background: #000000;
 }
 
 .button-secondary {
@@ -107,31 +144,265 @@ p {
   color: var(--text);
 }
 
-.button-secondary:hover,
-.button-secondary:focus-visible {
-  border-color: var(--primary);
+.button-secondary:hover {
+  border-color: var(--ink);
+}
+
+/* Store pas encore publié (stores.js) : pas de lien, juste l'annonce. */
+.store-soon,
+.store-soon:hover {
+  background: transparent;
+  color: var(--text);
+  border: 2px dashed #b9ad9e;
+  cursor: default;
+}
+
+.store small {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+/* Page de secours : /w/<id>. Peu de mots, deux gros boutons, et des écrans
+   de l'app en décor. */
+
+body.share {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow-x: hidden;
+}
+
+.share-top,
+.share-card {
+  position: relative;
+  z-index: 1;
+}
+
+.share-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px clamp(16px, 4vw, 40px);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.brand img {
+  border-radius: 9px;
+}
+
+.share-card {
+  align-self: center;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 16px 16px 12vh;
+  text-align: center;
+}
+
+.share-card h1 {
+  margin: 0 0 10px;
+  font-size: clamp(2.3rem, 10vw, 3.4rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.share-card p {
+  margin: 0;
+}
+
+#subtitle {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  text-wrap: balance;
+}
+
+.share-card .button {
+  display: flex;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.share-card #open-app,
+.share-card #get-app {
+  margin-top: 28px;
+  min-height: 58px;
+  background: var(--primary);
+  color: var(--ink);
+  font-size: 1.1rem;
+  box-shadow: 0 10px 24px -10px rgba(223, 115, 61, 0.7);
+}
+
+.share-card #open-app:hover,
+.share-card #get-app:hover {
+  background: #f6a173;
 }
 
 .stores {
+  margin-top: 4px;
+}
+
+.share-card .share-soon {
+  flex-direction: column;
+  gap: 2px;
+  min-height: 64px;
+  margin-top: 16px;
+  border-color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.share-card .share-soon small {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.share-card .share-soon:hover {
+  background: var(--surface);
+}
+
+/* iOS tant que l'App Store manque : l'accueil devient l'action principale. */
+.share-card .share-soon-primary {
   margin-top: 28px;
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--ink);
+  box-shadow: 0 10px 24px -10px rgba(223, 115, 61, 0.7);
 }
 
-.stores-title {
+.share-card .share-soon-primary small {
+  color: var(--ink);
+}
+
+.share-card .share-soon-primary:hover {
+  background: #f6a173;
+}
+
+/* Décor : deux écrans de l'app de part et d'autre du texte. */
+
+.share-deco {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.share-phone {
+  position: absolute;
+  top: 50%;
+  width: clamp(210px, 17vw, 270px);
+  border-width: 6px;
+}
+
+.share-phone-left {
+  left: clamp(24px, 9vw, 160px);
+  transform: translateY(-50%) rotate(-7deg);
+}
+
+.share-phone-right {
+  right: clamp(24px, 9vw, 160px);
+  transform: translateY(-46%) rotate(6deg);
+}
+
+/* Trois illustrations à peine visibles, pour habiller sans distraire. */
+.share-ink {
+  position: absolute;
+  width: clamp(110px, 9vw, 150px);
+  height: auto;
+  opacity: 0.22;
+}
+
+/* Triangle symétrique : deux en haut, à égale distance du centre, un en bas
+   sous le bouton. */
+.share-ink-1,
+.share-ink-2 {
+  top: 13%;
+}
+
+.share-ink-1 {
+  left: calc(clamp(24px, 9vw, 160px) + clamp(210px, 17vw, 270px) + 5vw);
+  transform: rotate(-5deg);
+}
+
+.share-ink-2 {
+  right: calc(clamp(24px, 9vw, 160px) + clamp(210px, 17vw, 270px) + 5vw);
+  transform: rotate(5deg);
+}
+
+.share-ink-3 {
+  left: 50%;
+  bottom: 8%;
+  transform: translateX(-50%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .share-phone {
+    animation: share-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .share-phone-right {
+    animation-delay: 0.12s;
+  }
+}
+
+@keyframes share-rise {
+  from {
+    opacity: 0;
+    translate: 0 40px;
+  }
+}
+
+/* Téléphone et tablette : les écrans dépassent des bords, sous les boutons,
+   et les illustrations disparaissent. */
+@media (max-width: 900px) {
+  .share-card {
+    padding-bottom: 36svh;
+  }
+
+  .share-phone {
+    top: auto;
+    bottom: -14svh;
+    width: min(46vw, 230px);
+  }
+
+  .share-phone-left {
+    left: -12vw;
+    transform: rotate(-9deg);
+  }
+
+  .share-phone-right {
+    right: -12vw;
+    transform: rotate(8deg);
+  }
+
+  .share-ink {
+    display: none;
+  }
+}
+
+/* .share-card p resets margins: the selector must outweigh it. */
+.share-card .hint {
+  margin-top: 16px;
+  font-size: 1rem;
   color: var(--text-muted);
-  font-size: 0.9rem;
 }
 
-.hint {
-  margin-top: 20px;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
-.hint[hidden] {
-  display: none;
-}
-
-.hint a {
-  color: var(--primary-dark);
+.share-card .hint a {
+  color: var(--ink);
   font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

@@ -27,3 +27,6 @@ node_modules/
 
 # Dump written by scripts/migrate_data_dev_to_prod.sh (left behind if the script fails)
 data_dump.sql
+
+# Journaux du serveur MCP Playwright
+.playwright-mcp/
