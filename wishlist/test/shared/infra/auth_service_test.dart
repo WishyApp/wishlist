@@ -29,7 +29,7 @@ void main() {
     ).thenThrow(error);
   }
 
-  final invalidCredentials = AuthApiException(
+  const invalidCredentials = AuthApiException(
     'Invalid login credentials',
     statusCode: '400',
     code: 'invalid_credentials',
@@ -38,7 +38,7 @@ void main() {
   final networkError = AuthRetryableFetchException(
     message: 'ClientException with SocketException: Failed host lookup',
   );
-  final rateLimited = AuthApiException(
+  const rateLimited = AuthApiException(
     'Too many requests',
     statusCode: '429',
     code: 'over_request_rate_limit',
@@ -64,7 +64,7 @@ void main() {
 
     test('returns false for invalid credentials without error code', () async {
       stubSignIn(
-        AuthApiException(
+        const AuthApiException(
           'Invalid login credentials',
           statusCode: '400',
         ),
@@ -93,7 +93,7 @@ void main() {
 
     test('propagates a server error', () async {
       stubSignIn(
-        AuthApiException(
+        const AuthApiException(
           'Internal error',
           statusCode: '500',
           code: 'unexpected_failure',
