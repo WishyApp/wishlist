@@ -12,6 +12,7 @@ class _DialogLayout extends StatefulWidget {
     required this.title,
     required this.content,
     required this.confirmLabel,
+    this.cancelLabel,
     this.onCancel,
     this.onConfirm,
     this.isConfirmEnabled,
@@ -21,6 +22,9 @@ class _DialogLayout extends StatefulWidget {
   final String title;
   final Widget content;
   final String confirmLabel;
+
+  /// Defaults to the generic cancel label.
+  final String? cancelLabel;
   final void Function()? onCancel;
   final Future<void> Function()? onConfirm;
   final ValueListenable<bool>? isConfirmEnabled;
@@ -83,7 +87,7 @@ class _DialogLayoutState extends State<_DialogLayout> {
             if (onCancel != null)
               SecondaryButton(
                 style: BaseButtonStyle.medium,
-                text: l10n.cancelButton,
+                text: widget.cancelLabel ?? l10n.cancelButton,
                 onPressed: () {
                   context.pop();
                   onCancel();
@@ -154,6 +158,7 @@ Future<void> showAppDialog(
   required String title,
   required Widget content,
   required String confirmButtonLabel,
+  String? cancelButtonLabel,
   Future<void> Function()? onConfirm,
   void Function()? onCancel,
   ValueListenable<bool>? isConfirmEnabled,
@@ -199,6 +204,7 @@ Future<void> showAppDialog(
                         title: title,
                         content: content,
                         confirmLabel: confirmButtonLabel,
+                        cancelLabel: cancelButtonLabel,
                         onConfirm: onConfirm,
                         onCancel: onCancel,
                         isConfirmEnabled: isConfirmEnabled,

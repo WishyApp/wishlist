@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/app/version_gate/app_update_required_screen.dart';
@@ -5,6 +7,7 @@ import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_update_service.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
+import 'package:wishlist/shared/widgets/dialogs/app_dialog.dart';
 
 /// Wraps the whole app (see `MaterialApp.router`'s builder, so it covers the
 /// sign in screens too) and applies the server's version policy:
@@ -13,15 +16,21 @@ import 'package:wishlist/shared/theme/text_styles.dart';
 ///   child is not built, so there is no navigation behind it. The system back
 ///   button is left alone: the router has no Navigator left to pop, nobody
 ///   handles it and the app exits, as from any root screen.
-/// - older than the recommended version: a dismissible banner, once per app
-///   session.
+/// - older than the recommended version: a dialog, once per app session.
 ///
 /// The policy is read at launch and each time the app comes back to the
 /// foreground.
 class AppVersionGate extends ConsumerStatefulWidget {
-  const AppVersionGate({super.key, required this.child});
+  const AppVersionGate({
+    super.key,
+    required this.child,
+    required this.navigatorKey,
+  });
 
   final Widget child;
+
+  /// Key of the router's Navigator, which shows the recommendation dialog.
+  final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   ConsumerState<AppVersionGate> createState() => _AppVersionGateState();
@@ -30,6 +39,7 @@ class AppVersionGate extends ConsumerStatefulWidget {
 class _AppVersionGateState extends ConsumerState<AppVersionGate>
     with WidgetsBindingObserver {
   bool _recommendationShown = false;
+  bool _isDialogOpen = false;
 
   @override
   void initState() {
@@ -51,9 +61,13 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
     }
   }
 
-  void _check() {
+  Future<void> _check() async {
+    if (!mounted) {
+      return;
+    }
+    await ref.read(appUpdateProvider.notifier).check();
     if (mounted) {
-      ref.read(appUpdateProvider.notifier).check();
+      _showRecommendation();
     }
   }
 
@@ -61,46 +75,55 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
     ref.read(appUpdateUrlLauncherProvider)(url);
   }
 
-  void _showRecommendation(String? updateUrl) {
+  /// Once per app session, over the router's Navigator (this widget is above
+  /// it, so its own context cannot show a dialog). Skipped silently while that
+  /// Navigator does not exist yet: the next check tries again.
+  void _showRecommendation() {
+    final decision = ref.read(appUpdateProvider);
+    final context = widget.navigatorKey.currentContext;
+    if (decision.status != AppUpdateStatus.recommended ||
+        _recommendationShown ||
+        context == null) {
+      return;
+    }
     _recommendationShown = true;
-    final messenger = ScaffoldMessenger.of(context);
+    _isDialogOpen = true;
+
     final l10n = context.l10n;
-    messenger.showMaterialBanner(
-      MaterialBanner(
-        // App colours and font, as the app snackbar, rather than Material's
-        // defaults
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        dividerColor: AppColors.gainsboro,
-        leading:
-            const Icon(Icons.system_update_outlined, color: AppColors.primary),
+    final url = decision.updateUrl;
+    final description = switch ((url, ref.read(appUpdatePlatformProvider))) {
+      (null, 'ios') => l10n.updateAvailableNoLinkIosMessage,
+      (null, 'android') => l10n.updateAvailableNoLinkAndroidMessage,
+      _ => l10n.updateAvailableMessage,
+    };
+
+    unawaited(
+      showAppDialog(
+        context,
+        title: l10n.updateAvailableTitle,
         content: Text(
-          l10n.updateAvailableMessage,
-          style: AppTextStyles.smaller.copyWith(color: AppColors.darkGrey),
+          description,
+          style: AppTextStyles.small.copyWith(color: AppColors.makara),
         ),
-        actions: [
-          TextButton(
-            onPressed: messenger.hideCurrentMaterialBanner,
-            style: TextButton.styleFrom(foregroundColor: AppColors.makara),
-            child: Text(l10n.updateLaterButton, style: AppTextStyles.smaller),
-          ),
-          if (updateUrl != null)
-            TextButton(
-              onPressed: () {
-                messenger.hideCurrentMaterialBanner();
-                _openStore(updateUrl);
+        confirmButtonLabel: l10n.updateButton,
+        cancelButtonLabel: l10n.updateLaterButton,
+        onCancel: () => _isDialogOpen = false,
+        // No confirm button without a store page
+        onConfirm: url == null
+            ? null
+            : () async {
+                _isDialogOpen = false;
+                _openStore(url);
               },
-              style:
-                  TextButton.styleFrom(foregroundColor: AppColors.darkOrange),
-              child: Text(
-                l10n.updateButton,
-                style:
-                    AppTextStyles.smaller.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-        ],
-      ),
+      ).whenComplete(() => _isDialogOpen = false),
     );
+  }
+
+  void _closeDialog() {
+    if (_isDialogOpen) {
+      _isDialogOpen = false;
+      widget.navigatorKey.currentState?.pop();
+    }
   }
 
   @override
@@ -108,13 +131,13 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
     ref.listen(appUpdateProvider, (_, decision) {
       switch (decision.status) {
         case AppUpdateStatus.required:
-          ScaffoldMessenger.of(context).clearMaterialBanners();
-        case AppUpdateStatus.recommended:
-          if (!_recommendationShown) {
-            _showRecommendation(decision.updateUrl);
-          }
+          // The wall replaces the app, Navigator and dialog route included:
+          // nothing to pop.
+          _isDialogOpen = false;
         case AppUpdateStatus.upToDate:
-          ScaffoldMessenger.of(context).clearMaterialBanners();
+          _closeDialog();
+        case AppUpdateStatus.recommended:
+          break;
       }
     });
 

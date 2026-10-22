@@ -20,6 +20,7 @@ class MyApp extends StatelessWidget {
       onGenerateTitle: (context) => 'Wishy',
       builder: (context, child) => ShareIntentHandler(
         child: AppVersionGate(
+          navigatorKey: router.routerDelegate.navigatorKey,
           child: child ??
               const Scaffold(
                 body: Center(child: CircularProgressIndicator()),

@@ -108,8 +108,19 @@ class AppLocalizationsFr extends AppLocalizations {
       'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis le Play Store pour continuer.';
 
   @override
+  String get updateAvailableTitle => 'Nouvelle version disponible';
+
+  @override
   String get updateAvailableMessage =>
-      'Une nouvelle version de Wishy est disponible.';
+      'Mets Wishy à jour pour profiter des dernières nouveautés.';
+
+  @override
+  String get updateAvailableNoLinkIosMessage =>
+      'Mets Wishy à jour depuis TestFlight pour profiter des dernières nouveautés.';
+
+  @override
+  String get updateAvailableNoLinkAndroidMessage =>
+      'Mets Wishy à jour depuis le Play Store pour profiter des dernières nouveautés.';
 
   @override
   String get updateButton => 'Mettre à jour';

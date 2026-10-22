@@ -278,11 +278,29 @@ abstract class AppLocalizations {
   /// **'Cette version de Wishy n\'est plus prise en charge. Mets l\'application à jour depuis le Play Store pour continuer.'**
   String get updateRequiredNoLinkAndroidDescription;
 
+  /// No description provided for @updateAvailableTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouvelle version disponible'**
+  String get updateAvailableTitle;
+
   /// No description provided for @updateAvailableMessage.
   ///
   /// In fr, this message translates to:
-  /// **'Une nouvelle version de Wishy est disponible.'**
+  /// **'Mets Wishy à jour pour profiter des dernières nouveautés.'**
   String get updateAvailableMessage;
+
+  /// No description provided for @updateAvailableNoLinkIosMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mets Wishy à jour depuis TestFlight pour profiter des dernières nouveautés.'**
+  String get updateAvailableNoLinkIosMessage;
+
+  /// No description provided for @updateAvailableNoLinkAndroidMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mets Wishy à jour depuis le Play Store pour profiter des dernières nouveautés.'**
+  String get updateAvailableNoLinkAndroidMessage;
 
   /// No description provided for @updateButton.
   ///

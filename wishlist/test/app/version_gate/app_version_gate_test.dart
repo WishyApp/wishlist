@@ -9,14 +9,12 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:wishlist/app/version_gate/app_update_required_screen.dart';
 import 'package:wishlist/app/version_gate/app_version_gate.dart';
-import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/app_update_service.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository_provider.dart';
 import 'package:wishlist/shared/models/app_version_policy.dart';
 import 'package:wishlist/shared/navigation/floating_nav_bar_navigator.dart';
-import 'package:wishlist/shared/theme/theme.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 
 import '../../fixtures/fake_providers.dart';
@@ -73,17 +71,26 @@ List<Override> _overrides(
   ];
 }
 
+/// The gate in a real GoRouter app, in the same spot as in app.dart (builder
+/// of MaterialApp.router, above the Navigator that shows the dialog).
 Future<void> _pumpGate(
   WidgetTester tester,
-  List<Override> overrides,
-) async {
-  await tester.pumpApp(
-    const SizedBox.shrink(),
+  List<Override> overrides, {
+  Widget home = const Scaffold(key: _homeKey),
+  WindowConfigData? windowConfig,
+}) async {
+  final navigatorKey = GlobalKey<NavigatorState>();
+  await tester.pumpRouterApp(
+    '/',
     overrides: overrides,
-    // Same spot as in app.dart: MaterialApp's builder
-    appBuilder: (context, child) => AppVersionGate(
-      child: Scaffold(key: _homeKey, body: child),
-    ),
+    windowConfig: windowConfig,
+    navigatorKey: navigatorKey,
+    routes: [
+      GoRoute(path: '/', builder: (_, __) => home),
+      GoRoute(path: '/detail', builder: (_, __) => const Scaffold()),
+    ],
+    builder: (context, child) =>
+        AppVersionGate(navigatorKey: navigatorKey, child: child!),
   );
   // Post-frame check, then the repository future
   await tester.pump();
@@ -188,36 +195,7 @@ void main() {
         () => tester.binding.defaultBinaryMessenger
             .setMockMethodCallHandler(SystemChannels.platform, null),
       );
-      final router = GoRouter(
-        routes: [
-          GoRoute(
-            path: '/',
-            builder: (_, __) => const Scaffold(key: _homeKey),
-            routes: [
-              GoRoute(
-                path: 'detail',
-                builder: (_, __) => const Scaffold(),
-              ),
-            ],
-          ),
-        ],
-      );
-      addTearDown(router.dispose);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: _overrides(_FakeRepository(policy: required)),
-          child: MaterialApp.router(
-            routerConfig: router,
-            locale: const Locale('fr'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            theme: theme,
-            builder: (context, child) => AppVersionGate(child: child!),
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump();
+      await _pumpGate(tester, _overrides(_FakeRepository(policy: required)));
       expect(find.byType(AppUpdateRequiredScreen), findsOneWidget);
 
       final handled = await tester.binding.handlePopRoute();
@@ -288,98 +266,156 @@ void main() {
     });
   });
 
-  group('recommendation banner', () {
-    testWidgets('is shown, dismissible, and the app stays usable',
-        (tester) async {
+  group('recommendation dialog', () {
+    const title = 'Nouvelle version disponible';
+
+    Future<void> pumpRecommended(
+      WidgetTester tester,
+      _FakeRepository repository, {
+      List<String>? openedUrls,
+      String? platform = 'ios',
+    }) async {
       await _pumpGate(
         tester,
-        _overrides(_FakeRepository(policy: recommended)),
+        _overrides(repository, openedUrls: openedUrls, platform: platform),
       );
-      await tester.pump(const Duration(milliseconds: 500));
-
-      expect(find.byKey(_homeKey), findsOneWidget);
-      expect(find.byType(AppUpdateRequiredScreen), findsNothing);
-      expect(
-        find.text('Une nouvelle version de Wishy est disponible.'),
-        findsOneWidget,
-      );
-
-      await tester.tap(find.text('Plus tard'));
       await tester.pumpAndSettle();
+    }
 
-      expect(
-        find.text('Une nouvelle version de Wishy est disponible.'),
-        findsNothing,
-      );
-    });
-
-    testWidgets('is shown only once per session', (tester) async {
-      final repository = _FakeRepository(policy: recommended);
-      await _pumpGate(tester, _overrides(repository));
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.tap(find.text('Plus tard'));
-      await tester.pumpAndSettle();
-
+    Future<void> resume(WidgetTester tester) async {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
       await tester.pump();
       await tester.pumpAndSettle();
+    }
 
-      expect(repository.calls, 2);
-      expect(
-        find.text('Une nouvelle version de Wishy est disponible.'),
-        findsNothing,
-      );
+    testWidgets('is shown over the usable app', (tester) async {
+      await pumpRecommended(tester, _FakeRepository(policy: recommended));
+
+      expect(find.text(title), findsOneWidget);
+      expect(find.byType(AppUpdateRequiredScreen), findsNothing);
+      expect(find.byKey(_homeKey, skipOffstage: false), findsOneWidget);
+      expect(find.byType(PrimaryButton), findsOneWidget);
+      expect(find.byType(SecondaryButton), findsOneWidget);
+      expect(find.text('Mettre à jour'), findsWidgets);
+      expect(find.text('Plus tard'), findsWidgets);
     });
 
-    testWidgets('the update action opens the url', (tester) async {
-      final opened = <String>[];
-      await _pumpGate(
-        tester,
-        _overrides(_FakeRepository(policy: recommended), openedUrls: opened),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
+    testWidgets('"Plus tard" closes it', (tester) async {
+      await pumpRecommended(tester, _FakeRepository(policy: recommended));
 
-      await tester.tap(find.text('Mettre à jour'));
+      await tester.tap(find.byType(SecondaryButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text(title), findsNothing);
+      expect(find.byKey(_homeKey), findsOneWidget);
+    });
+
+    testWidgets('is shown only once per session', (tester) async {
+      final repository = _FakeRepository(policy: recommended);
+      await pumpRecommended(tester, repository);
+      await tester.tap(find.byType(SecondaryButton));
+      await tester.pumpAndSettle();
+
+      await resume(tester);
+
+      expect(repository.calls, 2);
+      expect(find.text(title), findsNothing);
+    });
+
+    testWidgets('is not stacked again while it is still open', (tester) async {
+      final repository = _FakeRepository(policy: recommended);
+      await pumpRecommended(tester, repository);
+
+      await resume(tester);
+
+      expect(repository.calls, 2);
+      expect(find.text(title), findsOneWidget);
+    });
+
+    testWidgets('"Mettre à jour" opens the url and closes it', (tester) async {
+      final opened = <String>[];
+      await pumpRecommended(
+        tester,
+        _FakeRepository(policy: recommended),
+        openedUrls: opened,
+      );
+
+      await tester.tap(find.byType(PrimaryButton));
       await tester.pumpAndSettle();
 
       expect(opened, ['https://example.com/store']);
+      expect(find.text(title), findsNothing);
     });
 
-    testWidgets('is hidden when the app is up to date again', (tester) async {
+    testWidgets('without url: no confirm button, names TestFlight on iOS',
+        (tester) async {
+      await pumpRecommended(
+        tester,
+        _FakeRepository(
+          policy: const AppVersionPolicy(
+            minVersion: '0.1.0',
+            recommendedVersion: '0.3.0',
+          ),
+        ),
+      );
+
+      expect(find.byType(PrimaryButton), findsNothing);
+      expect(find.byType(SecondaryButton), findsOneWidget);
+      expect(find.textContaining('TestFlight'), findsOneWidget);
+    });
+
+    testWidgets('without url on Android: names the Play Store', (tester) async {
+      await pumpRecommended(
+        tester,
+        _FakeRepository(
+          policy: const AppVersionPolicy(
+            minVersion: '0.1.0',
+            recommendedVersion: '0.3.0',
+          ),
+        ),
+        platform: 'android',
+      );
+
+      expect(find.byType(PrimaryButton), findsNothing);
+      expect(find.textContaining('Play Store'), findsOneWidget);
+      expect(find.textContaining('TestFlight'), findsNothing);
+    });
+
+    testWidgets('is closed when the app is up to date again', (tester) async {
       final repository = _FakeRepository(policy: recommended);
-      await _pumpGate(tester, _overrides(repository));
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(MaterialBanner), findsOneWidget);
+      await pumpRecommended(tester, repository);
+      expect(find.text(title), findsOneWidget);
 
       repository.policy = const AppVersionPolicy(
         minVersion: '0.0.0',
         recommendedVersion: '0.0.0',
       );
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-      await tester.pump();
-      await tester.pump();
-      await tester.pumpAndSettle();
+      await resume(tester);
 
-      expect(find.byType(MaterialBanner), findsNothing);
+      expect(find.text(title), findsNothing);
+      expect(find.byKey(_homeKey), findsOneWidget);
     });
 
-    testWidgets('without url there is only the dismiss action', (tester) async {
-      await _pumpGate(
-        tester,
-        _overrides(
-          _FakeRepository(
-            policy: const AppVersionPolicy(
-              minVersion: '0.1.0',
-              recommendedVersion: '0.3.0',
-            ),
-          ),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
+    testWidgets('gives way to the wall when the minimum is raised',
+        (tester) async {
+      final repository = _FakeRepository(policy: recommended);
+      await pumpRecommended(tester, repository);
+      expect(find.text(title), findsOneWidget);
 
-      expect(find.text('Plus tard'), findsOneWidget);
-      expect(find.text('Mettre à jour'), findsNothing);
+      repository.policy = required;
+      await resume(tester);
+
+      expect(find.byType(AppUpdateRequiredScreen), findsOneWidget);
+      expect(find.text(title), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('is never shown over the wall', (tester) async {
+      await pumpRecommended(tester, _FakeRepository(policy: required));
+
+      expect(find.byType(AppUpdateRequiredScreen), findsOneWidget);
+      expect(find.text(title), findsNothing);
     });
   });
 
@@ -388,7 +424,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(_homeKey), findsOneWidget);
       expect(find.byType(AppUpdateRequiredScreen), findsNothing);
-      expect(find.byType(MaterialBanner), findsNothing);
+      expect(find.text('Nouvelle version disponible'), findsNothing);
       expect(tester.takeException(), isNull);
     }
 
@@ -474,26 +510,25 @@ void main() {
     await tester.expectGolden<AppUpdateRequiredScreen>(variant);
   });
 
-  testAdaptiveWidgets('$AppVersionGate recommendation banner golden test',
+  testAdaptiveWidgets('$AppVersionGate recommendation dialog golden test',
       (tester, variant) async {
-    await tester.pumpApp(
+    await _pumpGate(
+      tester,
+      [
+        ...homeScreenOverrides(),
+        ..._overrides(_FakeRepository(policy: recommended)),
+      ],
       // The home screen with its floating navigation bar, as in the app
-      const FloatingNavBarNavigator(
+      home: const FloatingNavBarNavigator(
         // ignore: avoid_redundant_argument_values
         currentTab: FloatingNavBarTab.home,
       ),
       windowConfig: variant,
-      overrides: [
-        ...homeScreenOverrides(),
-        ..._overrides(_FakeRepository(policy: recommended)),
-      ],
-      // Same spot as in app.dart: MaterialApp's builder
-      appBuilder: (context, child) => AppVersionGate(child: child!),
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(MaterialBanner), findsOneWidget);
-    await tester.expectGolden<AppVersionGate>(variant, suffix: 'banner');
+    expect(find.text('Nouvelle version disponible'), findsOneWidget);
+    await tester.expectGolden<AppVersionGate>(variant, suffix: 'dialog');
   });
 }
 

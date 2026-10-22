@@ -39,7 +39,6 @@ extension EnhancedWidgetTester on WidgetTester {
     Widget widget, {
     WindowConfigData? windowConfig,
     List<Override>? overrides,
-    TransitionBuilder? appBuilder,
   }) async {
     final app = ProviderScope(
       overrides: [...overrides ?? []],
@@ -50,15 +49,14 @@ extension EnhancedWidgetTester on WidgetTester {
           localizationsDelegates: _localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           theme: theme,
-          builder: appBuilder ??
-              (context, child) {
-                return Scaffold(
-                  body: Material(
-                    color: Colors.transparent,
-                    child: child,
-                  ),
-                );
-              },
+          builder: (context, child) {
+            return Scaffold(
+              body: Material(
+                color: Colors.transparent,
+                child: child,
+              ),
+            );
+          },
           home: widget,
         ),
         windowConfig: windowConfig,
@@ -105,8 +103,11 @@ extension EnhancedWidgetTester on WidgetTester {
     List<Override>? overrides,
     Object? initialExtra,
     List<RouteBase>? routes,
+    GlobalKey<NavigatorState>? navigatorKey,
+    TransitionBuilder? builder,
   }) async {
     final router = GoRouter(
+      navigatorKey: navigatorKey,
       initialExtra: initialExtra,
       initialLocation: path,
       routes: routes ?? $appRoutes,
@@ -117,6 +118,7 @@ extension EnhancedWidgetTester on WidgetTester {
       child: _addReusableWrapper(
         MaterialApp.router(
           routerConfig: router,
+          builder: builder,
           locale: _defaultTestLocale,
           localizationsDelegates: _localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
