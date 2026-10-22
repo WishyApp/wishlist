@@ -1,10 +1,11 @@
-import 'dart:async';
-
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:flutter/foundation.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_repository.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_stream_repository.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
+import 'package:wishlist/shared/utils/skip_replayed_error.dart';
 
 class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
   SupabaseWishlistStreamRepository(
@@ -17,25 +18,36 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
   static const _wishlistsTableName = 'wishlists';
 
   final Map<String, RealtimeChannel> _channels = {};
-  final Map<String, StreamController<IList<Wishlist>>> _controllers = {};
-  final Map<String, StreamController<Wishlist?>> _singleControllers = {};
+
+  /// Chaque controller est un [BehaviorSubject] (et non un
+  /// `StreamController.broadcast`, qui ne rejoue rien) : un abonné qui arrive
+  /// après le premier chargement (ex: un second provider sur la même clé)
+  /// reçoit tout de suite la dernière valeur, puis les suivantes.
+  /// `onCancel` se déclenche quand le dernier abonné part.
+  final Map<String, BehaviorSubject<dynamic>> _controllers = {};
+
+  /// Numéro du dernier chargement lancé par clé, voir [_loadData].
+  final Map<String, int> _loadGenerations = {};
+
+  /// Numéro du dernier chargement émis par clé, voir [_loadData].
+  final Map<String, int> _emittedGenerations = {};
 
   @override
   Stream<IList<Wishlist>> watchWishlistsByUser(String userId) {
     final key = 'user_$userId';
 
-    // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
-    final existingController = _controllers[key];
-    if (existingController != null) {
-      return existingController.stream;
+    Future<IList<Wishlist>> fetch() =>
+        _wishlistRepository.getWishlistsByUser(userId);
+
+    // ignore: close_sinks - fermé dans _cleanupStream
+    final existingStream = _existingStream<IList<Wishlist>>(key, fetch);
+    if (existingStream != null) {
+      return existingStream;
     }
 
-    final controller = StreamController<IList<Wishlist>>.broadcast(
-      onCancel: () => _cleanupStream(key),
-    );
-    _controllers[key] = controller;
+    final controller = _createController<IList<Wishlist>>(key);
 
-    _loadInitialWishlists(userId, controller);
+    _loadData(key, controller, fetch);
 
     final channel = _client
         .channel('wishlists_user_$userId')
@@ -48,7 +60,7 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
             column: 'id_owner',
             value: userId,
           ),
-          callback: (payload) => _handleWishlistChange(userId, controller),
+          callback: (payload) => _loadData(key, controller, fetch),
         )
         .subscribe();
 
@@ -61,18 +73,18 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
   Stream<Wishlist?> watchWishlistById(int wishlistId) {
     final key = 'wishlist_$wishlistId';
 
-    // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupSingleStream
-    final existingController = _singleControllers[key];
-    if (existingController != null) {
-      return existingController.stream;
+    Future<Wishlist?> fetch() =>
+        _wishlistRepository.findWishlistById(wishlistId);
+
+    // ignore: close_sinks - fermé dans _cleanupStream
+    final existingStream = _existingStream<Wishlist?>(key, fetch);
+    if (existingStream != null) {
+      return existingStream;
     }
 
-    final controller = StreamController<Wishlist?>.broadcast(
-      onCancel: () => _cleanupSingleStream(key),
-    );
-    _singleControllers[key] = controller;
+    final controller = _createController<Wishlist?>(key);
 
-    _loadInitialWishlist(wishlistId, controller);
+    _loadData(key, controller, fetch);
 
     final channel = _client
         .channel('wishlist_$wishlistId')
@@ -85,8 +97,19 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
             column: 'id',
             value: wishlistId,
           ),
-          callback: (payload) =>
-              _handleSingleWishlistChange(wishlistId, controller, payload),
+          callback: (payload) => _loadData(
+            key,
+            controller,
+            () async {
+              // L'archivage d'une wishlist arrive en UPDATE avec deleted_at
+              // renseigné
+              if (payload.eventType == PostgresChangeEvent.delete ||
+                  payload.newRecord['deleted_at'] != null) {
+                return null;
+              }
+              return fetch();
+            },
+          ),
         )
         .subscribe();
 
@@ -99,18 +122,18 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
   Stream<IList<Wishlist>> watchPublicWishlistsByUser(String userId) {
     final key = 'user_public_$userId';
 
-    // ignore: close_sinks - Le controller est déjà créé et sera fermé dans _cleanupStream
-    final existingController = _controllers[key];
-    if (existingController != null) {
-      return existingController.stream;
+    Future<IList<Wishlist>> fetch() =>
+        _wishlistRepository.getPublicWishlistsByUser(userId);
+
+    // ignore: close_sinks - fermé dans _cleanupStream
+    final existingStream = _existingStream<IList<Wishlist>>(key, fetch);
+    if (existingStream != null) {
+      return existingStream;
     }
 
-    final controller = StreamController<IList<Wishlist>>.broadcast(
-      onCancel: () => _cleanupStream(key),
-    );
-    _controllers[key] = controller;
+    final controller = _createController<IList<Wishlist>>(key);
 
-    _loadInitialPublicWishlists(userId, controller);
+    _loadData(key, controller, fetch);
 
     // Créer le channel Realtime
     // Note: Supabase Realtime ne supporte qu'un seul filtre
@@ -127,8 +150,7 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
             column: 'id_owner',
             value: userId,
           ),
-          callback: (payload) =>
-              _handlePublicWishlistChange(userId, controller, payload),
+          callback: (payload) => _loadData(key, controller, fetch),
         )
         .subscribe();
 
@@ -137,144 +159,110 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
     return controller.stream;
   }
 
-  Future<void> _loadInitialWishlists(
-    String userId,
-    StreamController<IList<Wishlist>> controller,
-  ) async {
-    try {
-      final wishlists = await _wishlistRepository.getWishlistsByUser(userId);
-      if (!controller.isClosed) {
-        controller.add(wishlists);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
+  /// Retourne le stream du controller existant de [key], ou null s'il n'y en a
+  /// pas.
+  Stream<T>? _existingStream<T>(
+    String key,
+    Future<T> Function() fetch,
+  ) {
+    // ignore: close_sinks - fermé dans _cleanupStream
+    // Les clés ne doivent pas se recouper entre les méthodes watch* : le cast
+    // suppose un même type de valeur par clé.
+    final existing = _controllers[key] as BehaviorSubject<T>?;
+    // Une erreur sans valeur : on relance un chargement pour qu'un retry
+    // (ex: ref.invalidate) puisse réussir.
+    if (existing != null && existing.hasError && !existing.hasValue) {
+      _loadData(key, existing, fetch);
+      // L'erreur en cache est celle qu'on retente : on n'en rejoue pas l'erreur
+      // périmée, on attend le résultat du rechargement (valeur, ou nouvelle
+      // erreur s'il échoue encore).
+      return existing.skipReplayedError();
     }
+    return existing?.stream;
   }
 
-  Future<void> _loadInitialWishlist(
-    int wishlistId,
-    StreamController<Wishlist?> controller,
-  ) async {
-    try {
-      final wishlist = await _wishlistRepository.findWishlistById(wishlistId);
-      if (!controller.isClosed) {
-        controller.add(wishlist);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
+  BehaviorSubject<T> _createController<T>(String key) {
+    late final BehaviorSubject<T> controller;
+    controller = BehaviorSubject<T>(
+      onCancel: () => _cleanupStream(key, controller),
+    );
+    _controllers[key] = controller;
+    return controller;
   }
 
-  Future<void> _loadInitialPublicWishlists(
-    String userId,
-    StreamController<IList<Wishlist>> controller,
+  /// Charge une valeur avec [fetch] et l'émet sur [controller].
+  ///
+  /// Les rechargements ne sont pas séquencés. Un résultat n'est émis que s'il
+  /// est plus récent que le dernier émis pour la clé : un résultat plus ancien
+  /// qui termine après un plus récent est ignoré (sinon, rejoué par le
+  /// [BehaviorSubject], il resterait en cache).
+  ///
+  /// Une erreur n'est émise que tant qu'aucune valeur n'a été émise et qu'aucun
+  /// rechargement plus récent n'est en cours : sinon elle remplacerait la
+  /// dernière bonne valeur pour les abonnés suivants, ou un résultat à venir.
+  Future<void> _loadData<T>(
+    String key,
+    BehaviorSubject<T> controller,
+    Future<T> Function() fetch,
   ) async {
-    try {
-      final wishlists =
-          await _wishlistRepository.getPublicWishlistsByUser(userId);
-      if (!controller.isClosed) {
-        controller.add(wishlists);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
+    // Un controller fermé (ex: callback tardif d'un ancien channel) ne doit pas
+    // avancer la génération partagée, il rendrait périmé le chargement du
+    // nouveau controller de la même clé.
+    if (controller.isClosed) {
+      return;
     }
-  }
+    final generation = _loadGenerations[key] = (_loadGenerations[key] ?? 0) + 1;
 
-  Future<void> _handleWishlistChange(
-    String userId,
-    StreamController<IList<Wishlist>> controller,
-  ) async {
     try {
-      final wishlists = await _wishlistRepository.getWishlistsByUser(userId);
-      if (!controller.isClosed) {
-        controller.add(wishlists);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
-  }
-
-  Future<void> _handlePublicWishlistChange(
-    String userId,
-    StreamController<IList<Wishlist>> controller,
-    PostgresChangePayload payload,
-  ) async {
-    try {
-      final wishlists =
-          await _wishlistRepository.getPublicWishlistsByUser(userId);
-      if (!controller.isClosed) {
-        controller.add(wishlists);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
-    }
-  }
-
-  Future<void> _handleSingleWishlistChange(
-    int wishlistId,
-    StreamController<Wishlist?> controller,
-    PostgresChangePayload payload,
-  ) async {
-    try {
-      // L'archivage d'une wishlist arrive en UPDATE avec deleted_at renseigné
-      if (payload.eventType == PostgresChangeEvent.delete ||
-          payload.newRecord['deleted_at'] != null) {
-        if (!controller.isClosed) {
-          controller.add(null);
-        }
+      final value = await fetch();
+      if (controller.isClosed ||
+          generation <= (_emittedGenerations[key] ?? 0)) {
         return;
       }
-
-      final wishlist = await _wishlistRepository.findWishlistById(wishlistId);
-      if (!controller.isClosed) {
-        controller.add(wishlist);
+      _emittedGenerations[key] = generation;
+      controller.add(value);
+    } catch (e, st) {
+      if (controller.isClosed || _loadGenerations[key] != generation) {
+        return;
       }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
+      if (controller.hasValue) {
+        debugPrint('[Wishy wishlists] reload failed, keeping last value: $e');
+        debugPrint(st.toString());
+      } else {
+        controller.addError(e, st);
       }
     }
   }
 
-  void _cleanupStream(String key) {
+  void _cleanupStream(String key, BehaviorSubject<dynamic> controller) {
+    // Ignore un cancel tardif d'un ancien controller si la clé a été reprise
+    // par un nouveau.
+    if (!identical(_controllers[key], controller)) {
+      return;
+    }
+    // Sans risque : [_loadData] ignore les controllers fermés.
+    _loadGenerations.remove(key);
+    _emittedGenerations.remove(key);
     _channels[key]?.unsubscribe();
     _channels.remove(key);
-    _controllers[key]?.close();
+    controller.close();
     _controllers.remove(key);
-  }
-
-  void _cleanupSingleStream(String key) {
-    _channels[key]?.unsubscribe();
-    _channels.remove(key);
-    _singleControllers[key]?.close();
-    _singleControllers.remove(key);
   }
 
   @override
   Future<void> dispose() async {
-    for (final channel in _channels.values) {
+    // Fermer un subject peut déclencher onCancel -> _cleanupStream, qui modifie
+    // les maps : on itère sur des copies.
+    final channels = _channels.values.toList();
+    _channels.clear();
+    for (final channel in channels) {
       await channel.unsubscribe();
     }
-    _channels.clear();
 
-    for (final controller in _controllers.values) {
-      await controller.close();
-    }
+    final controllers = _controllers.values.toList();
     _controllers.clear();
-
-    for (final controller in _singleControllers.values) {
+    for (final controller in controllers) {
       await controller.close();
     }
-    _singleControllers.clear();
   }
 }

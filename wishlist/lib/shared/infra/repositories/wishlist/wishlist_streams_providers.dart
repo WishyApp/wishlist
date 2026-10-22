@@ -4,12 +4,6 @@ import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_stream_repo
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/utils/first_event_timeout.dart';
 
-final watchWishlistsByUserProvider =
-    StreamProvider.autoDispose.family<IList<Wishlist>, String>((ref, userId) {
-  final repository = ref.watch(wishlistStreamRepositoryProvider);
-  return repository.watchWishlistsByUser(userId);
-});
-
 final watchWishlistByIdProvider =
     StreamProvider.autoDispose.family<Wishlist?, int>((ref, wishlistId) {
   final repository = ref.watch(wishlistStreamRepositoryProvider);
