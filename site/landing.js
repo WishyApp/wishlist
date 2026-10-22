@@ -88,13 +88,7 @@ const STORE_LABELS = {
 
 const STORE_NAMES = { appStore: "App Store", playStore: "Google Play" };
 
-// Garde le français d'origine de chaque élément pour pouvoir y revenir.
-function remember(element, key, value) {
-  if (!(key in element.dataset)) {
-    element.dataset[key] = value;
-  }
-  return element.dataset[key];
-}
+const remember = window.WISHY_LANG.remember;
 
 function applyLang(lang) {
   const isEn = lang === "en";

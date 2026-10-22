@@ -42,11 +42,6 @@ const TEXTS = {
   },
 };
 
-// Langue choisie : ?lang=, puis l'accueil, puis le navigateur (lang.js).
-function pickLang() {
-  return window.WISHY_LANG.initial();
-}
-
 function detectPlatform() {
   const userAgent = navigator.userAgent || "";
   if (/android/i.test(userAgent)) {
@@ -94,7 +89,8 @@ function show(element, isVisible) {
 }
 
 function render() {
-  const lang = pickLang();
+  // ?lang=, puis le choix fait sur l'accueil, puis le navigateur (lang.js).
+  const lang = window.WISHY_LANG.initial();
   const texts = TEXTS[lang];
   const platform = detectPlatform();
   const wishlistId = sharedWishlistId();
@@ -123,8 +119,8 @@ function render() {
   const showAppStore = APP_STORE_URL !== null && platform !== "android";
   const showPlayStore = PLAY_STORE_URL !== null && platform !== "ios";
   const missingStore =
-    (platform !== "ios" && PLAY_STORE_URL === null) ||
-    (platform !== "android" && APP_STORE_URL === null);
+    (platform !== "ios" && !showPlayStore) ||
+    (platform !== "android" && !showAppStore);
 
   if (APP_STORE_URL !== null) {
     appStore.href = APP_STORE_URL;

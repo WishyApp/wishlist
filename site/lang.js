@@ -28,7 +28,17 @@
     imgFriendWl: "/img/app-friendwl-en.webp",
   };
 
+  // Garde la valeur française d'origine d'un élément pour pouvoir y revenir.
+  function remember(element, key, value) {
+    if (!(key in element.dataset)) {
+      element.dataset[key] = value;
+    }
+    return element.dataset[key];
+  }
+
   window.WISHY_LANG = Object.freeze({
+    remember,
+
     // "fr" ou "en".
     initial() {
       const fromUrl = new URLSearchParams(window.location.search).get("lang");
@@ -47,11 +57,9 @@
     // possible : le src d'origine est gardé dans data-fr-src).
     applyImages(lang) {
       document.querySelectorAll("[data-i18n-src]").forEach((element) => {
-        if (!("frSrc" in element.dataset)) {
-          element.dataset.frSrc = element.getAttribute("src");
-        }
+        const fr = remember(element, "frSrc", element.getAttribute("src") || "");
         const en = EN_IMAGES[element.dataset.i18nSrc];
-        element.setAttribute("src", lang === "en" && en ? en : element.dataset.frSrc);
+        element.setAttribute("src", lang === "en" && en ? en : fr);
       });
     },
 
