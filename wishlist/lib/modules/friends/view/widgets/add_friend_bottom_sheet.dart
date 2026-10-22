@@ -43,6 +43,14 @@ class _AddFriendBottomSheetState extends ConsumerState<AddFriendBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(searchProvider);
+
+    // Once per failure: showing it from the error branch would stack a new
+    // snackbar on every rebuild (keyboard, typing)
+    ref.listen(searchProvider, (previous, next) {
+      if (next.hasError && !(previous?.hasError ?? false)) {
+        showGenericError(context, error: next.error);
+      }
+    });
     const paddingValue = 30.0;
 
     return Scaffold(
@@ -58,10 +66,7 @@ class _AddFriendBottomSheetState extends ConsumerState<AddFriendBottomSheet> {
               const Gap(20),
               searchState.when(
                 loading: () => const CircularProgressIndicator(),
-                error: (error, stackTrace) {
-                  showGenericError(context, error: error);
-                  return const SizedBox.shrink();
-                },
+                error: (error, stackTrace) => const SizedBox.shrink(),
                 data: (users) {
                   if (users.isEmpty) {
                     return Text(

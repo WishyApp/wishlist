@@ -297,8 +297,6 @@ class WishlistScreen extends ConsumerWidget {
         final canShareWishlist =
             wishlist.visibility == WishlistVisibility.public;
 
-        notifier.cacheWishlistTheme(wishlist.id, wishlistTheme);
-
         return AnimatedTheme(
           data: wishlistTheme,
           child: Builder(

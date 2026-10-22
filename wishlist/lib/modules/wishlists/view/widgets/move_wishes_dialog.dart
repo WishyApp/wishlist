@@ -49,7 +49,7 @@ Future<void> showMoveWishesDialog(
   );
 }
 
-class _MoveWishesDialogContent extends ConsumerWidget {
+class _MoveWishesDialogContent extends ConsumerStatefulWidget {
   const _MoveWishesDialogContent({
     required this.currentWishlistId,
     required this.selectedWishlistId,
@@ -61,6 +61,51 @@ class _MoveWishesDialogContent extends ConsumerWidget {
   final ValueNotifier<int?> selectedWishlistId;
   final ValueNotifier<bool> showConfirmButton;
   final String description;
+
+  @override
+  ConsumerState<_MoveWishesDialogContent> createState() =>
+      _MoveWishesDialogContentState();
+}
+
+class _MoveWishesDialogContentState
+    extends ConsumerState<_MoveWishesDialogContent> {
+  @override
+  void initState() {
+    super.initState();
+    // Updates the dialog's notifiers when the list changes, not while building
+    ref.listenManual(
+      wishlistsRealtimeProvider,
+      (_, next) {
+        _syncWithWishlists(next.valueOrNull);
+      },
+      fireImmediately: true,
+    );
+  }
+
+  void _syncWithWishlists(List<Wishlist>? wishlists) {
+    if (wishlists == null) {
+      return;
+    }
+    final availableWishlists =
+        wishlists.where((wl) => wl.id != widget.currentWishlistId).toList();
+
+    // Deferred: the notifiers drive dialog widgets built in the same frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      widget.showConfirmButton.value = availableWishlists.isNotEmpty;
+
+      // Présélectionner la wishlist la plus récente
+      if (availableWishlists.isNotEmpty &&
+          widget.selectedWishlistId.value == null) {
+        final mostRecent = availableWishlists.reduce(
+          (a, b) => a.createdAt.isAfter(b.createdAt) ? a : b,
+        );
+        widget.selectedWishlistId.value = mostRecent.id;
+      }
+    });
+  }
 
   Future<void> _showWishlistBottomSheet(
     BuildContext context,
@@ -94,10 +139,11 @@ class _MoveWishesDialogContent extends ConsumerWidget {
                 itemBuilder: (context, index) {
                   return WishlistListTile(
                     wishlist: sortedWishlists[index],
-                    isSelected:
-                        selectedWishlistId.value == sortedWishlists[index].id,
+                    isSelected: widget.selectedWishlistId.value ==
+                        sortedWishlists[index].id,
                     onTap: () {
-                      selectedWishlistId.value = sortedWishlists[index].id;
+                      widget.selectedWishlistId.value =
+                          sortedWishlists[index].id;
                       Navigator.of(context).pop();
                     },
                   );
@@ -111,24 +157,14 @@ class _MoveWishesDialogContent extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final wishlistsAsync = ref.watch(wishlistsRealtimeProvider);
 
     return wishlistsAsync.when(
       data: (wishlists) {
         final availableWishlists =
-            wishlists.where((wl) => wl.id != currentWishlistId).toList();
-
-        showConfirmButton.value = availableWishlists.isNotEmpty;
-
-        // Présélectionner la wishlist la plus récente
-        if (availableWishlists.isNotEmpty && selectedWishlistId.value == null) {
-          final mostRecent = availableWishlists.reduce(
-            (a, b) => a.createdAt.isAfter(b.createdAt) ? a : b,
-          );
-          selectedWishlistId.value = mostRecent.id;
-        }
+            wishlists.where((wl) => wl.id != widget.currentWishlistId).toList();
 
         if (availableWishlists.isEmpty) {
           return Text(
@@ -143,14 +179,14 @@ class _MoveWishesDialogContent extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              description,
+              widget.description,
               style: AppTextStyles.small.copyWith(
                 color: AppColors.makara,
               ),
             ),
             const Gap(20),
             _WishlistSelector(
-              selectedWishlistId: selectedWishlistId,
+              selectedWishlistId: widget.selectedWishlistId,
               availableWishlists: availableWishlists,
               onTap: () =>
                   _showWishlistBottomSheet(context, availableWishlists),

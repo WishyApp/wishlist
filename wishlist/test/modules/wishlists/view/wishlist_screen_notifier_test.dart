@@ -1,4 +1,5 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -6,9 +7,12 @@ import 'package:wishlist/modules/wishlists/infra/wishlist_screen_data_realtime_p
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository_provider.dart';
+import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
+import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
 
 import '../../../fixtures/fake_data.dart';
+import '../../../fixtures/mock_supabase.dart';
 
 class MockWishRepository extends Mock implements WishRepository {}
 
@@ -32,6 +36,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           wishRepositoryProvider.overrideWithValue(repository),
+          wishlistThemeCacheProvider(1).overrideWith((ref) => null),
           wishlistScreenDataRealtimeProvider(1).overrideWithValue(
             AsyncData((fakeWishlist1, IList<Wish>(loadedWishs), IList())),
           ),
@@ -113,5 +118,41 @@ void main() {
       verifyNever(() => repository.getWishById(any()));
       expect(container.read(provider).isSelectionMode, isFalse);
     });
+  });
+
+  testWidgets('cacheWishlistTheme writes only when the theme changes',
+      (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        supabaseClientProvider.overrideWithValue(createMockSupabaseClient()),
+        wishlistScreenDataRealtimeProvider(2).overrideWithValue(
+          const AsyncLoading(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final sub = container.listen(wishlistScreenNotifierProvider(2), (_, __) {});
+    addTearDown(sub.close);
+    final notifier = container.read(wishlistScreenNotifierProvider(2).notifier);
+
+    // StateController notifies on every write from another instance
+    var writes = 0;
+    container.listen(wishlistThemeCacheProvider(2), (_, __) => writes++);
+
+    notifier.cacheWishlistTheme(2, ThemeData.light());
+    tester.binding.scheduleFrame();
+    await tester.pump();
+    expect(writes, 1);
+
+    // A value-equal theme (another instance) is not written again
+    notifier.cacheWishlistTheme(2, ThemeData.light());
+    tester.binding.scheduleFrame();
+    await tester.pump();
+    expect(writes, 1);
+
+    notifier.cacheWishlistTheme(2, ThemeData.dark());
+    tester.binding.scheduleFrame();
+    await tester.pump();
+    expect(writes, 2);
   });
 }

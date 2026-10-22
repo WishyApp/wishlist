@@ -13,11 +13,35 @@ import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 import 'package:wishlist/shared/widgets/text_form_fields/validators/pseudo_validator.dart';
 
-class ChangePseudoScreen extends ConsumerWidget {
+class ChangePseudoScreen extends ConsumerStatefulWidget {
   const ChangePseudoScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChangePseudoScreen> createState() => _ChangePseudoScreenState();
+}
+
+class _ChangePseudoScreenState extends ConsumerState<ChangePseudoScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Once per failure: showing it from the error branch would stack a new
+    // snackbar on every rebuild
+    ref.listenManual(
+      currentUserProfileProvider,
+      (previous, next) {
+        if (!mounted) {
+          return;
+        }
+        if (next.hasError && !(previous?.hasError ?? false)) {
+          showGenericError(context, error: next.error);
+        }
+      },
+      fireImmediately: true,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final currentUserProfile = ref.watch(currentUserProfileProvider);
 
@@ -28,14 +52,7 @@ class ChangePseudoScreen extends ConsumerWidget {
           loading: () => const Center(
             child: CircularProgressIndicator(),
           ),
-          error: (error, stackTrace) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (context.mounted) {
-                showGenericError(context, error: error);
-              }
-            });
-            return const SizedBox.shrink();
-          },
+          error: (error, stackTrace) => const SizedBox.shrink(),
           data: (currentUser) => _ChangePseudoForm(currentUser: currentUser),
         ),
       ),

@@ -8,6 +8,7 @@ import 'package:wishlist/shared/infra/wish_mutations_provider.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wish/wish_sort_type.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
+import 'package:wishlist/shared/theme/utils/get_wishlist_theme.dart';
 import 'package:wishlist/shared/utils/string_utils.dart';
 
 part 'wishlist_screen_notifier.freezed.dart';
@@ -33,9 +34,11 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   late final TextEditingController searchController;
   late final FocusNode searchFocusNode;
   late final PageController pageController;
+  var _isDisposed = false;
 
   @override
   WishlistScreenState build(int wishlistId) {
+    _isDisposed = false;
     searchController = TextEditingController();
     searchFocusNode = FocusNode();
     pageController = PageController();
@@ -48,10 +51,25 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
     });
 
     ref.onDispose(() {
+      _isDisposed = true;
       searchController.dispose();
       searchFocusNode.dispose();
       pageController.dispose();
     });
+
+    // Cache the theme when the data changes, not from the screen's build: the
+    // wish screens read it through wishlistThemeProvider. The app theme is the
+    // base of the screen's, so no context is needed.
+    ref.listen(
+      wishlistScreenDataRealtimeProvider(wishlistId),
+      (_, next) {
+        final wishlist = next.valueOrNull?.wishlist;
+        if (wishlist != null) {
+          cacheWishlistTheme(wishlist.id, getWishlistTheme(null, wishlist));
+        }
+      },
+      fireImmediately: true,
+    );
 
     return const WishlistScreenState();
   }
@@ -151,6 +169,10 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // The screen may be gone before the frame
+      if (_isDisposed) {
+        return;
+      }
       ref.read(wishlistThemeCacheProvider(id).notifier).state = theme;
     });
   }
