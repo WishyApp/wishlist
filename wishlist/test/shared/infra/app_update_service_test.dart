@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/app_update_service.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository.dart';
 import 'package:wishlist/shared/models/app_version_policy.dart';
@@ -164,14 +166,14 @@ void main() {
   });
 
   group('AppUpdateService reporting', () {
-    final reports = <({String message, bool capture})>[];
+    final reports = <({String message, bool capture, String? kind})>[];
     setUp(reports.clear);
 
     AppUpdateService service(AppVersionRepository repository) =>
         AppUpdateService(
           repository,
-          report: (message, {capture = true}) =>
-              reports.add((message: message, capture: capture)),
+          report: (message, {capture = true, kind}) =>
+              reports.add((message: message, capture: capture, kind: kind)),
         );
 
     test('no policy row is reported to Sentry', () async {
@@ -189,6 +191,48 @@ void main() {
 
       expect(reports.single.capture, isTrue);
       expect(reports.single.message, contains('FormatException'));
+    });
+
+    test('a PostgrestException report has its code and message', () async {
+      await service(
+        _FakeRepository(
+          error: const PostgrestException(
+            message: 'function not found',
+            code: 'PGRST202',
+          ),
+        ),
+      ).check(currentVersion: '0.2.0', platform: 'ios');
+
+      expect(reports.single.message, contains('PGRST202'));
+      expect(reports.single.message, contains('function not found'));
+      expect(reports.single.kind, 'PostgrestException/PGRST202');
+    });
+
+    test('looks through the AppException of executeSafely', () async {
+      await service(
+        _FakeRepository(
+          error: AppException(
+            statusCode: 500,
+            cause: const PostgrestException(message: 'denied', code: '42501'),
+          ),
+        ),
+      ).check(currentVersion: '0.2.0', platform: 'ios');
+
+      expect(reports.single.message, contains('42501'));
+      expect(reports.single.capture, isTrue);
+    });
+
+    test('a wrapped network failure only leaves a breadcrumb', () async {
+      await service(
+        _FakeRepository(
+          error: AppException(
+            statusCode: 500,
+            cause: const SocketException('down'),
+          ),
+        ),
+      ).check(currentVersion: '0.2.0', platform: 'ios');
+
+      expect(reports.single.capture, isFalse);
     });
 
     test('a network failure only leaves a breadcrumb', () async {
@@ -225,6 +269,39 @@ void main() {
       expect(done, isTrue);
       expect(decision, isNull);
       expect(reports.single.capture, isFalse);
+    });
+  });
+
+  group('reportAppUpdateIssue', () {
+    final sent = <String>[];
+    final original = captureAppUpdateMessage;
+
+    setUp(() {
+      sent.clear();
+      capturedAppUpdateKinds.clear();
+      captureAppUpdateMessage = (message) async => sent.add(message);
+    });
+    tearDown(() => captureAppUpdateMessage = original);
+
+    test('sends a given kind to Sentry once per session', () {
+      reportAppUpdateIssue('first', kind: 'a');
+      reportAppUpdateIssue('second', kind: 'a');
+      reportAppUpdateIssue('third', kind: 'b');
+
+      expect(sent, ['first', 'third']);
+    });
+
+    test('a breadcrumb-only report sends nothing and keeps the kind free', () {
+      reportAppUpdateIssue('network', capture: false, kind: 'a');
+      reportAppUpdateIssue('real', kind: 'a');
+
+      expect(sent, ['real']);
+    });
+
+    test('a failing capture does not throw', () {
+      captureAppUpdateMessage = (_) => Future.error(StateError('boom'));
+
+      expect(() => reportAppUpdateIssue('x'), returnsNormally);
     });
   });
 

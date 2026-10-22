@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/app/version_gate/app_update_required_screen.dart';
+import 'package:wishlist/app/version_gate/update_text_variant.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_update_service.dart';
 import 'package:wishlist/shared/theme/colors.dart';
@@ -39,13 +40,15 @@ class AppVersionGate extends ConsumerStatefulWidget {
 class _AppVersionGateState extends ConsumerState<AppVersionGate>
     with WidgetsBindingObserver {
   bool _recommendationShown = false;
-  bool _isDialogOpen = false;
+
+  /// Route of the recommendation dialog, to remove it and nothing else.
+  Route<void>? _dialogRoute;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check(force: true));
   }
 
   @override
@@ -61,11 +64,11 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
     }
   }
 
-  Future<void> _check() async {
+  Future<void> _check({bool force = false}) async {
     if (!mounted) {
       return;
     }
-    await ref.read(appUpdateProvider.notifier).check();
+    await ref.read(appUpdateProvider.notifier).check(force: force);
     if (mounted) {
       _showRecommendation();
     }
@@ -83,46 +86,55 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
     final context = widget.navigatorKey.currentContext;
     if (decision.status != AppUpdateStatus.recommended ||
         _recommendationShown ||
+        (_dialogRoute?.isActive ?? false) ||
         context == null) {
       return;
     }
     _recommendationShown = true;
-    _isDialogOpen = true;
 
     final l10n = context.l10n;
     final url = decision.updateUrl;
-    final description = switch ((url, ref.read(appUpdatePlatformProvider))) {
-      (null, 'ios') => l10n.updateAvailableNoLinkIosMessage,
-      (null, 'android') => l10n.updateAvailableNoLinkAndroidMessage,
-      _ => l10n.updateAvailableMessage,
+    final description = switch (UpdateTextVariant.of(
+      hasLink: url != null,
+      platform: ref.read(appUpdatePlatformProvider),
+    )) {
+      UpdateTextVariant.iosStore => l10n.updateAvailableNoLinkIosMessage,
+      UpdateTextVariant.androidStore =>
+        l10n.updateAvailableNoLinkAndroidMessage,
+      UpdateTextVariant.generic => l10n.updateAvailableMessage,
     };
 
     unawaited(
       showAppDialog(
         context,
         title: l10n.updateAvailableTitle,
-        content: Text(
-          description,
-          style: AppTextStyles.small.copyWith(color: AppColors.makara),
+        content: Builder(
+          builder: (dialogContext) {
+            // The only way to get the route showAppDialog pushes
+            _dialogRoute = ModalRoute.of(dialogContext) as Route<void>?;
+            return Text(
+              description,
+              style: AppTextStyles.small.copyWith(color: AppColors.makara),
+            );
+          },
         ),
         confirmButtonLabel: l10n.updateButton,
         cancelButtonLabel: l10n.updateLaterButton,
-        onCancel: () => _isDialogOpen = false,
+        onCancel: () {},
         // No confirm button without a store page
-        onConfirm: url == null
-            ? null
-            : () async {
-                _isDialogOpen = false;
-                _openStore(url);
-              },
-      ).whenComplete(() => _isDialogOpen = false),
+        onConfirm: url == null ? null : () async => _openStore(url),
+      ),
     );
   }
 
+  /// Removes the dialog's own route: a page opened above it (a share, a
+  /// deep link) stays, and a dialog already gone is not "closed" again, which
+  /// would pop a real page.
   void _closeDialog() {
-    if (_isDialogOpen) {
-      _isDialogOpen = false;
-      widget.navigatorKey.currentState?.pop();
+    final route = _dialogRoute;
+    _dialogRoute = null;
+    if (route != null && route.isActive) {
+      route.navigator?.removeRoute(route);
     }
   }
 
@@ -132,8 +144,8 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
       switch (decision.status) {
         case AppUpdateStatus.required:
           // The wall replaces the app, Navigator and dialog route included:
-          // nothing to pop.
-          _isDialogOpen = false;
+          // nothing to remove.
+          _dialogRoute = null;
         case AppUpdateStatus.upToDate:
           _closeDialog();
         case AppUpdateStatus.recommended:

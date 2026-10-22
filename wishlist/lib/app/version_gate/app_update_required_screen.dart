@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:wishlist/app/version_gate/update_text_variant.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/page_layout_empty/page_layout_empty.dart';
@@ -30,10 +31,15 @@ class AppUpdateRequiredScreen extends StatelessWidget {
           illustrationUrl: Assets.svg.noWishBag,
           illustrationHeight: MediaQuery.sizeOf(context).height / 3.5,
           title: l10n.updateRequiredTitle,
-          description: switch ((onUpdate, platform)) {
-            (null, 'ios') => l10n.updateRequiredNoLinkIosDescription,
-            (null, 'android') => l10n.updateRequiredNoLinkAndroidDescription,
-            _ => l10n.updateRequiredDescription,
+          description: switch (UpdateTextVariant.of(
+            hasLink: onUpdate != null,
+            platform: platform,
+          )) {
+            UpdateTextVariant.iosStore =>
+              l10n.updateRequiredNoLinkIosDescription,
+            UpdateTextVariant.androidStore =>
+              l10n.updateRequiredNoLinkAndroidDescription,
+            UpdateTextVariant.generic => l10n.updateRequiredDescription,
           },
           callToAction: l10n.updateButton,
           onCallToAction: onUpdate,

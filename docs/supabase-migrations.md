@@ -101,7 +101,7 @@ REVOKE EXECUTE ON FUNCTION public.ma_fonction() FROM PUBLIC, anon;
 
 ## Versions minimale et recommandée de l'app
 
-La table `app_versions` (une ligne par plateforme, `ios` et `android`) dit à l'app quelle version elle doit au moins avoir (`min_version` : écran bloquant) et laquelle est recommandée (`recommended_version` : bandeau). Ses valeurs sont des **données**, pas du schéma : on les change à la main avec un `UPDATE` dans le SQL editor, jamais dans une migration, et `check_drift` (qui ne compare que le schéma) ne les signale pas.
+La table `app_versions` (une ligne par plateforme, `ios` et `android`) dit à l'app quelle version elle doit au moins avoir (`min_version` : écran bloquant) et laquelle est recommandée (`recommended_version` : popup à l'ouverture, une fois par session). Ses valeurs sont des **données**, pas du schéma : on les change à la main avec un `UPDATE` dans le SQL editor, jamais dans une migration, et `check_drift` (qui ne compare que le schéma) ne les signale pas.
 
 Une migration ne doit pas les relever : `cd.yml` migre la prod avant que les builds soient publiés, donc tous les utilisateurs de la version précédente seraient bloqués sans rien à télécharger.
 

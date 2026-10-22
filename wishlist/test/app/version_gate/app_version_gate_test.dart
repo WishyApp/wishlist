@@ -47,6 +47,19 @@ class _FakeRepository implements AppVersionRepository {
 
 const _homeKey = Key('home');
 
+/// Fake clock of the notifier, which throttles the checks on resume.
+var _fakeNow = DateTime(2026, 10, 22, 12);
+
+/// The app comes back to the foreground [after] later (past the throttle by
+/// default).
+void _resume(
+  WidgetTester tester, {
+  Duration after = const Duration(minutes: 6),
+}) {
+  _fakeNow = _fakeNow.add(after);
+  tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+}
+
 List<Override> _overrides(
   _FakeRepository repository, {
   String appVersion = '0.2.0',
@@ -56,6 +69,7 @@ List<Override> _overrides(
   return [
     appVersionRepositoryProvider.overrideWithValue(repository),
     appUpdatePlatformProvider.overrideWithValue(platform),
+    appUpdateClockProvider.overrideWithValue(() => _fakeNow),
     appInfoProvider.overrideWith(
       (ref) async => PackageInfo(
         appName: 'Wishy',
@@ -73,7 +87,7 @@ List<Override> _overrides(
 
 /// The gate in a real GoRouter app, in the same spot as in app.dart (builder
 /// of MaterialApp.router, above the Navigator that shows the dialog).
-Future<void> _pumpGate(
+Future<GlobalKey<NavigatorState>> _pumpGate(
   WidgetTester tester,
   List<Override> overrides, {
   Widget home = const Scaffold(key: _homeKey),
@@ -95,9 +109,12 @@ Future<void> _pumpGate(
   // Post-frame check, then the repository future
   await tester.pump();
   await tester.pump();
+  return navigatorKey;
 }
 
 void main() {
+  setUp(() => _fakeNow = DateTime(2026, 10, 22, 12));
+
   const required = AppVersionPolicy(
     minVersion: '0.3.0',
     recommendedVersion: '0.3.0',
@@ -211,12 +228,40 @@ void main() {
       expect(repository.calls, 1);
 
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      _resume(tester);
       await tester.pump();
       await tester.pump();
 
       expect(repository.calls, 2);
       expect(find.byType(AppUpdateRequiredScreen), findsOneWidget);
+    });
+
+    testWidgets(
+        'a resume less than 5 minutes after a successful check skips it',
+        (tester) async {
+      final repository = _FakeRepository(policy: required);
+      await _pumpGate(tester, _overrides(repository));
+
+      _resume(tester, after: const Duration(minutes: 4));
+      await tester.pump();
+      await tester.pump();
+      expect(repository.calls, 1);
+
+      _resume(tester, after: const Duration(minutes: 2));
+      await tester.pump();
+      await tester.pump();
+      expect(repository.calls, 2);
+    });
+
+    testWidgets('a failed check does not start the throttle', (tester) async {
+      final repository = _FakeRepository(error: Exception('offline'));
+      await _pumpGate(tester, _overrides(repository));
+
+      _resume(tester, after: Duration.zero);
+      await tester.pump();
+      await tester.pump();
+
+      expect(repository.calls, 2);
     });
 
     testWidgets('a hung check times out, lets through, and a later one runs',
@@ -228,7 +273,7 @@ void main() {
       expect(find.byKey(_homeKey), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 11));
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      _resume(tester);
       await tester.pump();
       await tester.pump();
 
@@ -241,7 +286,7 @@ void main() {
       await _pumpGate(tester, _overrides(repository));
 
       repository.error = Exception('offline');
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      _resume(tester);
       await tester.pump();
       await tester.pump();
 
@@ -257,7 +302,7 @@ void main() {
         minVersion: '0.0.0',
         recommendedVersion: '0.0.0',
       );
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      _resume(tester);
       await tester.pump();
       await tester.pump();
 
@@ -283,7 +328,7 @@ void main() {
     }
 
     Future<void> resume(WidgetTester tester) async {
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      _resume(tester);
       await tester.pump();
       await tester.pump();
       await tester.pumpAndSettle();
@@ -395,6 +440,66 @@ void main() {
 
       expect(find.text(title), findsNothing);
       expect(find.byKey(_homeKey), findsOneWidget);
+    });
+
+    testWidgets('closing it leaves a page opened above it alone',
+        (tester) async {
+      final repository = _FakeRepository(policy: recommended);
+      final navigatorKey = await _pumpGate(tester, _overrides(repository));
+      await tester.pumpAndSettle();
+      expect(find.text(title), findsOneWidget);
+
+      // A share or a deep link opens a page over the dialog
+      unawaited(
+        navigatorKey.currentState!.push(
+          MaterialPageRoute<void>(
+            builder: (_) => const Scaffold(key: Key('page')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      repository.policy = const AppVersionPolicy(
+        minVersion: '0.0.0',
+        recommendedVersion: '0.0.0',
+      );
+      _resume(tester);
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('page')), findsOneWidget);
+      expect(find.text(title, skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('a dialog already removed is not closed again', (tester) async {
+      final repository = _FakeRepository(policy: recommended);
+      final navigatorKey = await _pumpGate(tester, _overrides(repository));
+      await tester.pumpAndSettle();
+      final route = ModalRoute.of(tester.element(find.text(title)))!;
+
+      // Removed without going through the buttons, then a page opens
+      navigatorKey.currentState!.removeRoute(route);
+      await tester.pumpAndSettle();
+      unawaited(
+        navigatorKey.currentState!.push(
+          MaterialPageRoute<void>(
+            builder: (_) => const Scaffold(key: Key('page')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      repository.policy = const AppVersionPolicy(
+        minVersion: '0.0.0',
+        recommendedVersion: '0.0.0',
+      );
+      _resume(tester);
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('page')), findsOneWidget);
     });
 
     testWidgets('gives way to the wall when the minimum is raised',
