@@ -21,10 +21,8 @@ import 'package:wishlist/shared/widgets/page_layout.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  String get _termsOfUseUrl =>
-      'https://worried-vise-c54.notion.site/Conditions-d-utilisation-2a357ab93afe80a5a8aed27983db886c';
-  String get _privacyPolicyUrl =>
-      'https://worried-vise-c54.notion.site/Politique-de-confidentialit-Application-Wishlist-29557ab93afe80a59b49ead8425b9ca2';
+  String get _termsOfUseUrl => 'https://wishy-app.fr/conditions';
+  String get _privacyPolicyUrl => 'https://wishy-app.fr/confidentialite';
 
   void _onTermsOfUseTap(BuildContext context) {
     launchUrl(Uri.parse(_termsOfUseUrl));
