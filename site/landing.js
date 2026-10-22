@@ -69,7 +69,7 @@ const EN = {
   noteBudget: "the total budget",
   nousTitle: "Two brothers, and gifts nobody could coordinate.",
   nousText1:
-    "We're Raphaël and Tanguy. Birthdays, then Christmas: several occasions in a row, and duplicate gifts every time. Wishes were passed around by email or word of mouth, and working out who was getting what was a real headache.",
+    "We're Raphaël and Tanguy. In our family and among our friends, we kept seeing the same gift given twice, birthday after birthday, Christmas after Christmas. Wishes were passed around by email or word of mouth, and working out who was getting what was a real headache.",
   nousText2:
     "So we built Wishy, in the evenings and at weekends, also for the fun of building something together. Free, no ads, and your data isn't sold.",
   finalTitle: "No more duplicates.",
