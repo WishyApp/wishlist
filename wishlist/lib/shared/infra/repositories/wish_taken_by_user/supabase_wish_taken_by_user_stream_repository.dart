@@ -65,8 +65,5 @@ class SupabaseWishTakenByUserStreamRepository
   }
 
   @override
-  void dispose() {
-    // L'interface est synchrone : le nettoyage se termine en arrière-plan.
-    unawaited(_streams.dispose());
-  }
+  Future<void> dispose() => _streams.dispose();
 }

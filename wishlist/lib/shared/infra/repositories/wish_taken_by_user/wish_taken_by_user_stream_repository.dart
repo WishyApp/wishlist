@@ -18,5 +18,5 @@ abstract class WishTakenByUserStreamRepository {
   Stream<IList<WishTakenByUser>> watchTakenByUser(String userId);
 
   /// Nettoie les ressources (channels Realtime)
-  void dispose();
+  Future<void> dispose();
 }

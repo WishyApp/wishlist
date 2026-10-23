@@ -8,9 +8,15 @@ import 'package:wishlist/shared/navigation/routes.dart';
 
 class AuthStateNotifier extends ChangeNotifier {
   AuthStateNotifier() {
-    supabase.auth.onAuthStateChange.listen((data) {
-      notifyListeners();
-    });
+    // gotrue also pushes refresh failures into this stream (e.g. when resuming
+    // offline). They are not ours to handle: without onError they would reach
+    // the zone handler and Sentry.
+    supabase.auth.onAuthStateChange.listen(
+      (data) => notifyListeners(),
+      onError: (Object error) => debugPrint(
+        'Ignored auth stream error in the router: $error',
+      ),
+    );
   }
 }
 

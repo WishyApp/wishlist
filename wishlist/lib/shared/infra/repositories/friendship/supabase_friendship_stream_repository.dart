@@ -39,7 +39,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   /// `supabase-tests/friendships_realtime.sql`). Avec la RLS, le payload reçu
   /// ne contient ensuite que la clé primaire dans `oldRecord` : il ne sert que
   /// de déclencheur de rechargement, ne pas y lire `requester_id`.
-  RealtimeChannel _subscribeToFriendships({
+  RealtimeChannel _buildFriendshipsChannel({
     required String channelName,
     required String userId,
     required List<String> columns,
@@ -71,7 +71,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       key,
       load: () => _fetchAllFriendships(currentUserId),
       skipEqual: true,
-      channelBuilder: (reload) => _subscribeToFriendships(
+      channelBuilder: (reload) => _buildFriendshipsChannel(
         channelName: 'friendships_all_$currentUserId',
         userId: currentUserId,
         columns: _bothUserColumns,
@@ -102,7 +102,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       key,
       load: () => _friendshipRepository.getFriendsIds(userId),
       skipEqual: true,
-      channelBuilder: (reload) => _subscribeToFriendships(
+      channelBuilder: (reload) => _buildFriendshipsChannel(
         channelName: 'friendships_$userId',
         userId: userId,
         columns: _bothUserColumns,
@@ -121,7 +121,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       load: _friendshipRepository.getCurrentUserPendingFriendsIds,
       skipEqual: true,
       // Les demandes envoyées par l'utilisateur : il en est le requester.
-      channelBuilder: (reload) => _subscribeToFriendships(
+      channelBuilder: (reload) => _buildFriendshipsChannel(
         channelName: 'friendships_pending_$currentUserId',
         userId: currentUserId,
         columns: const ['requester_id'],
@@ -140,7 +140,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       load: _friendshipRepository.getCurrentUserRequestedFriendsIds,
       skipEqual: true,
       // Les demandes reçues par l'utilisateur : il en est le receiver.
-      channelBuilder: (reload) => _subscribeToFriendships(
+      channelBuilder: (reload) => _buildFriendshipsChannel(
         channelName: 'friendships_requested_$currentUserId',
         userId: currentUserId,
         columns: const ['receiver_id'],
