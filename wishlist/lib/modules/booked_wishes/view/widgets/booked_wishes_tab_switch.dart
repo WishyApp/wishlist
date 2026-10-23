@@ -90,7 +90,9 @@ class _Tab extends StatelessWidget {
           borderRadius: borderRadius,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            height: 40,
+            // Grows with the text scale
+            constraints: const BoxConstraints(minHeight: 40),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: isSelected ? AppColors.background : Colors.transparent,
               borderRadius: borderRadius,

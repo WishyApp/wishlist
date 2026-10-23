@@ -151,17 +151,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Explore your friends\' wishlists';
 
   @override
-  String bookedWishCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count bookings',
-      one: '1 booking',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String get settingsScreenTitle => 'Settings';
 
   @override
@@ -734,12 +723,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String bookedWishesToGiveCount(int count) {
-    return '$count to give';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count to give',
+      one: '1 to give',
+    );
+    return '$_temp0';
   }
 
   @override
   String bookedWishesGivenCount(int count) {
-    return '$count given';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count given',
+      one: '1 given',
+    );
+    return '$_temp0';
   }
 
   @override

@@ -102,7 +102,7 @@ class SupabaseWishRepository implements WishRepository {
                 $_userCompletedWishsTableName(
                   user_id,
                   quantity,
-                  created_at
+                  updated_at
                 ),
                 wishlists!inner(
                   name,
@@ -129,7 +129,8 @@ class SupabaseWishRepository implements WishRepository {
                   .cast<Map<String, dynamic>>()
                   .where((receipt) => receipt['user_id'] == ownerId)
                   .firstOrNull;
-          final receivedAt = ownerReceipt?['created_at'] as String?;
+          // Last change of the received quantity: when the wish became given
+          final receivedAt = ownerReceipt?['updated_at'] as String?;
 
           return BookedWishWithDetails(
             wish: Wish.fromJson(wishData),

@@ -43,14 +43,6 @@
   "bookedWishesScreenTitle": "Réservations",
   "bookedWishesEmptyTitle": "Aucune réservation",
   "bookedWishesEmptyCallToAction": "Explorer les wishlists de vos amis",
-  "bookedWishCount": "{count, plural, =1{1 réservation} other{{count} réservations}}",
-  "@bookedWishCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "settingsScreenTitle": "Paramètres",
   "settingsScreenEmail": "Email",
   "settingsScreenEmailModify": "Modifier",
@@ -262,7 +254,7 @@
   },
   "bookedWishesTabToGive": "À offrir",
   "bookedWishesTabGiven": "Offerts",
-  "bookedWishesToGiveCount": "{count} à offrir",
+  "bookedWishesToGiveCount": "{count, plural, =1{1 à offrir} other{{count} à offrir}}",
   "@bookedWishesToGiveCount": {
     "placeholders": {
       "count": {

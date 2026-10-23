@@ -24,6 +24,7 @@ import 'package:wishlist/shared/utils/booked_wish_sort_utils.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/utils/string_utils.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
+import 'package:wishlist/shared/widgets/measure_size.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 
 class BookedWishesScreen extends ConsumerStatefulWidget {
@@ -41,8 +42,9 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
   static const int _estimatedMaxItems = 10;
 
   /// Height of the fixed header (stats, search bar and tabs) the list
-  /// scrolls under
-  static const double _listTopPadding = 200;
+  /// scrolls under: measured, since it grows with the text scale. Until the
+  /// first measure, its height with the default text scale.
+  double _headerHeight = 188;
 
   BookedWishesTab _tab = BookedWishesTab.toGive;
 
@@ -119,8 +121,11 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
           return _buildEmptyState(l10n);
         }
 
-        final toGive = bookedWishes.where((wish) => !wish.isGiven).toList();
-        final given = bookedWishes.where((wish) => wish.isGiven).toList();
+        final toGive = <BookedWishWithDetails>[];
+        final given = <BookedWishWithDetails>[];
+        for (final bookedWish in bookedWishes) {
+          (bookedWish.isGiven ? given : toGive).add(bookedWish);
+        }
         final tabWishes = _tab == BookedWishesTab.toGive ? toGive : given;
 
         final header = _buildHeader(
@@ -152,7 +157,14 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
                 top: 0,
                 left: 0,
                 right: 0,
-                child: header,
+                child: MeasureSize(
+                  onChange: (size) {
+                    if (mounted && size.height != _headerHeight) {
+                      setState(() => _headerHeight = size.height);
+                    }
+                  },
+                  child: header,
+                ),
               ),
             ],
           ),
@@ -181,9 +193,9 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
           };
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         _contentPadding * 2,
-        _listTopPadding,
+        _headerHeight,
         _contentPadding * 2,
         0,
       ),
@@ -266,9 +278,12 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
         groupedWishes.entries.map((entry) => entry.value).toList();
 
     return AnimatedListView<List<BookedWishWithDetails>>(
+      // One list per tab: switching starts from the top, without animating
+      // the groups of one tab into the other's
+      key: ValueKey(_tab),
       items: groupsList,
       padding: EdgeInsets.only(
-        top: _listTopPadding,
+        top: _headerHeight,
         bottom: NavBarPadding.of(context),
       ),
       itemSpacing: _itemSpacing,

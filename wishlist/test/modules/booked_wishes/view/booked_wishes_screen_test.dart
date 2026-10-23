@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/booked_wishes/view/booked_wishes_screen.dart';
+import 'package:wishlist/modules/booked_wishes/view/widgets/user_group_header.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/navigation/floating_nav_bar_navigator.dart';
+import 'package:wishlist/shared/widgets/measure_size.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
@@ -104,8 +106,15 @@ void main() {
 
   testWidgets('$BookedWishesScreen keeps a partly received wish to give',
       (tester) async {
+    // Someone else booked it too: the item received may be theirs
     final partlyReceived = fakeBookedWishGiven.copyWith(
-      wish: fakeBookedWishGiven.wish.copyWith(quantity: 2),
+      wish: fakeBookedWishGiven.wish.copyWith(
+        quantity: 2,
+        takenByUser: [
+          ...fakeBookedWishGiven.wish.takenByUser,
+          fakeWishTakenByUser.copyWith(wishId: 4),
+        ].toIList(),
+      ),
     );
     await pumpBookedWishes(tester, wishes: [partlyReceived].toIList());
 
@@ -123,6 +132,25 @@ void main() {
 
     expect(find.text(l10n.bookedWishesNothingToGive), findsOneWidget);
     expect(find.text(fakeBookedWishGiven.wish.name), findsNothing);
+  });
+
+  testWidgets(
+      '$BookedWishesScreen keeps the first group below the header with '
+      'a larger text', (tester) async {
+    // The header grows taller than with the default text scale
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await pumpBookedWishes(tester);
+
+    final header = find.descendant(
+      of: find.byType(BookedWishesScreen),
+      matching: find.byType(MeasureSize),
+    );
+    final headerBottom = tester.getBottomLeft(header).dy;
+    final firstGroupTop =
+        tester.getTopLeft(find.byType(UserGroupHeader).first).dy;
+    expect(firstGroupTop, greaterThanOrEqualTo(headerBottom));
   });
 
   testWidgets('$BookedWishesScreen searches within the current tab',

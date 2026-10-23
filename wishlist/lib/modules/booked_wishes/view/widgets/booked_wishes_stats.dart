@@ -45,8 +45,9 @@ class BookedWishesStats extends StatelessWidget {
           ),
           const Gap(6),
           Expanded(
-            child: RichText(
-              text: TextSpan(
+            // Text.rich, unlike RichText, follows the system text scale
+            child: Text.rich(
+              TextSpan(
                 style: AppTextStyles.small.copyWith(
                   color: AppColors.darkGrey,
                 ),

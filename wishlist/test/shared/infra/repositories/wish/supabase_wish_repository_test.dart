@@ -114,7 +114,7 @@ void main() {
 
       expect(
         request.url.queryParameters['select'],
-        contains('user_completed_wishs(user_id,quantity,created_at)'),
+        contains('user_completed_wishs(user_id,quantity,updated_at)'),
       );
     });
 
@@ -126,12 +126,12 @@ void main() {
             {
               'user_id': 'someone-else',
               'quantity': 1,
-              'created_at': '2026-10-02T08:00:00Z',
+              'updated_at': '2026-10-02T08:00:00Z',
             },
             {
               'user_id': ownerId,
               'quantity': 1,
-              'created_at': '2026-10-05T08:00:00Z',
+              'updated_at': '2026-10-05T08:00:00Z',
             },
           ],
         ),
@@ -151,7 +151,7 @@ void main() {
             {
               'user_id': 'someone-else',
               'quantity': 1,
-              'created_at': '2026-10-02T08:00:00Z',
+              'updated_at': '2026-10-02T08:00:00Z',
             },
           ],
         ),

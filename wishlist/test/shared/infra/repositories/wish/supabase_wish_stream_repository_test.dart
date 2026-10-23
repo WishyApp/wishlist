@@ -440,22 +440,61 @@ void main() {
         verify(() => wishRepository.getBookedWishesByUser('me')).called(times),
   );
 
-  test('watchBookedWishesByUser reloads when a booked wish is received',
-      () async {
-    when(() => wishRepository.getBookedWishesByUser(any()))
-        .thenAnswer((_) async => fakeBookedWishes);
+  group('watchBookedWishesByUser receipts listener', () {
+    PostgresChangePayload receipt({
+      Map<String, dynamic> newRecord = const {},
+      Map<String, dynamic> oldRecord = const {},
+    }) {
+      final p = MockPostgresChangePayload();
+      when(() => p.newRecord).thenReturn(newRecord);
+      when(() => p.oldRecord).thenReturn(oldRecord);
+      return p;
+    }
 
-    final sub = repository.watchBookedWishesByUser('me').listen((_) {});
-    await pumpEventQueue();
-    verify(() => wishRepository.getBookedWishesByUser('me')).called(1);
+    Future<void> expectReload(
+      PostgresChangePayload payload, {
+      required bool reloads,
+    }) async {
+      when(() => wishRepository.getBookedWishesByUser(any()))
+          .thenAnswer((_) async => fakeBookedWishes);
 
-    listeners
-        .singleWhere((l) => l.table == 'user_completed_wishs')
-        .callback(MockPostgresChangePayload());
-    await pumpEventQueue();
-    verify(() => wishRepository.getBookedWishesByUser('me')).called(1);
+      final sub = repository.watchBookedWishesByUser('me').listen((_) {});
+      await pumpEventQueue();
+      verify(() => wishRepository.getBookedWishesByUser('me')).called(1);
 
-    await sub.cancel();
+      listeners
+          .singleWhere((l) => l.table == 'user_completed_wishs')
+          .callback(payload);
+      await pumpEventQueue();
+      if (reloads) {
+        verify(() => wishRepository.getBookedWishesByUser('me')).called(1);
+      } else {
+        verifyNever(() => wishRepository.getBookedWishesByUser('me'));
+      }
+
+      await sub.cancel();
+    }
+
+    test('reloads when a booked wish is received', () async {
+      await expectReload(
+        receipt(newRecord: {'wish_id': fakeBookedWish1.wish.id}),
+        reloads: true,
+      );
+    });
+
+    test('reloads when the receipt of a booked wish is removed', () async {
+      await expectReload(
+        receipt(oldRecord: {'wish_id': fakeBookedWish1.wish.id}),
+        reloads: true,
+      );
+    });
+
+    test('ignores the receipts of other wishes', () async {
+      await expectReload(
+        receipt(newRecord: {'wish_id': 999}),
+        reloads: false,
+      );
+    });
   });
 
   group('watchWishsFromWishlist wishlists listener', () {

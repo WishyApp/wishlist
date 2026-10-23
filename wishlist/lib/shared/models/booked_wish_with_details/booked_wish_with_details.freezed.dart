@@ -37,7 +37,8 @@ mixin _$BookedWishWithDetails {
   @JsonKey(name: 'received_quantity')
   int get receivedQuantity => throw _privateConstructorUsedError;
 
-  /// When the owner first marked the wish as received
+  /// When the owner last changed the received quantity: the moment the
+  /// wish became given, for a given one
   @JsonKey(name: 'received_at')
   DateTime? get receivedAt => throw _privateConstructorUsedError;
 
@@ -250,7 +251,8 @@ class _$BookedWishWithDetailsImpl extends _BookedWishWithDetails {
   @JsonKey(name: 'received_quantity')
   final int receivedQuantity;
 
-  /// When the owner first marked the wish as received
+  /// When the owner last changed the received quantity: the moment the
+  /// wish became given, for a given one
   @override
   @JsonKey(name: 'received_at')
   final DateTime? receivedAt;
@@ -350,7 +352,8 @@ abstract class _BookedWishWithDetails extends BookedWishWithDetails {
   @JsonKey(name: 'received_quantity')
   int get receivedQuantity;
 
-  /// When the owner first marked the wish as received
+  /// When the owner last changed the received quantity: the moment the
+  /// wish became given, for a given one
   @override
   @JsonKey(name: 'received_at')
   DateTime? get receivedAt;

@@ -356,12 +356,6 @@ abstract class AppLocalizations {
   /// **'Explorer les wishlists de vos amis'**
   String get bookedWishesEmptyCallToAction;
 
-  /// No description provided for @bookedWishCount.
-  ///
-  /// In fr, this message translates to:
-  /// **'{count, plural, =1{1 réservation} other{{count} réservations}}'**
-  String bookedWishCount(int count);
-
   /// No description provided for @settingsScreenTitle.
   ///
   /// In fr, this message translates to:
@@ -1379,7 +1373,7 @@ abstract class AppLocalizations {
   /// No description provided for @bookedWishesToGiveCount.
   ///
   /// In fr, this message translates to:
-  /// **'{count} à offrir'**
+  /// **'{count, plural, =1{1 à offrir} other{{count} à offrir}}'**
   String bookedWishesToGiveCount(int count);
 
   /// No description provided for @bookedWishesGivenCount.

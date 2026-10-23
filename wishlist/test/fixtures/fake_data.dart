@@ -253,6 +253,15 @@ final fakeBookedWishGiven = BookedWishWithDetails(
     wishlistId: 2,
     updatedBy: fakeFriendUserId1,
     updatedAt: fakeUpdatedAt,
+    takenByUser: [
+      WishTakenByUser(
+        wishId: 4,
+        userId: fakeCurrentUserId,
+        quantity: 1,
+        createdAt: fakeCreatedAt,
+        updatedAt: fakeUpdatedAt,
+      ),
+    ].toIList(),
   ),
   bookedQuantity: 1,
   wishlistName: 'Noël',

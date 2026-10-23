@@ -154,8 +154,16 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
   Stream<IList<BookedWishWithDetails>> watchBookedWishesByUser(String userId) {
     final key = 'booked_wishes_$userId';
 
-    Future<IList<BookedWishWithDetails>> fetch() =>
-        _wishRepository.getBookedWishesByUser(userId);
+    // Wishes of the last load, to skip the receipts of other wishes
+    Set<int>? bookedWishIds;
+
+    Future<IList<BookedWishWithDetails>> fetch() async {
+      final bookedWishes = await _wishRepository.getBookedWishesByUser(userId);
+      bookedWishIds = {
+        for (final bookedWish in bookedWishes) bookedWish.wish.id,
+      };
+      return bookedWishes;
+    }
 
     return _streams.watch<IList<BookedWishWithDetails>>(
       key,
@@ -175,12 +183,22 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
             callback: (payload) => reload(),
           )
           // Écouter les réceptions (un wish réservé marqué comme reçu par
-          // son propriétaire passe dans les offerts)
+          // son propriétaire passe dans les offerts). Pas de filtre possible
+          // sur les wishs réservés : on ignore les réceptions des autres
+          // wishs, que la RLS laisse passer (wishlists publiques, DELETE).
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: _userCompletedWishsTableName,
-            callback: (payload) => reload(),
+            callback: (payload) {
+              final wishId =
+                  payload.newRecord['wish_id'] ?? payload.oldRecord['wish_id'];
+              final ids = bookedWishIds;
+              if (wishId is int && ids != null && !ids.contains(wishId)) {
+                return;
+              }
+              reload();
+            },
           )
           // Écouter les changements sur la table wishs
           // (si un wish réservé est modifié/supprimé)
