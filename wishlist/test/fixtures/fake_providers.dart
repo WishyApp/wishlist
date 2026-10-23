@@ -2,6 +2,7 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/current_user_profile_provider.dart';
@@ -12,6 +13,7 @@ import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.d
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
+import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/models/birthday.dart';
@@ -145,13 +147,33 @@ List<Override> homeScreenOverrides({
   FriendsData? friendsData,
   IList<BookedWishWithDetails>? bookedWishes,
   String? currentUserId,
+  Map<String, Birthday>? birthdays,
+  DateTime? now,
+
+  /// `false` : visibleBirthdaysProvider reste le vrai, au-dessus du service.
+  bool overrideBirthdays = true,
 }) {
   return [
     supabaseClientOverride(userId: currentUserId),
     wishlistsRealtimeOverride(wishlists: wishlists),
     friendshipsRealtimeOverride(friendsData: friendsData),
     bookedWishesRealtimeOverride(bookedWishes: bookedWishes),
+    if (overrideBirthdays) visibleBirthdaysOverride(birthdays: birthdays),
+    if (now != null) clockOverride(now),
   ];
+}
+
+/// Override pour visibleBirthdaysProvider (aucun anniversaire par défaut)
+Override visibleBirthdaysOverride({Map<String, Birthday>? birthdays}) {
+  return visibleBirthdaysProvider.overrideWith(
+    (ref) async => birthdays ?? const {},
+  );
+}
+
+/// Override pour clockProvider : date fixe, les tests de compte à rebours ne
+/// dépendent pas du jour où ils tournent.
+Override clockOverride(DateTime now) {
+  return clockProvider.overrideWithValue(() => now);
 }
 
 /// Overrides pour tous les écrans avec des données vides
@@ -299,10 +321,17 @@ List<Override> friendDetailsScreenOverrides({
   required String friendId,
   FriendDetails? friendDetails,
   String? currentUserId,
+  Map<String, Birthday>? birthdays,
+  DateTime? now,
+
+  /// `false` : visibleBirthdaysProvider reste le vrai, au-dessus du service.
+  bool overrideBirthdays = true,
 }) {
   return [
     supabaseClientOverride(userId: currentUserId),
     friendDetailsRealtimeOverride(friendId, friendDetails: friendDetails),
+    if (overrideBirthdays) visibleBirthdaysOverride(birthdays: birthdays),
+    if (now != null) clockOverride(now),
   ];
 }
 
