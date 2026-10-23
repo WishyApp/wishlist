@@ -9,7 +9,15 @@ import 'package:wishlist/shared/navigation/routes.dart';
 /// Tells go_router to re-run its redirect on every auth event.
 class AuthStateNotifier extends ChangeNotifier {
   AuthStateNotifier(Stream<AuthState> authStateChanges) {
-    _subscription = authStateChanges.listen((_) => notifyListeners());
+    // gotrue also pushes refresh failures into this stream (e.g. when resuming
+    // offline). They are not ours to handle: without onError they would reach
+    // the zone handler and Sentry.
+    _subscription = authStateChanges.listen(
+      (_) => notifyListeners(),
+      onError: (Object error) => debugPrint(
+        'Ignored auth stream error in the router: $error',
+      ),
+    );
   }
 
   late final StreamSubscription<AuthState> _subscription;
