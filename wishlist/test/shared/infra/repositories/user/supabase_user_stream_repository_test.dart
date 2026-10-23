@@ -47,6 +47,7 @@ class _FakeMaybeSingle extends Fake
 }
 
 typedef _PayloadCallback = void Function(PostgresChangePayload);
+typedef _StatusCallback = void Function(RealtimeSubscribeStatus, Object?);
 
 PostgrestMap _row(String pseudo) => {'id': 'me', 'pseudo': pseudo};
 
@@ -55,6 +56,9 @@ void main() {
 
   late MockSupabaseClient client;
   late MockRealtimeChannel channel;
+
+  /// Status callbacks passed to `channel.subscribe`, in order.
+  late List<_StatusCallback> statusCallbacks;
   late MockQueryBuilder table;
   late SupabaseUserStreamRepository repository;
   late List<_PayloadCallback> callbacks;
@@ -81,6 +85,7 @@ void main() {
   setUp(() {
     client = createMockSupabaseClient();
     channel = MockRealtimeChannel();
+    statusCallbacks = [];
     table = MockQueryBuilder();
     callbacks = [];
 
@@ -99,7 +104,12 @@ void main() {
       );
       return channel;
     });
-    when(channel.subscribe).thenReturn(channel);
+    when(() => channel.subscribe(any())).thenAnswer((invocation) {
+      statusCallbacks.add(
+        invocation.positionalArguments.first as _StatusCallback,
+      );
+      return channel;
+    });
     when(channel.unsubscribe).thenAnswer((_) async => 'ok');
     when(() => client.from('profiles')).thenAnswer((_) => table);
     when(table.select).thenAnswer((_) => query);
@@ -110,6 +120,28 @@ void main() {
   tearDown(() => repository.dispose());
 
   group('watchProfileById', () {
+    test('reloads each time the channel reports subscribed', () async {
+      final loads = stubLoads(3);
+
+      final received = <Profile?>[];
+      final sub = repository.watchProfileById('me').listen(received.add);
+      loads[0].complete(_row('Alice'));
+      await pumpEventQueue();
+
+      expect(statusCallbacks, hasLength(1));
+      statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+      loads[1].complete(_row('Bob'));
+      await pumpEventQueue();
+
+      statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+      loads[2].complete(_row('Carol'));
+      await pumpEventQueue();
+
+      expect(query.calls, 3);
+      expect(received.map((p) => p?.pseudo), ['Alice', 'Bob', 'Carol']);
+      await sub.cancel();
+    });
+
     test('a second subscriber on the same user gets the current value',
         () async {
       final loads = stubLoads(1);

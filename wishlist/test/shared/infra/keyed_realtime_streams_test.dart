@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,22 +8,53 @@ import 'package:wishlist/shared/infra/keyed_realtime_streams.dart';
 
 import '../../fixtures/mock_supabase.dart';
 
+const _testDelays = [
+  Duration(seconds: 1),
+  Duration(seconds: 2),
+  Duration(seconds: 5),
+  Duration(seconds: 10),
+  Duration(seconds: 30),
+];
+
+typedef _StatusCallback = void Function(RealtimeSubscribeStatus, Object?);
+
 void main() {
   late MockRealtimeChannel channel;
   late List<MockRealtimeChannel> channels;
+  late Map<MockRealtimeChannel, _StatusCallback> statusCallbacks;
   late KeyedRealtimeStreams streams;
+  late bool socketConnected;
 
   MockRealtimeChannel newChannel() {
     final created = MockRealtimeChannel();
     when(created.unsubscribe).thenAnswer((_) async => 'ok');
+    when(() => created.subscribe(any())).thenAnswer((invocation) {
+      statusCallbacks[created] =
+          invocation.positionalArguments.first as _StatusCallback;
+      return created;
+    });
     channels.add(created);
     return created;
   }
 
+  /// Simule le statut [status] du [channel].
+  void emit(
+    MockRealtimeChannel channel,
+    RealtimeSubscribeStatus status, [
+    Object? error,
+  ]) =>
+      statusCallbacks[channel]!(status, error);
+
   setUp(() {
+    socketConnected = true;
     channels = [];
+    statusCallbacks = {};
     channel = newChannel();
-    streams = KeyedRealtimeStreams(logTag: 'test');
+    streams = KeyedRealtimeStreams(
+      logTag: 'test',
+      isSocketConnected: () => socketConnected,
+      retryDelays: _testDelays,
+    );
   });
 
   tearDown(() => streams.dispose());
@@ -34,6 +66,7 @@ void main() {
     void Function(Reload<T> reload)? onReload,
     bool skipEqual = false,
     RealtimeChannel? channelToUse,
+    RealtimeChannel Function()? build,
   }) =>
       streams.watch<T>(
         key,
@@ -41,7 +74,7 @@ void main() {
         skipEqual: skipEqual,
         channelBuilder: (reload) {
           onReload?.call(reload);
-          return channelToUse ?? channel;
+          return build?.call() ?? channelToUse ?? channel;
         },
       );
 
@@ -224,6 +257,7 @@ void main() {
         () async {
       streams = KeyedRealtimeStreams(
         logTag: 'test',
+        isSocketConnected: () => true,
         shouldEmitErrorAfterValue: (e) => e is FormatException,
       );
       late Reload<int> reload;
@@ -255,6 +289,7 @@ void main() {
         'older reload finishing later: the error stays', () async {
       streams = KeyedRealtimeStreams(
         logTag: 'test',
+        isSocketConnected: () => true,
         shouldEmitErrorAfterValue: (e) => e is FormatException,
       );
       late Reload<int> reload;
@@ -520,6 +555,545 @@ void main() {
       expect(received, [2]);
       await sub.cancel();
       verify(retakenChannel.unsubscribe).called(1);
+    });
+  });
+
+  group('channel status', () {
+    test('reloads on the initial subscribed and on every later one', () async {
+      var loads = 0;
+      final received = <int>[];
+      final sub = watch<int>('k', () async => ++loads).listen(received.add);
+      await pumpEventQueue();
+      expect(received, [1]);
+
+      // Changement validé avant le premier subscribed.
+      emit(channel, RealtimeSubscribeStatus.subscribed);
+      await pumpEventQueue();
+      expect(received, [1, 2]);
+
+      // Rejoin après une coupure.
+      emit(channel, RealtimeSubscribeStatus.closed);
+      await pumpEventQueue();
+      expect(received, [1, 2]);
+      emit(channel, RealtimeSubscribeStatus.subscribed);
+      await pumpEventQueue();
+      expect(received, [1, 2, 3]);
+      await sub.cancel();
+    });
+
+    test('timedOut neither reloads nor resubscribes', () {
+      fakeAsync((async) {
+        var built = 0;
+        watch<int>('k', () async => 1, onReload: (_) => built++).listen((_) {});
+        async.flushMicrotasks();
+
+        emit(channel, RealtimeSubscribeStatus.timedOut);
+        async.elapse(const Duration(minutes: 5));
+
+        expect(built, 1);
+        verifyNever(channel.unsubscribe);
+      });
+    });
+
+    group('channelError', () {
+      for (final beforeSubscribed in [true, false]) {
+        test(
+            'resubscribes a new channel after the backoff, '
+            '${beforeSubscribed ? 'before' : 'after'} subscribed', () {
+          fakeAsync((async) {
+            final fresh = newChannel();
+            var built = 0;
+            var loads = 0;
+            final received = <int>[];
+            watch<int>(
+              'k',
+              () async => ++loads,
+              build: () => built++ == 0 ? channel : fresh,
+            ).listen(received.add);
+            async.flushMicrotasks();
+            if (!beforeSubscribed) {
+              emit(channel, RealtimeSubscribeStatus.subscribed);
+            }
+
+            emit(channel, RealtimeSubscribeStatus.channelError, 'boom');
+            async.elapse(const Duration(milliseconds: 999));
+            expect(built, 1);
+            verifyNever(channel.unsubscribe);
+
+            async.elapse(const Duration(milliseconds: 1));
+            expect(built, 2);
+            verify(channel.unsubscribe).called(1);
+            verify(() => fresh.subscribe(any())).called(1);
+
+            // Le channel neuf pilote le flux : son subscribed recharge.
+            final before = received.length;
+            emit(fresh, RealtimeSubscribeStatus.subscribed);
+            async.flushMicrotasks();
+            expect(received.length, before + 1);
+
+            // Les statuts de l'ancien channel sont ignorés.
+            emit(channel, RealtimeSubscribeStatus.channelError, 'late');
+            async.elapse(const Duration(minutes: 5));
+            expect(built, 2);
+          });
+        });
+      }
+
+      test('a duplicate error does not build two channels', () {
+        fakeAsync((async) {
+          var built = 0;
+          watch<int>(
+            'k',
+            () async => 1,
+            build: () {
+              built++;
+              return built == 1 ? channel : newChannel();
+            },
+          ).listen((_) {});
+          async.flushMicrotasks();
+
+          emit(channel, RealtimeSubscribeStatus.channelError, 'a');
+          emit(channel, RealtimeSubscribeStatus.channelError, 'b');
+          async.elapse(const Duration(minutes: 1));
+
+          expect(built, 2);
+          verify(channel.unsubscribe).called(1);
+        });
+      });
+
+      test('the backoff grows, is capped, and resets once healthy', () {
+        fakeAsync((async) {
+          streams = KeyedRealtimeStreams(
+            logTag: 'test',
+            isSocketConnected: () => socketConnected,
+            retryDelays: const [
+              Duration(seconds: 1),
+              Duration(seconds: 2),
+              Duration(seconds: 5),
+            ],
+          );
+          var current = channel;
+          var built = 0;
+          watch<int>(
+            'k',
+            () async => 1,
+            build: () {
+              built++;
+              return built == 1 ? channel : current = newChannel();
+            },
+          ).listen((_) {});
+          async.flushMicrotasks();
+
+          void failAndExpectDelay(Duration delay) {
+            final expected = built + 1;
+            emit(current, RealtimeSubscribeStatus.channelError, 'x');
+            async.elapse(delay - const Duration(milliseconds: 1));
+            expect(built, expected - 1);
+            async.elapse(const Duration(milliseconds: 1));
+            expect(built, expected);
+          }
+
+          failAndExpectDelay(const Duration(seconds: 1));
+          failAndExpectDelay(const Duration(seconds: 2));
+          failAndExpectDelay(const Duration(seconds: 5));
+          failAndExpectDelay(const Duration(seconds: 5));
+
+          // Healthy for long enough: the counter restarts.
+          emit(current, RealtimeSubscribeStatus.subscribed);
+          async.elapse(const Duration(seconds: 30));
+          failAndExpectDelay(const Duration(seconds: 1));
+        });
+      });
+
+      test('subscribed then a system error, repeated: the delay keeps growing',
+          () {
+        fakeAsync((async) {
+          streams = KeyedRealtimeStreams(
+            logTag: 'test',
+            isSocketConnected: () => socketConnected,
+            retryDelays: const [
+              Duration(seconds: 1),
+              Duration(seconds: 2),
+              Duration(seconds: 5),
+            ],
+          );
+          var current = channel;
+          var built = 0;
+          watch<int>(
+            'k',
+            () async => 1,
+            build: () {
+              built++;
+              return built == 1 ? channel : current = newChannel();
+            },
+          ).listen((_) {});
+          async.flushMicrotasks();
+
+          // Le join réussit, puis la réplication est refusée, à chaque fois.
+          for (final delay in [1, 2, 5, 5, 5]) {
+            emit(current, RealtimeSubscribeStatus.subscribed);
+            emit(current, RealtimeSubscribeStatus.channelError, 'rls');
+            final expected = built + 1;
+            async.elapse(Duration(seconds: delay) - const Duration(seconds: 1));
+            async.elapse(const Duration(milliseconds: 999));
+            if (delay > 1) {
+              expect(built, expected - 1, reason: 'not before $delay s');
+            }
+            async.elapse(const Duration(milliseconds: 1));
+            expect(built, expected);
+          }
+        });
+      });
+
+      test(
+          'an error left to the library gets one more delay once the socket '
+          'is back, then the channel is replaced', () {
+        fakeAsync((async) {
+          var built = 0;
+          watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+
+          socketConnected = false;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'closed');
+          socketConnected = true;
+          // Premier réarmement : socket revenu, clé encore laissée à la
+          // bibliothèque, on réarme une fois.
+          async.elapse(const Duration(seconds: 1));
+          expect(built, 1);
+          verifyNever(channel.unsubscribe);
+
+          // Toujours pas de subscribed : le channel est remplacé.
+          async.elapse(const Duration(seconds: 1));
+          expect(built, 2);
+          verify(channel.unsubscribe).called(1);
+        });
+      });
+
+      test('a subscribed during the extra delay cancels the replacement', () {
+        fakeAsync((async) {
+          var built = 0;
+          watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+
+          socketConnected = false;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'closed');
+          socketConnected = true;
+          async.elapse(const Duration(seconds: 1));
+          emit(channel, RealtimeSubscribeStatus.subscribed);
+          async.elapse(const Duration(minutes: 5));
+
+          expect(built, 1);
+          verifyNever(channel.unsubscribe);
+        });
+      });
+
+      test(
+          'a long outage re-arms at a fixed delay, then a join error replaces '
+          'the channel after the first delay', () {
+        fakeAsync((async) {
+          var built = 0;
+          final fresh = newChannel();
+          watch<int>(
+            'k',
+            () async => 1,
+            build: () => built++ == 0 ? channel : fresh,
+          ).listen((_) {});
+          async.flushMicrotasks();
+
+          socketConnected = false;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'closed');
+          // Beaucoup de réarmements : le délai ne grandit pas.
+          async.elapse(const Duration(minutes: 5));
+          expect(built, 1);
+          verifyNever(channel.unsubscribe);
+
+          // Le socket revient, le join est refusé : première tentative.
+          socketConnected = true;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'join refused');
+          async.elapse(const Duration(milliseconds: 999));
+          expect(built, 1);
+          async.elapse(const Duration(milliseconds: 1));
+          expect(built, 2);
+          verify(channel.unsubscribe).called(1);
+
+          // Et la suivante repart du deuxième délai, pas du dernier.
+          emit(fresh, RealtimeSubscribeStatus.channelError, 'again');
+          async.elapse(const Duration(seconds: 2));
+          expect(built, 3);
+        });
+      });
+
+      test('a server close cancels a pending re-arm and uses the backoff', () {
+        fakeAsync((async) {
+          var built = 0;
+          final fresh = newChannel();
+          watch<int>(
+            'k',
+            () async => 1,
+            build: () => built++ == 0 ? channel : fresh,
+          ).listen((_) {});
+          async.flushMicrotasks();
+
+          socketConnected = false;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'closed');
+          async.elapse(const Duration(minutes: 3));
+          socketConnected = true;
+          emit(channel, RealtimeSubscribeStatus.closed);
+          async.elapse(const Duration(seconds: 1));
+
+          expect(built, 2);
+        });
+      });
+
+      test('a server close replaces the channel after the backoff', () {
+        fakeAsync((async) {
+          final fresh = newChannel();
+          var built = 0;
+          watch<int>(
+            'k',
+            () async => 1,
+            build: () => built++ == 0 ? channel : fresh,
+          ).listen((_) {});
+          async.flushMicrotasks();
+
+          emit(channel, RealtimeSubscribeStatus.closed);
+          async.elapse(const Duration(seconds: 1));
+
+          expect(built, 2);
+          verify(channel.unsubscribe).called(1);
+          verify(() => fresh.subscribe(any())).called(1);
+        });
+      });
+
+      test('our own leaves do not schedule a resubscribe', () {
+        fakeAsync((async) {
+          var built = 0;
+          // Un unsubscribe qui émet `closed` tout de suite, comme le client
+          // quand il ne peut pas pousser.
+          when(channel.unsubscribe).thenAnswer((_) async {
+            emit(channel, RealtimeSubscribeStatus.closed);
+            return 'ok';
+          });
+          final sub = watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+          sub.cancel();
+          async.elapse(const Duration(minutes: 5));
+          expect(built, 1);
+
+          final other = newChannel();
+          when(other.unsubscribe).thenAnswer((_) async {
+            emit(other, RealtimeSubscribeStatus.closed);
+            return 'ok';
+          });
+          watch<int>(
+            'd',
+            () async => 1,
+            channelToUse: other,
+            onReload: (_) => built++,
+          ).listen((_) {});
+          async.flushMicrotasks();
+          streams.dispose();
+          async.elapse(const Duration(minutes: 5));
+          expect(built, 2);
+          verify(other.unsubscribe).called(1);
+        });
+      });
+
+      test('replacing a channel ignores the closed its leave emits', () {
+        fakeAsync((async) {
+          final fresh = newChannel();
+          var built = 0;
+          when(channel.unsubscribe).thenAnswer((_) async {
+            emit(channel, RealtimeSubscribeStatus.closed);
+            return 'ok';
+          });
+          watch<int>(
+            'k',
+            () async => 1,
+            build: () => built++ == 0 ? channel : fresh,
+          ).listen((_) {});
+          async.flushMicrotasks();
+
+          emit(channel, RealtimeSubscribeStatus.channelError, 'x');
+          async.elapse(const Duration(minutes: 5));
+
+          expect(built, 2);
+        });
+      });
+
+      test('a subscribe that throws is retried on the new channel', () {
+        fakeAsync((async) {
+          final broken = newChannel();
+          final good = newChannel();
+          when(() => broken.subscribe(any())).thenThrow(StateError('twice'));
+          var built = 0;
+          watch<int>(
+            'k',
+            () async => 1,
+            build: () {
+              built++;
+              return switch (built) { 1 => channel, 2 => broken, _ => good };
+            },
+          ).listen((_) {});
+          async.flushMicrotasks();
+
+          emit(channel, RealtimeSubscribeStatus.channelError, 'x');
+          async.elapse(const Duration(seconds: 1));
+          expect(built, 2);
+          async.elapse(const Duration(seconds: 2));
+
+          expect(built, 3);
+          verify(broken.unsubscribe).called(1);
+          verify(() => good.subscribe(any())).called(1);
+        });
+      });
+
+      test('a channel that rejoins by itself cancels the pending resubscribe',
+          () {
+        fakeAsync((async) {
+          var built = 0;
+          watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+
+          emit(channel, RealtimeSubscribeStatus.channelError, 'socket');
+          emit(channel, RealtimeSubscribeStatus.subscribed);
+          async.elapse(const Duration(minutes: 1));
+
+          expect(built, 1);
+          verifyNever(channel.unsubscribe);
+        });
+      });
+
+      test('does not replace the channel while the socket is down', () {
+        fakeAsync((async) {
+          var built = 0;
+          watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+
+          socketConnected = false;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'closed');
+          async.elapse(const Duration(seconds: 1));
+          async.elapse(const Duration(seconds: 2));
+          expect(built, 1);
+          verifyNever(channel.unsubscribe);
+
+          // Une erreur reçue socket revenu (ex: join refusé) ramène au
+          // remplacement.
+          socketConnected = true;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'join error');
+          async.elapse(const Duration(seconds: 10));
+          expect(built, 2);
+          verify(channel.unsubscribe).called(1);
+        });
+      });
+
+      test('a rejoin while the socket is down cancels the pending retry', () {
+        fakeAsync((async) {
+          var built = 0;
+          watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+
+          socketConnected = false;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'closed');
+          async.elapse(const Duration(seconds: 1));
+
+          socketConnected = true;
+          emit(channel, RealtimeSubscribeStatus.subscribed);
+          async.elapse(const Duration(minutes: 5));
+
+          expect(built, 1);
+          verifyNever(channel.unsubscribe);
+        });
+      });
+
+      test('a failing channelBuilder is retried with the next delay', () {
+        fakeAsync((async) {
+          var built = 0;
+          final fresh = newChannel();
+          watch<int>(
+            'k',
+            () async => 1,
+            build: () {
+              built++;
+              if (built == 1) {
+                return channel;
+              }
+              if (built == 2) {
+                throw StateError('no channel');
+              }
+              return fresh;
+            },
+          ).listen((_) {});
+          async.flushMicrotasks();
+
+          emit(channel, RealtimeSubscribeStatus.channelError, 'x');
+          async.elapse(const Duration(seconds: 1));
+          expect(built, 2);
+          async.elapse(const Duration(seconds: 2));
+          expect(built, 3);
+          verify(() => fresh.subscribe(any())).called(1);
+        });
+      });
+
+      test('no resubscribe after the last listener cancels', () {
+        fakeAsync((async) {
+          var built = 0;
+          final sub = watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+
+          emit(channel, RealtimeSubscribeStatus.channelError, 'x');
+          sub.cancel();
+          async.elapse(const Duration(minutes: 1));
+
+          expect(built, 1);
+          verify(channel.unsubscribe).called(1);
+        });
+      });
+
+      test('no resubscribe after dispose', () {
+        fakeAsync((async) {
+          var built = 0;
+          watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+
+          emit(channel, RealtimeSubscribeStatus.channelError, 'x');
+          streams.dispose();
+          async.elapse(const Duration(minutes: 1));
+
+          expect(built, 1);
+          verify(channel.unsubscribe).called(1);
+        });
+      });
+
+      test('a retry timer of a cleaned key does not touch its new owner', () {
+        fakeAsync((async) {
+          final other = newChannel();
+          var built = 0;
+          final sub = watch<int>('k', () async => 1).listen((_) {});
+          async.flushMicrotasks();
+          emit(channel, RealtimeSubscribeStatus.channelError, 'x');
+          sub.cancel();
+
+          watch<int>(
+            'k',
+            () async => 2,
+            channelToUse: other,
+            onReload: (_) => built++,
+          ).listen((_) {});
+          async.elapse(const Duration(minutes: 1));
+
+          expect(built, 1);
+          verifyNever(other.unsubscribe);
+        });
+      });
     });
   });
 

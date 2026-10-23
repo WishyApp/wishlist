@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -17,12 +18,16 @@ class MockPostgresChangePayload extends Mock implements PostgresChangePayload {}
 class MockWishlistRepository extends Mock implements WishlistRepository {}
 
 typedef _PayloadCallback = void Function(PostgresChangePayload);
+typedef _StatusCallback = void Function(RealtimeSubscribeStatus, Object?);
 
 void main() {
   setUpAll(() => registerFallbackValue(PostgresChangeEvent.all));
 
   late MockSupabaseClient client;
   late MockRealtimeChannel channel;
+
+  /// Status callbacks passed to `channel.subscribe`, in order.
+  late List<_StatusCallback> statusCallbacks;
   late MockWishlistRepository wishlistRepository;
   late SupabaseWishlistStreamRepository repository;
   late List<_PayloadCallback> callbacks;
@@ -38,6 +43,7 @@ void main() {
   setUp(() {
     client = createMockSupabaseClient();
     channel = MockRealtimeChannel();
+    statusCallbacks = [];
     wishlistRepository = MockWishlistRepository();
     callbacks = [];
 
@@ -56,7 +62,12 @@ void main() {
       );
       return channel;
     });
-    when(channel.subscribe).thenReturn(channel);
+    when(() => channel.subscribe(any())).thenAnswer((invocation) {
+      statusCallbacks.add(
+        invocation.positionalArguments.first as _StatusCallback,
+      );
+      return channel;
+    });
     when(channel.unsubscribe).thenAnswer((_) async => 'ok');
 
     repository = SupabaseWishlistStreamRepository(client, wishlistRepository);
@@ -79,6 +90,26 @@ void main() {
     required void Function(int times) verifyLoads,
   }) {
     group(name, () {
+      test('reloads each time the channel reports subscribed', () async {
+        stubValue(value);
+
+        final sub = watch().listen((_) {});
+        await pumpEventQueue();
+        verifyLoads(1);
+
+        // Changement manqué avant le premier subscribed, puis après un rejoin.
+        expect(statusCallbacks, hasLength(1));
+        statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+        await pumpEventQueue();
+        verifyLoads(1);
+
+        statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+        await pumpEventQueue();
+        verifyLoads(1);
+
+        await sub.cancel();
+      });
+
       test('a second subscriber gets the current value', () async {
         stubValue(value);
 
@@ -352,6 +383,49 @@ void main() {
 
       await firstSub.cancel();
       await secondSub.cancel();
+    });
+  });
+
+  group('channel error recovery', () {
+    late MockRealtimeClient realtime;
+
+    setUp(() {
+      realtime = MockRealtimeClient();
+      when(() => realtime.isConnected).thenReturn(true);
+      when(() => client.realtime).thenReturn(realtime);
+      when(() => wishlistRepository.getWishlistsByUser(any()))
+          .thenAnswer((_) async => const IList<Wishlist>.empty());
+    });
+
+    test('a channel error builds a new channel once the socket is connected',
+        () {
+      fakeAsync((async) {
+        repository.watchWishlistsByUser('u').listen((_) {});
+        async.flushMicrotasks();
+        verify(() => client.channel('wishlists_user_u')).called(1);
+
+        statusCallbacks.single(RealtimeSubscribeStatus.channelError, 'rls');
+        async.elapse(const Duration(minutes: 1));
+
+        verify(() => client.channel('wishlists_user_u')).called(1);
+        verify(channel.unsubscribe).called(1);
+        expect(statusCallbacks, hasLength(2));
+      });
+    });
+
+    test('a channel error while the socket is down keeps the channel', () {
+      fakeAsync((async) {
+        repository.watchWishlistsByUser('u').listen((_) {});
+        async.flushMicrotasks();
+        verify(() => client.channel('wishlists_user_u')).called(1);
+
+        when(() => realtime.isConnected).thenReturn(false);
+        statusCallbacks.single(RealtimeSubscribeStatus.channelError, 'closed');
+        async.elapse(const Duration(minutes: 1));
+
+        verifyNever(() => client.channel('wishlists_user_u'));
+        verifyNever(channel.unsubscribe);
+      });
     });
   });
 }

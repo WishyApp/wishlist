@@ -31,7 +31,7 @@ void main() async {
   Future<void> startApp() async {
     await Supabase.initialize(
       url: config.supabaseConfig.url,
-      anonKey: config.supabaseConfig.anonKey,
+      publishableKey: config.supabaseConfig.anonKey,
     );
 
     if (isSentryEnabled) {

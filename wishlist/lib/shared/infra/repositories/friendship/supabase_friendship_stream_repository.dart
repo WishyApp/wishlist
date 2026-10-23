@@ -17,11 +17,18 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
 
   static const _bothUserColumns = ['requester_id', 'receiver_id'];
 
-  final _streams = KeyedRealtimeStreams(logTag: 'friendships');
+  late final _streams = KeyedRealtimeStreams(
+    logTag: 'friendships',
+    isSocketConnected: () => _client.realtime.isConnected,
+  );
 
-  /// Abonne un channel aux lignes de `friendships` où [userId] figure dans
-  /// l'une des [columns] (un filtre `eq` par colonne, donc un listener par
-  /// colonne).
+  /// Construit, sans l'abonner, un channel aux lignes de `friendships` où
+  /// [userId] figure dans l'une des [columns] (un filtre `eq` par colonne, donc
+  /// un listener par colonne).
+  ///
+  /// Un changement validé entre la première requête et l'abonnement du channel
+  /// n'est jamais livré en événement : [KeyedRealtimeStreams] recharge une fois
+  /// le channel abonné (et à chaque reconnexion).
   ///
   /// Le filtre réduit le trafic, ce n'est pas une barrière d'accès : le client
   /// en choisit la valeur, et la RLS n'est pas appliquée aux DELETE.
@@ -32,12 +39,11 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
   /// `supabase-tests/friendships_realtime.sql`). Avec la RLS, le payload reçu
   /// ne contient ensuite que la clé primaire dans `oldRecord` : il ne sert que
   /// de déclencheur de rechargement, ne pas y lire `requester_id`.
-  RealtimeChannel _subscribeToFriendships({
+  RealtimeChannel _buildFriendshipsChannel({
     required String channelName,
     required String userId,
     required List<String> columns,
     required void Function() onChange,
-    required void Function() onSubscribed,
   }) {
     var channel = _client.channel(channelName);
     for (final column in columns) {
@@ -53,15 +59,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         callback: (payload) => onChange(),
       );
     }
-    return channel.subscribe((status, _) {
-      // Un changement validé entre la première requête et l'abonnement du
-      // channel n'est jamais livré en événement : on recharge une fois abonné
-      // (et à chaque reconnexion). Les autres statuts
-      // ne disent rien du contenu.
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        onSubscribed();
-      }
-    });
+    return channel;
   }
 
   @override
@@ -73,12 +71,11 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       key,
       load: () => _fetchAllFriendships(currentUserId),
       skipEqual: true,
-      channelBuilder: (reload) => _subscribeToFriendships(
+      channelBuilder: (reload) => _buildFriendshipsChannel(
         channelName: 'friendships_all_$currentUserId',
         userId: currentUserId,
         columns: _bothUserColumns,
         onChange: reload,
-        onSubscribed: reload,
       ),
     );
   }
@@ -105,12 +102,11 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       key,
       load: () => _friendshipRepository.getFriendsIds(userId),
       skipEqual: true,
-      channelBuilder: (reload) => _subscribeToFriendships(
+      channelBuilder: (reload) => _buildFriendshipsChannel(
         channelName: 'friendships_$userId',
         userId: userId,
         columns: _bothUserColumns,
         onChange: reload,
-        onSubscribed: reload,
       ),
     );
   }
@@ -125,12 +121,11 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       load: _friendshipRepository.getCurrentUserPendingFriendsIds,
       skipEqual: true,
       // Les demandes envoyées par l'utilisateur : il en est le requester.
-      channelBuilder: (reload) => _subscribeToFriendships(
+      channelBuilder: (reload) => _buildFriendshipsChannel(
         channelName: 'friendships_pending_$currentUserId',
         userId: currentUserId,
         columns: const ['requester_id'],
         onChange: reload,
-        onSubscribed: reload,
       ),
     );
   }
@@ -145,12 +140,11 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
       load: _friendshipRepository.getCurrentUserRequestedFriendsIds,
       skipEqual: true,
       // Les demandes reçues par l'utilisateur : il en est le receiver.
-      channelBuilder: (reload) => _subscribeToFriendships(
+      channelBuilder: (reload) => _buildFriendshipsChannel(
         channelName: 'friendships_requested_$currentUserId',
         userId: currentUserId,
         columns: const ['receiver_id'],
         onChange: reload,
-        onSubscribed: reload,
       ),
     );
   }

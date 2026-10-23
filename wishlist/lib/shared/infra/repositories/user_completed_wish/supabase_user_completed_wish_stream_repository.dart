@@ -19,7 +19,10 @@ class SupabaseUserCompletedWishStreamRepository
   final UserCompletedWishRepository _repository;
   static const _tableName = 'user_completed_wishs';
 
-  final _streams = KeyedRealtimeStreams(logTag: 'completed wishes');
+  late final _streams = KeyedRealtimeStreams(
+    logTag: 'completed wishes',
+    isSocketConnected: () => _client.realtime.isConnected,
+  );
 
   @override
   Stream<IList<CompletedWishWithDetails>> watchCompletedWishesByUser(
@@ -72,16 +75,7 @@ class SupabaseUserCompletedWishStreamRepository
             schema: 'public',
             table: 'profiles',
             callback: (payload) => reload(),
-          )
-          .subscribe((status, _) {
-        // Un changement validé entre le premier chargement et le passage du
-        // channel à `subscribed` (ou pendant une reconnexion) n'arrive jamais
-        // en événement : on recharge. Les générations absorbent le chargement
-        // en plus.
-        if (status == RealtimeSubscribeStatus.subscribed) {
-          reload();
-        }
-      }),
+          ),
     );
   }
 

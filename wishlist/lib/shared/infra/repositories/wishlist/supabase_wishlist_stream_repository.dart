@@ -15,7 +15,10 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
   final WishlistRepository _wishlistRepository;
   static const _wishlistsTableName = 'wishlists';
 
-  final _streams = KeyedRealtimeStreams(logTag: 'wishlists');
+  late final _streams = KeyedRealtimeStreams(
+    logTag: 'wishlists',
+    isSocketConnected: () => _client.realtime.isConnected,
+  );
 
   @override
   Stream<IList<Wishlist>> watchWishlistsByUser(String userId) {
@@ -27,20 +30,18 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
     return _streams.watch<IList<Wishlist>>(
       key,
       load: fetch,
-      channelBuilder: (reload) => _client
-          .channel('wishlists_user_$userId')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: _wishlistsTableName,
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'id_owner',
-              value: userId,
-            ),
-            callback: (payload) => reload(),
-          )
-          .subscribe(),
+      channelBuilder: (reload) =>
+          _client.channel('wishlists_user_$userId').onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: _wishlistsTableName,
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'id_owner',
+                  value: userId,
+                ),
+                callback: (payload) => reload(),
+              ),
     );
   }
 
@@ -54,30 +55,28 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
     return _streams.watch<Wishlist?>(
       key,
       load: fetch,
-      channelBuilder: (reload) => _client
-          .channel('wishlist_$wishlistId')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: _wishlistsTableName,
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'id',
-              value: wishlistId,
-            ),
-            callback: (payload) => reload(
-              () async {
-                // L'archivage d'une wishlist arrive en UPDATE avec deleted_at
-                // renseigné
-                if (payload.eventType == PostgresChangeEvent.delete ||
-                    payload.newRecord['deleted_at'] != null) {
-                  return null;
-                }
-                return fetch();
-              },
-            ),
-          )
-          .subscribe(),
+      channelBuilder: (reload) =>
+          _client.channel('wishlist_$wishlistId').onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: _wishlistsTableName,
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'id',
+                  value: wishlistId,
+                ),
+                callback: (payload) => reload(
+                  () async {
+                    // L'archivage d'une wishlist arrive en UPDATE avec
+                    // deleted_at renseigné
+                    if (payload.eventType == PostgresChangeEvent.delete ||
+                        payload.newRecord['deleted_at'] != null) {
+                      return null;
+                    }
+                    return fetch();
+                  },
+                ),
+              ),
     );
   }
 
@@ -94,20 +93,18 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
     return _streams.watch<IList<Wishlist>>(
       key,
       load: fetch,
-      channelBuilder: (reload) => _client
-          .channel('wishlists_public_user_$userId')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: _wishlistsTableName,
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'id_owner',
-              value: userId,
-            ),
-            callback: (payload) => reload(),
-          )
-          .subscribe(),
+      channelBuilder: (reload) =>
+          _client.channel('wishlists_public_user_$userId').onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: _wishlistsTableName,
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'id_owner',
+                  value: userId,
+                ),
+                callback: (payload) => reload(),
+              ),
     );
   }
 
