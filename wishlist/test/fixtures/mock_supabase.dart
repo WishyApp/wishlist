@@ -21,6 +21,14 @@ class MockUser extends Mock implements User {}
 // ignore: avoid_implementing_value_types
 class MockSession extends Mock implements Session {}
 
+/// Session of [user], with the `pseudo` metadata the router redirect expects.
+MockSession createMockSession(User user) {
+  final session = MockSession();
+  when(() => session.user).thenReturn(user);
+  when(() => user.userMetadata).thenReturn({'pseudo': 'test'});
+  return session;
+}
+
 class MockUserService extends Mock implements UserService {}
 
 class MockFriendshipRepository extends Mock implements FriendshipRepository {}
@@ -50,6 +58,9 @@ MockSupabaseClient createMockSupabaseClient({
 
   when(() => mockSupabaseClient.auth).thenReturn(mockAuth);
   when(() => mockAuth.currentUser).thenReturn(signedOut ? null : mockUser);
+  final mockSession = createMockSession(mockUser);
+  when(() => mockAuth.currentSession)
+      .thenReturn(signedOut ? null : mockSession);
   when(() => mockUser.id).thenReturn(effectiveUserId);
   when(() => mockUser.email).thenReturn(userEmail ?? 'test@example.com');
   when(() => mockAuth.onAuthStateChange)
@@ -78,7 +89,7 @@ class FakeAuthSession {
     when(() => client.auth).thenReturn(auth);
     when(() => auth.currentUser).thenAnswer((_) => _user);
     when(() => auth.currentSession)
-        .thenAnswer((_) => _user == null ? null : MockSession());
+        .thenAnswer((_) => _user == null ? null : createMockSession(_user!));
     when(() => auth.onAuthStateChange).thenAnswer((_) => _events);
     setUserSilently(userId, email: email);
     _events = BehaviorSubject.seeded(
