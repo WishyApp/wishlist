@@ -39,16 +39,21 @@ class FriendDetailsScreen extends ConsumerWidget {
     // The back button stays available whatever the state of the data
     return Scaffold(
       appBar: FriendDetailsAppBar(friend: loadedDetails?.appUser),
-      body: SafeArea(
-        // The list scrolls under the home indicator, see its bottom padding
-        bottom: false,
-        child: friendDetails.when(
-          data: (friendDetails) => _FriendDetailsScreen(
+      body: friendDetails.when(
+        data: (friendDetails) => SafeArea(
+          // The list scrolls under the home indicator, its SliverSafeArea
+          // keeps the last item clear of it
+          bottom: false,
+          child: _FriendDetailsScreen(
             friendDetails: friendDetails,
             onRefresh: refreshFriendDetails,
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => PageLayoutError(
+        ),
+        loading: () => const SafeArea(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (error, stack) => SafeArea(
+          child: PageLayoutError(
             error: error,
             onRetry: () =>
                 ref.retryFailed([friendDetailsRealtimeProvider(friendId)]),
@@ -71,41 +76,44 @@ class _FriendDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
-
     return AppRefreshIndicator(
       onRefresh: onRefresh,
       child: CustomScrollView(
         slivers: [
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(30, 16, 30, 16 + bottomInset),
-            sliver: SliverMainAxisGroup(
-              slivers: [
-                SliverList(
-                  delegate: SliverChildListDelegate([
-                    // Stats
-                    _FriendStatsSection(friendDetails: friendDetails),
-                    const Gap(24),
+          SliverSafeArea(
+            top: false,
+            left: false,
+            right: false,
+            sliver: SliverPadding(
+              padding: const EdgeInsets.fromLTRB(30, 16, 30, 16),
+              sliver: SliverMainAxisGroup(
+                slivers: [
+                  SliverList(
+                    delegate: SliverChildListDelegate([
+                      // Stats
+                      _FriendStatsSection(friendDetails: friendDetails),
+                      const Gap(24),
 
-                    // Mutual friends
-                    _MutualFriendsTitleAndSection(
-                      friendDetails: friendDetails,
-                    ),
-                    const Gap(24),
+                      // Mutual friends
+                      _MutualFriendsTitleAndSection(
+                        friendDetails: friendDetails,
+                      ),
+                      const Gap(24),
 
-                    // Completed wishes
-                    _FriendCompletedWishesSection(
-                      friendId: friendDetails.appUser.user.id,
-                    ),
-                    const Gap(24),
+                      // Completed wishes
+                      _FriendCompletedWishesSection(
+                        friendId: friendDetails.appUser.user.id,
+                      ),
+                      const Gap(24),
 
-                    // Wishlists
-                    const _WishlistsTitle(),
-                    const Gap(12),
-                  ]),
-                ),
-                _WishlistsSection(friendDetails: friendDetails),
-              ],
+                      // Wishlists
+                      const _WishlistsTitle(),
+                      const Gap(12),
+                    ]),
+                  ),
+                  _WishlistsSection(friendDetails: friendDetails),
+                ],
+              ),
             ),
           ),
         ],
