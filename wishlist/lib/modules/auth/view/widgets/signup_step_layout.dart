@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Shared frame of the signup steps (pseudo, birthday): the content scrolls
 /// and is centered when it fits, the actions stay anchored at the bottom of
-/// the screen, so the buttons sit at the same place on every step. They rise
-/// above the keyboard.
+/// the screen, above the keyboard when it is open.
 class SignupStepLayout extends StatelessWidget {
   const SignupStepLayout({
     required this.content,
@@ -15,11 +14,10 @@ class SignupStepLayout extends StatelessWidget {
   /// Illustration, title, explanation and input.
   final Widget content;
 
-  /// The main button, pinned below the content.
+  /// The main button, at the very bottom.
   final Widget primaryAction;
 
-  /// Optional button under the main one. Its room is reserved even when
-  /// absent, so the main button sits at the same place on every step.
+  /// Optional button right above the main one.
   final Widget? secondaryAction;
 
   @override
@@ -47,12 +45,11 @@ class SignupStepLayout extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (secondaryAction case final secondaryAction?) ...[
+                    secondaryAction,
+                    const SizedBox(height: 8),
+                  ],
                   primaryAction,
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: kMinInteractiveDimension,
-                    child: secondaryAction,
-                  ),
                 ],
               ),
             ),

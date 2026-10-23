@@ -100,7 +100,8 @@ void main() {
     final later = tester.getRect(find.byType(TextButton));
     expect(save.bottom, lessThanOrEqualTo(568));
     expect(later.bottom, lessThanOrEqualTo(568));
-    expect(later.top, greaterThanOrEqualTo(save.bottom));
+    // "Later" sits right above the main button
+    expect(later.bottom, lessThanOrEqualTo(save.top));
   });
 
   testWidgets('saves the picked value then goes home', (tester) async {

@@ -11,7 +11,7 @@ import '../../../fixtures/mock_supabase.dart';
 import '../../../pump_app.dart';
 
 void main() {
-  testWidgets('the signup steps have their main button at the same place',
+  testWidgets('the signup steps anchor their main button at the bottom',
       (tester) async {
     // iPhone 8
     tester.view
@@ -38,8 +38,8 @@ void main() {
     final pseudo = await buttonRect(const PseudoScreen());
     final birthday = await buttonRect(const BirthdayStepScreen());
 
-    expect(pseudo.top, birthday.top);
-    expect(pseudo.left, birthday.left);
-    expect(pseudo.width, birthday.width);
+    // 16 px of bottom padding under the button, on both steps
+    expect(pseudo.bottom, 667 - 16);
+    expect(birthday.bottom, 667 - 16);
   });
 }
