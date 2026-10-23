@@ -47,10 +47,7 @@ class _ChangeBirthdayScreenState extends ConsumerState<ChangeBirthdayScreen> {
     final l10n = context.l10n;
     final birthday = ref.watch(currentUserBirthdayProvider);
 
-    // The provider is invalidated after a save, just before the screen pops:
-    // keep showing the form during that reload instead of a spinner.
     return birthday.when(
-      skipLoadingOnReload: true,
       loading: () => Scaffold(
         body: PageLayout(
           title: l10n.changeBirthdayScreenTitle,
@@ -90,6 +87,10 @@ class _ChangeBirthdayFormState extends ConsumerState<_ChangeBirthdayForm> {
 
   late Birthday _selected = widget.birthday ?? _defaultBirthday;
 
+  /// Without a saved birthday, the wheels start on a default the user did not
+  /// choose: saving it as is would store a wrong date.
+  late bool _hasPicked = widget.birthday != null;
+
   bool _isSaving = false;
   bool _isRemoving = false;
 
@@ -97,14 +98,17 @@ class _ChangeBirthdayFormState extends ConsumerState<_ChangeBirthdayForm> {
 
   void _onSuccess(String message) {
     // The callers checked `mounted`
-    // The settings line shows the new value
-    ref.invalidate(currentUserBirthdayProvider);
+    // Invalidated after the pop starts: the form would otherwise rebuild
+    // (Delete button) in the page that is leaving. The container outlives this
+    // State, and the settings line shows the new value.
+    final container = ProviderScope.containerOf(context);
     showAppSnackBar(
       context,
       message,
       type: SnackBarType.success,
     );
     context.pop();
+    container.invalidate(currentUserBirthdayProvider);
   }
 
   void _onError(AppException appException) {
@@ -164,12 +168,17 @@ class _ChangeBirthdayFormState extends ConsumerState<_ChangeBirthdayForm> {
         const Gap(16),
         BirthdayPicker(
           initialValue: _selected,
-          onChanged: (value) => _selected = value,
+          onChanged: (value) {
+            _selected = value;
+            if (!_hasPicked) {
+              setState(() => _hasPicked = true);
+            }
+          },
         ),
         const Gap(32),
         PrimaryButton(
           text: l10n.changeBirthdayConfirm,
-          onPressed: _isBusy ? null : _onSave,
+          onPressed: _isBusy || !_hasPicked ? null : _onSave,
           isLoading: _isSaving,
           style: BaseButtonStyle.large,
         ),
