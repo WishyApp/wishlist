@@ -94,6 +94,14 @@ void main() {
         find.descendant(of: pillOf('Bob'), matching: find.text('dans 30 j')),
         findsOneWidget,
       );
+      // The cake tells it is a birthday, not some other deadline
+      expect(
+        find.descendant(
+          of: pillOf('Alice'),
+          matching: find.byIcon(Icons.cake_rounded),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('says today and tomorrow in words', (tester) async {
@@ -135,6 +143,7 @@ void main() {
       expect(find.textContaining('dans '), findsNothing);
       expect(find.text('demain'), findsNothing);
       expect(find.text("aujourd'hui"), findsNothing);
+      expect(find.byIcon(Icons.cake_rounded), findsNothing);
     });
 
     testWidgets('keeps the list order and the pending pills without badge',

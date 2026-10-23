@@ -84,13 +84,24 @@ class _BirthdayBadge extends StatelessWidget {
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        context.l10n.friendBirthdayBadge(days),
-        maxLines: 1,
-        style: AppTextStyles.smaller.copyWith(
-          fontWeight: FontWeight.bold,
-          color: AppColors.darkGrey,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.cake_rounded,
+            size: 16,
+            color: AppColors.darkOrange,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            context.l10n.friendBirthdayBadge(days),
+            maxLines: 1,
+            style: AppTextStyles.smaller.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkGrey,
+            ),
+          ),
+        ],
       ),
     );
   }

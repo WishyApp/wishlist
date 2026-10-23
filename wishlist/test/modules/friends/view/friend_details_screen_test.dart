@@ -85,15 +85,16 @@ void main() {
         birthdays: {fakeFriendUserId1: const Birthday(month: 10, day: 28)},
       );
 
-      expect(find.text('🎂 28 octobre · dans 5 jours'), findsOneWidget);
+      expect(find.text('28 octobre · dans 5 jours'), findsOneWidget);
+      expect(find.byIcon(Icons.cake_rounded), findsOneWidget);
     });
 
     // (month, day, expected line): the countdown stops after 30 days
     const lines = [
-      (10, 24, '🎂 24 octobre · demain'),
-      (10, 23, "🎂 23 octobre · aujourd'hui !"),
-      (11, 22, '🎂 22 novembre · dans 30 jours'),
-      (11, 23, '🎂 23 novembre'),
+      (10, 24, '24 octobre · demain'),
+      (10, 23, "23 octobre · aujourd'hui !"),
+      (11, 22, '22 novembre · dans 30 jours'),
+      (11, 23, '23 novembre'),
     ];
     for (final (month, day, line) in lines) {
       testWidgets('shows "$line"', (tester) async {
@@ -111,7 +112,7 @@ void main() {
     testWidgets('shows nothing without a visible birthday', (tester) async {
       await pumpDetails(tester);
 
-      expect(find.textContaining('🎂'), findsNothing);
+      expect(find.byIcon(Icons.cake_rounded), findsNothing);
       expect(find.text(fakeFriendDetails.appUser.profile.pseudo), findsWidgets);
     });
 
@@ -126,7 +127,7 @@ void main() {
         extraOverrides: [userServiceProvider.overrideWithValue(userService)],
       );
 
-      expect(find.textContaining('🎂'), findsNothing);
+      expect(find.byIcon(Icons.cake_rounded), findsNothing);
       expect(find.text(fakeFriendDetails.appUser.profile.pseudo), findsWidgets);
       expect(tester.takeException(), isNull);
     });
@@ -161,7 +162,7 @@ void main() {
         ],
       );
 
-      expect(find.textContaining('🎂 28 octobre'), findsOneWidget);
+      expect(find.textContaining('28 octobre'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

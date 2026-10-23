@@ -551,13 +551,13 @@ abstract class AppLocalizations {
   /// No description provided for @friendBirthday.
   ///
   /// In fr, this message translates to:
-  /// **'🎂 {date}'**
+  /// **'{date}'**
   String friendBirthday(String date);
 
   /// No description provided for @friendBirthdayWithCountdown.
   ///
   /// In fr, this message translates to:
-  /// **'🎂 {date} · {days, plural, =0{aujourd\'hui !} =1{demain} other{dans {days} jours}}'**
+  /// **'{date} · {days, plural, =0{aujourd\'hui !} =1{demain} other{dans {days} jours}}'**
   String friendBirthdayWithCountdown(String date, int days);
 
   /// No description provided for @changePasswordSuccess.

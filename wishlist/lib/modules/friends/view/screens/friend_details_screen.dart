@@ -171,8 +171,8 @@ class _FriendStatsSection extends ConsumerWidget {
   }
 }
 
-/// "🎂 12 mars · dans 5 jours" (countdown within 30 days only), nothing
-/// without a visible birthday.
+/// Cake icon + "12 mars · dans 5 jours" (countdown within 30 days only),
+/// nothing without a visible birthday.
 class _FriendBirthdayLine extends ConsumerWidget {
   const _FriendBirthdayLine({required this.friendId});
   final String friendId;
@@ -194,13 +194,25 @@ class _FriendBirthdayLine extends ConsumerWidget {
         ? l10n.friendBirthdayWithCountdown(date, days)
         : l10n.friendBirthday(date);
 
-    return Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: AppTextStyles.smaller.copyWith(
-        color: AppColors.makara,
-      ),
+    return Row(
+      children: [
+        const Icon(
+          Icons.cake_rounded,
+          size: 16,
+          color: AppColors.makara,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.smaller.copyWith(
+              color: AppColors.makara,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

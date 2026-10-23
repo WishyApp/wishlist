@@ -270,7 +270,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String friendBirthday(String date) {
-    return '🎂 $date';
+    return '$date';
   }
 
   @override
@@ -282,7 +282,7 @@ class AppLocalizationsEn extends AppLocalizations {
       one: 'tomorrow',
       zero: 'today!',
     );
-    return '🎂 $date · $_temp0';
+    return '$date · $_temp0';
   }
 
   @override

@@ -89,7 +89,7 @@
       }
     }
   },
-  "friendBirthday": "🎂 {date}",
+  "friendBirthday": "{date}",
   "@friendBirthday": {
     "placeholders": {
       "date": {
@@ -97,7 +97,7 @@
       }
     }
   },
-  "friendBirthdayWithCountdown": "🎂 {date} · {days, plural, =0{aujourd'hui !} =1{demain} other{dans {days} jours}}",
+  "friendBirthdayWithCountdown": "{date} · {days, plural, =0{aujourd'hui !} =1{demain} other{dans {days} jours}}",
   "@friendBirthdayWithCountdown": {
     "placeholders": {
       "date": {
