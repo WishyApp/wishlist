@@ -132,6 +132,18 @@ SELECT pg_temp.expect_rows('stranger reads nothing',
   $q$SELECT * FROM public.profile_birthdays$q$, 0);
 SELECT pg_temp.expect_rows('stranger deletes nothing',
   $q$DELETE FROM public.profile_birthdays$q$, 0);
+-- Without any friendship the checks are false, not NULL: a NOT around them
+-- must never grant anything
+DO $$
+BEGIN
+  IF public.can_read_birthday('00000000-0000-4000-d000-00000000000a') IS NOT FALSE THEN
+    RAISE EXCEPTION 'FAIL can_read_birthday for a stranger is not false';
+  END IF;
+  IF public.can_read_profile('00000000-0000-4000-d000-00000000000a') IS NOT FALSE THEN
+    RAISE EXCEPTION 'FAIL can_read_profile for a stranger is not false';
+  END IF;
+  RAISE NOTICE 'ok   checks are false, not NULL, for a stranger';
+END $$;
 
 -- Rejected and blocked friendships give no access
 SELECT pg_temp.act_as('00000000-0000-4000-d000-000000000010');
