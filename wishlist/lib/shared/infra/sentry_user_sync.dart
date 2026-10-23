@@ -25,8 +25,14 @@ class SentryUserSync {
   }
 
   void start() {
+    // gotrue also pushes refresh failures into this stream (e.g. an
+    // AuthRetryableFetchException when resuming offline). They are not ours to
+    // handle: without onError they would reach the zone handler and Sentry.
     _subscription ??= _authStateChanges.listen(
       (state) => _applyUser(state.session?.user.id),
+      onError: (Object error) => debugPrint(
+        'Ignored auth stream error in the Sentry user sync: $error',
+      ),
     );
   }
 

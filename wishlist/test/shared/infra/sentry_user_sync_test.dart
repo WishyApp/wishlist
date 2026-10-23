@@ -98,4 +98,33 @@ void main() {
     await sync.dispose();
     await controller.close();
   });
+
+  test('ignores auth stream errors and keeps syncing', () async {
+    final controller = StreamController<AuthState>();
+    final calls = <String?>[];
+    final uncaught = <Object>[];
+    late SentryUserSync sync;
+
+    await runZonedGuarded(
+      () async {
+        sync = SentryUserSync(
+          authStateChanges: controller.stream,
+          setUser: (id) async => calls.add(id),
+        )..start();
+
+        controller
+          ..add(_state(AuthChangeEvent.signedIn, userId: 'user-1'))
+          ..addError(AuthRetryableFetchException(message: 'offline'))
+          ..add(_state(AuthChangeEvent.signedOut));
+        await pumpEventQueue();
+      },
+      (error, _) => uncaught.add(error),
+    );
+
+    expect(uncaught, isEmpty);
+    expect(calls, ['user-1', null]);
+
+    await sync.dispose();
+    await controller.close();
+  });
 }
