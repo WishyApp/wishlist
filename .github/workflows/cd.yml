@@ -198,12 +198,14 @@ jobs:
       - name: Build App Bundle
         run: flutter build appbundle --release --dart-define=APP_ENV=prod
 
+      # Kept one day only, as a fallback if the store upload fails: the free
+      # plan caps artifact storage at 500 MB, and the stores keep the builds.
       - name: Upload App Bundle artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release-aab
           path: wishlist/build/app/outputs/bundle/release/app-release.aab
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: error
 
       - name: Upload to Google Play (Internal Testing)
@@ -327,7 +329,7 @@ jobs:
         with:
           name: app-release-ipa
           path: wishlist/${{ env.IPA_PATH }}
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: error
 
       - name: Upload to TestFlight
