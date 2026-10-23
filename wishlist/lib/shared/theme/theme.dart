@@ -7,11 +7,17 @@ ThemeData get theme => ThemeData(
       scaffoldBackgroundColor: AppColors.background,
       primaryColor: AppColors.primary,
       primaryColorDark: const Color.fromRGBO(223, 115, 61, 1),
-      tabBarTheme: const TabBarThemeData(
+      tabBarTheme: TabBarThemeData(
         labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.background,
         dividerColor: Colors.transparent,
         indicatorColor: AppColors.primary,
+        // No tap splash, but keep the focus and hover overlays (accessibility)
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.pressed) ? Colors.transparent : null,
+        ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,
