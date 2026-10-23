@@ -50,7 +50,8 @@ SET search_path = ''
 AS $$
   SELECT
     p_profile_id = (SELECT auth.uid())
-    OR public.friendship_status_between((SELECT auth.uid()), p_profile_id) = 'accepted';
+    -- No friendship gives NULL: coalesce keeps the result a plain boolean
+    OR COALESCE(public.friendship_status_between((SELECT auth.uid()), p_profile_id) = 'accepted', false);
 $$;
 
 -- can_read_profile is redefined as in 20261018100000, only its friendship
@@ -65,7 +66,8 @@ SET search_path = ''
 AS $$
   SELECT
     p_profile_id = (SELECT auth.uid())
-    OR public.friendship_status_between((SELECT auth.uid()), p_profile_id) IN ('pending', 'accepted')
+    -- No friendship gives NULL: coalesce keeps the result a plain boolean
+    OR COALESCE(public.friendship_status_between((SELECT auth.uid()), p_profile_id) IN ('pending', 'accepted'), false)
     OR EXISTS (
       SELECT 1
       FROM public.wishlists wl
