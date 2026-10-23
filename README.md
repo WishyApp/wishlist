@@ -23,7 +23,7 @@ Welcome to the Wishy App! This Flutter application is designed to help you effor
 1. **🔗 Clone the Repository**
 
    ```bash
-   git clone git@github.com:Raphael-Mssn/wishlist.git
+   git clone git@github.com:WishyApp/wishlist.git
    cd wishlist
    ```
 
