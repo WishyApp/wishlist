@@ -548,12 +548,6 @@ abstract class AppLocalizations {
   /// **'{days, plural, =0{aujourd\'hui} =1{demain} other{dans {days} j}}'**
   String friendBirthdayBadge(int days);
 
-  /// No description provided for @friendBirthday.
-  ///
-  /// In fr, this message translates to:
-  /// **'{date}'**
-  String friendBirthday(String date);
-
   /// No description provided for @friendBirthdayWithCountdown.
   ///
   /// In fr, this message translates to:

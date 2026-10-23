@@ -89,14 +89,6 @@
       }
     }
   },
-  "friendBirthday": "{date}",
-  "@friendBirthday": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
   "friendBirthdayWithCountdown": "{date} · {days, plural, =0{aujourd'hui !} =1{demain} other{dans {days} jours}}",
   "@friendBirthdayWithCountdown": {
     "placeholders": {

@@ -25,6 +25,8 @@ import '../../../fixtures/mock_supabase.dart';
 import '../../../pump_app.dart';
 
 void main() {
+  setUpAll(() => registerFallbackValue(const ISetConst<String>({})));
+
   testAdaptiveWidgets('$FriendDetailsScreen golden test',
       (tester, variant) async {
     await tester.pumpRouterApp(
@@ -119,12 +121,16 @@ void main() {
     testWidgets('shows the page when the birthdays fail to load',
         (tester) async {
       final userService = MockUserService();
-      when(userService.getVisibleBirthdays).thenThrow(Exception('boom'));
+      when(() => userService.getVisibleBirthdays(any()))
+          .thenThrow(Exception('boom'));
 
       await pumpDetails(
         tester,
         overrideBirthdays: false,
-        extraOverrides: [userServiceProvider.overrideWithValue(userService)],
+        extraOverrides: [
+          emptyFriendshipsRealtimeOverride(),
+          userServiceProvider.overrideWithValue(userService),
+        ],
       );
 
       expect(find.byIcon(Icons.cake_rounded), findsNothing);

@@ -10,7 +10,6 @@ import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
-import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/friend_details/friend_details.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
@@ -189,10 +188,9 @@ class _FriendBirthdayLine extends ConsumerWidget {
     final date = birthday.format(locale);
     // Read at build time: a screen left open past midnight updates on its
     // next rebuild.
-    final days = birthday.daysUntil(ref.watch(clockProvider)());
-    final text = days <= Birthday.upcomingDays
-        ? l10n.friendBirthdayWithCountdown(date, days)
-        : l10n.friendBirthday(date);
+    final days = birthday.upcomingIn(ref.watch(clockProvider)());
+    final text =
+        days == null ? date : l10n.friendBirthdayWithCountdown(date, days);
 
     return Row(
       children: [

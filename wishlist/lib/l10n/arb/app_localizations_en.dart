@@ -268,11 +268,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String friendBirthday(String date) {
-    return '$date';
-  }
-
-  @override
   String friendBirthdayWithCountdown(String date, int days) {
     String _temp0 = intl.Intl.pluralLogic(
       days,

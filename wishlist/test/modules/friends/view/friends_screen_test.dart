@@ -20,6 +20,8 @@ import '../../../fixtures/mock_supabase.dart';
 import '../../../pump_app.dart';
 
 void main() {
+  setUpAll(() => registerFallbackValue(const ISetConst<String>({})));
+
   testAdaptiveWidgets('$FriendsScreen golden test', (tester, variant) async {
     await tester.pumpApp(
       const FloatingNavBarNavigator(
@@ -178,7 +180,8 @@ void main() {
     testWidgets('still lists the friends when the birthdays fail to load',
         (tester) async {
       final userService = MockUserService();
-      when(userService.getVisibleBirthdays).thenThrow(Exception('boom'));
+      when(() => userService.getVisibleBirthdays(any()))
+          .thenThrow(Exception('boom'));
 
       await pumpFriends(
         tester,
@@ -222,6 +225,30 @@ void main() {
       );
 
       expect(find.text('dans 12 j'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('does not overflow with a large text scale on 320 px',
+        (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(320, 640);
+      addTearDown(tester.view.reset);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await pumpFriends(
+        tester,
+        overrides: homeScreenOverrides(
+          now: today,
+          birthdays: {
+            fakeFriendUserId1: inDays(0),
+            fakeFriendUserId2: inDays(12),
+          },
+        ),
+      );
+
+      expect(find.byType(FriendPill), findsNWidgets(2));
       expect(tester.takeException(), isNull);
     });
   });

@@ -5,7 +5,6 @@ import 'package:wishlist/modules/friends/view/widgets/base_avatar_pill.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
-import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
@@ -35,36 +34,42 @@ class FriendPill extends ConsumerWidget {
     final birthday = ref.watch(friendBirthdayProvider(appUser.user.id));
     // Read at build time: a screen left open past midnight updates on its
     // next rebuild.
-    final daysUntilBirthday = birthday?.daysUntil(ref.watch(clockProvider)());
-    final hasUpcomingBirthday =
-        daysUntilBirthday != null && daysUntilBirthday <= Birthday.upcomingDays;
+    final daysUntilBirthday = birthday?.upcomingIn(ref.watch(clockProvider)());
 
     return BaseAvatarPill(
       onTap: () => _onTap(context),
       backgroundColor: AppColors.primary,
       avatarBorderColor: AppColors.darkOrange,
       avatarUrl: appUser.profile.avatarUrl,
-      child: Row(
-        children: [
-          // The pseudo gives way to the badge, not the other way around
-          Expanded(
-            child: Text(
-              appUser.profile.pseudo,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.large.copyWith(
-                fontWeight: FontWeight.bold,
-                color: textColor,
-                shadows: [
-                  textShadow,
-                ],
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            // The pseudo gives way to the badge, not the other way around
+            Expanded(
+              child: Text(
+                appUser.profile.pseudo,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.large.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  shadows: [
+                    textShadow,
+                  ],
+                ),
               ),
             ),
-          ),
-          if (hasUpcomingBirthday) ...[
-            const SizedBox(width: 8),
-            _BirthdayBadge(days: daysUntilBirthday),
+            if (daysUntilBirthday != null) ...[
+              const SizedBox(width: 8),
+              // A Row gives its fixed children unbounded width: cap the badge,
+              // so that its text ellipsizes instead of overflowing.
+              ConstrainedBox(
+                constraints:
+                    BoxConstraints(maxWidth: constraints.maxWidth * 0.6),
+                child: _BirthdayBadge(days: daysUntilBirthday),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -93,12 +98,15 @@ class _BirthdayBadge extends StatelessWidget {
             color: AppColors.darkOrange,
           ),
           const SizedBox(width: 4),
-          Text(
-            context.l10n.friendBirthdayBadge(days),
-            maxLines: 1,
-            style: AppTextStyles.smaller.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.darkGrey,
+          Flexible(
+            child: Text(
+              context.l10n.friendBirthdayBadge(days),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.smaller.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkGrey,
+              ),
             ),
           ),
         ],
