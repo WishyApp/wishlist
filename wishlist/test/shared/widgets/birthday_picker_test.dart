@@ -38,6 +38,36 @@ void main() {
     expect(find.text('12'), findsOneWidget);
   });
 
+  testWidgets('loops: December above January, 31 above 1', (tester) async {
+    final changes = await pumpPicker(tester, const Birthday(month: 1, day: 1));
+
+    await tester.drag(monthPicker, const Offset(0, _itemExtent));
+    await tester.pumpAndSettle();
+    expect(changes.last, const Birthday(month: 12, day: 1));
+
+    await tester.drag(dayPicker, const Offset(0, _itemExtent));
+    await tester.pumpAndSettle();
+    expect(changes.last, const Birthday(month: 12, day: 31));
+  });
+
+  testWidgets('keeps the day when the month changes after a full loop',
+      (tester) async {
+    final changes = await pumpPicker(tester, const Birthday(month: 1, day: 1));
+
+    // 35 items down a 31-day wheel: past one loop, on the 5th
+    for (var i = 0; i < 7; i++) {
+      await tester.drag(dayPicker, const Offset(0, -_itemExtent * 5));
+      await tester.pumpAndSettle();
+    }
+    expect(changes.last, const Birthday(month: 1, day: 5));
+
+    // February has 29 days: the same position modulo 29 would read the 7th
+    await scrollMonth(tester, 1);
+    expect(changes.last, const Birthday(month: 2, day: 5));
+    final dayWheel = tester.widget<CupertinoPicker>(dayPicker);
+    expect(dayWheel.scrollController!.selectedItem % 29, 4);
+  });
+
   testWidgets('clamps 31 to 30 when switching to April', (tester) async {
     final changes = await pumpPicker(tester, const Birthday(month: 3, day: 31));
 
