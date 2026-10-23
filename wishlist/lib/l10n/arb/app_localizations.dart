@@ -338,6 +338,18 @@ abstract class AppLocalizations {
   /// **'Sauvegarder'**
   String get savePseudo;
 
+  /// No description provided for @pseudoStepTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisis ton pseudo'**
+  String get pseudoStepTitle;
+
+  /// No description provided for @pseudoStepExplanation.
+  ///
+  /// In fr, this message translates to:
+  /// **'C\'est le nom que tes amis verront dans Wishy.'**
+  String get pseudoStepExplanation;
+
   /// No description provided for @bookedWishesScreenTitle.
   ///
   /// In fr, this message translates to:

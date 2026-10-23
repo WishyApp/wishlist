@@ -40,6 +40,8 @@
   "validPseudoError": "Pseudo cannot be empty",
   "pseudoAlreadyExists": "This pseudo is already used",
   "savePseudo": "Save",
+  "pseudoStepTitle": "Pick your pseudo",
+  "pseudoStepExplanation": "It's the name your friends will see in Wishy.",
   "bookedWishesScreenTitle": "Bookings",
   "bookedWishesEmptyTitle": "No bookings",
   "bookedWishesEmptyCallToAction": "Explore your friends' wishlists",

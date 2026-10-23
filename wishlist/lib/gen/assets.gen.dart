@@ -44,6 +44,9 @@ class $AssetsSvgGen {
   /// File path: assets/svg/no_wishlist.svg
   String get noWishlist => 'assets/svg/no_wishlist.svg';
 
+  /// File path: assets/svg/pseudo.svg
+  String get pseudo => 'assets/svg/pseudo.svg';
+
   /// List of all assets
   List<String> get values => [
         birthday,
@@ -53,6 +56,7 @@ class $AssetsSvgGen {
         noWishBoxHat,
         noWishFlashlight,
         noWishlist,
+        pseudo,
       ];
 }
 

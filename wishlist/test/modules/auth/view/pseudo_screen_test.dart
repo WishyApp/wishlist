@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
     show AuthChangeEvent, AuthState;
 import 'package:wishlist/app/navigation/app_redirect.dart';
+import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/auth/view/pseudo_screen.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
@@ -36,6 +38,44 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.expectGolden<PseudoScreen>(variant);
+  });
+
+  testWidgets('shows the illustration, the title and the explanation',
+      (tester) async {
+    final l10n = AppLocalizationsFr();
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: pseudoScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SvgPicture), findsOneWidget);
+    expect(find.text(l10n.pseudoStepTitle), findsOneWidget);
+    expect(find.text(l10n.pseudoStepExplanation), findsOneWidget);
+  });
+
+  testWidgets('fits a small screen with the keyboard open', (tester) async {
+    // iPhone SE (1st gen) height, the smallest we support, with the keyboard
+    tester.view
+      ..physicalSize = const Size(320, 568)
+      ..devicePixelRatio = 1
+      ..viewInsets = const FakeViewPadding(bottom: 260);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: pseudoScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+
+    // The scroll view keeps the field and the button reachable
+    await tester.ensureVisible(find.byType(TextFormField));
+    await tester.ensureVisible(find.byType(PrimaryButton));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   group('on success', () {

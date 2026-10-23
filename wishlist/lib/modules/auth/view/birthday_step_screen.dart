@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishlist/app/navigation/app_redirect.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/modules/auth/view/widgets/auth_illustration.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
@@ -77,11 +77,6 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    // The drawing is tall and narrow: it gets most of the space the short
-    // texts leave. Everything still fits an iPhone 8 without scrolling.
-    final illustrationHeight =
-        (MediaQuery.sizeOf(context).height * 0.3).clamp(140.0, 260.0);
-
     // Back behaves like "later": popping would land on home and lose redirectTo
     return PopScope(
       canPop: false,
@@ -98,10 +93,7 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SvgPicture.asset(
-                    Assets.svg.birthday,
-                    height: illustrationHeight,
-                  ),
+                  AuthIllustration(asset: Assets.svg.birthday),
                   const Gap(16),
                   Text(
                     l10n.birthdayStepTitle,
