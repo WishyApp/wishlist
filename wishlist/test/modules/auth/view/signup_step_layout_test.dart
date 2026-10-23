@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishlist/modules/auth/view/birthday_step_screen.dart';
 import 'package:wishlist/modules/auth/view/pseudo_screen.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
+import 'package:wishlist/shared/widgets/birthday_picker.dart';
 
 import '../../../fixtures/fake_providers.dart';
 import '../../../fixtures/mock_supabase.dart';
@@ -41,5 +43,43 @@ void main() {
     // 16 px of bottom padding under the button, on both steps
     expect(pseudo.bottom, 667 - 16);
     expect(birthday.bottom, 667 - 16);
+  });
+
+  testWidgets('the header sits at the top, the input right above the actions',
+      (tester) async {
+    // iPhone 13: room to spare between the two blocks
+    tester.view
+      ..physicalSize = const Size(390, 844)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final userService = MockUserService();
+
+    Future<void> pump(Widget screen) async {
+      await tester.pumpRouterApp(
+        '/',
+        overrides: [
+          ...pseudoScreenOverrides(),
+          userServiceProvider.overrideWithValue(userService),
+        ],
+        routes: [GoRoute(path: '/', builder: (_, __) => screen)],
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+
+    await pump(const PseudoScreen());
+    expect(tester.getTopLeft(find.byType(SvgPicture)).dy, 32);
+    expect(
+      tester.getBottomLeft(find.byType(TextFormField)).dy + 16,
+      tester.getTopLeft(find.byType(PrimaryButton)).dy,
+    );
+
+    await pump(const BirthdayStepScreen());
+    expect(tester.getTopLeft(find.byType(SvgPicture)).dy, 32);
+    expect(
+      tester.getBottomLeft(find.byType(BirthdayPicker)).dy + 16,
+      tester.getTopLeft(find.byType(TextButton)).dy,
+    );
   });
 }

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
-import 'package:wishlist/modules/auth/view/widgets/auth_illustration.dart';
 import 'package:wishlist/modules/auth/view/widgets/signup_step_layout.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
@@ -12,8 +10,6 @@ import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/profile.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
-import 'package:wishlist/shared/theme/colors.dart';
-import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/widgets/text_form_fields/validators/pseudo_validator.dart';
@@ -87,34 +83,18 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
     // Same frame as the birthday step that follows, without the app title of
     // the sign-in screen
     return SignupStepLayout(
-      content: Form(
+      illustration: Assets.svg.pseudo,
+      title: l10n.pseudoStepTitle,
+      explanation: l10n.pseudoStepExplanation,
+      input: Form(
         key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AuthIllustration(asset: Assets.svg.pseudo),
-            const Gap(16),
-            Text(
-              l10n.pseudoStepTitle,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.titleSmall,
-            ),
-            const Gap(8),
-            Text(
-              l10n.pseudoStepExplanation,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.smaller.copyWith(color: AppColors.makara),
-            ),
-            const Gap(24),
-            TextFormField(
-              controller: _pseudoController,
-              decoration: InputDecoration(
-                labelText: l10n.pseudoField,
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              validator: (value) => pseudoValidator(value, l10n),
-            ),
-          ],
+        child: TextFormField(
+          controller: _pseudoController,
+          decoration: InputDecoration(
+            labelText: l10n.pseudoField,
+          ),
+          textCapitalization: TextCapitalization.sentences,
+          validator: (value) => pseudoValidator(value, l10n),
         ),
       ),
       primaryAction: PrimaryButton(

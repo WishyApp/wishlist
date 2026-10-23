@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishlist/app/navigation/app_redirect.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
-import 'package:wishlist/modules/auth/view/widgets/auth_illustration.dart';
 import 'package:wishlist/modules/auth/view/widgets/signup_step_layout.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
@@ -87,28 +85,12 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
         }
       },
       child: SignupStepLayout(
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AuthIllustration(asset: Assets.svg.birthday),
-            const Gap(16),
-            Text(
-              l10n.birthdayStepTitle,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.titleSmall,
-            ),
-            const Gap(8),
-            Text(
-              l10n.birthdayStepExplanation,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.smaller.copyWith(color: AppColors.makara),
-            ),
-            const Gap(16),
-            BirthdayPicker(
-              initialValue: _selected,
-              onChanged: (value) => _selected = value,
-            ),
-          ],
+        illustration: Assets.svg.birthday,
+        title: l10n.birthdayStepTitle,
+        explanation: l10n.birthdayStepExplanation,
+        input: BirthdayPicker(
+          initialValue: _selected,
+          onChanged: (value) => _selected = value,
         ),
         primaryAction: PrimaryButton(
           text: l10n.changeBirthdayConfirm,

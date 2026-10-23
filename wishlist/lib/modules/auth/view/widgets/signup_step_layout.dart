@@ -1,18 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:gap/gap.dart';
+import 'package:wishlist/modules/auth/view/widgets/auth_illustration.dart';
+import 'package:wishlist/shared/theme/colors.dart';
+import 'package:wishlist/shared/theme/text_styles.dart';
 
-/// Shared frame of the signup steps (pseudo, birthday): the content scrolls
-/// and is centered when it fits, the actions stay anchored at the bottom of
-/// the screen, above the keyboard when it is open.
+/// Shared frame of the signup steps (pseudo, birthday), in two blocks: the
+/// header (illustration, title, explanation) at the top, the input at the
+/// bottom, right above the actions; the free space goes between the two. The
+/// actions stay anchored at the bottom of the screen, above the keyboard when
+/// it is open, and the blocks scroll when they no longer fit.
 class SignupStepLayout extends StatelessWidget {
   const SignupStepLayout({
-    required this.content,
+    required this.illustration,
+    required this.title,
+    required this.explanation,
+    required this.input,
     required this.primaryAction,
     this.secondaryAction,
     super.key,
   });
 
-  /// Illustration, title, explanation and input.
-  final Widget content;
+  /// Asset of the illustration (`Assets.svg.*`).
+  final String illustration;
+
+  final String title;
+  final String explanation;
+
+  /// The field or picker of the step.
+  final Widget input;
 
   /// The main button, at the very bottom.
   final Widget primaryAction;
@@ -27,17 +42,47 @@ class SignupStepLayout extends StatelessWidget {
         child: Column(
           children: [
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) => SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      // The padding is part of the scrollable extent
-                      minHeight: constraints.maxHeight - 32 - 16,
+              child: CustomScrollView(
+                slivers: [
+                  // At least the visible height, so that spaceBetween has
+                  // room to spread; more when the blocks do not fit. The
+                  // padding goes inside: around the sliver, it would be added
+                  // to that height and make a screen that fits scroll.
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              AuthIllustration(asset: illustration),
+                              const Gap(16),
+                              Text(
+                                title,
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.titleSmall,
+                              ),
+                              const Gap(8),
+                              Text(
+                                explanation,
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.smaller
+                                    .copyWith(color: AppColors.makara),
+                              ),
+                            ],
+                          ),
+                          // Minimum gap between the blocks when space is short
+                          const Gap(24),
+                          input,
+                        ],
+                      ),
                     ),
-                    child: Center(child: content),
                   ),
-                ),
+                ],
               ),
             ),
             Padding(
