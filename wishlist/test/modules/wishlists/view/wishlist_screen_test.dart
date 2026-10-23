@@ -265,7 +265,7 @@ void main() {
   );
 
   testWidgets(
-    'keeps the owner actions while the session ends and the screen is leaving',
+    'builds nothing once the session ends, until the router redirects',
     (tester) async {
       final session = FakeAuthSession(userId: fakeCurrentUserId);
       addTearDown(session.close);
@@ -287,9 +287,11 @@ void main() {
       session.signOut();
       await tester.pumpAndSettle();
 
-      // The owner floating actions stay for the frames before the
-      // router redirects.
-      expect(find.byIcon(Icons.add), findsOneWidget);
+      // The session guard replaces the screen with an empty page for the
+      // frames before the router redirects (no redirect in this test).
+      expect(tester.takeException(), isNull);
+      expect(find.byType(WishlistScreen), findsNothing);
+      expect(find.byIcon(Icons.add), findsNothing);
     },
   );
 

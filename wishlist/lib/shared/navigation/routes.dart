@@ -15,6 +15,7 @@ import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/edit_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/wish_form_screen.dart';
 import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
+import 'package:wishlist/shared/navigation/authenticated_route.dart';
 import 'package:wishlist/shared/navigation/floating_nav_bar_navigator.dart';
 
 part 'routes.g.dart';
@@ -69,9 +70,9 @@ part 'routes.g.dart';
     ),
   ],
 )
-class HomeRoute extends GoRouteData {
+class HomeRoute extends AuthenticatedRoute {
   @override
-  Widget build(BuildContext context, GoRouterState state) {
+  Widget buildScreen(BuildContext context, GoRouterState state) {
     final tab = homeTabFromQuery(state.uri.queryParameters['tab']);
     return FloatingNavBarNavigator(
       key: ValueKey(tab),
@@ -90,14 +91,14 @@ FloatingNavBarTab homeTabFromQuery(String? value) {
   return FloatingNavBarTab.values[index];
 }
 
-class PseudoRoute extends GoRouteData {
+class PseudoRoute extends AuthenticatedRoute {
   @override
-  Widget build(BuildContext context, GoRouterState state) => PseudoScreen(
+  Widget buildScreen(BuildContext context, GoRouterState state) => PseudoScreen(
         redirectTo: state.uri.queryParameters['redirectTo'],
       );
 }
 
-class WishlistRoute extends GoRouteData {
+class WishlistRoute extends AuthenticatedRoute {
   WishlistRoute({
     required this.wishlistId,
   });
@@ -105,14 +106,14 @@ class WishlistRoute extends GoRouteData {
   final int wishlistId;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
+  Widget buildScreen(BuildContext context, GoRouterState state) {
     return WishlistScreen(
       wishlistId: wishlistId,
     );
   }
 }
 
-class CreateWishRoute extends GoRouteData {
+class CreateWishRoute extends AuthenticatedRoute {
   CreateWishRoute({
     required this.wishlistId,
     this.name,
@@ -140,7 +141,7 @@ class CreateWishRoute extends GoRouteData {
       );
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
+  Widget buildScreen(BuildContext context, GoRouterState state) {
     return WishFormScreen(
       wishlistId: wishlistId,
       prefill: prefill,
@@ -149,7 +150,7 @@ class CreateWishRoute extends GoRouteData {
   }
 }
 
-class ConsultWishRoute extends GoRouteData {
+class ConsultWishRoute extends AuthenticatedRoute {
   ConsultWishRoute(
     this.wishlistId,
     this.wishId, {
@@ -169,7 +170,7 @@ class ConsultWishRoute extends GoRouteData {
       wishIds.contains(wishId) ? wishIds : [wishId];
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
+  Widget buildScreen(BuildContext context, GoRouterState state) {
     final ids = effectiveWishIds;
 
     return ConsultWishScreen(
@@ -181,7 +182,7 @@ class ConsultWishRoute extends GoRouteData {
   }
 }
 
-class EditWishRoute extends GoRouteData {
+class EditWishRoute extends AuthenticatedRoute {
   EditWishRoute({
     required this.wishlistId,
     required this.wishId,
@@ -191,46 +192,46 @@ class EditWishRoute extends GoRouteData {
   final int wishId;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
+  Widget buildScreen(BuildContext context, GoRouterState state) {
     return EditWishScreen(wishId: wishId);
   }
 }
 
-class SettingsRoute extends GoRouteData {
+class SettingsRoute extends AuthenticatedRoute {
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
+  Widget buildScreen(BuildContext context, GoRouterState state) =>
       const SettingsScreen();
 }
 
-class ChangePasswordRoute extends GoRouteData {
+class ChangePasswordRoute extends AuthenticatedRoute {
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
+  Widget buildScreen(BuildContext context, GoRouterState state) =>
       const ChangePasswordScreen();
 }
 
-class ChangePseudoRoute extends GoRouteData {
+class ChangePseudoRoute extends AuthenticatedRoute {
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
+  Widget buildScreen(BuildContext context, GoRouterState state) =>
       const ChangePseudoScreen();
 }
 
-class CompletedWishesRoute extends GoRouteData {
+class CompletedWishesRoute extends AuthenticatedRoute {
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
+  Widget buildScreen(BuildContext context, GoRouterState state) =>
       const CompletedWishesScreen();
 }
 
-class FriendDetailsRoute extends GoRouteData {
+class FriendDetailsRoute extends AuthenticatedRoute {
   FriendDetailsRoute(this.friendId);
   final String friendId;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
+  Widget buildScreen(BuildContext context, GoRouterState state) {
     return FriendDetailsScreen(friendId: friendId);
   }
 }
 
-class AddWishRoute extends GoRouteData {
+class AddWishRoute extends AuthenticatedRoute {
   AddWishRoute({
     this.name,
     this.link,
@@ -251,7 +252,7 @@ class AddWishRoute extends GoRouteData {
       );
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
+  Widget buildScreen(BuildContext context, GoRouterState state) {
     return AddWishScreen(prefill: prefill);
   }
 }
