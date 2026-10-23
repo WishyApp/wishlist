@@ -63,6 +63,11 @@ part 'routes.g.dart';
     // Friend details (enfant de home)
     TypedGoRoute<FriendDetailsRoute>(
       path: 'friend/:friendId',
+      routes: [
+        TypedGoRoute<FriendCompletedWishesRoute>(
+          path: 'completed-wishes',
+        ),
+      ],
     ),
     // Ajouter un wish (partage externe, sans wishlist connue)
     TypedGoRoute<AddWishRoute>(
@@ -228,6 +233,16 @@ class FriendDetailsRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) {
     return FriendDetailsScreen(friendId: friendId);
+  }
+}
+
+class FriendCompletedWishesRoute extends AuthenticatedRoute {
+  FriendCompletedWishesRoute(this.friendId);
+  final String friendId;
+
+  @override
+  Widget buildScreen(BuildContext context, GoRouterState state) {
+    return CompletedWishesScreen(userId: friendId);
   }
 }
 

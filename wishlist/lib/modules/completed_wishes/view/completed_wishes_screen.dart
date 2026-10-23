@@ -23,7 +23,11 @@ import 'package:wishlist/shared/widgets/search_bar/app_search_bar.dart';
 import 'package:wishlist/shared/widgets/wish_image.dart';
 
 class CompletedWishesScreen extends ConsumerStatefulWidget {
-  const CompletedWishesScreen({super.key});
+  const CompletedWishesScreen({super.key, this.userId});
+
+  /// The user whose completed wishes are shown, read-only: the current user's
+  /// ones, which can be uncompleted, when null.
+  final String? userId;
 
   @override
   ConsumerState<CompletedWishesScreen> createState() =>
@@ -95,7 +99,11 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final completedWishesAsync = ref.watch(completedWishesRealtimeProvider);
+    final userId = widget.userId;
+    final completedWishesProvider = userId == null
+        ? completedWishesRealtimeProvider
+        : completedWishesByUserRealtimeProvider(userId);
+    final completedWishesAsync = ref.watch(completedWishesProvider);
 
     return PageLayout(
       title: l10n.completedWishesScreenTitle,
@@ -104,8 +112,8 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => PageLayoutError(
           error: error,
-          onRetry: () => ref.retryFailed([completedWishesRealtimeProvider]),
-          isRetrying: ref.isRetryingAny([completedWishesRealtimeProvider]),
+          onRetry: () => ref.retryFailed([completedWishesProvider]),
+          isRetrying: ref.isRetryingAny([completedWishesProvider]),
         ),
         data: (completedWishes) {
           if (completedWishes.isEmpty) {
@@ -148,7 +156,10 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
                           itemEquality: (oldItem, newItem) =>
                               oldItem.wish.id == newItem.wish.id,
                           itemBuilder: (context, item, index) {
-                            return _CompletedWishCard(item: item);
+                            return _CompletedWishCard(
+                              item: item,
+                              canUncomplete: userId == null,
+                            );
                           },
                         ),
                 ),
@@ -227,9 +238,10 @@ class _SearchBar extends StatelessWidget {
 }
 
 class _CompletedWishCard extends StatelessWidget {
-  const _CompletedWishCard({required this.item});
+  const _CompletedWishCard({required this.item, required this.canUncomplete});
 
   final CompletedWishWithDetails item;
+  final bool canUncomplete;
 
   @override
   Widget build(BuildContext context) {
@@ -322,12 +334,14 @@ class _CompletedWishCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Gap(8),
-              IconButton(
-                icon: const Icon(Icons.undo, color: AppColors.makara),
-                tooltip: l10n.unmarkWishAsCompleted,
-                onPressed: () => showUncompleteWishBottomSheet(context, item),
-              ),
+              if (canUncomplete) ...[
+                const Gap(8),
+                IconButton(
+                  icon: const Icon(Icons.undo, color: AppColors.makara),
+                  tooltip: l10n.unmarkWishAsCompleted,
+                  onPressed: () => showUncompleteWishBottomSheet(context, item),
+                ),
+              ],
             ],
           ),
         ),

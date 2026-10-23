@@ -6,17 +6,22 @@ import 'package:gap/gap.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/friends/view/widgets/friend_details_app_bar.dart';
 import 'package:wishlist/modules/friends/view/widgets/friend_pill.dart';
+import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/friend_details/friend_details.dart';
+import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/app_refresh_indicator.dart';
+import 'package:wishlist/shared/theme/widgets/pill.dart';
 import 'package:wishlist/shared/utils/app_user_utils.dart';
+import 'package:wishlist/shared/utils/relative_date_utils.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/avatar/app_avatar.dart';
+import 'package:wishlist/shared/widgets/wish_image.dart';
 import 'package:wishlist/shared/widgets/wishlists_grid.dart';
 
 class FriendDetailsScreen extends ConsumerWidget {
@@ -66,6 +71,8 @@ class FriendDetailsScreen extends ConsumerWidget {
   }
 }
 
+const double _horizontalPadding = 30;
+
 class _FriendDetailsScreen extends StatelessWidget {
   const _FriendDetailsScreen({
     required this.friendDetails,
@@ -84,11 +91,16 @@ class _FriendDetailsScreen extends StatelessWidget {
             top: false,
             left: false,
             right: false,
-            sliver: SliverPadding(
-              padding: const EdgeInsets.fromLTRB(30, 16, 30, 16),
-              sliver: SliverMainAxisGroup(
-                slivers: [
-                  SliverList(
+            sliver: SliverMainAxisGroup(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    _horizontalPadding,
+                    16,
+                    _horizontalPadding,
+                    0,
+                  ),
+                  sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       // Stats
                       _FriendStatsSection(friendDetails: friendDetails),
@@ -99,21 +111,34 @@ class _FriendDetailsScreen extends StatelessWidget {
                         friendDetails: friendDetails,
                       ),
                       const Gap(24),
-
-                      // Completed wishes
-                      _FriendCompletedWishesSection(
-                        friendId: friendDetails.appUser.user.id,
-                      ),
-                      const Gap(24),
-
-                      // Wishlists
-                      const _WishlistsTitle(),
-                      const Gap(12),
                     ]),
                   ),
-                  _WishlistsSection(friendDetails: friendDetails),
-                ],
-              ),
+                ),
+
+                // Completed wishes: the carousel runs edge to edge, so it
+                // sits outside the horizontal padding
+                SliverToBoxAdapter(
+                  child: _FriendCompletedWishesSection(
+                    friendId: friendDetails.appUser.user.id,
+                  ),
+                ),
+
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    _horizontalPadding,
+                    0,
+                    _horizontalPadding,
+                    16,
+                  ),
+                  sliver: SliverMainAxisGroup(
+                    slivers: [
+                      const SliverToBoxAdapter(child: _WishlistsTitle()),
+                      const SliverGap(12),
+                      _WishlistsSection(friendDetails: friendDetails),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -319,6 +344,9 @@ class _FriendCompletedWishesSection extends ConsumerWidget {
 
   final String friendId;
 
+  /// The most recent ones only: "See all" opens the whole list
+  static const int _maxVisibleWishes = 10;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -333,74 +361,215 @@ class _FriendCompletedWishesSection extends ConsumerWidget {
           return const SizedBox.shrink();
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.friendCompletedWishesTitle,
-              style: AppTextStyles.small.copyWith(
-                color: AppColors.makara,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Gap(12),
-            for (final item in completedWishes)
+        final recentWishes = completedWishes
+            .sort((a, b) => b.completedAt.compareTo(a.completedAt))
+            .take(_maxVisibleWishes)
+            .toList();
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _FriendCompletedWishTile(item: item),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _horizontalPadding,
+                ),
+                child: Row(
+                  children: [
+                    // The title only gives way to "See all" on narrow screens
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              l10n.friendCompletedWishesTitle,
+                              style: AppTextStyles.small.copyWith(
+                                color: AppColors.makara,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Gap(8),
+                          _CountBadge(count: completedWishes.length),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          FriendCompletedWishesRoute(friendId).push(
+                        context,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            l10n.seeAllCompletedWishes,
+                            style: AppTextStyles.smaller.copyWith(
+                              color: AppColors.makara,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: AppColors.makara,
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-          ],
+              const Gap(8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _horizontalPadding,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final (index, item) in recentWishes.indexed) ...[
+                      if (index > 0) const Gap(12),
+                      _FriendCompletedWishCard(item: item),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 }
 
-class _FriendCompletedWishTile extends StatelessWidget {
-  const _FriendCompletedWishTile({required this.item});
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.count});
 
-  final CompletedWishWithDetails item;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: const BoxDecoration(
+        color: AppColors.darkGrey,
+        borderRadius: BorderRadius.all(Radius.circular(999)),
+      ),
+      child: Text(
+        '$count',
+        textAlign: TextAlign.center,
+        style: AppTextStyles.tiny.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
 
-    return Row(
-      children: [
-        const Icon(
-          Icons.check_circle,
-          color: AppColors.makara,
-          size: 18,
-        ),
-        const Gap(8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.wish.name,
-                style: AppTextStyles.smaller.copyWith(
-                  fontWeight: FontWeight.bold,
+class _FriendCompletedWishCard extends StatelessWidget {
+  const _FriendCompletedWishCard({required this.item});
+
+  final CompletedWishWithDetails item;
+
+  static const double _width = 112;
+  static const double _imageBorderRadius = 18;
+
+  @override
+  Widget build(BuildContext context) {
+    final wish = item.wish;
+
+    return SizedBox(
+      width: _width,
+      child: InkWell(
+        onTap: () => ConsultWishRoute(
+          wish.wishlistId,
+          wish.id,
+          wishIds: [wish.id],
+          showActions: false,
+          quantityDisplay: WishQuantityDisplay.completed,
+        ).push(context),
+        borderRadius: BorderRadius.circular(_imageBorderRadius),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                WishImage(
+                  iconUrl: wish.iconUrl,
+                  size: _width,
+                  borderRadius: _imageBorderRadius,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                const Positioned(
+                  top: 8,
+                  right: 8,
+                  child: _CompletedBadge(),
+                ),
+                if (item.quantity > 1)
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Pill(
+                      text: 'x${item.quantity}',
+                      backgroundColor: Theme.of(context).primaryColor,
+                      textStyle: AppTextStyles.tiny,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const Gap(8),
+            Text(
+              wish.name,
+              style: AppTextStyles.smaller.copyWith(
+                fontWeight: FontWeight.bold,
+                height: 1.25,
               ),
-              Text(
-                l10n.completedWishFromWishlist(
-                  item.isFromDeletedWishlist
-                      ? l10n.deletedWishlist
-                      : item.fromWishlistName,
-                ),
-                style: AppTextStyles.smaller.copyWith(
-                  color: AppColors.makara,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Gap(2),
+            Text(
+              formatRelativeDate(
+                context.l10n,
+                item.completedAt,
+                now: DateTime.now(),
+                locale: Localizations.localeOf(context).toString(),
               ),
-            ],
-          ),
+              style: AppTextStyles.tiny.copyWith(color: AppColors.makara),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _CompletedBadge extends StatelessWidget {
+  const _CompletedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: AppColors.green,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: const Icon(Icons.check, color: Colors.white, size: 14),
     );
   }
 }
