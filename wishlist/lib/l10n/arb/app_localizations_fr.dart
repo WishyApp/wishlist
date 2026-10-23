@@ -261,7 +261,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get birthdayStepExplanation =>
-      'Tes amis le verront (sans l\'année) et penseront à toi le moment venu. Tu pourras le changer dans les Réglages.';
+      'Seuls tes amis le verront, sans l\'année.';
 
   @override
   String get birthdayStepLater => 'Plus tard';

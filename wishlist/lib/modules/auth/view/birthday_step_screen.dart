@@ -77,9 +77,10 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    // Small screens (iPhone 8 / SE) scroll: keep the illustration modest
+    // The drawing is tall and narrow: it gets most of the space the short
+    // texts leave. Everything still fits an iPhone 8 without scrolling.
     final illustrationHeight =
-        (MediaQuery.sizeOf(context).height / 5).clamp(100.0, 200.0);
+        (MediaQuery.sizeOf(context).height * 0.3).clamp(140.0, 260.0);
 
     // Back behaves like "later": popping would land on home and lose redirectTo
     return PopScope(
@@ -101,18 +102,18 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
                     Assets.svg.birthday,
                     height: illustrationHeight,
                   ),
-                  const Gap(24),
+                  const Gap(16),
                   Text(
                     l10n.birthdayStepTitle,
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.title,
+                    style: AppTextStyles.titleSmall,
                   ),
                   const Gap(8),
                   Text(
                     l10n.birthdayStepExplanation,
                     textAlign: TextAlign.center,
                     style:
-                        AppTextStyles.small.copyWith(color: AppColors.makara),
+                        AppTextStyles.smaller.copyWith(color: AppColors.makara),
                   ),
                   const Gap(16),
                   BirthdayPicker(

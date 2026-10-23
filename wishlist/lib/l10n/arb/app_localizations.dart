@@ -551,7 +551,7 @@ abstract class AppLocalizations {
   /// No description provided for @birthdayStepExplanation.
   ///
   /// In fr, this message translates to:
-  /// **'Tes amis le verront (sans l\'année) et penseront à toi le moment venu. Tu pourras le changer dans les Réglages.'**
+  /// **'Seuls tes amis le verront, sans l\'année.'**
   String get birthdayStepExplanation;
 
   /// No description provided for @birthdayStepLater.
