@@ -31,11 +31,20 @@ class SettingsLine extends StatelessWidget {
                 title,
                 style: AppTextStyles.smaller,
               ),
-              const Spacer(),
-              if (value != null) ...[
-                Text(
-                  value!,
-                  style: AppTextStyles.smaller.copyWith(color: Colors.grey),
+              if (value == null)
+                const Spacer()
+              else ...[
+                const SizedBox(width: 16),
+                // A long value ellipsizes (large text scale) instead of
+                // overflowing
+                Expanded(
+                  child: Text(
+                    value!,
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.smaller.copyWith(color: Colors.grey),
+                  ),
                 ),
                 const SizedBox(width: 8),
               ],

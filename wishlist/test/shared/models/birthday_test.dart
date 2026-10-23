@@ -30,6 +30,14 @@ void main() {
     expect(birthday, const Birthday(month: 12, day: 31));
   });
 
+  test('refuses dates that exist in no year', () {
+    expect(() => Birthday(month: 4, day: 31), throwsAssertionError);
+    expect(() => Birthday(month: 2, day: 30), throwsAssertionError);
+    expect(() => Birthday(month: 13, day: 1), throwsAssertionError);
+    expect(() => Birthday(month: 1, day: 0), throwsAssertionError);
+    expect(const Birthday(month: 2, day: 29).day, 29);
+  });
+
   test('daysInMonth counts 29 for February', () {
     expect(Birthday.daysInMonth(2), 29);
     expect(Birthday.daysInMonth(4), 30);

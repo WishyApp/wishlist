@@ -170,6 +170,9 @@ List<Override> settingsScreenOverrides({
   String? currentUserEmail,
   Profile? currentUserProfile,
   Birthday? currentUserBirthday,
+
+  /// `false` : currentUserBirthdayProvider reste le vrai, au-dessus du service.
+  bool overrideBirthday = true,
   bool signedOut = false,
 }) {
   return [
@@ -180,7 +183,8 @@ List<Override> settingsScreenOverrides({
     ),
     userServiceOverride(userId: currentUserId),
     watchCurrentUserProfileOverride(profile: currentUserProfile),
-    currentUserBirthdayOverride(birthday: currentUserBirthday),
+    if (overrideBirthday)
+      currentUserBirthdayOverride(birthday: currentUserBirthday),
     appInfoOverride(),
   ];
 }

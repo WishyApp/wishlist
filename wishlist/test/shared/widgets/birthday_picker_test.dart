@@ -57,6 +57,31 @@ void main() {
     expect(find.text('29'), findsOneWidget);
   });
 
+  testWidgets('gives back the picked day when the month allows it again',
+      (tester) async {
+    final changes = await pumpPicker(tester, const Birthday(month: 1, day: 31));
+
+    await scrollMonth(tester, 1);
+    expect(changes.last, const Birthday(month: 2, day: 29));
+
+    await scrollMonth(tester, 1);
+    expect(changes.last, const Birthday(month: 3, day: 31));
+    expect(find.text('31'), findsOneWidget);
+  });
+
+  testWidgets('forgets the remembered day once another day is picked',
+      (tester) async {
+    final changes = await pumpPicker(tester, const Birthday(month: 1, day: 31));
+
+    await scrollMonth(tester, 1); // February 29
+    await tester.drag(dayPicker, const Offset(0, _itemExtent * 2));
+    await tester.pumpAndSettle();
+    expect(changes.last, const Birthday(month: 2, day: 27));
+
+    await scrollMonth(tester, 1);
+    expect(changes.last, const Birthday(month: 3, day: 27));
+  });
+
   testWidgets('keeps a day that exists in the new month', (tester) async {
     final changes = await pumpPicker(tester, const Birthday(month: 3, day: 12));
 

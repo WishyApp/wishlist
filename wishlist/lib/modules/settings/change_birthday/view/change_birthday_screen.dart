@@ -11,6 +11,7 @@ import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/widgets/birthday_picker.dart';
+import 'package:wishlist/shared/widgets/error_page_with_back.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 
 class ChangeBirthdayScreen extends ConsumerStatefulWidget {
@@ -46,15 +47,27 @@ class _ChangeBirthdayScreenState extends ConsumerState<ChangeBirthdayScreen> {
     final l10n = context.l10n;
     final birthday = ref.watch(currentUserBirthdayProvider);
 
-    return Scaffold(
-      body: PageLayout(
-        title: l10n.changeBirthdayScreenTitle,
-        child: birthday.when(
-          loading: () => const Center(
+    // The provider is invalidated after a save, just before the screen pops:
+    // keep showing the form during that reload instead of a spinner.
+    return birthday.when(
+      skipLoadingOnReload: true,
+      loading: () => Scaffold(
+        body: PageLayout(
+          title: l10n.changeBirthdayScreenTitle,
+          child: const Center(
             child: CircularProgressIndicator(),
           ),
-          error: (error, stackTrace) => const SizedBox.shrink(),
-          data: (birthday) => _ChangeBirthdayForm(birthday: birthday),
+        ),
+      ),
+      error: (error, stackTrace) => ErrorPageWithBack.failure(
+        error: error,
+        onRetry: () => ref.refresh(currentUserBirthdayProvider.future),
+        isRetrying: birthday.isLoading,
+      ),
+      data: (birthday) => Scaffold(
+        body: PageLayout(
+          title: l10n.changeBirthdayScreenTitle,
+          child: _ChangeBirthdayForm(birthday: birthday),
         ),
       ),
     );
@@ -83,16 +96,15 @@ class _ChangeBirthdayFormState extends ConsumerState<_ChangeBirthdayForm> {
   bool get _isBusy => _isSaving || _isRemoving;
 
   void _onSuccess(String message) {
-    if (mounted) {
-      // The settings line shows the new value
-      ref.invalidate(currentUserBirthdayProvider);
-      showAppSnackBar(
-        context,
-        message,
-        type: SnackBarType.success,
-      );
-      context.pop();
-    }
+    // The callers checked `mounted`
+    // The settings line shows the new value
+    ref.invalidate(currentUserBirthdayProvider);
+    showAppSnackBar(
+      context,
+      message,
+      type: SnackBarType.success,
+    );
+    context.pop();
   }
 
   void _onError(AppException appException) {

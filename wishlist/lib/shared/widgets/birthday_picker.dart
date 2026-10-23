@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:wishlist/shared/models/birthday.dart';
@@ -6,7 +8,8 @@ import 'package:wishlist/shared/models/birthday.dart';
 ///
 /// The day wheel only goes up to the number of days of the selected month
 /// (29 for February). When the month changes and the day no longer exists, the
-/// day moves to the last day of the new month.
+/// day moves to the last day of the new month. The day the user picked is
+/// remembered: January 31, February, then March gives back 31.
 class BirthdayPicker extends StatefulWidget {
   const BirthdayPicker({
     super.key,
@@ -26,6 +29,9 @@ class _BirthdayPickerState extends State<BirthdayPicker> {
 
   late int _month = widget.initialValue.month;
   late int _day = widget.initialValue.day;
+
+  /// The day picked on the wheel (or the initial one), whatever the month.
+  late int _requestedDay = widget.initialValue.day;
   late final FixedExtentScrollController _dayController =
       FixedExtentScrollController(initialItem: _day - 1);
   late final FixedExtentScrollController _monthController =
@@ -39,25 +45,32 @@ class _BirthdayPickerState extends State<BirthdayPicker> {
   }
 
   void _onDayChanged(int index) {
+    // The wheel also reports the moves made by the month change (shorter or
+    // longer wheel, jump back to the remembered day): not a pick.
+    if (index + 1 == _day) {
+      return;
+    }
     _day = index + 1;
+    _requestedDay = _day;
     widget.onChanged(Birthday(month: _month, day: _day));
   }
 
   void _onMonthChanged(int index) {
     final month = index + 1;
-    final maxDay = Birthday.daysInMonth(month);
+    final day = math.min(_requestedDay, Birthday.daysInMonth(month));
+    final dayChanged = day != _day;
     setState(() {
       _month = month;
-      if (_day > maxDay) {
-        _day = maxDay;
-        // The wheel is shorter now: bring it back on the last day.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _dayController.hasClients) {
-            _dayController.jumpToItem(_day - 1);
-          }
-        });
-      }
+      _day = day;
     });
+    if (dayChanged) {
+      // The wheel length changed: put it on the displayed day.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _dayController.hasClients) {
+          _dayController.jumpToItem(_day - 1);
+        }
+      });
+    }
     widget.onChanged(Birthday(month: _month, day: _day));
   }
 
