@@ -21,16 +21,26 @@ env:
   GOLDENS: ':(glob)wishlist/test/**/preview/*.png'
 
 jobs:
-  analyze:
-    name: Analyze & Format
+  # Analysis and tests share one job: Flutter is set up once, and each job
+  # is billed rounded up to the minute.
+  test:
+    name: Analyze & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
+    # Read-only: on main this job runs the whole test suite; pushing the
+    # regenerated goldens of a PR is left to commit-goldens.
+    permissions:
+      contents: read
+    outputs:
+      goldens-changed: ${{ steps.goldens.outputs.changed }}
     defaults:
       run:
         working-directory: wishlist
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -71,35 +81,6 @@ jobs:
 
       - name: Analyze code
         run: flutter analyze
-
-  test:
-    name: Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Read-only: on main this job runs the whole test suite; pushing the
-    # regenerated goldens of a PR is left to commit-goldens.
-    permissions:
-      contents: read
-    outputs:
-      goldens-changed: ${{ steps.goldens.outputs.changed }}
-    defaults:
-      run:
-        working-directory: wishlist
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version-file: wishlist/pubspec.yaml
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
 
       # On main, goldens are only checked: a mismatch means a render change
       # that was never reviewed in a PR diff, so the build must fail.
