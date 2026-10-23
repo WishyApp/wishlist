@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
@@ -21,6 +22,30 @@ typedef Reload<T> = Future<void> Function([Future<T> Function()? override]);
 /// les suivantes. Le channel et le subject sont libérés quand le dernier
 /// abonné part.
 ///
+/// Le channel est abonné ici (le `channelBuilder` le retourne non abonné) pour
+/// que tous les flux partagent la même gestion de son statut :
+///
+/// - `subscribed` : on recharge. Realtime ne rejoue pas les changements
+///   validés pendant qu'on n'était pas abonné : ni ceux survenus entre le
+///   premier chargement et le premier `subscribed`, ni ceux manqués pendant
+///   une coupure (la reprise de l'app en arrière-plan rejoint le channel et
+///   renvoie `subscribed`). Les générations de [_load] absorbent le
+///   chargement en plus. Les autres statuts ne disent rien du contenu.
+/// - `timedOut` : realtime_client relance lui-même le join (son timer de
+///   rejoin), on se contente de loguer ; le `subscribed` qui suit recharge.
+/// - `channelError` : une erreur du channel lui-même (socket coupé) est aussi
+///   rejointe seule, mais une réponse d'erreur au join, ou un événement
+///   système en erreur après `subscribed` (réplication postgres_changes
+///   refusée, ex: RLS avec un JWT expiré), n'est suivie d'aucune reprise : le
+///   channel peut rester « joint » sans rien livrer. On ne sait pas les
+///   distinguer, on abandonne donc le channel et on en abonne un neuf après un
+///   délai croissant ([retryDelays]). Si le channel se rejoint seul entre-temps
+///   (`subscribed`), la reprise en attente est annulée.
+///
+/// Aucun rafraîchissement explicite de la session : supabase_flutter pousse
+/// les jetons rafraîchis vers realtime, et le channel neuf, abonné après le
+/// délai, utilise le jeton courant.
+///
 /// Une instance appartient à un repository, qui doit appeler [dispose].
 class KeyedRealtimeStreams {
   /// [logTag] préfixe les logs d'un rechargement en échec.
@@ -28,15 +53,37 @@ class KeyedRealtimeStreams {
   /// [shouldEmitErrorAfterValue] décide si une erreur survenue après une
   /// première valeur doit quand même être émise (par défaut, elle est
   /// seulement loguée et la dernière valeur est conservée).
+  ///
+  /// [retryDelays] sont les délais avant de réabonner un channel en erreur,
+  /// par tentative consécutive ; le dernier est répété. Le compteur repart de
+  /// zéro à chaque `subscribed`.
   KeyedRealtimeStreams({
     required this.logTag,
     this.shouldEmitErrorAfterValue,
-  });
+    this.retryDelays = defaultRetryDelays,
+  }) : assert(retryDelays.isNotEmpty, 'retryDelays must not be empty');
+
+  static const defaultRetryDelays = [
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+    Duration(seconds: 10),
+    Duration(seconds: 30),
+  ];
 
   final String logTag;
   final bool Function(Object error)? shouldEmitErrorAfterValue;
+  final List<Duration> retryDelays;
 
   final Map<String, RealtimeChannel> _channels = {};
+
+  /// Réabonnements en attente par clé (un seul à la fois, voir
+  /// [_scheduleResubscribe]).
+  final Map<String, Timer> _retryTimers = {};
+
+  /// Nombre de réabonnements déjà planifiés par clé depuis le dernier
+  /// `subscribed`, qui choisit le délai suivant.
+  final Map<String, int> _retryAttempts = {};
 
   /// Le type de valeur dépend de la clé : [watch] recaste le subject avec le
   /// type de la clé, une même clé ne doit donc pas servir à deux types.
@@ -51,8 +98,11 @@ class KeyedRealtimeStreams {
   /// Retourne le flux de [key], le crée au premier appel.
   ///
   /// À la création, [load] est lancé puis [channelBuilder] construit le channel
-  /// (déjà abonné) qui rafraîchit le flux : il reçoit la fonction de
-  /// rechargement à appeler à chaque changement.
+  /// qui rafraîchit le flux : il reçoit la fonction de rechargement à appeler à
+  /// chaque changement, et retourne le channel avec ses `onPostgresChanges`
+  /// mais **sans** l'abonner, c'est [KeyedRealtimeStreams] qui s'en charge.
+  /// [channelBuilder] peut être rappelé pour réabonner un channel neuf après
+  /// une erreur : il doit créer un nouveau channel à chaque appel.
   ///
   /// Si [skipEqual], une valeur égale (`==`) à la valeur courante n'est pas
   /// ré-émise (les abonnés rechargent des données en aval).
@@ -87,9 +137,99 @@ class KeyedRealtimeStreams {
         _load(key, controller, override ?? load, skipEqual);
     reload();
 
-    _channels[key] = channelBuilder(reload);
+    _subscribe(key, controller, channelBuilder(reload), channelBuilder, reload);
 
     return controller.stream;
+  }
+
+  /// Abonne [channel], enregistré pour [key], et réagit à son statut (voir la
+  /// doc de la classe). Les statuts d'un channel remplacé, ou d'une clé
+  /// nettoyée, sont ignorés.
+  void _subscribe<T>(
+    String key,
+    BehaviorSubject<T> controller,
+    RealtimeChannel channel,
+    RealtimeChannel Function(Reload<T> reload) channelBuilder,
+    Reload<T> reload,
+  ) {
+    _channels[key] = channel;
+    channel.subscribe((status, error) {
+      if (!identical(_controllers[key], controller) ||
+          !identical(_channels[key], channel)) {
+        return;
+      }
+      switch (status) {
+        case RealtimeSubscribeStatus.subscribed:
+          _retryTimers.remove(key)?.cancel();
+          _retryAttempts.remove(key);
+          reload();
+        case RealtimeSubscribeStatus.timedOut:
+          debugPrint('[Wishy $logTag] channel $key timed out, retrying');
+        case RealtimeSubscribeStatus.channelError:
+          debugPrint('[Wishy $logTag] channel $key error: $error');
+          _scheduleResubscribe(
+            key,
+            controller,
+            channel,
+            channelBuilder,
+            reload,
+          );
+        case RealtimeSubscribeStatus.closed:
+          break;
+      }
+    });
+  }
+
+  /// Planifie le remplacement de [channel] par un channel neuf, après un délai
+  /// croissant. Sans effet si un remplacement est déjà planifié pour la clé
+  /// (erreurs en rafale d'un même channel).
+  void _scheduleResubscribe<T>(
+    String key,
+    BehaviorSubject<T> controller,
+    RealtimeChannel channel,
+    RealtimeChannel Function(Reload<T> reload) channelBuilder,
+    Reload<T> reload,
+  ) {
+    if (_retryTimers.containsKey(key)) {
+      return;
+    }
+    final attempt = _retryAttempts[key] ?? 0;
+    _retryAttempts[key] = attempt + 1;
+    final delay = retryDelays[min(attempt, retryDelays.length - 1)];
+
+    _retryTimers[key] = Timer(delay, () {
+      _retryTimers.remove(key);
+      // Un cleanup ou un dispose a pu passer entre-temps.
+      if (!identical(_controllers[key], controller) ||
+          !identical(_channels[key], channel)) {
+        return;
+      }
+      debugPrint('[Wishy $logTag] resubscribing channel $key');
+      // Le leave part sans attendre sa réponse : le client retire le channel
+      // de sa liste à la fermeture, et un channel neuf n'a pas à l'attendre.
+      unawaited(_leave(channel));
+      try {
+        _subscribe(
+          key,
+          controller,
+          channelBuilder(reload),
+          channelBuilder,
+          reload,
+        );
+      } catch (e, st) {
+        debugPrint('[Wishy $logTag] resubscribe of $key failed: $e');
+        debugPrint(st.toString());
+        _scheduleResubscribe(key, controller, channel, channelBuilder, reload);
+      }
+    });
+  }
+
+  Future<void> _leave(RealtimeChannel channel) async {
+    try {
+      await channel.unsubscribe();
+    } catch (e) {
+      debugPrint('[Wishy $logTag] leaving a channel failed: $e');
+    }
   }
 
   /// Charge une valeur avec [load] et l'émet sur [controller].
@@ -160,6 +300,8 @@ class KeyedRealtimeStreams {
     // chargement ne peut écrire dans la génération d'un futur controller.
     _loadGenerations.remove(key);
     _emittedGenerations.remove(key);
+    _retryTimers.remove(key)?.cancel();
+    _retryAttempts.remove(key);
     _channels[key]?.unsubscribe();
     _channels.remove(key);
     controller.close();
@@ -179,6 +321,11 @@ class KeyedRealtimeStreams {
     // _channels et _controllers : on itère donc sur des copies.
     final channels = _channels.values.toList();
     _channels.clear();
+    for (final timer in _retryTimers.values) {
+      timer.cancel();
+    }
+    _retryTimers.clear();
+    _retryAttempts.clear();
     try {
       // Tous les leave partent ensemble, et un channel qui échoue n'empêche ni
       // les autres ni la fermeture des flux (l'erreur est relancée à la fin).

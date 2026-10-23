@@ -102,8 +102,7 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
                 reload();
               }
             },
-          )
-          .subscribe(),
+          ),
     );
   }
 
@@ -145,8 +144,7 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
               // pour récupérer les données à jour avec le JOIN
               reload();
             },
-          )
-          .subscribe(),
+          ),
     );
   }
 
@@ -195,8 +193,7 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
             schema: 'public',
             table: 'profiles',
             callback: (payload) => reload(),
-          )
-          .subscribe(),
+          ),
     );
   }
 

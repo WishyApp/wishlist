@@ -17,12 +17,16 @@ class MockPostgresChangePayload extends Mock implements PostgresChangePayload {}
 class MockWishlistRepository extends Mock implements WishlistRepository {}
 
 typedef _PayloadCallback = void Function(PostgresChangePayload);
+typedef _StatusCallback = void Function(RealtimeSubscribeStatus, Object?);
 
 void main() {
   setUpAll(() => registerFallbackValue(PostgresChangeEvent.all));
 
   late MockSupabaseClient client;
   late MockRealtimeChannel channel;
+
+  /// Status callbacks passed to `channel.subscribe`, in order.
+  late List<_StatusCallback> statusCallbacks;
   late MockWishlistRepository wishlistRepository;
   late SupabaseWishlistStreamRepository repository;
   late List<_PayloadCallback> callbacks;
@@ -38,6 +42,7 @@ void main() {
   setUp(() {
     client = createMockSupabaseClient();
     channel = MockRealtimeChannel();
+    statusCallbacks = [];
     wishlistRepository = MockWishlistRepository();
     callbacks = [];
 
@@ -56,7 +61,12 @@ void main() {
       );
       return channel;
     });
-    when(channel.subscribe).thenReturn(channel);
+    when(() => channel.subscribe(any())).thenAnswer((invocation) {
+      statusCallbacks.add(
+        invocation.positionalArguments.first as _StatusCallback,
+      );
+      return channel;
+    });
     when(channel.unsubscribe).thenAnswer((_) async => 'ok');
 
     repository = SupabaseWishlistStreamRepository(client, wishlistRepository);
@@ -79,6 +89,26 @@ void main() {
     required void Function(int times) verifyLoads,
   }) {
     group(name, () {
+      test('reloads each time the channel reports subscribed', () async {
+        stubValue(value);
+
+        final sub = watch().listen((_) {});
+        await pumpEventQueue();
+        verifyLoads(1);
+
+        // Changement manqué avant le premier subscribed, puis après un rejoin.
+        expect(statusCallbacks, hasLength(1));
+        statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+        await pumpEventQueue();
+        verifyLoads(1);
+
+        statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+        await pumpEventQueue();
+        verifyLoads(1);
+
+        await sub.cancel();
+      });
+
       test('a second subscriber gets the current value', () async {
         stubValue(value);
 

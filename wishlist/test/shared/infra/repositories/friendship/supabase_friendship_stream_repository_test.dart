@@ -420,7 +420,7 @@ void main() {
       await sub.cancel();
     });
 
-    test('does not reload for other statuses', () async {
+    test('does not reload for a channel error', () async {
       final received = <ISet<String>>[];
       final sub =
           repository.watchCurrentUserPendingFriendsIds().listen(received.add);

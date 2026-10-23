@@ -27,27 +27,25 @@ class SupabaseUserStreamRepository implements UserStreamRepository {
     return _streams.watch<Profile?>(
       key,
       load: fetch,
-      channelBuilder: (reload) => _client
-          .channel('profile_$userId')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: _profilesTableName,
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'id',
-              value: userId,
-            ),
-            // Le profil est lu dans le payload, mais passe par le même
-            // séquencement que les chargements : un chargement plus ancien qui
-            // termine après lui ne l'écrase pas.
-            callback: (payload) => reload(
-              () async => payload.eventType == PostgresChangeEvent.delete
-                  ? null
-                  : Profile.fromJson(payload.newRecord),
-            ),
-          )
-          .subscribe(),
+      channelBuilder: (reload) =>
+          _client.channel('profile_$userId').onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: _profilesTableName,
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'id',
+                  value: userId,
+                ),
+                // Le profil est lu dans le payload, mais passe par le même
+                // séquencement que les chargements : un chargement plus
+                // ancien qui termine après lui ne l'écrase pas.
+                callback: (payload) => reload(
+                  () async => payload.eventType == PostgresChangeEvent.delete
+                      ? null
+                      : Profile.fromJson(payload.newRecord),
+                ),
+              ),
     );
   }
 

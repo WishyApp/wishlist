@@ -19,9 +19,13 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
 
   final _streams = KeyedRealtimeStreams(logTag: 'friendships');
 
-  /// Abonne un channel aux lignes de `friendships` où [userId] figure dans
-  /// l'une des [columns] (un filtre `eq` par colonne, donc un listener par
-  /// colonne).
+  /// Construit, sans l'abonner, un channel aux lignes de `friendships` où
+  /// [userId] figure dans l'une des [columns] (un filtre `eq` par colonne, donc
+  /// un listener par colonne).
+  ///
+  /// Un changement validé entre la première requête et l'abonnement du channel
+  /// n'est jamais livré en événement : [KeyedRealtimeStreams] recharge une fois
+  /// le channel abonné (et à chaque reconnexion).
   ///
   /// Le filtre réduit le trafic, ce n'est pas une barrière d'accès : le client
   /// en choisit la valeur, et la RLS n'est pas appliquée aux DELETE.
@@ -37,7 +41,6 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
     required String userId,
     required List<String> columns,
     required void Function() onChange,
-    required void Function() onSubscribed,
   }) {
     var channel = _client.channel(channelName);
     for (final column in columns) {
@@ -53,15 +56,7 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         callback: (payload) => onChange(),
       );
     }
-    return channel.subscribe((status, _) {
-      // Un changement validé entre la première requête et l'abonnement du
-      // channel n'est jamais livré en événement : on recharge une fois abonné
-      // (et à chaque reconnexion). Les autres statuts
-      // ne disent rien du contenu.
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        onSubscribed();
-      }
-    });
+    return channel;
   }
 
   @override
@@ -78,7 +73,6 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         userId: currentUserId,
         columns: _bothUserColumns,
         onChange: reload,
-        onSubscribed: reload,
       ),
     );
   }
@@ -110,7 +104,6 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         userId: userId,
         columns: _bothUserColumns,
         onChange: reload,
-        onSubscribed: reload,
       ),
     );
   }
@@ -130,7 +123,6 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         userId: currentUserId,
         columns: const ['requester_id'],
         onChange: reload,
-        onSubscribed: reload,
       ),
     );
   }
@@ -150,7 +142,6 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
         userId: currentUserId,
         columns: const ['receiver_id'],
         onChange: reload,
-        onSubscribed: reload,
       ),
     );
   }
