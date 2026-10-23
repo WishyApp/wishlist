@@ -12,6 +12,9 @@ import 'package:wishlist/shared/theme/text_styles.dart';
 /// (29 for February). When the month changes and the day no longer exists, the
 /// day moves to the last day of the new month. The day the user picked is
 /// remembered: January 31, February, then March gives back 31.
+///
+/// Both wheels loop, like the iOS date picker: there are always values above
+/// and below the selected one.
 class BirthdayPicker extends StatefulWidget {
   const BirthdayPicker({
     super.key,
@@ -39,6 +42,9 @@ class _BirthdayPickerState extends State<BirthdayPicker> {
   late final FixedExtentScrollController _monthController =
       FixedExtentScrollController(initialItem: _month - 1);
 
+  /// Set while the day wheel is put back on [_day] after a month change.
+  bool _isSyncingDayWheel = false;
+
   @override
   void dispose() {
     _dayController.dispose();
@@ -49,7 +55,7 @@ class _BirthdayPickerState extends State<BirthdayPicker> {
   void _onDayChanged(int index) {
     // The wheel also reports the moves made by the month change (shorter or
     // longer wheel, jump back to the remembered day): not a pick.
-    if (index + 1 == _day) {
+    if (_isSyncingDayWheel || index + 1 == _day) {
       return;
     }
     _day = index + 1;
@@ -60,17 +66,26 @@ class _BirthdayPickerState extends State<BirthdayPicker> {
   void _onMonthChanged(int index) {
     final month = index + 1;
     final day = math.min(_requestedDay, Birthday.daysInMonth(month));
+    final lengthChanged =
+        Birthday.daysInMonth(month) != Birthday.daysInMonth(_month);
     final dayChanged = day != _day;
     setState(() {
       _month = month;
       _day = day;
+      _isSyncingDayWheel = lengthChanged || dayChanged;
     });
-    if (dayChanged) {
-      // The wheel length changed: put it on the displayed day.
+    if (_isSyncingDayWheel) {
+      // A looping wheel maps its position modulo its length: once the length
+      // changes, the same position shows another day. Put it on the displayed
+      // day.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _dayController.hasClients) {
+        if (!mounted) {
+          return;
+        }
+        if (_dayController.hasClients) {
           _dayController.jumpToItem(_day - 1);
         }
+        _isSyncingDayWheel = false;
       });
     }
     widget.onChanged(Birthday(month: _month, day: _day));
@@ -101,15 +116,16 @@ class _BirthdayPickerState extends State<BirthdayPicker> {
       child: Row(
         children: [
           Expanded(
-            child: CupertinoPicker.builder(
+            child: CupertinoPicker(
               key: const ValueKey('birthday-day-picker'),
               scrollController: _dayController,
               itemExtent: _itemExtent,
-              childCount: Birthday.daysInMonth(_month),
+              looping: true,
               onSelectedItemChanged: _onDayChanged,
-              itemBuilder: (context, index) => Center(
-                child: Text('${index + 1}'),
-              ),
+              children: [
+                for (var day = 1; day <= Birthday.daysInMonth(_month); day++)
+                  Center(child: Text('$day')),
+              ],
             ),
           ),
           Expanded(
@@ -118,6 +134,7 @@ class _BirthdayPickerState extends State<BirthdayPicker> {
               key: const ValueKey('birthday-month-picker'),
               scrollController: _monthController,
               itemExtent: _itemExtent,
+              looping: true,
               onSelectedItemChanged: _onMonthChanged,
               children: [
                 for (var month = 1; month <= 12; month++)
