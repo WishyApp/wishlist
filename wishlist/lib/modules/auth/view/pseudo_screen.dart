@@ -90,6 +90,8 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
         key: _formKey,
         child: TextFormField(
           controller: _pseudoController,
+          // The only action of the step: the keyboard comes up right away
+          autofocus: true,
           decoration: InputDecoration(
             labelText: l10n.pseudoField,
           ),

@@ -40,6 +40,18 @@ void main() {
     await tester.expectGolden<PseudoScreen>(variant);
   });
 
+  testWidgets('focuses the field on arrival, to bring the keyboard up',
+      (tester) async {
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: pseudoScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect(field.focusNode.hasFocus, isTrue);
+  });
+
   testWidgets('shows the illustration, the title and the explanation',
       (tester) async {
     final l10n = AppLocalizationsFr();
