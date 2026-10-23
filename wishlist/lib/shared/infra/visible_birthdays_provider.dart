@@ -40,7 +40,7 @@ final visibleBirthdaysProvider =
   }
 });
 
-/// Birthday of [profileId] if the current user may see it.
+/// Birthday of the profile if the current user may see it.
 final friendBirthdayProvider = Provider.autoDispose.family<Birthday?, String>((
   ref,
   profileId,

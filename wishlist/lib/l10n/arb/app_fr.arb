@@ -81,6 +81,33 @@
   "changeBirthdayRemove": "Supprimer mon anniversaire",
   "changeBirthdaySuccess": "Anniversaire enregistré !",
   "changeBirthdayRemoved": "Anniversaire supprimé !",
+  "friendBirthdayBadge": "{days, plural, =0{aujourd'hui} =1{demain} other{dans {days} j}}",
+  "@friendBirthdayBadge": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "friendBirthday": "🎂 {date}",
+  "@friendBirthday": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "friendBirthdayWithCountdown": "🎂 {date} · {days, plural, =0{aujourd'hui !} =1{demain} other{dans {days} jours}}",
+  "@friendBirthdayWithCountdown": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "changePasswordSuccess": "Mot de passe changé avec succès !",
   "settingsScreenDeleteAccount": "Supprimer mon compte",
   "settingsScreenDeleteAccountDialogTitle": "Supprimer mon compte",
