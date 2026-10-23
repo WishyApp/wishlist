@@ -99,14 +99,34 @@ void main() {
     await pumpScreen(tester);
 
     expect(find.text(l10n.changeBirthdayRemove), findsNothing);
+  });
 
+  testWidgets('cannot save the default date before a wheel moved',
+      (tester) async {
+    await pumpScreen(tester);
+
+    await tester.tap(find.text(l10n.changeBirthdayConfirm).first);
+    await pumpAction(tester);
+
+    verifyNever(() => userService.upsertCurrentUserBirthday(any()));
+    expect(find.byType(ChangeBirthdayScreen), findsOneWidget);
+  });
+
+  testWidgets('saves once a wheel moved, with no birthday set', (tester) async {
+    await pumpScreen(tester);
+
+    await tester.drag(
+      find.byKey(const ValueKey('birthday-day-picker')),
+      const Offset(0, -80),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text(l10n.changeBirthdayConfirm).first);
     await pumpAction(tester);
     await flushSnackBar(tester);
 
     verify(
       () => userService
-          .upsertCurrentUserBirthday(const Birthday(month: 1, day: 1)),
+          .upsertCurrentUserBirthday(const Birthday(month: 1, day: 3)),
     ).called(1);
   });
 

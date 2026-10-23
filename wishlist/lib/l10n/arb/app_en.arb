@@ -76,7 +76,7 @@
   "settingsScreenBirthday": "My birthday",
   "settingsScreenBirthdayNotSet": "Not set",
   "changeBirthdayScreenTitle": "Birthday",
-  "changeBirthdayExplanation": "Pick the day and the month. Your friends will be able to see it (without the year) so they can think of you in time.",
+  "changeBirthdayExplanation": "Only your friends will see it.",
   "changeBirthdayConfirm": "Save",
   "changeBirthdayRemove": "Remove my birthday",
   "changeBirthdaySuccess": "Birthday saved!",

@@ -6,6 +6,9 @@ import 'package:intl/intl.dart';
 /// February 29 is valid: there is no year to check it against.
 @immutable
 class Birthday {
+  // The assert has to be a constant expression (the constructor is const):
+  // it spells the same rule as [daysInMonth]. Keep both, and the CHECK of
+  // `profile_birthdays` in SQL, in line.
   const Birthday({required this.month, required this.day})
       : assert(month >= 1 && month <= 12, 'month must be between 1 and 12'),
         assert(
@@ -33,9 +36,15 @@ class Birthday {
   final int day;
 
   /// Number of days of [month], February counting 29.
+  ///
+  /// Same rule as the constructor assert and the CHECK constraint of the
+  /// `profile_birthdays` table.
   static int daysInMonth(int month) {
-    // Day 0 of the next month, in a leap year.
-    return DateTime(2024, month + 1, 0).day;
+    return month == 2
+        ? 29
+        : (month == 4 || month == 6 || month == 9 || month == 11)
+            ? 30
+            : 31;
   }
 
   /// Number of days from [today] (local calendar date, time ignored) to the

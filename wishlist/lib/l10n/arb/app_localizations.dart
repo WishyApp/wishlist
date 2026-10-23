@@ -515,7 +515,7 @@ abstract class AppLocalizations {
   /// No description provided for @changeBirthdayExplanation.
   ///
   /// In fr, this message translates to:
-  /// **'Choisis le jour et le mois. Tes amis pourront le voir (sans l\'année) pour penser à toi le moment venu.'**
+  /// **'Seuls tes amis le verront.'**
   String get changeBirthdayExplanation;
 
   /// No description provided for @changeBirthdayConfirm.
