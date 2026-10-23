@@ -110,6 +110,23 @@ class SupabaseUserRepository implements UserRepository {
   }
 
   @override
+  Future<Map<String, Birthday>> getVisibleBirthdays() async {
+    return executeSafely(
+      () async {
+        final rows = await _client
+            .from('profile_birthdays')
+            .select('profile_id, month, day');
+
+        return {
+          for (final row in rows)
+            row['profile_id'] as String: Birthday.fromJson(row),
+        };
+      },
+      errorMessage: 'Failed to get visible birthdays',
+    );
+  }
+
+  @override
   Future<void> upsertCurrentUserBirthday(Birthday birthday) async {
     return executeSafely(
       () async {

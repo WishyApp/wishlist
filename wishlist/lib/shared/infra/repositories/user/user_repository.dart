@@ -18,6 +18,10 @@ abstract class UserRepository {
 
   /// Birthday of the current user, null if they did not set one.
   Future<Birthday?> getCurrentUserBirthday();
+
+  /// Birthdays the current user may see (their own and the ones of their
+  /// accepted friends: enforced by RLS), by profile id.
+  Future<Map<String, Birthday>> getVisibleBirthdays();
   Future<void> upsertCurrentUserBirthday(Birthday birthday);
   Future<void> deleteCurrentUserBirthday();
 }

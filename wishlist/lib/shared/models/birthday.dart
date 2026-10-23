@@ -26,6 +26,9 @@ class Birthday {
     );
   }
 
+  /// Birthdays further away than this are shown without a countdown.
+  static const upcomingDays = 30;
+
   final int month;
   final int day;
 
@@ -33,6 +36,29 @@ class Birthday {
   static int daysInMonth(int month) {
     // Day 0 of the next month, in a leap year.
     return DateTime(2024, month + 1, 0).day;
+  }
+
+  /// Number of days from [today] (local calendar date, time ignored) to the
+  /// next occurrence of this birthday: 0 if it is today.
+  ///
+  /// Counted on calendar dates, not on durations: a day of 23 or 25 hours
+  /// (daylight saving time change) must not shift the result. A February 29
+  /// birthday is celebrated on February 28 in a common year.
+  int daysUntil(DateTime today) {
+    final todayDate = DateTime.utc(today.year, today.month, today.day);
+
+    var next = _occurrenceIn(today.year);
+    if (next.isBefore(todayDate)) {
+      next = _occurrenceIn(today.year + 1);
+    }
+
+    return next.difference(todayDate).inDays;
+  }
+
+  DateTime _occurrenceIn(int year) {
+    final isLeapYear = DateTime.utc(year, 3, 0).day == 29;
+    final celebratedDay = month == 2 && day == 29 && !isLeapYear ? 28 : day;
+    return DateTime.utc(year, month, celebratedDay);
   }
 
   Map<String, dynamic> toJson() {
