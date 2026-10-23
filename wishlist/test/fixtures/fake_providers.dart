@@ -28,9 +28,17 @@ import 'mock_supabase.dart';
 // =============================================================================
 
 /// Override pour supabaseClientProvider avec un mock
-Override supabaseClientOverride({String? userId}) {
+Override supabaseClientOverride({
+  String? userId,
+  String? userEmail,
+  bool signedOut = false,
+}) {
   return supabaseClientProvider.overrideWithValue(
-    createMockSupabaseClient(userId: userId),
+    createMockSupabaseClient(
+      userId: userId,
+      userEmail: userEmail,
+      signedOut: signedOut,
+    ),
   );
 }
 
@@ -99,9 +107,9 @@ Override emptyBookedWishesRealtimeOverride() {
 // =============================================================================
 
 /// Override pour userServiceProvider avec un mock
-Override userServiceOverride({String? userId, String? userEmail}) {
+Override userServiceOverride({String? userId}) {
   return userServiceProvider.overrideWithValue(
-    createMockUserService(userId: userId, userEmail: userEmail),
+    createMockUserService(userId: userId),
   );
 }
 
@@ -159,10 +167,15 @@ List<Override> settingsScreenOverrides({
   String? currentUserId,
   String? currentUserEmail,
   Profile? currentUserProfile,
+  bool signedOut = false,
 }) {
   return [
-    supabaseClientOverride(userId: currentUserId),
-    userServiceOverride(userId: currentUserId, userEmail: currentUserEmail),
+    supabaseClientOverride(
+      userId: currentUserId,
+      userEmail: currentUserEmail,
+      signedOut: signedOut,
+    ),
+    userServiceOverride(userId: currentUserId),
     watchCurrentUserProfileOverride(profile: currentUserProfile),
     appInfoOverride(),
   ];

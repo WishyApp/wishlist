@@ -2,7 +2,6 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
-import 'package:wishlist/shared/infra/non_null_extensions/user_non_null_getter_email_extension.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_repository.dart';
 import 'package:wishlist/shared/infra/utils/execute_safely.dart';
 import 'package:wishlist/shared/infra/utils/postgrest_user_message_key.dart';
@@ -14,8 +13,8 @@ class SupabaseUserRepository implements UserRepository {
   final SupabaseClient _client;
 
   @override
-  String getCurrentUserEmail() {
-    return _client.auth.currentUserNonNull.emailNonNull;
+  String? getCurrentUserEmail() {
+    return _client.auth.currentUser?.email;
   }
 
   @override
