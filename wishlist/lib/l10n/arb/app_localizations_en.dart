@@ -260,8 +260,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get birthdayStepTitle => 'When is your birthday?';
 
   @override
-  String get birthdayStepExplanation =>
-      'Only your friends will see it, without the year.';
+  String get birthdayStepExplanation => 'Only your friends will see it.';
 
   @override
   String get birthdayStepLater => 'Later';

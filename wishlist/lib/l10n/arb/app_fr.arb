@@ -82,7 +82,7 @@
   "changeBirthdaySuccess": "Anniversaire enregistré !",
   "changeBirthdayRemoved": "Anniversaire supprimé !",
   "birthdayStepTitle": "C'est quand ton anniversaire ?",
-  "birthdayStepExplanation": "Seuls tes amis le verront, sans l'année.",
+  "birthdayStepExplanation": "Seuls tes amis le verront.",
   "birthdayStepLater": "Plus tard",
   "changePasswordSuccess": "Mot de passe changé avec succès !",
   "settingsScreenDeleteAccount": "Supprimer mon compte",

@@ -82,7 +82,7 @@
   "changeBirthdaySuccess": "Birthday saved!",
   "changeBirthdayRemoved": "Birthday removed!",
   "birthdayStepTitle": "When is your birthday?",
-  "birthdayStepExplanation": "Only your friends will see it, without the year.",
+  "birthdayStepExplanation": "Only your friends will see it.",
   "birthdayStepLater": "Later",
   "changePasswordSuccess": "Password changed successfully!",
   "settingsScreenDeleteAccount": "Delete my account",
