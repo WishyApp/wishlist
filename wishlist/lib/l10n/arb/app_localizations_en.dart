@@ -248,8 +248,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changeBirthdayScreenTitle => 'Birthday';
 
   @override
-  String get changeBirthdayExplanation =>
-      'Pick the day and the month. Your friends will be able to see it (without the year) so they can think of you in time.';
+  String get changeBirthdayExplanation => 'Only your friends will see it.';
 
   @override
   String get changeBirthdayConfirm => 'Save';

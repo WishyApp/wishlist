@@ -19,6 +19,7 @@ import 'package:wishlist/modules/wishs/view/wish_form_screen.dart';
 import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
 import 'package:wishlist/shared/navigation/authenticated_route.dart';
 import 'package:wishlist/shared/navigation/floating_nav_bar_navigator.dart';
+import 'package:wishlist/shared/navigation/redirect_target.dart';
 
 part 'routes.g.dart';
 
@@ -103,7 +104,9 @@ FloatingNavBarTab homeTabFromQuery(String? value) {
 class PseudoRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) => PseudoScreen(
-        redirectTo: state.uri.queryParameters['redirectTo'],
+        redirectTo: sanitizeRedirectTarget(
+          state.uri.queryParameters['redirectTo'],
+        ),
       );
 }
 
@@ -113,18 +116,10 @@ class BirthdayStepRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) =>
       BirthdayStepScreen(
-        redirectTo: state.uri.queryParameters['redirectTo'],
+        redirectTo: sanitizeRedirectTarget(
+          state.uri.queryParameters['redirectTo'],
+        ),
       );
-}
-
-/// Location of the birthday step carrying [redirectTo], under the same
-/// `redirectTo` name as the auth and pseudo screens (a typed route parameter
-/// would be named `redirect-to`).
-String birthdayStepLocation({String? redirectTo}) {
-  return Uri(
-    path: BirthdayStepRoute().location,
-    queryParameters: redirectTo == null ? null : {'redirectTo': redirectTo},
-  ).toString();
 }
 
 class WishlistRoute extends AuthenticatedRoute {

@@ -18,6 +18,8 @@ class SettingsLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final value = this.value;
+
     return Material(
       color: AppColors.gainsboro,
       child: InkWell(
@@ -31,15 +33,13 @@ class SettingsLine extends StatelessWidget {
                 title,
                 style: AppTextStyles.smaller,
               ),
-              if (value == null)
-                const Spacer()
-              else ...[
+              if (value != null) ...[
                 const SizedBox(width: 16),
                 // A long value ellipsizes (large text scale) instead of
                 // overflowing
                 Expanded(
                   child: Text(
-                    value!,
+                    value,
                     textAlign: TextAlign.end,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

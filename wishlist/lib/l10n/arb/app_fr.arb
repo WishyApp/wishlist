@@ -78,7 +78,7 @@
   "settingsScreenBirthday": "Mon anniversaire",
   "settingsScreenBirthdayNotSet": "Non renseigné",
   "changeBirthdayScreenTitle": "Anniversaire",
-  "changeBirthdayExplanation": "Choisis le jour et le mois. Tes amis pourront le voir (sans l'année) pour penser à toi le moment venu.",
+  "changeBirthdayExplanation": "Seuls tes amis le verront.",
   "changeBirthdayConfirm": "Enregistrer",
   "changeBirthdayRemove": "Supprimer mon anniversaire",
   "changeBirthdaySuccess": "Anniversaire enregistré !",
