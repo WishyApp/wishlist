@@ -105,26 +105,13 @@ jobs:
       # that was never reviewed in a PR diff, so the build must fail.
       - name: Run tests
         if: github.event_name != 'pull_request'
-        run: flutter test --coverage
+        run: flutter test
 
       # On PRs, goldens are regenerated on Linux and pushed to the branch by
       # commit-goldens, so the PNG changes show up in the PR diff for review.
       - name: Run tests & update goldens
         if: github.event_name == 'pull_request'
-        run: flutter test --update-goldens --coverage
-
-      - name: Coverage summary
-        run: |
-          awk -F: '/^LF:/ { found += $2 } /^LH:/ { hit += $2 }
-            END { printf "### Coverage\n%.1f%% of lines (%d / %d)\n", (found ? 100 * hit / found : 0), hit, found }' \
-            coverage/lcov.info >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-lcov
-          path: wishlist/coverage/lcov.info
-          retention-days: 14
+        run: flutter test --update-goldens
 
       - name: Check for golden changes
         if: github.event_name == 'pull_request'
