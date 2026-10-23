@@ -19,9 +19,9 @@ abstract class UserRepository {
   /// Birthday of the current user, null if they did not set one.
   Future<Birthday?> getCurrentUserBirthday();
 
-  /// Birthdays the current user may see (their own and the ones of their
-  /// accepted friends: enforced by RLS), by profile id.
-  Future<Map<String, Birthday>> getVisibleBirthdays();
+  /// Birthdays of [friendIds] the current user may see (RLS only returns the
+  /// ones of accepted friends), by profile id. No request for an empty set.
+  Future<Map<String, Birthday>> getVisibleBirthdays(ISet<String> friendIds);
   Future<void> upsertCurrentUserBirthday(Birthday birthday);
   Future<void> deleteCurrentUserBirthday();
 }

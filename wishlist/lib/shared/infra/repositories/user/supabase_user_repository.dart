@@ -104,34 +104,36 @@ class SupabaseUserRepository implements UserRepository {
             .eq('profile_id', getCurrentUserId())
             .maybeSingle();
 
-        return response == null ? null : Birthday.fromJson(response);
+        return response == null ? null : Birthday.tryFromJson(response);
       },
       errorMessage: 'Failed to get current user birthday',
     );
   }
 
   @override
-  Future<Map<String, Birthday>> getVisibleBirthdays() async {
+  Future<Map<String, Birthday>> getVisibleBirthdays(
+    ISet<String> friendIds,
+  ) async {
+    if (friendIds.isEmpty) {
+      return const {};
+    }
     return executeSafely(
       () async {
+        // Filtered on the client: the RLS policy calls a SECURITY DEFINER
+        // function per row, so an unfiltered select would scan the whole
+        // table (cost by number of users, not of friends).
         final rows = await _client
             .from('profile_birthdays')
-            .select('profile_id, month, day');
+            .select('profile_id, month, day')
+            .inFilter('profile_id', friendIds.toList());
 
         // One malformed row must not hide the other birthdays.
         final birthdays = <String, Birthday>{};
         for (final row in rows) {
           final profileId = row['profile_id'];
-          final month = row['month'];
-          final day = row['day'];
-          if (profileId is String &&
-              month is int &&
-              day is int &&
-              month >= 1 &&
-              month <= 12 &&
-              day >= 1 &&
-              day <= Birthday.daysInMonth(month)) {
-            birthdays[profileId] = Birthday(month: month, day: day);
+          final birthday = Birthday.tryFromJson(row);
+          if (profileId is String && birthday != null) {
+            birthdays[profileId] = birthday;
           } else {
             debugPrint('[Wishy birthdays] skipped a malformed row: $row');
           }

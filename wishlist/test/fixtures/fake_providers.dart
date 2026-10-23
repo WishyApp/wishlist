@@ -5,6 +5,7 @@ import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/current_user_profile_provider.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
@@ -166,7 +167,10 @@ List<Override> homeScreenOverrides({
 /// Override pour visibleBirthdaysProvider (aucun anniversaire par défaut)
 Override visibleBirthdaysOverride({Map<String, Birthday>? birthdays}) {
   return visibleBirthdaysProvider.overrideWith(
-    (ref) async => birthdays ?? const {},
+    (ref) async => (
+      userId: ref.watch(currentUserIdProvider),
+      birthdays: birthdays ?? const <String, Birthday>{},
+    ),
   );
 }
 
