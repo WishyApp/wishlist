@@ -41,6 +41,30 @@ import '../../../pump_app.dart';
 class _MockUserCompletedWishRepository extends Mock
     implements UserCompletedWishRepository {}
 
+/// Mounts the wishlist screen of its owner through [mount] with a controllable
+/// session, then ends the session and settles.
+Future<void> pumpSignedInWishlistThenSignOut(
+  WidgetTester tester, {
+  required Future<void> Function(List<Override> overrides) mount,
+}) async {
+  final session = FakeAuthSession(userId: fakeCurrentUserId);
+  addTearDown(session.close);
+  await mount([
+    ...wishlistScreenOverrides(
+      wishlistId: 2,
+      wishlist: fakeWishlist2,
+      wishes: fakeWishes,
+      currentUserId: fakeCurrentUserId,
+    ),
+    supabaseClientProvider.overrideWithValue(session.client),
+  ]);
+  await tester.pumpAndSettle(const Duration(seconds: 1));
+  expect(find.byIcon(Icons.add), findsOneWidget);
+
+  session.signOut();
+  await tester.pumpAndSettle();
+}
+
 void main() {
   CompletedWishWithDetails completedWish(Wish wish, int quantity) {
     return CompletedWishWithDetails(
@@ -265,30 +289,41 @@ void main() {
   );
 
   testWidgets(
-    'keeps the owner actions while the session ends and the screen is leaving',
+    'builds nothing once the session ends, until the router redirects',
     (tester) async {
-      final session = FakeAuthSession(userId: fakeCurrentUserId);
-      addTearDown(session.close);
-      await tester.pumpRouterApp(
-        WishlistRoute(wishlistId: 2).location,
-        overrides: [
-          ...wishlistScreenOverrides(
-            wishlistId: 2,
-            wishlist: fakeWishlist2,
-            wishes: fakeWishes,
-            currentUserId: fakeCurrentUserId,
-          ),
-          supabaseClientProvider.overrideWithValue(session.client),
-        ],
+      await pumpSignedInWishlistThenSignOut(
+        tester,
+        mount: (overrides) => tester.pumpRouterApp(
+          WishlistRoute(wishlistId: 2).location,
+          overrides: overrides,
+        ),
       );
-      await tester.pumpAndSettle(const Duration(seconds: 1));
-      expect(find.byIcon(Icons.add), findsOneWidget);
 
-      session.signOut();
-      await tester.pumpAndSettle();
+      // The session guard replaces the screen with an empty page for the
+      // frames before the router redirects (no redirect in this test).
+      expect(tester.takeException(), isNull);
+      expect(find.byType(WishlistScreen), findsNothing);
+      expect(find.byIcon(Icons.add), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'keeps the owner actions while the session ends and the screen is leaving '
+    '(F015), without the route guard',
+    (tester) async {
+      // Mounted directly: not behind SessionGuard, so this covers the screen
+      // itself should the guard ever go away.
+      await pumpSignedInWishlistThenSignOut(
+        tester,
+        mount: (overrides) => tester.pumpApp(
+          const WishlistScreen(wishlistId: 2),
+          overrides: overrides,
+        ),
+      );
 
       // The owner floating actions stay for the frames before the
       // router redirects.
+      expect(tester.takeException(), isNull);
       expect(find.byIcon(Icons.add), findsOneWidget);
     },
   );

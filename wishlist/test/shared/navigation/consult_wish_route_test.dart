@@ -36,7 +36,7 @@ void main() {
     });
   });
 
-  group('ConsultWishRoute.build', () {
+  group('ConsultWishRoute.buildScreen', () {
     Future<ConsultWishScreen> buildScreen(
       WidgetTester tester,
       ConsultWishRoute route,
@@ -45,7 +45,7 @@ void main() {
       await tester.pumpWidget(
         Builder(
           builder: (context) {
-            built = route.build(context, MockGoRouterState());
+            built = route.buildScreen(context, MockGoRouterState());
             return const SizedBox.shrink();
           },
         ),

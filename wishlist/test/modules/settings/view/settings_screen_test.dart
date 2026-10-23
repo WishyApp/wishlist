@@ -19,11 +19,12 @@ void main() {
     await tester.expectGolden<SettingsScreen>(variant);
   });
 
-  // Right after a sign-out the screen is rebuilt once before the redirect:
-  // no current user, so no email.
+  // Right after a sign-out the screen can be rebuilt once before the redirect:
+  // no current user, so no email. Mounted directly, not behind the route's
+  // session guard, so the screen itself stays tolerant.
   testWidgets('hides the email line without a signed-in user', (tester) async {
-    await tester.pumpRouterApp(
-      SettingsRoute().location,
+    await tester.pumpApp(
+      const SettingsScreen(),
       overrides: settingsScreenOverrides(signedOut: true),
     );
     await tester.pumpAndSettle();
