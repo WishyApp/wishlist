@@ -82,4 +82,58 @@ void main() {
       tester.getTopLeft(find.byType(TextButton)).dy,
     );
   });
+
+  testWidgets('on a very short screen, the whole step scrolls without overflow',
+      (tester) async {
+    // Landscape phone with the keyboard open: 200 px left for the step.
+    // Portrait is locked on Android only, iOS rotates.
+    tester.view
+      ..physicalSize = const Size(640, 360)
+      ..devicePixelRatio = 1
+      ..viewInsets = const FakeViewPadding(bottom: 160);
+    addTearDown(tester.view.reset);
+
+    final userService = MockUserService();
+
+    for (final screen in [
+      const PseudoScreen(),
+      const BirthdayStepScreen(),
+    ]) {
+      await tester.pumpRouterApp(
+        '/',
+        overrides: [
+          ...pseudoScreenOverrides(),
+          userServiceProvider.overrideWithValue(userService),
+        ],
+        routes: [GoRoute(path: '/', builder: (_, __) => screen)],
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      // The actions are part of the scrolled content: reachable by scrolling
+      await tester.scrollUntilVisible(
+        find.byType(PrimaryButton),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      final button = tester.getRect(find.byType(PrimaryButton));
+      expect(button.top, greaterThanOrEqualTo(0));
+      expect(button.bottom, lessThanOrEqualTo(360 - 160));
+
+      final input = find.byType(
+        screen is PseudoScreen ? TextFormField : BirthdayPicker,
+      );
+      await tester.scrollUntilVisible(
+        input,
+        -100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(tester.getRect(input).top, greaterThanOrEqualTo(0));
+    }
+  });
 }

@@ -87,13 +87,40 @@ void main() {
     expect(tester.takeException(), isNull);
 
     // The button is anchored above the keyboard, no scrolling needed
-    final bottom = tester.getRect(find.byType(PrimaryButton)).bottom;
-    expect(bottom, lessThanOrEqualTo(568 - 260));
+    final button = tester.getRect(find.byType(PrimaryButton));
+    expect(button.bottom, lessThanOrEqualTo(568 - 260));
 
-    // The field stays reachable
-    await tester.ensureVisible(find.byType(TextFormField));
+    // The field is fully visible, above the button, without scrolling
+    final field = tester.getRect(find.byType(TextFormField));
+    expect(field.top, greaterThanOrEqualTo(0));
+    expect(field.bottom, lessThanOrEqualTo(button.top));
+
+    // The illustration is not pushed out of sight by the keyboard: it shrinks
+    // to leave room, and part of it is on screen on arrival
+    final illustration = tester.getRect(find.byType(SvgPicture));
+    expect(illustration.height, 140);
+    expect(illustration.bottom, greaterThan(0));
+    expect(illustration.top, lessThan(field.top));
+  });
+
+  testWidgets('submitting from the keyboard saves the pseudo', (tester) async {
+    final userService = MockUserService();
+    when(() => userService.createUserProfile(any())).thenAnswer((_) async {});
+
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: [
+        ...pseudoScreenOverrides(),
+        userServiceProvider.overrideWithValue(userService),
+      ],
+    );
     await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
+
+    await tester.enterText(find.byType(TextFormField), 'Alice');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    verify(() => userService.createUserProfile(any())).called(1);
   });
 
   group('on success', () {

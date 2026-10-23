@@ -90,6 +90,12 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
   }
 
   @override
+  void dispose() {
+    _pseudoController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
@@ -109,6 +115,8 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
             labelText: l10n.pseudoField,
           ),
           textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) => onPressed(),
           validator: (value) => pseudoValidator(value, l10n),
         ),
       ),

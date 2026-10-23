@@ -35,70 +35,104 @@ class SignupStepLayout extends StatelessWidget {
   /// Optional button right above the main one.
   final Widget? secondaryAction;
 
+  /// Below this visible height (scaled by the text size), the actions would
+  /// leave no room for the blocks: they scroll with them instead of staying
+  /// anchored (landscape with the keyboard open, very large text).
+  static const _minAnchoredHeight = 250.0;
+
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 3.0);
+
+    // Read above the Scaffold, which removes the keyboard from its children
+    final screenHeight = MediaQuery.sizeOf(context).height -
+        MediaQuery.viewInsetsOf(context).bottom;
+
+    final header = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AuthIllustration(
+          asset: illustration,
+          screenHeight: screenHeight,
+        ),
+        const Gap(16),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.titleSmall,
+        ),
+        const Gap(8),
+        Text(
+          explanation,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.smaller.copyWith(color: AppColors.makara),
+        ),
+      ],
+    );
+
+    final actions = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (secondaryAction case final secondaryAction?) ...[
+          secondaryAction,
+          const SizedBox(height: 8),
+        ],
+        primaryAction,
+      ],
+    );
+
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: CustomScrollView(
-                slivers: [
-                  // At least the visible height, so that spaceBetween has
-                  // room to spread; more when the blocks do not fit. The
-                  // padding goes inside: around the sliver, it would be added
-                  // to that height and make a screen that fits scroll.
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isAnchored =
+                constraints.maxHeight >= _minAnchoredHeight * textScale;
+
+            return Column(
+              children: [
+                Expanded(
+                  child: CustomScrollView(
+                    slivers: [
+                      // At least the visible height, so that spaceBetween has
+                      // room to spread; more when the blocks do not fit. The
+                      // padding goes inside: around the sliver, it would be
+                      // added to that height and make a screen that fits
+                      // scroll.
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              AuthIllustration(asset: illustration),
-                              const Gap(16),
-                              Text(
-                                title,
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.titleSmall,
-                              ),
-                              const Gap(8),
-                              Text(
-                                explanation,
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.smaller
-                                    .copyWith(color: AppColors.makara),
-                              ),
+                              header,
+                              // Minimum gap between the blocks when space is
+                              // short
+                              const Gap(24),
+                              if (isAnchored)
+                                input
+                              else
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [input, const Gap(24), actions],
+                                ),
                             ],
                           ),
-                          // Minimum gap between the blocks when space is short
-                          const Gap(24),
-                          input,
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(32, 0, 32, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (secondaryAction case final secondaryAction?) ...[
-                    secondaryAction,
-                    const SizedBox(height: 8),
-                  ],
-                  primaryAction,
-                ],
-              ),
-            ),
-          ],
+                ),
+                if (isAnchored)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(32, 0, 32, 16),
+                    child: actions,
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
