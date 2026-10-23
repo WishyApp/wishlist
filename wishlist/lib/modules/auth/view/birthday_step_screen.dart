@@ -6,6 +6,7 @@ import 'package:wishlist/app/navigation/app_redirect.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/auth/view/widgets/auth_illustration.dart';
+import 'package:wishlist/modules/auth/view/widgets/signup_step_layout.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
@@ -85,53 +86,41 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
           _goNext();
         }
       },
-      child: Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AuthIllustration(asset: Assets.svg.birthday),
-                  const Gap(16),
-                  Text(
-                    l10n.birthdayStepTitle,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.titleSmall,
-                  ),
-                  const Gap(8),
-                  Text(
-                    l10n.birthdayStepExplanation,
-                    textAlign: TextAlign.center,
-                    style:
-                        AppTextStyles.smaller.copyWith(color: AppColors.makara),
-                  ),
-                  const Gap(16),
-                  BirthdayPicker(
-                    initialValue: _selected,
-                    onChanged: (value) => _selected = value,
-                  ),
-                  const Gap(24),
-                  PrimaryButton(
-                    text: l10n.changeBirthdayConfirm,
-                    onPressed: _isSaving ? null : _onSave,
-                    isLoading: _isSaving,
-                    style: BaseButtonStyle.large,
-                  ),
-                  const Gap(8),
-                  TextButton(
-                    onPressed: _isSaving ? null : _goNext,
-                    child: Text(
-                      l10n.birthdayStepLater,
-                      style: AppTextStyles.small.copyWith(
-                        color: AppColors.makara,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      child: SignupStepLayout(
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AuthIllustration(asset: Assets.svg.birthday),
+            const Gap(16),
+            Text(
+              l10n.birthdayStepTitle,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.titleSmall,
             ),
+            const Gap(8),
+            Text(
+              l10n.birthdayStepExplanation,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.smaller.copyWith(color: AppColors.makara),
+            ),
+            const Gap(16),
+            BirthdayPicker(
+              initialValue: _selected,
+              onChanged: (value) => _selected = value,
+            ),
+          ],
+        ),
+        primaryAction: PrimaryButton(
+          text: l10n.changeBirthdayConfirm,
+          onPressed: _isSaving ? null : _onSave,
+          isLoading: _isSaving,
+          style: BaseButtonStyle.large,
+        ),
+        secondaryAction: TextButton(
+          onPressed: _isSaving ? null : _goNext,
+          child: Text(
+            l10n.birthdayStepLater,
+            style: AppTextStyles.small.copyWith(color: AppColors.makara),
           ),
         ),
       ),

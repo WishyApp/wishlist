@@ -71,9 +71,12 @@ void main() {
 
     expect(tester.takeException(), isNull);
 
-    // The scroll view keeps the field and the button reachable
+    // The button is anchored above the keyboard, no scrolling needed
+    final bottom = tester.getRect(find.byType(PrimaryButton)).bottom;
+    expect(bottom, lessThanOrEqualTo(568 - 260));
+
+    // The field stays reachable
     await tester.ensureVisible(find.byType(TextFormField));
-    await tester.ensureVisible(find.byType(PrimaryButton));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });

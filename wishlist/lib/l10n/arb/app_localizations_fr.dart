@@ -138,7 +138,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get pseudoAlreadyExists => 'Ce pseudo est déjà utilisé';
 
   @override
-  String get savePseudo => 'Sauvegarder';
+  String get savePseudo => 'Enregistrer';
 
   @override
   String get pseudoStepTitle => 'Choisis ton pseudo';

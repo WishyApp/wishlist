@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/auth/view/widgets/auth_illustration.dart';
+import 'package:wishlist/modules/auth/view/widgets/signup_step_layout.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
@@ -85,51 +86,42 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
 
     // Same frame as the birthday step that follows, without the app title of
     // the sign-in screen
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AuthIllustration(asset: Assets.svg.pseudo),
-                  const Gap(16),
-                  Text(
-                    l10n.pseudoStepTitle,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.titleSmall,
-                  ),
-                  const Gap(8),
-                  Text(
-                    l10n.pseudoStepExplanation,
-                    textAlign: TextAlign.center,
-                    style:
-                        AppTextStyles.smaller.copyWith(color: AppColors.makara),
-                  ),
-                  const Gap(24),
-                  TextFormField(
-                    controller: _pseudoController,
-                    decoration: InputDecoration(
-                      labelText: l10n.pseudoField,
-                    ),
-                    textCapitalization: TextCapitalization.sentences,
-                    validator: (value) => pseudoValidator(value, l10n),
-                  ),
-                  const Gap(32),
-                  PrimaryButton(
-                    onPressed: onPressed,
-                    text: l10n.savePseudo,
-                    style: BaseButtonStyle.large,
-                    isLoading: _isLoading,
-                  ),
-                ],
-              ),
+    return SignupStepLayout(
+      content: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AuthIllustration(asset: Assets.svg.pseudo),
+            const Gap(16),
+            Text(
+              l10n.pseudoStepTitle,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.titleSmall,
             ),
-          ),
+            const Gap(8),
+            Text(
+              l10n.pseudoStepExplanation,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.smaller.copyWith(color: AppColors.makara),
+            ),
+            const Gap(24),
+            TextFormField(
+              controller: _pseudoController,
+              decoration: InputDecoration(
+                labelText: l10n.pseudoField,
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              validator: (value) => pseudoValidator(value, l10n),
+            ),
+          ],
         ),
+      ),
+      primaryAction: PrimaryButton(
+        onPressed: onPressed,
+        text: l10n.savePseudo,
+        style: BaseButtonStyle.large,
+        isLoading: _isLoading,
       ),
     );
   }

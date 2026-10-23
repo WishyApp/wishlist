@@ -335,7 +335,7 @@ abstract class AppLocalizations {
   /// No description provided for @savePseudo.
   ///
   /// In fr, this message translates to:
-  /// **'Sauvegarder'**
+  /// **'Enregistrer'**
   String get savePseudo;
 
   /// No description provided for @pseudoStepTitle.
