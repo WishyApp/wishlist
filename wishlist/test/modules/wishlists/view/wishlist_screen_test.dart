@@ -296,6 +296,39 @@ void main() {
   );
 
   testWidgets(
+    'keeps the owner actions while the session ends and the screen is leaving '
+    '(F015), without the route guard',
+    (tester) async {
+      final session = FakeAuthSession(userId: fakeCurrentUserId);
+      addTearDown(session.close);
+      // Mounted directly: not behind SessionGuard, so this covers the screen
+      // itself should the guard ever go away.
+      await tester.pumpApp(
+        const WishlistScreen(wishlistId: 2),
+        overrides: [
+          ...wishlistScreenOverrides(
+            wishlistId: 2,
+            wishlist: fakeWishlist2,
+            wishes: fakeWishes,
+            currentUserId: fakeCurrentUserId,
+          ),
+          supabaseClientProvider.overrideWithValue(session.client),
+        ],
+      );
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+      expect(find.byIcon(Icons.add), findsOneWidget);
+
+      session.signOut();
+      await tester.pumpAndSettle();
+
+      // The owner floating actions stay for the frames before the
+      // router redirects.
+      expect(tester.takeException(), isNull);
+      expect(find.byIcon(Icons.add), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'displays a message and leaves the screen when the wishlist is deleted',
     (tester) async {
       await tester.pumpRouterApp(

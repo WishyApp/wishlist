@@ -52,7 +52,7 @@ void main() {
         // Same contract as app/navigation/router.dart for a signed-out user.
         redirect: (context, state) {
           final isAuthRoute = state.matchedLocation.startsWith('/auth');
-          if (session.auth.currentUser == null && !isAuthRoute) {
+          if (session.auth.currentSession == null && !isAuthRoute) {
             return AuthRoute().location;
           }
           return null;

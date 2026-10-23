@@ -18,6 +18,9 @@ class MockGoTrueClient extends Mock implements GoTrueClient {}
 // ignore: avoid_implementing_value_types
 class MockUser extends Mock implements User {}
 
+// ignore: avoid_implementing_value_types
+class MockSession extends Mock implements Session {}
+
 class MockUserService extends Mock implements UserService {}
 
 class MockFriendshipRepository extends Mock implements FriendshipRepository {}
@@ -74,6 +77,8 @@ class FakeAuthSession {
   FakeAuthSession({String? userId, String? email}) {
     when(() => client.auth).thenReturn(auth);
     when(() => auth.currentUser).thenAnswer((_) => _user);
+    when(() => auth.currentSession)
+        .thenAnswer((_) => _user == null ? null : MockSession());
     when(() => auth.onAuthStateChange).thenAnswer((_) => _events);
     setUserSilently(userId, email: email);
     _events = BehaviorSubject.seeded(
