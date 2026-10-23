@@ -134,12 +134,13 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   SettingsLine(
                     title: l10n.settingsScreenBirthday,
-                    // Nothing while loading or on error: the screen behind
-                    // the line handles those.
+                    // Nothing while loading, a dash on error: the screen behind
+                    // the line handles the failure itself.
                     value: birthday.whenOrNull(
                       data: (birthday) =>
                           birthday?.format(locale) ??
                           l10n.settingsScreenBirthdayNotSet,
+                      error: (error, stackTrace) => '—',
                     ),
                     onTap: () {
                       ChangeBirthdayRoute().push(context);
