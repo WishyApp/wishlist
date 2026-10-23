@@ -1,15 +1,23 @@
 name: CI
 
+# Only the Flutter app is built here: changes limited to site/, docs/,
+# supabase/ (see supabase.yml) or the changelog do not need this workflow.
 on:
   push:
     branches:
       - main
+    paths:
+      - 'wishlist/**'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches:
       - main
       - 'feat/**'
       - 'fix/**'
       - 'test/**'
+    paths:
+      - 'wishlist/**'
+      - '.github/workflows/ci.yml'
 
 # Évite les runs en doublon et annule les anciens runs si un nouveau commit est pushé
 concurrency:
