@@ -12,6 +12,45 @@ void main() {
     expect(birthday.day, 12);
   });
 
+  group('tryFromJson', () {
+    test('reads a valid row, ignoring the other columns', () {
+      expect(
+        Birthday.tryFromJson(const {'profile_id': 'a', 'month': 2, 'day': 29}),
+        const Birthday(month: 2, day: 29),
+      );
+    });
+
+    test('gives null on invalid data', () {
+      for (final json in <Map<String, dynamic>>[
+        {'month': 'x', 'day': 1},
+        {'month': 3, 'day': null},
+        {'month': 3},
+        {'month': 3.0, 'day': 1},
+        {'month': 0, 'day': 1},
+        {'month': 13, 'day': 1},
+        {'month': 3, 'day': 0},
+        {'month': 4, 'day': 31},
+        {'month': 2, 'day': 30},
+        {'month': 1, 'day': 32},
+      ]) {
+        expect(Birthday.tryFromJson(json), isNull, reason: '$json');
+      }
+    });
+  });
+
+  group('upcomingIn', () {
+    final now = DateTime(2026, 3, 1, 15);
+
+    test('counts the days within the window, today included', () {
+      expect(const Birthday(month: 3, day: 1).upcomingIn(now), 0);
+      expect(const Birthday(month: 3, day: 31).upcomingIn(now), 30);
+    });
+
+    test('gives null beyond the window', () {
+      expect(const Birthday(month: 4, day: 1).upcomingIn(now), isNull);
+    });
+  });
+
   test('toJson only holds month and day', () {
     expect(
       const Birthday(month: 2, day: 29).toJson(),

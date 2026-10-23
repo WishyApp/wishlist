@@ -29,8 +29,25 @@ class Birthday {
     );
   }
 
-  /// Birthdays further away than this are shown without a countdown.
+  /// A birthday is "upcoming" when it is at most this many days away: today
+  /// included, so 0 to 30, which is 31 dates. Further ones are shown without a
+  /// countdown.
   static const upcomingDays = 30;
+
+  /// Parses a `{month, day}` row, null if it is malformed (wrong types, month
+  /// or day out of range). Unlike [Birthday.fromJson] it never asserts, so
+  /// release builds treat invalid data the same way.
+  static Birthday? tryFromJson(Map<String, dynamic> json) {
+    final month = json['month'];
+    final day = json['day'];
+    if (month is! int || day is! int) {
+      return null;
+    }
+    if (month < 1 || month > 12 || day < 1 || day > daysInMonth(month)) {
+      return null;
+    }
+    return Birthday(month: month, day: day);
+  }
 
   final int month;
   final int day;
@@ -68,6 +85,13 @@ class Birthday {
     }
 
     return next.difference(todayDate).inDays;
+  }
+
+  /// [daysUntil] if the birthday is within [upcomingDays], null if it is
+  /// further away: the one place of the "show a countdown" rule.
+  int? upcomingIn(DateTime today) {
+    final days = daysUntil(today);
+    return days <= upcomingDays ? days : null;
   }
 
   DateTime _occurrenceIn(int year) {
