@@ -6,6 +6,7 @@ import 'package:wishlist/shared/infra/repositories/user/user_repository.dart';
 import 'package:wishlist/shared/infra/utils/execute_safely.dart';
 import 'package:wishlist/shared/infra/utils/postgrest_user_message_key.dart';
 import 'package:wishlist/shared/models/app_user.dart';
+import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/profile.dart';
 
 class SupabaseUserRepository implements UserRepository {
@@ -89,6 +90,48 @@ class SupabaseUserRepository implements UserRepository {
         return AppUser.fromJson(response);
       },
       errorMessage: 'Failed to get user by id',
+    );
+  }
+
+  @override
+  Future<Birthday?> getCurrentUserBirthday() async {
+    return executeSafely(
+      () async {
+        final response = await _client
+            .from('profile_birthdays')
+            .select('month, day')
+            .eq('profile_id', getCurrentUserId())
+            .maybeSingle();
+
+        return response == null ? null : Birthday.fromJson(response);
+      },
+      errorMessage: 'Failed to get current user birthday',
+    );
+  }
+
+  @override
+  Future<void> upsertCurrentUserBirthday(Birthday birthday) async {
+    return executeSafely(
+      () async {
+        await _client.from('profile_birthdays').upsert({
+          'profile_id': getCurrentUserId(),
+          ...birthday.toJson(),
+        });
+      },
+      errorMessage: 'Failed to save current user birthday',
+    );
+  }
+
+  @override
+  Future<void> deleteCurrentUserBirthday() async {
+    return executeSafely(
+      () async {
+        await _client
+            .from('profile_birthdays')
+            .delete()
+            .eq('profile_id', getCurrentUserId());
+      },
+      errorMessage: 'Failed to delete current user birthday',
     );
   }
 }
