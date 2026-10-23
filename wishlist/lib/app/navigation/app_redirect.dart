@@ -130,7 +130,16 @@ String? appRedirect(GoRouterState state, {required Session? session}) {
     return PseudoRoute().location;
   }
 
-  if (isOnAuthScreen || isOnPseudoScreen) {
+  // Creating the pseudo refreshes the session, which runs this redirect before
+  // the pseudo screen gets to navigate: send the new user to the optional
+  // birthday step, which then goes to [redirectTo] or home itself. Nothing
+  // else leads there and nothing forces it: it is only reached from here and
+  // never redirects based on the birthday.
+  if (isOnPseudoScreen) {
+    return birthdayStepLocation(redirectTo: redirectTo);
+  }
+
+  if (isOnAuthScreen) {
     return redirectTo ?? HomeRoute().location;
   }
 

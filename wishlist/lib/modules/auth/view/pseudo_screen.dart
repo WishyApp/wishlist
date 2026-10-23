@@ -39,11 +39,8 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
         _isLoading = false;
       });
 
-      if (redirectTo != null && redirectTo.startsWith('/')) {
-        context.go(redirectTo);
-      } else {
-        HomeRoute().go(context);
-      }
+      // Optional step, carrying the deep link the user came from
+      context.go(birthdayStepLocation(redirectTo: redirectTo));
     }
   }
 

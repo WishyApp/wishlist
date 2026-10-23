@@ -257,6 +257,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changeBirthdayRemoved => 'Birthday removed!';
 
   @override
+  String get birthdayStepTitle => 'When is your birthday?';
+
+  @override
+  String get birthdayStepExplanation =>
+      'Your friends will see it (without the year) and think of you in time. You can change it in the Settings.';
+
+  @override
+  String get birthdayStepLater => 'Later';
+
+  @override
   String get changePasswordSuccess => 'Password changed successfully!';
 
   @override

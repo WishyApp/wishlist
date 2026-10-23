@@ -20,6 +20,10 @@ RouteBase get $homeRoute => GoRouteData.$route(
           factory: $PseudoRouteExtension._fromState,
         ),
         GoRouteData.$route(
+          path: 'birthday',
+          factory: $BirthdayStepRouteExtension._fromState,
+        ),
+        GoRouteData.$route(
           path: 'settings',
           factory: $SettingsRouteExtension._fromState,
           routes: [
@@ -94,6 +98,24 @@ extension $PseudoRouteExtension on PseudoRoute {
 
   String get location => GoRouteData.$location(
         '/pseudo',
+      );
+
+  void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  void replace(BuildContext context) => context.replace(location);
+}
+
+extension $BirthdayStepRouteExtension on BirthdayStepRoute {
+  static BirthdayStepRoute _fromState(GoRouterState state) =>
+      BirthdayStepRoute();
+
+  String get location => GoRouteData.$location(
+        '/birthday',
       );
 
   void go(BuildContext context) => context.go(location);
