@@ -379,22 +379,14 @@ class _FriendCompletedWishesSection extends ConsumerWidget {
                   children: [
                     // The title only gives way to "See all" on narrow screens
                     Expanded(
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              l10n.friendCompletedWishesTitle,
-                              style: AppTextStyles.small.copyWith(
-                                color: AppColors.makara,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const Gap(8),
-                          _CountBadge(count: completedWishes.length),
-                        ],
+                      child: Text(
+                        l10n.friendCompletedWishesTitle,
+                        style: AppTextStyles.small.copyWith(
+                          color: AppColors.makara,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     TextButton(
@@ -443,32 +435,6 @@ class _FriendCompletedWishesSection extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 22),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: const BoxDecoration(
-        color: AppColors.darkGrey,
-        borderRadius: BorderRadius.all(Radius.circular(999)),
-      ),
-      child: Text(
-        '$count',
-        textAlign: TextAlign.center,
-        style: AppTextStyles.tiny.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
     );
   }
 }

@@ -98,9 +98,8 @@ void main() {
     expect(find.text(l10n.seeAllCompletedWishes), findsNothing);
   });
 
-  testWidgets(
-      '$FriendDetailsScreen shows the most recent completed wishes and '
-      'their total', (tester) async {
+  testWidgets('$FriendDetailsScreen shows the most recent completed wishes',
+      (tester) async {
     await tester.pumpRouterApp(
       FriendDetailsRoute(fakeFriendUserId1).location,
       overrides: friendDetailsScreenOverrides(
@@ -114,7 +113,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(l10n.friendCompletedWishesTitle), findsOneWidget);
-    expect(find.text('12'), findsOneWidget);
     for (var id = 1; id <= 10; id++) {
       expect(find.text('Wish $id'), findsOneWidget);
     }
