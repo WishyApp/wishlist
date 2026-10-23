@@ -4,7 +4,9 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
+import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/models/birthday.dart';
@@ -52,7 +54,8 @@ void main() {
   });
 
   test('a failed load gives no birthday instead of an error', () async {
-    when(userService.getVisibleBirthdays).thenThrow(Exception('boom'));
+    when(userService.getVisibleBirthdays)
+        .thenThrow(AppException(statusCode: 500));
     final container = makeContainer();
 
     final birthdays = await container.read(visibleBirthdaysProvider.future);
@@ -109,5 +112,93 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     await container.read(visibleBirthdaysProvider.future);
     expect(loads, 2);
+  });
+
+  test('lets an unexpected error through, the consumers read no value',
+      () async {
+    when(userService.getVisibleBirthdays).thenThrow(StateError('bug'));
+    final container = makeContainer();
+
+    await expectLater(
+      container.read(visibleBirthdaysProvider.future),
+      throwsStateError,
+    );
+    expect(container.read(friendBirthdayProvider(fakeFriendUserId1)), isNull);
+  });
+
+  group('user switch', () {
+    late FakeAuthSession session;
+
+    ProviderContainer makeSessionContainer() {
+      final container = ProviderContainer(
+        overrides: [
+          supabaseClientProvider.overrideWithValue(session.client),
+          userServiceProvider.overrideWithValue(userService),
+          friendshipsRealtimeProvider.overrideWith((ref) => friendships.stream),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(visibleBirthdaysProvider, (_, __) {});
+      container.listen(friendBirthdayProvider(fakeFriendUserId1), (_, __) {});
+      return container;
+    }
+
+    setUp(() {
+      session = FakeAuthSession(userId: 'user-a');
+      addTearDown(session.close);
+    });
+
+    test('hides the previous user birthdays while the new ones load', () async {
+      var loads = 0;
+      final secondLoad = Completer<Map<String, Birthday>>();
+      when(userService.getVisibleBirthdays).thenAnswer((_) {
+        loads++;
+        return loads == 1
+            ? Future.value({fakeFriendUserId1: _march12})
+            : secondLoad.future;
+      });
+      final container = makeSessionContainer();
+      await container.read(visibleBirthdaysProvider.future);
+      expect(
+        container.read(friendBirthdayProvider(fakeFriendUserId1)),
+        _march12,
+      );
+
+      session.signIn('user-b');
+      await pumpEventQueue();
+
+      expect(loads, 2);
+      expect(container.read(friendBirthdayProvider(fakeFriendUserId1)), isNull);
+
+      secondLoad
+          .complete({fakeFriendUserId1: const Birthday(month: 5, day: 1)});
+      await pumpEventQueue();
+      expect(
+        container.read(friendBirthdayProvider(fakeFriendUserId1)),
+        const Birthday(month: 5, day: 1),
+      );
+    });
+
+    test('keeps the values while a refresh reloads', () async {
+      var loads = 0;
+      final secondLoad = Completer<Map<String, Birthday>>();
+      when(userService.getVisibleBirthdays).thenAnswer((_) {
+        loads++;
+        return loads == 1
+            ? Future.value({fakeFriendUserId1: _march12})
+            : secondLoad.future;
+      });
+      final container = makeSessionContainer();
+      await container.read(visibleBirthdaysProvider.future);
+
+      container.invalidate(visibleBirthdaysProvider);
+      await pumpEventQueue();
+
+      expect(loads, 2);
+      expect(
+        container.read(friendBirthdayProvider(fakeFriendUserId1)),
+        _march12,
+      );
+    });
   });
 }

@@ -33,6 +33,8 @@ class FriendPill extends ConsumerWidget {
     const textColor = AppColors.background;
 
     final birthday = ref.watch(friendBirthdayProvider(appUser.user.id));
+    // Read at build time: a screen left open past midnight updates on its
+    // next rebuild.
     final daysUntilBirthday = birthday?.daysUntil(ref.watch(clockProvider)());
     final hasUpcomingBirthday =
         daysUntilBirthday != null && daysUntilBirthday <= Birthday.upcomingDays;

@@ -1,4 +1,5 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
@@ -117,10 +118,25 @@ class SupabaseUserRepository implements UserRepository {
             .from('profile_birthdays')
             .select('profile_id, month, day');
 
-        return {
-          for (final row in rows)
-            row['profile_id'] as String: Birthday.fromJson(row),
-        };
+        // One malformed row must not hide the other birthdays.
+        final birthdays = <String, Birthday>{};
+        for (final row in rows) {
+          final profileId = row['profile_id'];
+          final month = row['month'];
+          final day = row['day'];
+          if (profileId is String &&
+              month is int &&
+              day is int &&
+              month >= 1 &&
+              month <= 12 &&
+              day >= 1 &&
+              day <= Birthday.daysInMonth(month)) {
+            birthdays[profileId] = Birthday(month: month, day: day);
+          } else {
+            debugPrint('[Wishy birthdays] skipped a malformed row: $row');
+          }
+        }
+        return birthdays;
       },
       errorMessage: 'Failed to get visible birthdays',
     );

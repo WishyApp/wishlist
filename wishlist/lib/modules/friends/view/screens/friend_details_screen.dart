@@ -187,6 +187,8 @@ class _FriendBirthdayLine extends ConsumerWidget {
     final l10n = context.l10n;
     final locale = Localizations.localeOf(context).toString();
     final date = birthday.format(locale);
+    // Read at build time: a screen left open past midnight updates on its
+    // next rebuild.
     final days = birthday.daysUntil(ref.watch(clockProvider)());
     final text = days <= Birthday.upcomingDays
         ? l10n.friendBirthdayWithCountdown(date, days)
