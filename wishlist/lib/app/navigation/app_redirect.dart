@@ -33,7 +33,11 @@ bool _isOnRoute(GoRouterState state, String routeLocation) {
   return routeLocation.split('/').last == state.matchedLocation.split('/').last;
 }
 
-String? _sanitizeRedirectTarget(String? target) {
+/// The internal path (with its query) to open for a `redirectTo` value, or null
+/// when it is not safe: a plain path, or one of our own wishy:// deep links
+/// reduced to its path. Anything else (other schemes or hosts, `//host/x`) is
+/// dropped.
+String? sanitizeRedirectTarget(String? target) {
   if (target == null || target.isEmpty) {
     return null;
   }
@@ -81,11 +85,11 @@ String _buildLocationWithRedirectTo(
 /// without a session: keep them in sync with the `AuthenticatedRoute` base
 /// class of `shared/navigation/routes.dart`.
 String? appRedirect(GoRouterState state, {required Session? session}) {
-  final redirectTo = _sanitizeRedirectTarget(
+  final redirectTo = sanitizeRedirectTarget(
     state.uri.queryParameters['redirectTo'],
   );
   final currentLocation = state.uri.toString();
-  final currentTarget = _sanitizeRedirectTarget(currentLocation);
+  final currentTarget = sanitizeRedirectTarget(currentLocation);
 
   final isOnAuthScreen = _isOnRoute(state, AuthRoute().location);
   final isOnPseudoScreen = _isOnRoute(state, PseudoRoute().location);

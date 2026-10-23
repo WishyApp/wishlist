@@ -39,7 +39,9 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
         _isLoading = false;
       });
 
-      // Optional step, carrying the deep link the user came from
+      // Normally the router redirect gets there first (creating the profile
+      // refreshes the session): this is the fallback. The optional step
+      // carries the deep link the user came from.
       context.go(birthdayStepLocation(redirectTo: redirectTo));
     }
   }

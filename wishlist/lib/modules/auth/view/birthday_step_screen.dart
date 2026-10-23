@@ -1,10 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wishlist/app/navigation/app_redirect.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
@@ -40,9 +39,10 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
   bool _isSaving = false;
 
   void _goNext() {
-    final redirectTo = widget.redirectTo;
+    // The route hands over the raw query parameter
+    final redirectTo = sanitizeRedirectTarget(widget.redirectTo);
 
-    if (redirectTo != null && redirectTo.startsWith('/')) {
+    if (redirectTo != null) {
       context.go(redirectTo);
     } else {
       HomeRoute().go(context);
@@ -50,19 +50,18 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
   }
 
   Future<void> _onSave() async {
+    final userService = ref.read(userServiceProvider);
     setState(() {
       _isSaving = true;
     });
 
     try {
-      await ref.read(userServiceProvider).upsertCurrentUserBirthday(_selected);
-      // The settings line shows the new value
-      ref.invalidate(currentUserBirthdayProvider);
+      await userService.upsertCurrentUserBirthday(_selected);
 
       if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
+        // The settings line shows the new value. The button keeps its loading
+        // state until the screen is left.
+        ref.invalidate(currentUserBirthdayProvider);
         _goNext();
       }
     } on AppException catch (appException) {
@@ -82,58 +81,63 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
     final illustrationHeight =
         (MediaQuery.sizeOf(context).height / 5).clamp(100.0, 200.0);
 
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              32,
-              math.min(32, illustrationHeight / 3),
-              32,
-              16,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SvgPicture.asset(
-                  Assets.svg.birthday,
-                  height: illustrationHeight,
-                ),
-                const Gap(24),
-                Text(
-                  l10n.birthdayStepTitle,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.title,
-                ),
-                const Gap(8),
-                Text(
-                  l10n.birthdayStepExplanation,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.small.copyWith(color: AppColors.makara),
-                ),
-                const Gap(16),
-                BirthdayPicker(
-                  initialValue: _selected,
-                  onChanged: (value) => _selected = value,
-                ),
-                const Gap(24),
-                PrimaryButton(
-                  text: l10n.changeBirthdayConfirm,
-                  onPressed: _isSaving ? null : _onSave,
-                  isLoading: _isSaving,
-                  style: BaseButtonStyle.large,
-                ),
-                const Gap(8),
-                TextButton(
-                  onPressed: _isSaving ? null : _goNext,
-                  child: Text(
-                    l10n.birthdayStepLater,
-                    style: AppTextStyles.small.copyWith(
-                      color: AppColors.makara,
+    // Back behaves like "later": popping would land on home and lose redirectTo
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_isSaving) {
+          _goNext();
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SvgPicture.asset(
+                    Assets.svg.birthday,
+                    height: illustrationHeight,
+                  ),
+                  const Gap(24),
+                  Text(
+                    l10n.birthdayStepTitle,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.title,
+                  ),
+                  const Gap(8),
+                  Text(
+                    l10n.birthdayStepExplanation,
+                    textAlign: TextAlign.center,
+                    style:
+                        AppTextStyles.small.copyWith(color: AppColors.makara),
+                  ),
+                  const Gap(16),
+                  BirthdayPicker(
+                    initialValue: _selected,
+                    onChanged: (value) => _selected = value,
+                  ),
+                  const Gap(24),
+                  PrimaryButton(
+                    text: l10n.changeBirthdayConfirm,
+                    onPressed: _isSaving ? null : _onSave,
+                    isLoading: _isSaving,
+                    style: BaseButtonStyle.large,
+                  ),
+                  const Gap(8),
+                  TextButton(
+                    onPressed: _isSaving ? null : _goNext,
+                    child: Text(
+                      l10n.birthdayStepLater,
+                      style: AppTextStyles.small.copyWith(
+                        color: AppColors.makara,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

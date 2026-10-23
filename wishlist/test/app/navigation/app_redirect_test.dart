@@ -30,6 +30,7 @@ GoRouter _router(String initialLocation, {required Session? session}) {
       stub(BirthdayStepRoute().location),
       stub(AuthRoute().location),
       stub('/wishlist/1'),
+      stub('/settings'),
     ],
     redirect: (context, state) => appRedirect(state, session: session),
   );
@@ -99,6 +100,65 @@ void main() {
       );
 
       expect(location, '/');
+    });
+  });
+
+  group('redirectTo', () {
+    testWidgets('an unsafe one is dropped on the way to the step',
+        (tester) async {
+      final location = await _landing(
+        tester,
+        '/pseudo?redirectTo=%2F%2Fevil.com%2Fx',
+        session: _session(hasPseudo: true),
+      );
+
+      expect(location, '/birthday');
+    });
+
+    testWidgets('a wishy deep link is reduced to its path', (tester) async {
+      final deepLink = Uri.encodeQueryComponent(
+        'wishy://com.raphtang.wishy/wishlist/1?x=1',
+      );
+      final location = await _landing(
+        tester,
+        '/pseudo?redirectTo=$deepLink',
+        session: _session(hasPseudo: true),
+      );
+
+      expect(location, '/birthday?redirectTo=%2Fwishlist%2F1%3Fx%3D1');
+    });
+
+    testWidgets('an unsafe one on the step is left to the screen',
+        (tester) async {
+      final location = await _landing(
+        tester,
+        '/birthday?redirectTo=%2F%2Fevil.com%2Fx',
+        session: _session(hasPseudo: true),
+      );
+
+      expect(location, '/birthday?redirectTo=%2F%2Fevil.com%2Fx');
+    });
+  });
+
+  group('a user with a pseudo (a token refresh never forces the step)', () {
+    testWidgets('stays on settings', (tester) async {
+      final location = await _landing(
+        tester,
+        '/settings',
+        session: _session(hasPseudo: true),
+      );
+
+      expect(location, '/settings');
+    });
+
+    testWidgets('stays on a wishlist', (tester) async {
+      final location = await _landing(
+        tester,
+        '/wishlist/1',
+        session: _session(hasPseudo: true),
+      );
+
+      expect(location, '/wishlist/1');
     });
   });
 

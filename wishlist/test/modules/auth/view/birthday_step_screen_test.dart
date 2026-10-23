@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -100,7 +102,7 @@ void main() {
       () => userService.upsertCurrentUserBirthday(captureAny()),
     ).captured.single as Birthday;
     expect(picked.month, 1);
-    expect(picked.day, isNot(1));
+    expect(picked.day, 3);
     expect(find.text('home-stub'), findsOneWidget);
   });
 
@@ -181,6 +183,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('home-stub'), findsOneWidget);
+  });
+
+  testWidgets('an authority-relative redirectTo falls back to home',
+      (tester) async {
+    await pumpStep(tester, redirectTo: '//evil.com/x');
+
+    await tester.tap(find.text(l10n.birthdayStepLater));
+    await tester.pumpAndSettle();
+
+    expect(find.text('home-stub'), findsOneWidget);
+  });
+
+  testWidgets('back behaves like "later", keeping redirectTo', (tester) async {
+    await pumpStep(tester, redirectTo: '/wishlist/1');
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    verifyNever(() => userService.upsertCurrentUserBirthday(any()));
+    expect(find.text('target-stub'), findsOneWidget);
+    expect(find.text('home-stub'), findsNothing);
+  });
+
+  testWidgets('back is ignored while saving', (tester) async {
+    final saving = Completer<void>();
+    when(() => userService.upsertCurrentUserBirthday(any()))
+        .thenAnswer((_) => saving.future);
+    await pumpStep(tester, redirectTo: '/wishlist/1');
+
+    await tester.tap(find.byType(PrimaryButton));
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(find.byType(BirthdayStepScreen), findsOneWidget);
+    expect(find.text('target-stub'), findsNothing);
+
+    saving.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('target-stub'), findsOneWidget);
   });
 
   testWidgets('a save error shows the snackbar and stays on the screen',
