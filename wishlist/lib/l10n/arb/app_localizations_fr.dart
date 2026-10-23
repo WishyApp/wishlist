@@ -267,8 +267,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get birthdayStepTitle => 'C\'est quand ton anniversaire ?';
 
   @override
-  String get birthdayStepExplanation =>
-      'Seuls tes amis le verront, sans l\'année.';
+  String get birthdayStepExplanation => 'Seuls tes amis le verront.';
 
   @override
   String get birthdayStepLater => 'Plus tard';
