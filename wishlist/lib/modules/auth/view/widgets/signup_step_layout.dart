@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:wishlist/modules/auth/view/widgets/auth_illustration.dart';
-import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
+import 'package:wishlist/shared/widgets/illustrated_header.dart';
 
 /// Shared frame of the signup steps (pseudo, birthday), in two blocks: the
 /// header (illustration, title, explanation) at the top, the input at the
@@ -48,26 +48,17 @@ class SignupStepLayout extends StatelessWidget {
     final screenHeight = MediaQuery.sizeOf(context).height -
         MediaQuery.viewInsetsOf(context).bottom;
 
-    final header = Column(
+    final header = IllustratedHeader(
+      illustration: AuthIllustration(
+        asset: illustration,
+        screenHeight: screenHeight,
+      ),
+      title: title,
+      titleStyle: AppTextStyles.titleSmall,
+      description: explanation,
+      descriptionStyle: AppTextStyles.smaller,
+      illustrationGap: 16,
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AuthIllustration(
-          asset: illustration,
-          screenHeight: screenHeight,
-        ),
-        const Gap(16),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: AppTextStyles.titleSmall,
-        ),
-        const Gap(8),
-        Text(
-          explanation,
-          textAlign: TextAlign.center,
-          style: AppTextStyles.smaller.copyWith(color: AppColors.makara),
-        ),
-      ],
     );
 
     final actions = Column(
