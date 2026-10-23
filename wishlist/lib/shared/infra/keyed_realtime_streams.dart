@@ -40,7 +40,12 @@ typedef Reload<T> = Future<void> Function([Future<T> Function()? override]);
 ///   channel peut rester « joint » sans rien livrer. On ne sait pas les
 ///   distinguer, on abandonne donc le channel et on en abonne un neuf après un
 ///   délai croissant ([retryDelays]). Si le channel se rejoint seul entre-temps
-///   (`subscribed`), la reprise en attente est annulée.
+///   (`subscribed`), la reprise en attente est annulée. Tant que le socket
+///   Realtime est coupé (ex: l'OS l'a fermé en arrière-plan), on ne remplace
+///   rien : realtime_client se reconnecte et rejoint lui-même tous les
+///   channels, le `subscribed` qui suit recharge et annule la reprise. Le
+///   délai est simplement rearmé ; on ne remplace le channel que socket
+///   connecté (réponse d'erreur au join, ou erreur système après `subscribed`).
 ///
 /// Aucun rafraîchissement explicite de la session : supabase_flutter pousse
 /// les jetons rafraîchis vers realtime, et le channel neuf, abonné après le
@@ -61,6 +66,7 @@ class KeyedRealtimeStreams {
     required this.logTag,
     this.shouldEmitErrorAfterValue,
     this.retryDelays = defaultRetryDelays,
+    this.isSocketConnected,
   }) : assert(retryDelays.isNotEmpty, 'retryDelays must not be empty');
 
   static const defaultRetryDelays = [
@@ -74,6 +80,11 @@ class KeyedRealtimeStreams {
   final String logTag;
   final bool Function(Object error)? shouldEmitErrorAfterValue;
   final List<Duration> retryDelays;
+
+  /// Dit si le socket Realtime est connecté (`client.realtime.isConnected`) ;
+  /// `RealtimeChannel.socket` est interne à realtime_client. Sans lui, le
+  /// socket est supposé connecté.
+  final bool Function()? isSocketConnected;
 
   final Map<String, RealtimeChannel> _channels = {};
 
@@ -202,6 +213,13 @@ class KeyedRealtimeStreams {
       // Un cleanup ou un dispose a pu passer entre-temps.
       if (!identical(_controllers[key], controller) ||
           !identical(_channels[key], channel)) {
+        return;
+      }
+      // Socket coupé : la bibliothèque le reconnecte et rejoint seule ses
+      // channels, remplacer le nôtre ne ferait que rouvrir le socket pour rien.
+      if (!(isSocketConnected?.call() ?? true)) {
+        debugPrint('[Wishy $logTag] socket down, leaving $key to the client');
+        _scheduleResubscribe(key, controller, channel, channelBuilder, reload);
         return;
       }
       debugPrint('[Wishy $logTag] resubscribing channel $key');

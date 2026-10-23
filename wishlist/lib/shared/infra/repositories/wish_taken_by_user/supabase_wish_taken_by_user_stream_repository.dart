@@ -13,7 +13,10 @@ class SupabaseWishTakenByUserStreamRepository
   final SupabaseClient _client;
   static const _tableName = 'wish_taken_by_user';
 
-  final _streams = KeyedRealtimeStreams(logTag: 'wish taken by user');
+  late final _streams = KeyedRealtimeStreams(
+    logTag: 'wish taken by user',
+    isSocketConnected: () => _client.realtime.isConnected,
+  );
 
   @override
   Stream<IList<WishTakenByUser>> watchTakenByUsersForWish(int wishId) =>

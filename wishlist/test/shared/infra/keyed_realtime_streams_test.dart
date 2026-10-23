@@ -15,6 +15,7 @@ void main() {
   late List<MockRealtimeChannel> channels;
   late Map<MockRealtimeChannel, _StatusCallback> statusCallbacks;
   late KeyedRealtimeStreams streams;
+  late bool socketConnected;
 
   MockRealtimeChannel newChannel() {
     final created = MockRealtimeChannel();
@@ -37,10 +38,14 @@ void main() {
       statusCallbacks[channel]!(status, error);
 
   setUp(() {
+    socketConnected = true;
     channels = [];
     statusCallbacks = {};
     channel = newChannel();
-    streams = KeyedRealtimeStreams(logTag: 'test');
+    streams = KeyedRealtimeStreams(
+      logTag: 'test',
+      isSocketConnected: () => socketConnected,
+    );
   });
 
   tearDown(() => streams.dispose());
@@ -649,6 +654,7 @@ void main() {
         fakeAsync((async) {
           streams = KeyedRealtimeStreams(
             logTag: 'test',
+            isSocketConnected: () => socketConnected,
             retryDelays: const [
               Duration(seconds: 1),
               Duration(seconds: 2),
@@ -697,6 +703,48 @@ void main() {
           emit(channel, RealtimeSubscribeStatus.channelError, 'socket');
           emit(channel, RealtimeSubscribeStatus.subscribed);
           async.elapse(const Duration(minutes: 1));
+
+          expect(built, 1);
+          verifyNever(channel.unsubscribe);
+        });
+      });
+
+      test('does not replace the channel while the socket is down', () {
+        fakeAsync((async) {
+          var built = 0;
+          watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+
+          socketConnected = false;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'closed');
+          async.elapse(const Duration(seconds: 1));
+          async.elapse(const Duration(seconds: 2));
+          expect(built, 1);
+          verifyNever(channel.unsubscribe);
+
+          // Le timer est rearmé : une fois le socket revenu, on remplace.
+          socketConnected = true;
+          async.elapse(const Duration(seconds: 5));
+          expect(built, 2);
+          verify(channel.unsubscribe).called(1);
+        });
+      });
+
+      test('a rejoin while the socket is down cancels the pending retry', () {
+        fakeAsync((async) {
+          var built = 0;
+          watch<int>('k', () async => 1, onReload: (_) => built++)
+              .listen((_) {});
+          async.flushMicrotasks();
+
+          socketConnected = false;
+          emit(channel, RealtimeSubscribeStatus.channelError, 'closed');
+          async.elapse(const Duration(seconds: 1));
+
+          socketConnected = true;
+          emit(channel, RealtimeSubscribeStatus.subscribed);
+          async.elapse(const Duration(minutes: 5));
 
           expect(built, 1);
           verifyNever(channel.unsubscribe);

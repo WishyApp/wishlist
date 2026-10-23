@@ -22,9 +22,10 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
 
   /// Un wish supprimé (ou masqué par la RLS) n'est pas une erreur passagère :
   /// on l'émet même après une valeur, sinon il resterait affiché.
-  final _streams = KeyedRealtimeStreams(
+  late final _streams = KeyedRealtimeStreams(
     logTag: 'wishs',
     shouldEmitErrorAfterValue: _isNotFound,
+    isSocketConnected: () => _client.realtime.isConnected,
   );
 
   @override

@@ -15,7 +15,10 @@ class SupabaseWishlistStreamRepository implements WishlistStreamRepository {
   final WishlistRepository _wishlistRepository;
   static const _wishlistsTableName = 'wishlists';
 
-  final _streams = KeyedRealtimeStreams(logTag: 'wishlists');
+  late final _streams = KeyedRealtimeStreams(
+    logTag: 'wishlists',
+    isSocketConnected: () => _client.realtime.isConnected,
+  );
 
   @override
   Stream<IList<Wishlist>> watchWishlistsByUser(String userId) {

@@ -19,7 +19,10 @@ class SupabaseUserCompletedWishStreamRepository
   final UserCompletedWishRepository _repository;
   static const _tableName = 'user_completed_wishs';
 
-  final _streams = KeyedRealtimeStreams(logTag: 'completed wishes');
+  late final _streams = KeyedRealtimeStreams(
+    logTag: 'completed wishes',
+    isSocketConnected: () => _client.realtime.isConnected,
+  );
 
   @override
   Stream<IList<CompletedWishWithDetails>> watchCompletedWishesByUser(

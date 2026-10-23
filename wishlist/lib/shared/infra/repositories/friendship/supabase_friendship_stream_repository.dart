@@ -17,7 +17,10 @@ class SupabaseFriendshipStreamRepository implements FriendshipStreamRepository {
 
   static const _bothUserColumns = ['requester_id', 'receiver_id'];
 
-  final _streams = KeyedRealtimeStreams(logTag: 'friendships');
+  late final _streams = KeyedRealtimeStreams(
+    logTag: 'friendships',
+    isSocketConnected: () => _client.realtime.isConnected,
+  );
 
   /// Construit, sans l'abonner, un channel aux lignes de `friendships` où
   /// [userId] figure dans l'une des [columns] (un filtre `eq` par colonne, donc

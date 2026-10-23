@@ -9,7 +9,10 @@ class SupabaseUserStreamRepository implements UserStreamRepository {
   final SupabaseClient _client;
   static const _profilesTableName = 'profiles';
 
-  final _streams = KeyedRealtimeStreams(logTag: 'profile');
+  late final _streams = KeyedRealtimeStreams(
+    logTag: 'profile',
+    isSocketConnected: () => _client.realtime.isConnected,
+  );
 
   @override
   Stream<Profile?> watchProfileById(String userId) {
