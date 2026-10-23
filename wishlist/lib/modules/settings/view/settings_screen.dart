@@ -106,12 +106,15 @@ class SettingsScreen extends ConsumerWidget {
                     },
                     error: (error, stackTrace) => const SizedBox.shrink(),
                   ),
-                  Text(
-                    currentUserEmail,
-                    style: AppTextStyles.smaller.copyWith(
-                      overflow: TextOverflow.ellipsis,
+                  // Null pendant la frame qui suit la déconnexion, avant la
+                  // redirection vers la connexion
+                  if (currentUserEmail != null)
+                    Text(
+                      currentUserEmail,
+                      style: AppTextStyles.smaller.copyWith(
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
                 ],
               ),
               const Gap(24),

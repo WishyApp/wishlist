@@ -9,7 +9,7 @@ class UserService {
   UserService(this._userRepository);
   final UserRepository _userRepository;
 
-  String getCurrentUserEmail() {
+  String? getCurrentUserEmail() {
     return _userRepository.getCurrentUserEmail();
   }
 

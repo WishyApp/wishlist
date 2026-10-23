@@ -3,7 +3,9 @@ import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/models/profile.dart';
 
 abstract class UserRepository {
-  String getCurrentUserEmail();
+  /// Null quand plus personne n'est connecté (ex: juste après une
+  /// déconnexion, avant la redirection).
+  String? getCurrentUserEmail();
   String getCurrentUserId();
   Future<void> createUserProfile(Profile profile);
   Future<void> updateUserProfile(Profile profile);
