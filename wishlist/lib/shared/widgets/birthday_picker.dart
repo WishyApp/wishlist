@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:wishlist/shared/models/birthday.dart';
+import 'package:wishlist/shared/theme/colors.dart';
+import 'package:wishlist/shared/theme/text_styles.dart';
 
 /// Two wheels, day then month, to pick a birthday without a year.
 ///
@@ -79,6 +81,21 @@ class _BirthdayPickerState extends State<BirthdayPicker> {
     final locale = Localizations.localeOf(context).toString();
     final monthFormat = DateFormat.MMMM(locale);
 
+    // The wheels take their text style from the Cupertino theme, which
+    // defaults to the platform font: use the app's instead.
+    return CupertinoTheme(
+      data: CupertinoTheme.of(context).copyWith(
+        textTheme: CupertinoTextThemeData(
+          pickerTextStyle: AppTextStyles.large.copyWith(
+            color: AppColors.darkGrey,
+          ),
+        ),
+      ),
+      child: _buildWheels(monthFormat),
+    );
+  }
+
+  Widget _buildWheels(DateFormat monthFormat) {
     return SizedBox(
       height: 180,
       child: Row(

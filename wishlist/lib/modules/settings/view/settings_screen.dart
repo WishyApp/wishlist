@@ -127,6 +127,12 @@ class SettingsScreen extends ConsumerWidget {
                     },
                   ),
                   SettingsLine(
+                    title: l10n.settingsScreenPasswordModify,
+                    onTap: () {
+                      ChangePasswordRoute().push(context);
+                    },
+                  ),
+                  SettingsLine(
                     title: l10n.settingsScreenBirthday,
                     // Nothing while loading or on error: the screen behind
                     // the line handles those.
@@ -137,12 +143,6 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     onTap: () {
                       ChangeBirthdayRoute().push(context);
-                    },
-                  ),
-                  SettingsLine(
-                    title: l10n.settingsScreenPasswordModify,
-                    onTap: () {
-                      ChangePasswordRoute().push(context);
                     },
                   ),
                   SettingsLine(
