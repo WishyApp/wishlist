@@ -163,6 +163,14 @@ void main() {
       });
     });
 
+    test('reads a UTC input on the local calendar', () {
+      const b = Birthday(month: 3, day: 12);
+      final local = DateTime(2026, 3, 7, 12);
+
+      expect(days(b, local.toUtc()), days(b, local));
+      expect(days(b, local.toUtc()), 5);
+    });
+
     test('30 days is upcoming, 31 is not', () {
       const b = Birthday(month: 4, day: 11);
 

@@ -45,11 +45,17 @@ class Birthday {
   /// (daylight saving time change) must not shift the result. A February 29
   /// birthday is celebrated on February 28 in a common year.
   int daysUntil(DateTime today) {
-    final todayDate = DateTime.utc(today.year, today.month, today.day);
+    // The calendar date of the user, whatever the zone [today] comes in.
+    final localToday = today.toLocal();
+    final todayDate = DateTime.utc(
+      localToday.year,
+      localToday.month,
+      localToday.day,
+    );
 
-    var next = _occurrenceIn(today.year);
+    var next = _occurrenceIn(localToday.year);
     if (next.isBefore(todayDate)) {
-      next = _occurrenceIn(today.year + 1);
+      next = _occurrenceIn(localToday.year + 1);
     }
 
     return next.difference(todayDate).inDays;
