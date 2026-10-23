@@ -1,12 +1,9 @@
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 
 import '../../../fixtures/fake_providers.dart';
-import '../../../fixtures/mock_supabase.dart';
 import '../../../pump_app.dart';
 
 void main() {
@@ -22,26 +19,27 @@ void main() {
     await tester.expectGolden<SettingsScreen>(variant);
   });
 
-  // Juste après la déconnexion, l'écran est reconstruit une fois avant la
-  // redirection : plus d'utilisateur courant, donc plus d'email.
-  testWidgets('builds without a signed-in user', (tester) async {
-    final userService = createMockUserService();
-    when(userService.getCurrentUserEmail).thenReturn(null);
-
+  // Right after a sign-out the screen is rebuilt once before the redirect:
+  // no current user, so no email.
+  testWidgets('hides the email line without a signed-in user', (tester) async {
     await tester.pumpRouterApp(
       SettingsRoute().location,
-      // settingsScreenOverrides, sauf le UserService
-      overrides: [
-        supabaseClientOverride(),
-        userServiceProvider.overrideWithValue(userService),
-        watchCurrentUserProfileOverride(),
-        appInfoOverride(),
-      ],
+      overrides: settingsScreenOverrides(signedOut: true),
     );
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.text('test@example.com'), findsNothing);
+  });
+
+  testWidgets('shows the current user email', (tester) async {
+    await tester.pumpRouterApp(
+      SettingsRoute().location,
+      overrides: settingsScreenOverrides(currentUserEmail: 'me@x.fr'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('me@x.fr'), findsOneWidget);
   });
 }

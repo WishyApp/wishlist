@@ -9,10 +9,6 @@ class UserService {
   UserService(this._userRepository);
   final UserRepository _userRepository;
 
-  String? getCurrentUserEmail() {
-    return _userRepository.getCurrentUserEmail();
-  }
-
   String getCurrentUserId() {
     return _userRepository.getCurrentUserId();
   }

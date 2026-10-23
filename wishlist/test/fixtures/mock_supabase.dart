@@ -29,8 +29,13 @@ class MockRealtimeChannel extends Mock implements RealtimeChannel {}
 // =============================================================================
 
 /// Crée un MockSupabaseClient configuré avec un utilisateur de test
+///
+/// [signedOut] simule l'absence d'utilisateur (`currentUser` null), comme juste
+/// après une déconnexion. [userEmail] vaut `test@example.com` par défaut.
 MockSupabaseClient createMockSupabaseClient({
   String? userId,
+  String? userEmail,
+  bool signedOut = false,
 }) {
   final mockSupabaseClient = MockSupabaseClient();
   final mockAuth = MockGoTrueClient();
@@ -39,8 +44,9 @@ MockSupabaseClient createMockSupabaseClient({
   final effectiveUserId = userId ?? fakeCurrentUserId;
 
   when(() => mockSupabaseClient.auth).thenReturn(mockAuth);
-  when(() => mockAuth.currentUser).thenReturn(mockUser);
+  when(() => mockAuth.currentUser).thenReturn(signedOut ? null : mockUser);
   when(() => mockUser.id).thenReturn(effectiveUserId);
+  when(() => mockUser.email).thenReturn(userEmail ?? 'test@example.com');
   when(() => mockAuth.onAuthStateChange)
       .thenAnswer((_) => const Stream.empty());
 
@@ -58,11 +64,11 @@ MockSupabaseClient createMockSupabaseClient({
 /// avant l'évènement, et peut l'être sans évènement via [setUserSilently]
 /// (cas où `currentUser` passe à null avant `signedOut`).
 class FakeAuthSession {
-  FakeAuthSession({String? userId}) {
+  FakeAuthSession({String? userId, String? email}) {
     when(() => client.auth).thenReturn(auth);
     when(() => auth.currentUser).thenAnswer((_) => _user);
     when(() => auth.onAuthStateChange).thenAnswer((_) => _events);
-    setUserSilently(userId);
+    setUserSilently(userId, email: email);
     _events = BehaviorSubject.seeded(
       AuthState(
         userId == null
@@ -78,18 +84,19 @@ class FakeAuthSession {
   late final BehaviorSubject<AuthState> _events;
   User? _user;
 
-  void setUserSilently(String? userId) {
+  void setUserSilently(String? userId, {String? email}) {
     if (userId == null) {
       _user = null;
       return;
     }
     final user = MockUser();
     when(() => user.id).thenReturn(userId);
+    when(() => user.email).thenReturn(email);
     _user = user;
   }
 
-  void signIn(String userId) {
-    setUserSilently(userId);
+  void signIn(String userId, {String? email}) {
+    setUserSilently(userId, email: email);
     _events.add(const AuthState(AuthChangeEvent.signedIn, null));
   }
 
@@ -116,14 +123,11 @@ class FakeAuthSession {
 /// Crée un MockUserService configuré avec des données de test
 MockUserService createMockUserService({
   String? userId,
-  String? userEmail,
 }) {
   final mockUserService = MockUserService();
 
   when(mockUserService.getCurrentUserId)
       .thenReturn(userId ?? fakeCurrentUserId);
-  when(mockUserService.getCurrentUserEmail)
-      .thenReturn(userEmail ?? 'test@example.com');
 
   return mockUserService;
 }

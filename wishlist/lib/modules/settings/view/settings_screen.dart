@@ -8,8 +8,8 @@ import 'package:wishlist/modules/settings/widgets/settings_line.dart';
 import 'package:wishlist/modules/settings/widgets/settings_section.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
+import 'package:wishlist/shared/infra/current_user_email_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
-import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -73,8 +73,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final currentUserEmail =
-        ref.read(userServiceProvider).getCurrentUserEmail();
+    final currentUserEmail = ref.watch(currentUserEmailProvider);
     final currentUserProfile = ref.watch(watchCurrentUserProfileProvider);
     final appInfo = ref.watch(appInfoProvider);
 
@@ -106,8 +105,7 @@ class SettingsScreen extends ConsumerWidget {
                     },
                     error: (error, stackTrace) => const SizedBox.shrink(),
                   ),
-                  // Null pendant la frame qui suit la déconnexion, avant la
-                  // redirection vers la connexion
+                  // Null in the frame after a sign-out, before the redirect
                   if (currentUserEmail != null)
                     Text(
                       currentUserEmail,
