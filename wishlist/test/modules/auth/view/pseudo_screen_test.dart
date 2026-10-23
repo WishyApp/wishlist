@@ -13,6 +13,7 @@ import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/auth/view/pseudo_screen.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/profile.dart';
+import 'package:wishlist/shared/navigation/pseudo_creation_marker.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/theme.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -25,6 +26,8 @@ void main() {
   setUpAll(() {
     registerFallbackValue(Profile(id: 'id', pseudo: 'pseudo'));
   });
+
+  setUp(pseudoCreationMarker.clear);
 
   testAdaptiveWidgets('$PseudoScreen golden test', (tester, variant) async {
     await tester.pumpRouterApp(

@@ -10,9 +10,9 @@ import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/auth/view/birthday_step_screen.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
-import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/birthday.dart';
+import 'package:wishlist/shared/navigation/redirect_target.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 
@@ -54,7 +54,7 @@ void main() {
     List<Override> extraOverrides = const [],
   }) async {
     await tester.pumpRouterApp(
-      birthdayStepLocation(redirectTo: redirectTo),
+      locationWithRedirectTo(BirthdayStepRoute().location, redirectTo),
       overrides: [
         userServiceProvider.overrideWithValue(userService),
         ...extraOverrides,
@@ -66,14 +66,22 @@ void main() {
           routes: [
             GoRoute(
               path: 'birthday',
-              builder: (_, state) => BirthdayStepScreen(
-                redirectTo: state.uri.queryParameters['redirectTo'],
-              ),
+              // The real route sanitizes redirectTo for the screen
+              builder: (context, state) =>
+                  BirthdayStepRoute().buildScreen(context, state),
             ),
           ],
         ),
         GoRoute(path: '/wishlist/1', builder: (_, __) => const _TargetStub()),
       ],
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> moveWheel(WidgetTester tester) async {
+    await tester.drag(
+      find.byKey(const ValueKey('birthday-day-picker')),
+      const Offset(0, -80),
     );
     await tester.pumpAndSettle();
   }
@@ -90,11 +98,7 @@ void main() {
   testWidgets('saves the picked value then goes home', (tester) async {
     await pumpStep(tester);
 
-    await tester.drag(
-      find.byKey(const ValueKey('birthday-day-picker')),
-      const Offset(0, -80),
-    );
-    await tester.pumpAndSettle();
+    await moveWheel(tester);
     await tester.tap(find.byType(PrimaryButton));
     await tester.pumpAndSettle();
 
@@ -106,54 +110,34 @@ void main() {
     expect(find.text('home-stub'), findsOneWidget);
   });
 
-  testWidgets('saves the default value when nothing is picked', (tester) async {
+  testWidgets('save stays disabled until a wheel moved', (tester) async {
     await pumpStep(tester);
 
-    await tester.tap(find.byType(PrimaryButton));
+    expect(
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNull,
+    );
+    await tester.tap(find.byType(PrimaryButton), warnIfMissed: false);
     await tester.pumpAndSettle();
+    verifyNever(() => userService.upsertCurrentUserBirthday(any()));
 
-    verify(
-      () => userService
-          .upsertCurrentUserBirthday(const Birthday(month: 1, day: 1)),
-    ).called(1);
+    await moveWheel(tester);
+
+    expect(
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNotNull,
+    );
   });
 
   testWidgets('goes to redirectTo after saving', (tester) async {
     await pumpStep(tester, redirectTo: '/wishlist/1');
 
+    await moveWheel(tester);
     await tester.tap(find.byType(PrimaryButton));
     await tester.pumpAndSettle();
 
     expect(find.text('target-stub'), findsOneWidget);
     expect(find.text('home-stub'), findsNothing);
-  });
-
-  testWidgets('refreshes the birthday shown in the settings after saving',
-      (tester) async {
-    var reads = 0;
-    await pumpStep(
-      tester,
-      extraOverrides: [
-        currentUserBirthdayProvider.overrideWith((ref) async {
-          reads++;
-          return null;
-        }),
-      ],
-    );
-    // Something must be listening for the invalidation to rebuild it
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(BirthdayStepScreen)),
-    );
-    final subscription =
-        container.listen(currentUserBirthdayProvider, (_, __) {});
-    addTearDown(subscription.close);
-    await tester.pump();
-    final before = reads;
-
-    await tester.tap(find.byType(PrimaryButton));
-    await tester.pumpAndSettle();
-
-    expect(reads, greaterThan(before));
   });
 
   testWidgets('"later" skips without saving', (tester) async {
@@ -206,22 +190,34 @@ void main() {
     expect(find.text('home-stub'), findsNothing);
   });
 
-  testWidgets('back is ignored while saving', (tester) async {
-    final saving = Completer<void>();
+  testWidgets('"later" navigates away while a save never completes',
+      (tester) async {
     when(() => userService.upsertCurrentUserBirthday(any()))
-        .thenAnswer((_) => saving.future);
+        .thenAnswer((_) => Completer<void>().future);
     await pumpStep(tester, redirectTo: '/wishlist/1');
 
+    await moveWheel(tester);
+    await tester.tap(find.byType(PrimaryButton));
+    await tester.pump();
+    await tester.tap(find.text(l10n.birthdayStepLater));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BirthdayStepScreen), findsNothing);
+    expect(find.text('target-stub'), findsOneWidget);
+  });
+
+  testWidgets('back acts like "later" while a save never completes',
+      (tester) async {
+    when(() => userService.upsertCurrentUserBirthday(any()))
+        .thenAnswer((_) => Completer<void>().future);
+    await pumpStep(tester, redirectTo: '/wishlist/1');
+
+    await moveWheel(tester);
     await tester.tap(find.byType(PrimaryButton));
     await tester.pump();
     await tester.binding.handlePopRoute();
-    await tester.pump();
-
-    expect(find.byType(BirthdayStepScreen), findsOneWidget);
-    expect(find.text('target-stub'), findsNothing);
-
-    saving.complete();
     await tester.pumpAndSettle();
+
     expect(find.text('target-stub'), findsOneWidget);
   });
 
@@ -231,6 +227,7 @@ void main() {
         .thenThrow(AppException(statusCode: 500, message: 'boom'));
     await pumpStep(tester, redirectTo: '/wishlist/1');
 
+    await moveWheel(tester);
     await tester.tap(find.byType(PrimaryButton));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));

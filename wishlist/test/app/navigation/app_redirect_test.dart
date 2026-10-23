@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Session;
 import 'package:wishlist/app/navigation/app_redirect.dart';
+import 'package:wishlist/shared/navigation/pseudo_creation_marker.dart';
+import 'package:wishlist/shared/navigation/redirect_target.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 
 import '../../fixtures/mock_supabase.dart';
@@ -49,6 +51,8 @@ Future<String> _landing(
 }
 
 void main() {
+  setUp(pseudoCreationMarker.clear);
+
   group('birthday step', () {
     testWidgets('a user with a pseudo can open it', (tester) async {
       final location = await _landing(
@@ -63,7 +67,7 @@ void main() {
     testWidgets('keeps its redirectTo', (tester) async {
       final location = await _landing(
         tester,
-        birthdayStepLocation(redirectTo: '/wishlist/1'),
+        locationWithRedirectTo(BirthdayStepRoute().location, '/wishlist/1'),
         session: _session(hasPseudo: true),
       );
 
@@ -106,6 +110,7 @@ void main() {
   group('redirectTo', () {
     testWidgets('an unsafe one is dropped on the way to the step',
         (tester) async {
+      pseudoCreationMarker.mark();
       final location = await _landing(
         tester,
         '/pseudo?redirectTo=%2F%2Fevil.com%2Fx',
@@ -119,6 +124,7 @@ void main() {
       final deepLink = Uri.encodeQueryComponent(
         'wishy://com.raphtang.wishy/wishlist/1?x=1',
       );
+      pseudoCreationMarker.mark();
       final location = await _landing(
         tester,
         '/pseudo?redirectTo=$deepLink',
@@ -174,8 +180,9 @@ void main() {
     });
 
     testWidgets(
-        'leads to the birthday step once the pseudo exists, keeping '
+        'leads to the birthday step once the pseudo was just created, keeping '
         'redirectTo', (tester) async {
+      pseudoCreationMarker.mark();
       final location = await _landing(
         tester,
         '/pseudo?redirectTo=%2Fwishlist%2F1',
@@ -185,8 +192,43 @@ void main() {
       expect(location, '/birthday?redirectTo=%2Fwishlist%2F1');
     });
 
+    testWidgets(
+        'an existing pseudo on /pseudo goes to redirectTo, not the step',
+        (tester) async {
+      final location = await _landing(
+        tester,
+        '/pseudo?redirectTo=%2Fwishlist%2F1',
+        session: _session(hasPseudo: true),
+      );
+
+      expect(location, '/wishlist/1');
+    });
+
+    testWidgets('an existing pseudo on /pseudo goes home without redirectTo',
+        (tester) async {
+      final location = await _landing(
+        tester,
+        PseudoRoute().location,
+        session: _session(hasPseudo: true),
+      );
+
+      expect(location, '/');
+    });
+
+    testWidgets('the marker is consumed by the redirect', (tester) async {
+      pseudoCreationMarker.mark();
+      await _landing(
+        tester,
+        PseudoRoute().location,
+        session: _session(hasPseudo: true),
+      );
+
+      expect(pseudoCreationMarker.consume(), isFalse);
+    });
+
     testWidgets('leads to the birthday step without redirectTo',
         (tester) async {
+      pseudoCreationMarker.mark();
       final location = await _landing(
         tester,
         PseudoRoute().location,
