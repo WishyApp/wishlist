@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
+import 'package:wishlist/shared/page_layout_empty/page_layout_empty_content.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 
@@ -94,6 +95,13 @@ void main() {
 
 /// Asset name of the illustration shown by the page.
 String _illustration(WidgetTester tester) {
-  final picture = tester.widget<SvgPicture>(find.byType(SvgPicture));
-  return (picture.bytesLoader as SvgAssetLoader).assetName;
+  final picture = tester.widget<SvgPicture>(
+    find.descendant(
+      of: find.byType(PageLayoutEmptyContent),
+      matching: find.byType(SvgPicture),
+    ),
+  );
+  final loader = picture.bytesLoader;
+  expect(loader, isA<SvgAssetLoader>());
+  return (loader as SvgAssetLoader).assetName;
 }
