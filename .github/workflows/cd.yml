@@ -17,6 +17,16 @@ on:
         description: 'Publier sur Google Play / TestFlight'
         type: boolean
         default: false
+      # Valider un correctif propre à une plateforme sans payer le build de
+      # l'autre (le runner macOS compte x10 sur un repo privé).
+      platform:
+        description: 'Plateforme(s) à builder'
+        type: choice
+        options:
+          - all
+          - android
+          - ios
+        default: all
 
 # Un seul déploiement à la fois, tous tags confondus : deux releases ne
 # doivent ni se doubler sur les stores ni migrer la prod en même temps. On ne
@@ -144,6 +154,7 @@ jobs:
   build-android:
     name: Build & Deploy Android
     needs: migrate-database
+    if: inputs.platform != 'ios'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -222,6 +233,7 @@ jobs:
   build-ios:
     name: Build & Deploy iOS
     needs: migrate-database
+    if: inputs.platform != 'android'
     runs-on: macos-26
     timeout-minutes: 60
     defaults:
