@@ -9,10 +9,38 @@
 -- Without a year, February 29 is a valid date: the CHECK only rejects days
 -- that exist in no year.
 
--- 1. Shared rule. SECURITY DEFINER with a pinned search_path: it reads
--- friendships without going through its policies. It only answers about the
--- current user (auth.uid()). A pending friendship does not count, whichever
--- side sent the request.
+-- 1. Shared rules. SECURITY DEFINER with a pinned search_path: they read
+-- friendships without going through its policies. They only answer about the
+-- current user (auth.uid()).
+
+-- Status of the friendship between two users, whichever sent the request, or
+-- NULL when there is none. The one place that spells the pair lookup: it must
+-- stay identical to the expressions of the unique index friendships_pair_key
+-- (see 20261011120000), or the index is not used. can_read_profile and
+-- can_read_birthday call it instead of repeating it.
+--
+-- It tells the status between ANY two users, not only the current one, so it
+-- has no grant: not for anon, not for authenticated, not for PUBLIC. Only the
+-- SECURITY DEFINER functions below call it, as their owner (postgres), who
+-- reads friendships without its policies. SECURITY INVOKER is enough, and it
+-- keeps the helper from running with more rights than its caller.
+CREATE OR REPLACE FUNCTION public.friendship_status_between(p_user_a uuid, p_user_b uuid)
+RETURNS public.friendship_status
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+  SELECT f.status
+  FROM public.friendships f
+  WHERE least(f.requester_id, f.receiver_id) = least(p_user_a, p_user_b)
+    AND greatest(f.requester_id, f.receiver_id) = greatest(p_user_a, p_user_b);
+$$;
+
+REVOKE ALL ON FUNCTION public.friendship_status_between(uuid, uuid) FROM PUBLIC, anon, authenticated;
+
+-- The current user reads the birthday: their own, or one of an accepted friend.
+-- A pending friendship does not count, whichever side sent the request.
 CREATE OR REPLACE FUNCTION public.can_read_birthday(p_profile_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -22,12 +50,33 @@ SET search_path = ''
 AS $$
   SELECT
     p_profile_id = (SELECT auth.uid())
+    OR public.friendship_status_between((SELECT auth.uid()), p_profile_id) = 'accepted';
+$$;
+
+-- can_read_profile is redefined as in 20261018100000, only its friendship
+-- lookup goes through the helper (pending or accepted, not rejected or
+-- blocked). Same signature, attributes and grants.
+CREATE OR REPLACE FUNCTION public.can_read_profile(p_profile_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT
+    p_profile_id = (SELECT auth.uid())
+    OR public.friendship_status_between((SELECT auth.uid()), p_profile_id) IN ('pending', 'accepted')
     OR EXISTS (
       SELECT 1
-      FROM public.friendships f
-      WHERE least(f.requester_id, f.receiver_id) = least((SELECT auth.uid()), p_profile_id)
-        AND greatest(f.requester_id, f.receiver_id) = greatest((SELECT auth.uid()), p_profile_id)
-        AND f.status = 'accepted'
+      FROM public.wishlists wl
+      WHERE wl.id_owner = p_profile_id
+        AND public.can_read_wishlist(wl.id)
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.wish_taken_by_user t
+      WHERE t.user_id = p_profile_id
+        AND public.can_read_wish_bookings(t.wish_id)
     );
 $$;
 

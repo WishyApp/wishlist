@@ -208,6 +208,27 @@ BEGIN
   RAISE NOTICE 'ok   can_read_birthday attributes';
 END $$;
 
+-- The pair lookup helper: stable, pinned search_path, and not executable by
+-- anon, authenticated or PUBLIC (it tells the friendship status of any pair).
+DO $$
+DECLARE
+  f pg_proc;
+BEGIN
+  SELECT * INTO f FROM pg_proc
+   WHERE oid = 'public.friendship_status_between(uuid, uuid)'::regprocedure;
+  IF f.provolatile <> 's' THEN
+    RAISE EXCEPTION 'FAIL friendship_status_between is not STABLE';
+  END IF;
+  IF f.proconfig IS NULL OR NOT ('search_path=""' = ANY (f.proconfig)) THEN
+    RAISE EXCEPTION 'FAIL friendship_status_between does not pin search_path to empty (%)', f.proconfig;
+  END IF;
+  IF has_function_privilege('anon', f.oid, 'EXECUTE')
+     OR has_function_privilege('authenticated', f.oid, 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL friendship_status_between is executable by anon or authenticated';
+  END IF;
+  RAISE NOTICE 'ok   friendship_status_between attributes and privileges';
+END $$;
+
 -- As anon
 SELECT pg_temp.act_as_anon();
 SELECT pg_temp.expect_denied('anon reads birthdays', $q$SELECT * FROM public.profile_birthdays$q$);
@@ -217,6 +238,14 @@ SELECT pg_temp.expect_denied('anon updates birthdays', $q$UPDATE public.profile_
 SELECT pg_temp.expect_denied('anon deletes birthdays', $q$DELETE FROM public.profile_birthdays$q$);
 SELECT pg_temp.expect_denied('anon executes can_read_birthday',
   $q$SELECT public.can_read_birthday('00000000-0000-4000-d000-00000000000a')$q$);
+SELECT pg_temp.expect_denied('anon executes friendship_status_between',
+  $q$SELECT public.friendship_status_between('00000000-0000-4000-d000-00000000000a', '00000000-0000-4000-d000-00000000000b')$q$);
+
+-- As a signed-in user: the helper tells nothing about other pairs
+SELECT pg_temp.act_as('00000000-0000-4000-d000-00000000000a');
+SELECT pg_temp.expect_denied('authenticated executes friendship_status_between',
+  $q$SELECT public.friendship_status_between('00000000-0000-4000-d000-00000000000a', '00000000-0000-4000-d000-00000000000b')$q$);
+RESET ROLE;
 
 -- The owner deletes the birthday, then it is gone for the friends too
 SELECT pg_temp.act_as('00000000-0000-4000-d000-00000000000a');
