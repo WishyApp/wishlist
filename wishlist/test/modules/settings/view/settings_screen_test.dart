@@ -1,6 +1,7 @@
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
+import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 
 import '../../../fixtures/fake_providers.dart';
@@ -42,5 +43,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('me@x.fr'), findsOneWidget);
+  });
+
+  testWidgets('shows the birthday of the current user', (tester) async {
+    await tester.pumpRouterApp(
+      SettingsRoute().location,
+      overrides: settingsScreenOverrides(
+        currentUserBirthday: const Birthday(month: 3, day: 12),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mon anniversaire'), findsOneWidget);
+    expect(find.text('12 mars'), findsOneWidget);
+    expect(find.text('Non renseigné'), findsNothing);
+  });
+
+  testWidgets('shows that the birthday is not set', (tester) async {
+    await tester.pumpRouterApp(
+      SettingsRoute().location,
+      overrides: settingsScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Non renseigné'), findsOneWidget);
   });
 }

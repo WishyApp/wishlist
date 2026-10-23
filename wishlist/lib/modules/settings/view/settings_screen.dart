@@ -8,6 +8,7 @@ import 'package:wishlist/modules/settings/widgets/settings_line.dart';
 import 'package:wishlist/modules/settings/widgets/settings_section.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
+import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/current_user_email_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
@@ -74,6 +75,8 @@ class SettingsScreen extends ConsumerWidget {
     final currentUserEmail = ref.watch(currentUserEmailProvider);
     final currentUserProfile = ref.watch(watchCurrentUserProfileProvider);
     final appInfo = ref.watch(appInfoProvider);
+    final birthday = ref.watch(currentUserBirthdayProvider);
+    final locale = Localizations.localeOf(context).toString();
 
     return PageLayout(
       title: l10n.settingsScreenTitle,
@@ -121,6 +124,19 @@ class SettingsScreen extends ConsumerWidget {
                     title: l10n.settingsScreenPseudoModify,
                     onTap: () {
                       ChangePseudoRoute().push(context);
+                    },
+                  ),
+                  SettingsLine(
+                    title: l10n.settingsScreenBirthday,
+                    // Nothing while loading or on error: the screen behind
+                    // the line handles those.
+                    value: birthday.whenOrNull(
+                      data: (birthday) =>
+                          birthday?.format(locale) ??
+                          l10n.settingsScreenBirthdayNotSet,
+                    ),
+                    onTap: () {
+                      ChangeBirthdayRoute().push(context);
                     },
                   ),
                   SettingsLine(

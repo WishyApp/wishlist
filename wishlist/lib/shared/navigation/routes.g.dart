@@ -32,6 +32,10 @@ RouteBase get $homeRoute => GoRouteData.$route(
               factory: $ChangePseudoRouteExtension._fromState,
             ),
             GoRouteData.$route(
+              path: 'change-birthday',
+              factory: $ChangeBirthdayRouteExtension._fromState,
+            ),
+            GoRouteData.$route(
               path: 'completed-wishes',
               factory: $CompletedWishesRouteExtension._fromState,
             ),
@@ -143,6 +147,24 @@ extension $ChangePseudoRouteExtension on ChangePseudoRoute {
 
   String get location => GoRouteData.$location(
         '/settings/change-pseudo',
+      );
+
+  void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  void replace(BuildContext context) => context.replace(location);
+}
+
+extension $ChangeBirthdayRouteExtension on ChangeBirthdayRoute {
+  static ChangeBirthdayRoute _fromState(GoRouterState state) =>
+      ChangeBirthdayRoute();
+
+  String get location => GoRouteData.$location(
+        '/settings/change-birthday',
       );
 
   void go(BuildContext context) => context.go(location);

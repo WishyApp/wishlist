@@ -7,9 +7,13 @@ class SettingsLine extends StatelessWidget {
     super.key,
     required this.title,
     required this.onTap,
+    this.value,
   });
 
   final String title;
+
+  /// Current value of the setting, shown before the arrow.
+  final String? value;
   final VoidCallback onTap;
 
   @override
@@ -27,6 +31,14 @@ class SettingsLine extends StatelessWidget {
                 title,
                 style: AppTextStyles.smaller,
               ),
+              const Spacer(),
+              if (value != null) ...[
+                Text(
+                  value!,
+                  style: AppTextStyles.smaller.copyWith(color: Colors.grey),
+                ),
+                const SizedBox(width: 8),
+              ],
               const Icon(Icons.arrow_forward_ios, size: 18),
             ],
           ),

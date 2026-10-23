@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/current_user_profile_provider.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
@@ -13,6 +14,7 @@ import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
+import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/friend_details/friend_details.dart';
@@ -167,6 +169,7 @@ List<Override> settingsScreenOverrides({
   String? currentUserId,
   String? currentUserEmail,
   Profile? currentUserProfile,
+  Birthday? currentUserBirthday,
   bool signedOut = false,
 }) {
   return [
@@ -177,6 +180,7 @@ List<Override> settingsScreenOverrides({
     ),
     userServiceOverride(userId: currentUserId),
     watchCurrentUserProfileOverride(profile: currentUserProfile),
+    currentUserBirthdayOverride(birthday: currentUserBirthday),
     appInfoOverride(),
   ];
 }
@@ -250,6 +254,15 @@ List<Override> wishlistScreenOverrides({
       receipts: () => Stream.value((completedWishes ?? const []).toIList()),
     ),
   ];
+}
+
+// =============================================================================
+// CURRENT USER BIRTHDAY OVERRIDE
+// =============================================================================
+
+/// Override pour currentUserBirthdayProvider (aucun anniversaire par défaut)
+Override currentUserBirthdayOverride({Birthday? birthday}) {
+  return currentUserBirthdayProvider.overrideWith((ref) async => birthday);
 }
 
 // =============================================================================
