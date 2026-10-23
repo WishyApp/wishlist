@@ -37,7 +37,7 @@ class PageLayoutEmpty extends StatelessWidget {
 
     final content = Center(
       child: Padding(
-        padding: const EdgeInsets.only(top: 64),
+        padding: const EdgeInsets.fromLTRB(24, 64, 24, 0),
         child: PageLayoutEmptyContent(
           illustrationUrl: illustrationUrl,
           illustrationHeight: illustrationHeight,

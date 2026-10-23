@@ -25,25 +25,21 @@ class AppUpdateRequiredScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: PageLayoutEmpty(
-          illustrationUrl: Assets.svg.noWishBag,
-          illustrationHeight: MediaQuery.sizeOf(context).height / 3.5,
-          title: l10n.updateRequiredTitle,
-          description: switch (UpdateTextVariant.of(
-            hasLink: onUpdate != null,
-            platform: platform,
-          )) {
-            UpdateTextVariant.iosStore =>
-              l10n.updateRequiredNoLinkIosDescription,
-            UpdateTextVariant.androidStore =>
-              l10n.updateRequiredNoLinkAndroidDescription,
-            UpdateTextVariant.generic => l10n.updateRequiredDescription,
-          },
-          callToAction: l10n.updateButton,
-          onCallToAction: onUpdate,
-        ),
+      body: PageLayoutEmpty(
+        illustrationUrl: Assets.svg.noWishBag,
+        illustrationHeight: MediaQuery.sizeOf(context).height / 3.5,
+        title: l10n.updateRequiredTitle,
+        description: switch (UpdateTextVariant.of(
+          hasLink: onUpdate != null,
+          platform: platform,
+        )) {
+          UpdateTextVariant.iosStore => l10n.updateRequiredNoLinkIosDescription,
+          UpdateTextVariant.androidStore =>
+            l10n.updateRequiredNoLinkAndroidDescription,
+          UpdateTextVariant.generic => l10n.updateRequiredDescription,
+        },
+        callToAction: l10n.updateButton,
+        onCallToAction: onUpdate,
       ),
     );
   }
