@@ -21,6 +21,7 @@ class SupabaseWishRepository implements WishRepository {
   final SupabaseClient _client;
   static const _wishsTableName = 'wishs';
   static const _wishTakenByUserTableName = 'wish_taken_by_user';
+  static const _userCompletedWishsTableName = 'user_completed_wishs';
   static const _wishImagesBucket = 'wish-images';
 
   @override
@@ -98,6 +99,11 @@ class SupabaseWishRepository implements WishRepository {
               wishs!inner(
                 *,
                 taken_by_user:$_wishTakenByUserTableName(*),
+                $_userCompletedWishsTableName(
+                  user_id,
+                  quantity,
+                  created_at
+                ),
                 wishlists!inner(
                   name,
                   id_owner,
@@ -116,14 +122,24 @@ class SupabaseWishRepository implements WishRepository {
           final wishData = item['wishs'] as Map<String, dynamic>;
           final wishlistData = wishData['wishlists'] as Map<String, dynamic>;
           final profileData = wishlistData['profiles'] as Map<String, dynamic>;
+          final ownerId = wishlistData['id_owner'] as String;
+          // Only the owner's receipt counts, as everywhere else
+          final ownerReceipt =
+              (wishData[_userCompletedWishsTableName] as List<dynamic>? ?? [])
+                  .cast<Map<String, dynamic>>()
+                  .where((receipt) => receipt['user_id'] == ownerId)
+                  .firstOrNull;
+          final receivedAt = ownerReceipt?['created_at'] as String?;
 
           return BookedWishWithDetails(
             wish: Wish.fromJson(wishData),
             bookedQuantity: item['quantity'] as int,
             wishlistName: wishlistData['name'] as String,
-            ownerId: wishlistData['id_owner'] as String,
+            ownerId: ownerId,
             ownerPseudo: profileData['pseudo'] as String,
             ownerAvatarUrl: profileData['avatar_url'] as String?,
+            receivedQuantity: ownerReceipt?['quantity'] as int? ?? 0,
+            receivedAt: receivedAt == null ? null : DateTime.parse(receivedAt),
           );
         }).toIList();
       },

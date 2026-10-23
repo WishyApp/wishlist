@@ -259,5 +259,33 @@
         "type": "String"
       }
     }
+  },
+  "bookedWishesTabToGive": "À offrir",
+  "bookedWishesTabGiven": "Offerts",
+  "bookedWishesToGiveCount": "{count} à offrir",
+  "@bookedWishesToGiveCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookedWishesGivenCount": "{count, plural, =1{1 offert} other{{count} offerts}}",
+  "@bookedWishesGivenCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookedWishesNothingToGive": "Plus rien à offrir : tout a été reçu",
+  "bookedWishesNothingGiven": "Les wishs réservés que tes amis ont reçus apparaîtront ici",
+  "bookedWishReceivedOn": "Reçu le {date}",
+  "@bookedWishReceivedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -15,6 +15,7 @@ class BookedWishesSearchBar extends StatelessWidget {
     required this.sort,
     required this.onSortChanged,
     required this.onClearFocus,
+    this.footer,
   });
 
   static const double _horizontalPadding = 16;
@@ -26,6 +27,9 @@ class BookedWishesSearchBar extends StatelessWidget {
   final BookedWishSort sort;
   final Function(BookedWishSort) onSortChanged;
   final VoidCallback onClearFocus;
+
+  /// Shown under the search field, inside the same block
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -41,37 +45,46 @@ class BookedWishesSearchBar extends StatelessWidget {
         color: AppColors.gainsboro,
         borderRadius: BorderRadius.all(Radius.circular(24)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: SearchField(
-              searchController: searchController,
-              searchFocusNode: searchFocusNode,
-              searchQuery: searchQuery,
-              hintText: l10n.bookedWishesSearchHint,
-              onClearFocus: onClearFocus,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: SearchField(
+                  searchController: searchController,
+                  searchFocusNode: searchFocusNode,
+                  searchQuery: searchQuery,
+                  hintText: l10n.bookedWishesSearchHint,
+                  onClearFocus: onClearFocus,
+                ),
+              ),
+              const Gap(12),
+              SearchBarButton(
+                icon: Icons.sort,
+                smallIcon: sort.type.icon,
+                onTap: () {
+                  showBookedWishSortBottomSheet(
+                    context,
+                    currentSort: sort,
+                    onSortChanged: onSortChanged,
+                  );
+                },
+              ),
+              const Gap(8),
+              SearchBarButton(
+                icon: sort.icon,
+                onTap: () {
+                  final newSort = sort.toggleOrder();
+                  onSortChanged(newSort);
+                },
+              ),
+            ],
           ),
-          const Gap(12),
-          SearchBarButton(
-            icon: Icons.sort,
-            smallIcon: sort.type.icon,
-            onTap: () {
-              showBookedWishSortBottomSheet(
-                context,
-                currentSort: sort,
-                onSortChanged: onSortChanged,
-              );
-            },
-          ),
-          const Gap(8),
-          SearchBarButton(
-            icon: sort.icon,
-            onTap: () {
-              final newSort = sort.toggleOrder();
-              onSortChanged(newSort);
-            },
-          ),
+          if (footer case final footer?) ...[
+            const Gap(12),
+            footer,
+          ],
         ],
       ),
     );

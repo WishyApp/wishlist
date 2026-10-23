@@ -728,4 +728,39 @@ class AppLocalizationsFr extends AppLocalizations {
   String completedWishFromWishlist(String wishlistName) {
     return 'Wishlist : $wishlistName';
   }
+
+  @override
+  String get bookedWishesTabToGive => 'À offrir';
+
+  @override
+  String get bookedWishesTabGiven => 'Offerts';
+
+  @override
+  String bookedWishesToGiveCount(int count) {
+    return '$count à offrir';
+  }
+
+  @override
+  String bookedWishesGivenCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count offerts',
+      one: '1 offert',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bookedWishesNothingToGive =>
+      'Plus rien à offrir : tout a été reçu';
+
+  @override
+  String get bookedWishesNothingGiven =>
+      'Les wishs réservés que tes amis ont reçus apparaîtront ici';
+
+  @override
+  String bookedWishReceivedOn(String date) {
+    return 'Reçu le $date';
+  }
 }

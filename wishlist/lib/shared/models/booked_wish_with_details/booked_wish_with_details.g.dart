@@ -15,6 +15,10 @@ _$BookedWishWithDetailsImpl _$$BookedWishWithDetailsImplFromJson(
       ownerPseudo: json['owner_pseudo'] as String,
       ownerId: json['owner_id'] as String,
       ownerAvatarUrl: json['owner_avatar_url'] as String?,
+      receivedQuantity: (json['received_quantity'] as num?)?.toInt() ?? 0,
+      receivedAt: json['received_at'] == null
+          ? null
+          : DateTime.parse(json['received_at'] as String),
     );
 
 Map<String, dynamic> _$$BookedWishWithDetailsImplToJson(
@@ -26,4 +30,6 @@ Map<String, dynamic> _$$BookedWishWithDetailsImplToJson(
       'owner_pseudo': instance.ownerPseudo,
       'owner_id': instance.ownerId,
       'owner_avatar_url': instance.ownerAvatarUrl,
+      'received_quantity': instance.receivedQuantity,
+      'received_at': instance.receivedAt?.toIso8601String(),
     };

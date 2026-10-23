@@ -440,6 +440,24 @@ void main() {
         verify(() => wishRepository.getBookedWishesByUser('me')).called(times),
   );
 
+  test('watchBookedWishesByUser reloads when a booked wish is received',
+      () async {
+    when(() => wishRepository.getBookedWishesByUser(any()))
+        .thenAnswer((_) async => fakeBookedWishes);
+
+    final sub = repository.watchBookedWishesByUser('me').listen((_) {});
+    await pumpEventQueue();
+    verify(() => wishRepository.getBookedWishesByUser('me')).called(1);
+
+    listeners
+        .singleWhere((l) => l.table == 'user_completed_wishs')
+        .callback(MockPostgresChangePayload());
+    await pumpEventQueue();
+    verify(() => wishRepository.getBookedWishesByUser('me')).called(1);
+
+    await sub.cancel();
+  });
+
   group('watchWishsFromWishlist wishlists listener', () {
     PostgresChangePayload payload({
       required Map<String, dynamic> oldRecord,

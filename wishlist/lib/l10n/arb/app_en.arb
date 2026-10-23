@@ -259,5 +259,33 @@
         "type": "String"
       }
     }
+  },
+  "bookedWishesTabToGive": "To give",
+  "bookedWishesTabGiven": "Given",
+  "bookedWishesToGiveCount": "{count} to give",
+  "@bookedWishesToGiveCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookedWishesGivenCount": "{count} given",
+  "@bookedWishesGivenCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookedWishesNothingToGive": "Nothing left to give: everything was received",
+  "bookedWishesNothingGiven": "Booked wishes your friends received will show up here",
+  "bookedWishReceivedOn": "Received on {date}",
+  "@bookedWishReceivedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   }
 }

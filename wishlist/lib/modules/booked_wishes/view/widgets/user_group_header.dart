@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
-import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/widgets/avatar/app_avatar.dart';
@@ -8,7 +7,7 @@ import 'package:wishlist/shared/widgets/avatar/app_avatar.dart';
 class UserGroupHeader extends StatelessWidget {
   const UserGroupHeader({
     required this.pseudo,
-    required this.wishCount,
+    required this.countLabel,
     this.avatarUrl,
     this.onTap,
     super.key,
@@ -16,12 +15,11 @@ class UserGroupHeader extends StatelessWidget {
 
   final String pseudo;
   final String? avatarUrl;
-  final int wishCount;
+  final String countLabel;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final avatarUrl = this.avatarUrl ?? '';
 
     return Row(
@@ -60,7 +58,7 @@ class UserGroupHeader extends StatelessWidget {
         ),
         const Gap(8),
         Text(
-          l10n.bookedWishCount(wishCount),
+          countLabel,
           style: AppTextStyles.small.copyWith(
             color: AppColors.makara,
           ),

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:intl/intl.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/booked_wishes/view/widgets/booked_wishes_search_bar.dart';
 import 'package:wishlist/modules/booked_wishes/view/widgets/booked_wishes_stats.dart';
+import 'package:wishlist/modules/booked_wishes/view/widgets/booked_wishes_tab_switch.dart';
 import 'package:wishlist/modules/booked_wishes/view/widgets/user_group_header.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wish_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
@@ -16,6 +18,7 @@ import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/page_layout_empty/page_layout_empty.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
+import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/app_scaffold.dart';
 import 'package:wishlist/shared/utils/booked_wish_sort_utils.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
@@ -36,6 +39,12 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
   static const EdgeInsets _headerPadding =
       EdgeInsets.fromLTRB(_contentPadding, _contentPadding, _contentPadding, 8);
   static const int _estimatedMaxItems = 10;
+
+  /// Height of the fixed header (stats, search bar and tabs) the list
+  /// scrolls under
+  static const double _listTopPadding = 200;
+
+  BookedWishesTab _tab = BookedWishesTab.toGive;
 
   BookedWishSort _sort = const BookedWishSort(
     type: BookedWishSortType.alphabetical,
@@ -110,13 +119,44 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
           return _buildEmptyState(l10n);
         }
 
-        final groupedWishes = _filterAndGroupWishes(bookedWishes.toList());
+        final toGive = bookedWishes.where((wish) => !wish.isGiven).toList();
+        final given = bookedWishes.where((wish) => wish.isGiven).toList();
+        final tabWishes = _tab == BookedWishesTab.toGive ? toGive : given;
 
-        if (groupedWishes.isEmpty) {
-          return _buildEmptySearchResults(l10n);
-        }
+        final header = _buildHeader(
+          l10n,
+          tabWishes: tabWishes,
+          toGiveCount: toGive.length,
+          givenCount: given.length,
+        );
+        final groupedWishes = _filterAndGroupWishes(tabWishes);
 
-        return _buildContent(l10n, groupedWishes);
+        return PageLayout(
+          title: l10n.bookedWishesScreenTitle,
+          onRefresh: _refreshBookedWishes,
+          padding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: groupedWishes.isEmpty
+                    ? _buildEmptyTabMessage(l10n)
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: _contentPadding,
+                        ),
+                        child: _buildAnimatedListView(groupedWishes),
+                      ),
+              ),
+              // Header fixe avec stats + searchbar + onglets
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: header,
+              ),
+            ],
+          ),
+        );
       },
     );
   }
@@ -130,132 +170,92 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
     );
   }
 
-  Widget _buildEmptySearchResults(AppLocalizations l10n) {
-    return PageLayout(
-      title: l10n.bookedWishesScreenTitle,
-      onRefresh: _refreshBookedWishes,
-      padding: EdgeInsets.zero,
-      child: Stack(
-        children: [
-          // Centre avec message "aucun résultat"
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 110),
-              child: Center(
-                child: Text(
-                  l10n.wishlistNoWishBooked,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ),
-            ),
+  /// Nothing to show in the current tab: no search result, or a tab empty
+  /// on its own
+  Widget _buildEmptyTabMessage(AppLocalizations l10n) {
+    final message = _searchQuery.isNotEmpty
+        ? l10n.wishlistNoWishBooked
+        : switch (_tab) {
+            BookedWishesTab.toGive => l10n.bookedWishesNothingToGive,
+            BookedWishesTab.given => l10n.bookedWishesNothingGiven,
+          };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        _contentPadding * 2,
+        _listTopPadding,
+        _contentPadding * 2,
+        0,
+      ),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 48),
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.small.copyWith(color: AppColors.makara),
           ),
-          // Header fixe avec stats + searchbar
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.background,
-                    AppColors.background,
-                    AppColors.background.withValues(alpha: 0.95),
-                    AppColors.background.withValues(alpha: 0),
-                  ],
-                  stops: const [0.0, 0.7, 0.9, 1.0],
-                ),
-              ),
-              child: Padding(
-                padding: _headerPadding,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  spacing: _itemSpacing,
-                  children: [
-                    BookedWishesStats(
-                      bookedWishes: List<BookedWishWithDetails>.from(
-                        ref.watch(bookedWishesRealtimeProvider).value ?? [],
-                      ),
-                    ),
-                    _buildSearchBar(l10n),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildContent(
-    AppLocalizations l10n,
-    Map<String, List<BookedWishWithDetails>> groupedWishes,
-  ) {
-    return PageLayout(
-      title: l10n.bookedWishesScreenTitle,
-      onRefresh: _refreshBookedWishes,
-      padding: EdgeInsets.zero,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _contentPadding),
-              child: _buildAnimatedListView(groupedWishes),
+  Widget _buildHeader(
+    AppLocalizations l10n, {
+    required List<BookedWishWithDetails> tabWishes,
+    required int toGiveCount,
+    required int givenCount,
+  }) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.background,
+            AppColors.background,
+            AppColors.background.withValues(alpha: 0.95),
+            AppColors.background.withValues(alpha: 0),
+          ],
+          stops: const [0.0, 0.7, 0.9, 1.0],
+        ),
+      ),
+      child: Padding(
+        padding: _headerPadding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          spacing: _itemSpacing,
+          children: [
+            BookedWishesStats(
+              bookedWishes: tabWishes,
+              countLabel: _countLabel(l10n, tabWishes.length),
             ),
-          ),
-          // Header fixe avec stats + searchbar
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.background,
-                    AppColors.background,
-                    AppColors.background.withValues(alpha: 0.95),
-                    AppColors.background.withValues(alpha: 0),
-                  ],
-                  stops: const [0.0, 0.7, 0.9, 1.0],
-                ),
-              ),
-              child: Padding(
-                padding: _headerPadding,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  spacing: _itemSpacing,
-                  children: [
-                    BookedWishesStats(
-                      bookedWishes: List<BookedWishWithDetails>.from(
-                        ref.watch(bookedWishesRealtimeProvider).value ?? [],
-                      ),
-                    ),
-                    _buildSearchBar(l10n),
-                  ],
-                ),
+            BookedWishesSearchBar(
+              searchController: _searchController,
+              searchFocusNode: _searchFocusNode,
+              searchQuery: _searchQuery,
+              sort: _sort,
+              onSortChanged: _onSortChanged,
+              onClearFocus: _clearFocus,
+              footer: BookedWishesTabSwitch(
+                current: _tab,
+                toGiveCount: toGiveCount,
+                givenCount: givenCount,
+                onChanged: (tab) => setState(() => _tab = tab),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSearchBar(AppLocalizations l10n) {
-    return BookedWishesSearchBar(
-      searchController: _searchController,
-      searchFocusNode: _searchFocusNode,
-      searchQuery: _searchQuery,
-      sort: _sort,
-      onSortChanged: _onSortChanged,
-      onClearFocus: _clearFocus,
-    );
+  String _countLabel(AppLocalizations l10n, int count) {
+    return switch (_tab) {
+      BookedWishesTab.toGive => l10n.bookedWishesToGiveCount(count),
+      BookedWishesTab.given => l10n.bookedWishesGivenCount(count),
+    };
   }
 
   Widget _buildAnimatedListView(
@@ -268,7 +268,7 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
     return AnimatedListView<List<BookedWishWithDetails>>(
       items: groupsList,
       padding: EdgeInsets.only(
-        top: 140,
+        top: _listTopPadding,
         bottom: NavBarPadding.of(context),
       ),
       itemSpacing: _itemSpacing,
@@ -314,7 +314,7 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
           UserGroupHeader(
             avatarUrl: firstWish.ownerAvatarUrl,
             pseudo: firstWish.ownerPseudo,
-            wishCount: ownerWishes.length,
+            countLabel: _countLabel(context.l10n, ownerWishes.length),
             onTap: () => _onUserTap(firstWish.ownerId),
           ),
           const Gap(_itemSpacing),
@@ -327,15 +327,28 @@ class _BookedWishesScreenState extends ConsumerState<BookedWishesScreen> {
                 onFavoriteToggle: () {}, // Non-cliquable pour booked wishes
                 isMyWishlist: false,
                 cardType: WishlistStatsCardType.booked,
-                subtitle: bookedWish.wishlistName,
+                subtitle: _subtitle(bookedWish),
                 quantityOverride: bookedWish.bookedQuantity,
                 showAvatars: false,
+                showReceivedBadge: bookedWish.isGiven,
               );
             }).toList(),
           ),
         ],
       ),
     );
+  }
+
+  /// The wishlist of the wish, or when its owner received it once given
+  String _subtitle(BookedWishWithDetails bookedWish) {
+    final receivedAt = bookedWish.receivedAt;
+    if (!bookedWish.isGiven || receivedAt == null) {
+      return bookedWish.wishlistName;
+    }
+    final date = DateFormat.yMMMd(
+      Localizations.localeOf(context).toString(),
+    ).format(receivedAt.toLocal());
+    return context.l10n.bookedWishReceivedOn(date);
   }
 
   void _onWishTap(BookedWishWithDetails bookedWish) {

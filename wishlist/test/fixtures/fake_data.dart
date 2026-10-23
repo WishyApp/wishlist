@@ -241,6 +241,27 @@ final fakeBookedWish2 = BookedWishWithDetails(
 
 final fakeBookedWishes = [fakeBookedWish1, fakeBookedWish2].toIList();
 
+/// Réservation d'un wish que son propriétaire a reçu (onglet « Offerts »)
+final fakeBookedWishGiven = BookedWishWithDetails(
+  wish: Wish(
+    id: 4,
+    createdAt: fakeCreatedAt,
+    name: 'Kindle Paperwhite',
+    description: 'Liseuse',
+    price: 149,
+    quantity: 1,
+    wishlistId: 2,
+    updatedBy: fakeFriendUserId1,
+    updatedAt: fakeUpdatedAt,
+  ),
+  bookedQuantity: 1,
+  wishlistName: 'Noël',
+  ownerPseudo: 'Alice',
+  ownerId: fakeFriendUserId1,
+  receivedQuantity: 1,
+  receivedAt: DateTime(2024, 1, 12),
+);
+
 const fakeEmptyBookedWishes = IListConst<BookedWishWithDetails>([]);
 
 // =============================================================================

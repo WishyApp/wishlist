@@ -725,4 +725,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String completedWishFromWishlist(String wishlistName) {
     return 'Wishlist: $wishlistName';
   }
+
+  @override
+  String get bookedWishesTabToGive => 'To give';
+
+  @override
+  String get bookedWishesTabGiven => 'Given';
+
+  @override
+  String bookedWishesToGiveCount(int count) {
+    return '$count to give';
+  }
+
+  @override
+  String bookedWishesGivenCount(int count) {
+    return '$count given';
+  }
+
+  @override
+  String get bookedWishesNothingToGive =>
+      'Nothing left to give: everything was received';
+
+  @override
+  String get bookedWishesNothingGiven =>
+      'Booked wishes your friends received will show up here';
+
+  @override
+  String bookedWishReceivedOn(String date) {
+    return 'Received on $date';
+  }
 }

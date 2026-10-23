@@ -17,6 +17,7 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
   final WishRepository _wishRepository;
   static const _wishsTableName = 'wishs';
   static const _wishTakenByUserTableName = 'wish_taken_by_user';
+  static const _userCompletedWishsTableName = 'user_completed_wishs';
   static const _wishlistsTableName = 'wishlists';
   static const _canOwnerSeeTakenWishColumn = 'can_owner_see_taken_wish';
 
@@ -171,6 +172,14 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
               column: 'user_id',
               value: userId,
             ),
+            callback: (payload) => reload(),
+          )
+          // Écouter les réceptions (un wish réservé marqué comme reçu par
+          // son propriétaire passe dans les offerts)
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: _userCompletedWishsTableName,
             callback: (payload) => reload(),
           )
           // Écouter les changements sur la table wishs
