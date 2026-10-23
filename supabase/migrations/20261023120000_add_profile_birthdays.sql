@@ -89,4 +89,45 @@ CREATE POLICY "Users can delete their own birthday"
   TO authenticated
   USING (profile_id = (SELECT auth.uid()));
 
+-- 4. Policies add up (OR): fail if a permissive policy other than the ones
+-- above exists on the table, for instance one created by hand on a project
+-- (CREATE TABLE IF NOT EXISTS keeps a table that already exists, with its
+-- policies), and if anon or PUBLIC got a privilege on it.
+DO $$
+DECLARE
+  extra text;
+BEGIN
+  SELECT string_agg(format('"%s" (%s)', policyname, cmd), ', ')
+  INTO extra
+  FROM pg_policies
+  WHERE schemaname = 'public'
+    AND tablename = 'profile_birthdays'
+    AND permissive = 'PERMISSIVE'
+    AND policyname NOT IN (
+      'Users can read their own and their friends birthdays',
+      'Users can insert their own birthday',
+      'Users can update their own birthday',
+      'Users can delete their own birthday'
+    );
+  IF extra IS NOT NULL THEN
+    RAISE EXCEPTION 'unexpected permissive policy on profile_birthdays: %', extra
+      USING HINT = 'Drop it: permissive policies add up and would widen who can read or write birthdays.';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_class c, aclexplode(c.relacl) a
+    WHERE c.oid = 'public.profile_birthdays'::regclass
+      AND a.grantee IN (0, 'anon'::regrole)
+  ) OR EXISTS (
+    SELECT 1
+    FROM pg_attribute t, aclexplode(t.attacl) a
+    WHERE t.attrelid = 'public.profile_birthdays'::regclass
+      AND t.attnum > 0
+      AND a.grantee IN (0, 'anon'::regrole)
+  ) THEN
+    RAISE EXCEPTION 'anon or PUBLIC still has a privilege on profile_birthdays';
+  END IF;
+END $$;
+
 -- Tests: supabase-tests/birthday_policies.sql.
