@@ -27,6 +27,16 @@ void main() {
     expect(format(DateTime(2026, 9, 24)), 'Il y a 4 semaines');
   });
 
+  test('keeps the weeks within the current month', () {
+    final endOfMonth = DateTime(2026, 10, 31, 9);
+    String format(DateTime date) =>
+        formatRelativeDate(l10n, date, now: endOfMonth, locale: 'en_US');
+
+    // 30 days ago, but this month: a month name would read as "this month"
+    expect(format(DateTime(2026, 10, 1, 8)), 'Il y a 4 semaines');
+    expect(format(DateTime(2026, 9, 30)), 'September');
+  });
+
   test('shows the month from 30 days, with the year when it differs', () {
     expect(format(DateTime(2026, 9, 23)), 'September');
     expect(format(DateTime(2025, 12, 25)), 'Dec 2025');

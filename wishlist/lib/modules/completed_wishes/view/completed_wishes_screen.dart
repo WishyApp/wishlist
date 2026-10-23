@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/modules/completed_wishes/view/widgets/completed_wish_image.dart';
 import 'package:wishlist/modules/completed_wishes/view/widgets/completed_wish_sort_bottom_sheet.dart';
 import 'package:wishlist/modules/completed_wishes/view/widgets/uncomplete_wish_bottom_sheet.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
@@ -14,13 +15,11 @@ import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
-import 'package:wishlist/shared/theme/widgets/pill.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/utils/string_utils.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 import 'package:wishlist/shared/widgets/search_bar/app_search_bar.dart';
-import 'package:wishlist/shared/widgets/wish_image.dart';
 
 class CompletedWishesScreen extends ConsumerStatefulWidget {
   const CompletedWishesScreen({super.key, this.userId});
@@ -158,7 +157,7 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
                           itemBuilder: (context, item, index) {
                             return _CompletedWishCard(
                               item: item,
-                              canUncomplete: userId == null,
+                              userId: userId,
                             );
                           },
                         ),
@@ -238,10 +237,14 @@ class _SearchBar extends StatelessWidget {
 }
 
 class _CompletedWishCard extends StatelessWidget {
-  const _CompletedWishCard({required this.item, required this.canUncomplete});
+  const _CompletedWishCard({required this.item, required this.userId});
 
   final CompletedWishWithDetails item;
-  final bool canUncomplete;
+
+  /// See [CompletedWishesScreen.userId]
+  final String? userId;
+
+  bool get _canUncomplete => userId == null;
 
   @override
   Widget build(BuildContext context) {
@@ -262,35 +265,18 @@ class _CompletedWishCard extends StatelessWidget {
           wishIds: [wish.id],
           showActions: false,
           quantityDisplay: WishQuantityDisplay.completed,
+          completedByUserId: userId,
         ).push(context),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  WishImage(
-                    iconUrl: wish.iconUrl,
-                    size: 56,
-                    borderRadius: 12,
-                  ),
-                  if (item.quantity > 1)
-                    Positioned(
-                      bottom: -4,
-                      right: -4,
-                      child: Pill(
-                        text: 'x${item.quantity}',
-                        backgroundColor: Theme.of(context).primaryColor,
-                        textStyle: AppTextStyles.smaller,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                      ),
-                    ),
-                ],
+              CompletedWishImage(
+                iconUrl: wish.iconUrl,
+                quantity: item.quantity,
+                size: 56,
+                borderRadius: 12,
               ),
               const Gap(12),
               Expanded(
@@ -334,7 +320,7 @@ class _CompletedWishCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (canUncomplete) ...[
+              if (_canUncomplete) ...[
                 const Gap(8),
                 IconButton(
                   icon: const Icon(Icons.undo, color: AppColors.makara),

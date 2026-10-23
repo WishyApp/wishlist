@@ -1,12 +1,16 @@
 import 'dart:io';
 
 import 'package:adaptive_test/adaptive_test.dart';
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/modules/friends/view/screens/friend_details_screen.dart';
+import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
+import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
@@ -17,6 +21,13 @@ import 'package:wishlist/shared/widgets/wishlist_card.dart';
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
 import '../../../pump_app.dart';
+
+/// Noon, [days] calendar days ago: the formatter counts calendar days, and
+/// 24 h periods would cross a day boundary around a change of time
+DateTime _daysAgo(int days) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day - days, 12);
+}
 
 /// A wish of the friend, completed [daysAgo] days ago (relative to now, so
 /// that the date shown in the goldens does not change over time)
@@ -41,7 +52,7 @@ CompletedWishWithDetails _completedWish(
     fromWishlistName: fakeWishlist1.name,
     ownerPseudo: fakeFriendProfile1.pseudo,
     ownerId: fakeFriendUserId1,
-    completedAt: DateTime.now().subtract(Duration(days: daysAgo)),
+    completedAt: _daysAgo(daysAgo),
     quantity: quantity,
   );
 }
@@ -104,9 +115,9 @@ void main() {
       FriendDetailsRoute(fakeFriendUserId1).location,
       overrides: friendDetailsScreenOverrides(
         friendId: fakeFriendUserId1,
-        // Unordered on purpose: the carousel sorts them, most recent first
+        // Most recent first, as the query returns them
         completedWishes: [
-          for (var id = 12; id >= 1; id--) _completedWish(id, daysAgo: id),
+          for (var id = 1; id <= 12; id++) _completedWish(id, daysAgo: id),
         ],
       ),
     );
@@ -151,6 +162,55 @@ void main() {
     expect(find.text('Wish 1'), findsOneWidget);
     // The friend's wishes cannot be uncompleted from here
     expect(find.byIcon(Icons.undo), findsNothing);
+  });
+
+  group("the wish screen shows the friend's received quantity", () {
+    final receivedTwice = _completedWish(1, name: 'Plaid', quantity: 2);
+
+    /// The friend's completed wishes, the wish itself, its wishlist archived
+    /// (so its owner is unknown) and no receipt of the current user's
+    List<Override> overrides() => [
+          ...friendDetailsScreenOverrides(
+            friendId: fakeFriendUserId1,
+            completedWishes: [receivedTwice],
+          ),
+          watchWishByIdOverride(1, wish: receivedTwice.wish),
+          watchWishlistByIdOverride(
+            receivedTwice.wish.wishlistId,
+            isDeleted: true,
+          ),
+          completedWishesRealtimeProvider.overrideWith(
+            (ref) => Stream.value(const IListConst([])),
+          ),
+        ];
+
+    testWidgets('from the carousel', (tester) async {
+      await tester.pumpRouterApp(
+        FriendDetailsRoute(fakeFriendUserId1).location,
+        overrides: overrides(),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Plaid'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ConsultWishScreen), findsOneWidget);
+      expect(find.text('x2'), findsOneWidget);
+    });
+
+    testWidgets('from all the completed wishes', (tester) async {
+      await tester.pumpRouterApp(
+        FriendCompletedWishesRoute(fakeFriendUserId1).location,
+        overrides: overrides(),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Plaid'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ConsultWishScreen), findsOneWidget);
+      expect(find.text('x2'), findsOneWidget);
+    });
   });
 
   testWidgets('$FriendDetailsScreen explains a load error and retries',

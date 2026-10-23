@@ -24,12 +24,19 @@ class ConsultWishScreen extends ConsumerStatefulWidget {
     required this.initialIndex,
     this.showActions = true,
     this.quantityDisplay = WishQuantityDisplay.total,
+    this.completedByUserId,
   });
 
   final List<int> wishIds;
   final int initialIndex;
   final bool showActions;
   final WishQuantityDisplay quantityDisplay;
+
+  /// With [WishQuantityDisplay.completed], the user whose receipts give the
+  /// quantity (a friend's completed wishes): the current user's when null.
+  /// Read directly rather than through the owner of the wishlist, which is
+  /// unknown once the wishlist is archived.
+  final String? completedByUserId;
 
   @override
   ConsumerState<ConsultWishScreen> createState() => _ConsultWishScreenState();
@@ -229,9 +236,15 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
                 ?.quantity ??
             0;
       case WishQuantityDisplay.completed:
-        // Mes propres réceptions (liste des wishs que j'ai reçus), pas
-        // celles du propriétaire de la wishlist.
-        final completedWishes = ref.watch(completedWishesRealtimeProvider);
+        // Les réceptions de la liste d'où l'on vient (les miennes, ou celles
+        // d'un ami), pas celles du propriétaire de la wishlist : une wishlist
+        // archivée ne donne plus son propriétaire.
+        final completedByUserId = widget.completedByUserId;
+        final completedWishes = ref.watch(
+          completedByUserId == null
+              ? completedWishesRealtimeProvider
+              : completedWishesByUserRealtimeProvider(completedByUserId),
+        );
         if (!completedWishes.hasValue) {
           return 0;
         }

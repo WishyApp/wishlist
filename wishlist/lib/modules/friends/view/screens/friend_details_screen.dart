@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/modules/completed_wishes/view/widgets/completed_wish_image.dart';
 import 'package:wishlist/modules/friends/view/widgets/friend_details_app_bar.dart';
 import 'package:wishlist/modules/friends/view/widgets/friend_pill.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
@@ -16,12 +17,10 @@ import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/app_refresh_indicator.dart';
-import 'package:wishlist/shared/theme/widgets/pill.dart';
 import 'package:wishlist/shared/utils/app_user_utils.dart';
 import 'package:wishlist/shared/utils/relative_date_utils.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/avatar/app_avatar.dart';
-import 'package:wishlist/shared/widgets/wish_image.dart';
 import 'package:wishlist/shared/widgets/wishlists_grid.dart';
 
 class FriendDetailsScreen extends ConsumerWidget {
@@ -361,10 +360,8 @@ class _FriendCompletedWishesSection extends ConsumerWidget {
           return const SizedBox.shrink();
         }
 
-        final recentWishes = completedWishes
-            .sort((a, b) => b.completedAt.compareTo(a.completedAt))
-            .take(_maxVisibleWishes)
-            .toList();
+        // Already the most recent first (the query sorts them)
+        final recentWishes = completedWishes.take(_maxVisibleWishes).toList();
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 24),
@@ -426,7 +423,7 @@ class _FriendCompletedWishesSection extends ConsumerWidget {
                   children: [
                     for (final (index, item) in recentWishes.indexed) ...[
                       if (index > 0) const Gap(12),
-                      _FriendCompletedWishCard(item: item),
+                      _FriendCompletedWishCard(item: item, friendId: friendId),
                     ],
                   ],
                 ),
@@ -440,9 +437,10 @@ class _FriendCompletedWishesSection extends ConsumerWidget {
 }
 
 class _FriendCompletedWishCard extends StatelessWidget {
-  const _FriendCompletedWishCard({required this.item});
+  const _FriendCompletedWishCard({required this.item, required this.friendId});
 
   final CompletedWishWithDetails item;
+  final String friendId;
 
   static const double _width = 112;
   static const double _imageBorderRadius = 18;
@@ -453,89 +451,64 @@ class _FriendCompletedWishCard extends StatelessWidget {
 
     return SizedBox(
       width: _width,
-      child: InkWell(
-        onTap: () => ConsultWishRoute(
-          wish.wishlistId,
-          wish.id,
-          wishIds: [wish.id],
-          showActions: false,
-          quantityDisplay: WishQuantityDisplay.completed,
-        ).push(context),
-        borderRadius: BorderRadius.circular(_imageBorderRadius),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                WishImage(
-                  iconUrl: wish.iconUrl,
-                  size: _width,
-                  borderRadius: _imageBorderRadius,
-                ),
-                const Positioned(
-                  top: 8,
-                  right: 8,
-                  child: _CompletedBadge(),
-                ),
-                if (item.quantity > 1)
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Pill(
-                      text: 'x${item.quantity}',
-                      backgroundColor: Theme.of(context).primaryColor,
-                      textStyle: AppTextStyles.tiny,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const Gap(8),
-            Text(
-              wish.name,
-              style: AppTextStyles.smaller.copyWith(
-                fontWeight: FontWeight.bold,
-                height: 1.25,
+      child: Stack(
+        // The quantity overflows the image, as on the completed wishes screen
+        clipBehavior: Clip.none,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CompletedWishImage(
+                iconUrl: wish.iconUrl,
+                quantity: item.quantity,
+                size: _width,
+                borderRadius: _imageBorderRadius,
+                showCompletedBadge: true,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const Gap(2),
-            Text(
-              formatRelativeDate(
-                context.l10n,
-                item.completedAt,
-                now: DateTime.now(),
-                locale: Localizations.localeOf(context).toString(),
+              const Gap(8),
+              Text(
+                wish.name,
+                style: AppTextStyles.smaller.copyWith(
+                  fontWeight: FontWeight.bold,
+                  height: 1.25,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              style: AppTextStyles.tiny.copyWith(color: AppColors.makara),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              const Gap(2),
+              Text(
+                formatRelativeDate(
+                  context.l10n,
+                  item.completedAt,
+                  now: DateTime.now(),
+                  locale: Localizations.localeOf(context).toString(),
+                ),
+                style: AppTextStyles.tiny.copyWith(color: AppColors.makara),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+          // Above the image, which is opaque: the ripple shows on the whole
+          // card
+          Positioned.fill(
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: () => ConsultWishRoute(
+                  wish.wishlistId,
+                  wish.id,
+                  wishIds: [wish.id],
+                  showActions: false,
+                  quantityDisplay: WishQuantityDisplay.completed,
+                  completedByUserId: friendId,
+                ).push(context),
+                borderRadius: BorderRadius.circular(_imageBorderRadius),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _CompletedBadge extends StatelessWidget {
-  const _CompletedBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        color: AppColors.green,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      child: const Icon(Icons.check, color: Colors.white, size: 14),
     );
   }
 }

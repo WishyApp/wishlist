@@ -3,7 +3,8 @@ import 'package:wishlist/l10n/l10n.dart';
 
 /// Formate [date] par rapport à [now], en jours calendaires :
 /// - « Aujourd'hui », « Hier », « Il y a 3 jours » ;
-/// - « Il y a 2 semaines » jusqu'à 4 semaines ;
+/// - « Il y a 2 semaines » jusqu'à 4 semaines, et toujours dans le mois en
+///   cours ;
 /// - au-delà, le mois (« Septembre »), avec l'année si elle diffère
 ///   (« Sept. 2025 »).
 String formatRelativeDate(
@@ -31,7 +32,11 @@ String formatRelativeDate(
   if (days < 7) {
     return l10n.relativeDateDaysAgo(days);
   }
-  if (days < 30) {
+  // Weeks within the current month whatever the count (a month name would
+  // read as "this month"), and up to 4 weeks before it
+  final isSameMonth =
+      localDate.year == localNow.year && localDate.month == localNow.month;
+  if (days < 30 || isSameMonth) {
     return l10n.relativeDateWeeksAgo(days ~/ 7);
   }
 
