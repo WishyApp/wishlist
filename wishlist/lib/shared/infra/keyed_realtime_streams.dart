@@ -169,7 +169,7 @@ class KeyedRealtimeStreams {
   /// Ferme tous les channels puis tous les flux.
   ///
   /// Les channels sont quittés avec [RealtimeChannel.unsubscribe] et non
-  /// `SupabaseClient.removeChannel` : dans realtime_client 2.4.0,
+  /// `SupabaseClient.removeChannel` : dans realtime_client 2.11.0,
   /// `removeChannel` fait `unsubscribe` puis déconnecte le socket Realtime
   /// partagé si plus aucun channel n'y est enregistré, ce qui n'a pas de sens
   /// pour libérer une clé. `unsubscribe` envoie le leave et le client retire

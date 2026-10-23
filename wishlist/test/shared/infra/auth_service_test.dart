@@ -38,10 +38,10 @@ void main() {
   final networkError = AuthRetryableFetchException(
     message: 'ClientException with SocketException: Failed host lookup',
   );
-  const rateLimited = AuthApiException(
+  final rateLimited = AuthApiException(
     'Too many requests',
     statusCode: '429',
-    code: 'over_request_rate_limit',
+    code: ErrorCode.overRequestRateLimit.code,
   );
 
   group('AuthService.confirmPasswordIsCorrect', () {

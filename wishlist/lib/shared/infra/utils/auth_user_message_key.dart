@@ -1,11 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 
-/// Codes d'erreur GoTrue (`AuthException.code`) reconnus. L'enum `ErrorCode`
-/// de gotrue n'est pas exporté, d'où les littéraux.
-const _samePasswordCode = 'same_password';
-const _weakPasswordCode = 'weak_password';
-const _reauthenticationNeededCode = 'reauthentication_needed';
+/// Codes d'erreur GoTrue (`AuthException.code`) reconnus. Les valeurs de
+/// l'enum `ErrorCode` (exporté par supabase_flutter) sont utilisées quand elles
+/// existent ; `invalid_credentials` reste un littéral.
 const _invalidCredentialsCode = 'invalid_credentials';
 const _legacyInvalidCredentialsMessage = 'Invalid login credentials';
 
@@ -23,13 +21,15 @@ bool isInvalidCredentialsException(AuthException e) {
 /// mot de passe incorrect, nouveau mot de passe identique), sinon null.
 /// Testable unitairement.
 AppUserMessageKey? userMessageKeyForAuthException(AuthException e) {
-  switch (e.code) {
-    case _samePasswordCode:
-      return AppUserMessageKey.newPasswordShouldBeDifferent;
-    case _weakPasswordCode:
-      return AppUserMessageKey.passwordTooWeak;
-    case _reauthenticationNeededCode:
-      return AppUserMessageKey.reauthenticationNeeded;
+  final code = e.code;
+  if (code == ErrorCode.samePassword.code) {
+    return AppUserMessageKey.newPasswordShouldBeDifferent;
+  }
+  if (code == ErrorCode.weakPassword.code) {
+    return AppUserMessageKey.passwordTooWeak;
+  }
+  if (code == ErrorCode.reauthenticationNeeded.code) {
+    return AppUserMessageKey.reauthenticationNeeded;
   }
 
   switch (e.statusCode) {
