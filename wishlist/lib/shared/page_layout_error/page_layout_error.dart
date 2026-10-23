@@ -32,7 +32,10 @@ class PageLayoutError extends StatelessWidget {
     final isNetwork = isNetworkError(error);
 
     return PageLayoutEmpty(
-      illustrationUrl: Assets.svg.noWishFlashlight,
+      // Its own illustration for the network: the flashlight is also one of
+      // the empty wishlist ones
+      illustrationUrl:
+          isNetwork ? Assets.svg.noConnection : Assets.svg.noWishFlashlight,
       // Smaller than an empty state's: the description and the retry button
       // must stay above the floating nav bar on small screens
       illustrationHeight: MediaQuery.sizeOf(context).height / 3.5,

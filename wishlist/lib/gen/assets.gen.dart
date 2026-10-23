@@ -26,6 +26,9 @@ class $AssetsSvgGen {
   /// File path: assets/svg/no_booked_wish.svg
   String get noBookedWish => 'assets/svg/no_booked_wish.svg';
 
+  /// File path: assets/svg/no_connection.svg
+  String get noConnection => 'assets/svg/no_connection.svg';
+
   /// File path: assets/svg/no_friend.svg
   String get noFriend => 'assets/svg/no_friend.svg';
 
@@ -44,6 +47,7 @@ class $AssetsSvgGen {
   /// List of all assets
   List<String> get values => [
         noBookedWish,
+        noConnection,
         noFriend,
         noWishBag,
         noWishBoxHat,

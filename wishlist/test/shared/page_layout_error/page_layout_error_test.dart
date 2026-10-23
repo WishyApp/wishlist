@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
@@ -25,6 +27,7 @@ void main() {
     expect(find.text(l10n.networkErrorTitle), findsOneWidget);
     expect(find.text(l10n.networkErrorDescription), findsOneWidget);
     expect(find.text(l10n.loadingErrorTitle), findsNothing);
+    expect(_illustration(tester), Assets.svg.noConnection);
   });
 
   testWidgets('falls back to a loading error for any other error',
@@ -39,6 +42,7 @@ void main() {
     expect(find.text(l10n.loadingErrorTitle), findsOneWidget);
     expect(find.text(l10n.loadingErrorDescription), findsOneWidget);
     expect(find.text(l10n.networkErrorTitle), findsNothing);
+    expect(_illustration(tester), Assets.svg.noWishFlashlight);
   });
 
   testWidgets('retries from the button', (tester) async {
@@ -86,4 +90,10 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+}
+
+/// Asset name of the illustration shown by the page.
+String _illustration(WidgetTester tester) {
+  final picture = tester.widget<SvgPicture>(find.byType(SvgPicture));
+  return (picture.bytesLoader as SvgAssetLoader).assetName;
 }
