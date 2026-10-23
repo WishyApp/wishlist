@@ -9,6 +9,7 @@ import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
+import 'package:wishlist/shared/widgets/wishlist_card.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
@@ -78,5 +79,32 @@ void main() {
     expect(find.text(fakeFriendDetails.appUser.profile.pseudo), findsWidgets);
     // The loaded screen has a single Scaffold, besides the one of the test app
     expect(find.byType(Scaffold), findsNWidgets(2));
+  });
+
+  testWidgets(
+      '$FriendDetailsScreen keeps the last wishlist above the home '
+      'indicator', (tester) async {
+    const bottomInset = 34.0;
+    // Short enough for the list to scroll
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(400, 400)
+      ..padding = const FakeViewPadding(bottom: bottomInset)
+      ..viewPadding = const FakeViewPadding(bottom: bottomInset);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpPushedScreen(
+      const FriendDetailsScreen(friendId: fakeFriendUserId1),
+      overrides: friendDetailsScreenOverrides(friendId: fakeFriendUserId1),
+    );
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -5000));
+    await tester.pumpAndSettle();
+
+    final lastWishlist = find.byType(WishlistCard).last;
+    expect(
+      tester.getBottomLeft(lastWishlist).dy,
+      lessThanOrEqualTo(400 - bottomInset),
+    );
   });
 }
