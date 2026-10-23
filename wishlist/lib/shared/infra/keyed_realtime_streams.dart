@@ -33,19 +33,26 @@ typedef Reload<T> = Future<void> Function([Future<T> Function()? override]);
 ///   chargement en plus. Les autres statuts ne disent rien du contenu.
 /// - `timedOut` : realtime_client relance lui-même le join (son timer de
 ///   rejoin), on se contente de loguer ; le `subscribed` qui suit recharge.
-/// - `channelError` : une erreur du channel lui-même (socket coupé) est aussi
-///   rejointe seule, mais une réponse d'erreur au join, ou un événement
-///   système en erreur après `subscribed` (réplication postgres_changes
-///   refusée, ex: RLS avec un JWT expiré), n'est suivie d'aucune reprise : le
-///   channel peut rester « joint » sans rien livrer. On ne sait pas les
-///   distinguer, on abandonne donc le channel et on en abonne un neuf après un
-///   délai croissant ([retryDelays]). Si le channel se rejoint seul entre-temps
-///   (`subscribed`), la reprise en attente est annulée. Tant que le socket
-///   Realtime est coupé (ex: l'OS l'a fermé en arrière-plan), on ne remplace
-///   rien : realtime_client se reconnecte et rejoint lui-même tous les
+/// - `channelError` et `closed` : realtime_client rejoint seul un channel dont
+///   le socket a lâché ou que le serveur a fait tomber en erreur (`phx_error`),
+///   mais pas un channel dont le join a reçu une réponse d'erreur, ni celui
+///   qui reçoit un événement système en erreur après `subscribed`
+///   (réplication postgres_changes refusée, ex: RLS avec un JWT expiré, il
+///   peut alors rester « joint » sans rien livrer), ni un channel fermé par le
+///   serveur (`closed` sans demande de notre part ; nos propres leaves sont
+///   ignorés). On ne sait pas toujours les distinguer : on laisse d'abord sa
+///   chance à la bibliothèque, puis on abandonne le channel et on en abonne un
+///   neuf, après un délai croissant ([retryDelays], qui commence après ses
+///   premières tentatives de rejoin). Un `subscribed` du même channel annule la
+///   reprise en attente. Tant que le socket Realtime est coupé (ex: l'OS l'a
+///   fermé en arrière-plan), ou qu'une erreur est arrivée socket coupé, on ne
+///   remplace rien : la bibliothèque reconnecte le socket et rejoint tous ses
 ///   channels, le `subscribed` qui suit recharge et annule la reprise. Le
-///   délai est simplement rearmé ; on ne remplace le channel que socket
-///   connecté (réponse d'erreur au join, ou erreur système après `subscribed`).
+///   délai est simplement rearmé jusque-là. Le compteur de tentatives ne
+///   repart de zéro qu'après [healthyAfter] sans erreur suivant un
+///   `subscribed` : une erreur système arrive toujours après le `subscribed`
+///   du join, le remettre à zéro dès lui ferait réabonner en boucle à la
+///   cadence du premier délai.
 ///
 /// Aucun rafraîchissement explicite de la session : supabase_flutter pousse
 /// les jetons rafraîchis vers realtime, et le channel neuf, abonné après le
@@ -61,25 +68,26 @@ class KeyedRealtimeStreams {
   ///
   /// [retryDelays] sont les délais avant de réabonner un channel en erreur,
   /// par tentative consécutive ; le dernier est répété. Le compteur repart de
-  /// zéro à chaque `subscribed`.
+  /// zéro quand un channel reste [healthyAfter] sans erreur après `subscribed`.
   KeyedRealtimeStreams({
     required this.logTag,
     this.shouldEmitErrorAfterValue,
     this.retryDelays = defaultRetryDelays,
     this.isSocketConnected,
+    this.healthyAfter = const Duration(seconds: 30),
   }) : assert(retryDelays.isNotEmpty, 'retryDelays must not be empty');
 
   static const defaultRetryDelays = [
-    Duration(seconds: 1),
-    Duration(seconds: 2),
     Duration(seconds: 5),
     Duration(seconds: 10),
     Duration(seconds: 30),
+    Duration(seconds: 60),
   ];
 
   final String logTag;
   final bool Function(Object error)? shouldEmitErrorAfterValue;
   final List<Duration> retryDelays;
+  final Duration healthyAfter;
 
   /// Dit si le socket Realtime est connecté (`client.realtime.isConnected`) ;
   /// `RealtimeChannel.socket` est interne à realtime_client. Sans lui, le
@@ -91,6 +99,13 @@ class KeyedRealtimeStreams {
   /// Réabonnements en attente par clé (un seul à la fois, voir
   /// [_scheduleResubscribe]).
   final Map<String, Timer> _retryTimers = {};
+
+  /// Timers de remise à zéro de [_retryAttempts], armés par `subscribed`.
+  final Map<String, Timer> _healthyTimers = {};
+
+  /// Clés dont la dernière erreur est arrivée socket coupé : la bibliothèque
+  /// rejoint seule le channel, on ne le remplace pas avant son `subscribed`.
+  final Set<String> _leftToLibrary = {};
 
   /// Nombre de réabonnements déjà planifiés par clé depuis le dernier
   /// `subscribed`, qui choisit le délai suivant.
@@ -172,12 +187,24 @@ class KeyedRealtimeStreams {
       switch (status) {
         case RealtimeSubscribeStatus.subscribed:
           _retryTimers.remove(key)?.cancel();
-          _retryAttempts.remove(key);
+          _leftToLibrary.remove(key);
+          // Pas de remise à zéro immédiate, voir la doc de la classe.
+          _healthyTimers.remove(key)?.cancel();
+          _healthyTimers[key] = Timer(healthyAfter, () {
+            _healthyTimers.remove(key);
+            _retryAttempts.remove(key);
+          });
           reload();
         case RealtimeSubscribeStatus.timedOut:
           debugPrint('[Wishy $logTag] channel $key timed out, retrying');
         case RealtimeSubscribeStatus.channelError:
           debugPrint('[Wishy $logTag] channel $key error: $error');
+          if (isSocketConnected?.call() ?? true) {
+            _leftToLibrary.remove(key);
+          } else {
+            _leftToLibrary.add(key);
+          }
+          _healthyTimers.remove(key)?.cancel();
           _scheduleResubscribe(
             key,
             controller,
@@ -186,7 +213,18 @@ class KeyedRealtimeStreams {
             reload,
           );
         case RealtimeSubscribeStatus.closed:
-          break;
+          // Nos propres leaves sont écartés plus haut : le channel n'est plus
+          // le courant de la clé.
+          debugPrint('[Wishy $logTag] channel $key closed by the server');
+          _leftToLibrary.remove(key);
+          _healthyTimers.remove(key)?.cancel();
+          _scheduleResubscribe(
+            key,
+            controller,
+            channel,
+            channelBuilder,
+            reload,
+          );
       }
     });
   }
@@ -217,27 +255,33 @@ class KeyedRealtimeStreams {
       }
       // Socket coupé : la bibliothèque le reconnecte et rejoint seule ses
       // channels, remplacer le nôtre ne ferait que rouvrir le socket pour rien.
-      if (!(isSocketConnected?.call() ?? true)) {
-        debugPrint('[Wishy $logTag] socket down, leaving $key to the client');
+      if (_leftToLibrary.contains(key) ||
+          !(isSocketConnected?.call() ?? true)) {
+        debugPrint('[Wishy $logTag] leaving $key to the client');
         _scheduleResubscribe(key, controller, channel, channelBuilder, reload);
         return;
       }
       debugPrint('[Wishy $logTag] resubscribing channel $key');
-      // Le leave part sans attendre sa réponse : le client retire le channel
-      // de sa liste à la fermeture, et un channel neuf n'a pas à l'attendre.
-      unawaited(_leave(channel));
       try {
-        _subscribe(
-          key,
-          controller,
-          channelBuilder(reload),
-          channelBuilder,
-          reload,
-        );
+        final fresh = channelBuilder(reload);
+        // Le channel courant change avant le leave de l'ancien : le `closed`
+        // qu'il peut émettre tout de suite est ignoré. Le leave part sans
+        // attendre sa réponse : le client retire le channel de sa liste à la
+        // fermeture, et un channel neuf n'a pas à l'attendre.
+        _channels[key] = fresh;
+        unawaited(_leave(channel));
+        _subscribe(key, controller, fresh, channelBuilder, reload);
       } catch (e, st) {
         debugPrint('[Wishy $logTag] resubscribe of $key failed: $e');
         debugPrint(st.toString());
-        _scheduleResubscribe(key, controller, channel, channelBuilder, reload);
+        // Le channel courant est le neuf si c'est son abonnement qui a échoué.
+        _scheduleResubscribe(
+          key,
+          controller,
+          _channels[key] ?? channel,
+          channelBuilder,
+          reload,
+        );
       }
     });
   }
@@ -319,9 +363,13 @@ class KeyedRealtimeStreams {
     _loadGenerations.remove(key);
     _emittedGenerations.remove(key);
     _retryTimers.remove(key)?.cancel();
+    _healthyTimers.remove(key)?.cancel();
     _retryAttempts.remove(key);
-    _channels[key]?.unsubscribe();
-    _channels.remove(key);
+    _leftToLibrary.remove(key);
+    // Retiré avant le leave : le `closed` qu'il peut émettre tout de suite est
+    // ignoré (le channel n'est plus le courant de la clé).
+    final channel = _channels.remove(key);
+    channel?.unsubscribe();
     controller.close();
     _controllers.remove(key);
   }
@@ -343,7 +391,12 @@ class KeyedRealtimeStreams {
       timer.cancel();
     }
     _retryTimers.clear();
+    for (final timer in _healthyTimers.values) {
+      timer.cancel();
+    }
+    _healthyTimers.clear();
     _retryAttempts.clear();
+    _leftToLibrary.clear();
     try {
       // Tous les leave partent ensemble, et un channel qui échoue n'empêche ni
       // les autres ni la fermeture des flux (l'erreur est relancée à la fin).

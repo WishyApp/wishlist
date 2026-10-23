@@ -24,6 +24,8 @@ class MockFriendshipRepository extends Mock implements FriendshipRepository {}
 
 class MockRealtimeChannel extends Mock implements RealtimeChannel {}
 
+class MockRealtimeClient extends Mock implements RealtimeClient {}
+
 // =============================================================================
 // MOCK SUPABASE
 // =============================================================================
@@ -43,6 +45,11 @@ MockSupabaseClient createMockSupabaseClient({
   when(() => mockUser.id).thenReturn(effectiveUserId);
   when(() => mockAuth.onAuthStateChange)
       .thenAnswer((_) => const Stream.empty());
+
+  // Socket Realtime connecté, lu par les flux pour réabonner un channel.
+  final mockRealtime = MockRealtimeClient();
+  when(() => mockRealtime.isConnected).thenReturn(true);
+  when(() => mockSupabaseClient.realtime).thenReturn(mockRealtime);
 
   return mockSupabaseClient;
 }

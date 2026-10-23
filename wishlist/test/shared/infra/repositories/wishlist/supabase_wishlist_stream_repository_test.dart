@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -382,6 +383,49 @@ void main() {
 
       await firstSub.cancel();
       await secondSub.cancel();
+    });
+  });
+
+  group('channel error recovery', () {
+    late MockRealtimeClient realtime;
+
+    setUp(() {
+      realtime = MockRealtimeClient();
+      when(() => realtime.isConnected).thenReturn(true);
+      when(() => client.realtime).thenReturn(realtime);
+      when(() => wishlistRepository.getWishlistsByUser(any()))
+          .thenAnswer((_) async => const IList<Wishlist>.empty());
+    });
+
+    test('a channel error builds a new channel once the socket is connected',
+        () {
+      fakeAsync((async) {
+        repository.watchWishlistsByUser('u').listen((_) {});
+        async.flushMicrotasks();
+        verify(() => client.channel('wishlists_user_u')).called(1);
+
+        statusCallbacks.single(RealtimeSubscribeStatus.channelError, 'rls');
+        async.elapse(const Duration(minutes: 1));
+
+        verify(() => client.channel('wishlists_user_u')).called(1);
+        verify(channel.unsubscribe).called(1);
+        expect(statusCallbacks, hasLength(2));
+      });
+    });
+
+    test('a channel error while the socket is down keeps the channel', () {
+      fakeAsync((async) {
+        repository.watchWishlistsByUser('u').listen((_) {});
+        async.flushMicrotasks();
+        verify(() => client.channel('wishlists_user_u')).called(1);
+
+        when(() => realtime.isConnected).thenReturn(false);
+        statusCallbacks.single(RealtimeSubscribeStatus.channelError, 'closed');
+        async.elapse(const Duration(minutes: 1));
+
+        verifyNever(() => client.channel('wishlists_user_u'));
+        verifyNever(channel.unsubscribe);
+      });
     });
   });
 }
