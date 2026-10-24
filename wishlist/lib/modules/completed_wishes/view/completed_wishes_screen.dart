@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/modules/completed_wishes/view/widgets/completed_wish_image.dart';
 import 'package:wishlist/modules/completed_wishes/view/widgets/completed_wish_sort_bottom_sheet.dart';
 import 'package:wishlist/modules/completed_wishes/view/widgets/uncomplete_wish_bottom_sheet.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
@@ -14,16 +15,18 @@ import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
-import 'package:wishlist/shared/theme/widgets/pill.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/utils/string_utils.dart';
 import 'package:wishlist/shared/widgets/animated_list_view.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 import 'package:wishlist/shared/widgets/search_bar/app_search_bar.dart';
-import 'package:wishlist/shared/widgets/wish_image.dart';
 
 class CompletedWishesScreen extends ConsumerStatefulWidget {
-  const CompletedWishesScreen({super.key});
+  const CompletedWishesScreen({super.key, this.userId});
+
+  /// The user whose completed wishes are shown, read-only: the current user's
+  /// ones, which can be uncompleted, when null.
+  final String? userId;
 
   @override
   ConsumerState<CompletedWishesScreen> createState() =>
@@ -95,7 +98,11 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final completedWishesAsync = ref.watch(completedWishesRealtimeProvider);
+    final userId = widget.userId;
+    final completedWishesProvider = userId == null
+        ? completedWishesRealtimeProvider
+        : completedWishesByUserRealtimeProvider(userId);
+    final completedWishesAsync = ref.watch(completedWishesProvider);
 
     return PageLayout(
       title: l10n.completedWishesScreenTitle,
@@ -104,8 +111,8 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => PageLayoutError(
           error: error,
-          onRetry: () => ref.retryFailed([completedWishesRealtimeProvider]),
-          isRetrying: ref.isRetryingAny([completedWishesRealtimeProvider]),
+          onRetry: () => ref.retryFailed([completedWishesProvider]),
+          isRetrying: ref.isRetryingAny([completedWishesProvider]),
         ),
         data: (completedWishes) {
           if (completedWishes.isEmpty) {
@@ -148,7 +155,10 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
                           itemEquality: (oldItem, newItem) =>
                               oldItem.wish.id == newItem.wish.id,
                           itemBuilder: (context, item, index) {
-                            return _CompletedWishCard(item: item);
+                            return _CompletedWishCard(
+                              item: item,
+                              userId: userId,
+                            );
                           },
                         ),
                 ),
@@ -227,9 +237,14 @@ class _SearchBar extends StatelessWidget {
 }
 
 class _CompletedWishCard extends StatelessWidget {
-  const _CompletedWishCard({required this.item});
+  const _CompletedWishCard({required this.item, required this.userId});
 
   final CompletedWishWithDetails item;
+
+  /// See [CompletedWishesScreen.userId]
+  final String? userId;
+
+  bool get _canUncomplete => userId == null;
 
   @override
   Widget build(BuildContext context) {
@@ -250,35 +265,18 @@ class _CompletedWishCard extends StatelessWidget {
           wishIds: [wish.id],
           showActions: false,
           quantityDisplay: WishQuantityDisplay.completed,
+          completedByUserId: userId,
         ).push(context),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  WishImage(
-                    iconUrl: wish.iconUrl,
-                    size: 56,
-                    borderRadius: 12,
-                  ),
-                  if (item.quantity > 1)
-                    Positioned(
-                      bottom: -4,
-                      right: -4,
-                      child: Pill(
-                        text: 'x${item.quantity}',
-                        backgroundColor: Theme.of(context).primaryColor,
-                        textStyle: AppTextStyles.smaller,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                      ),
-                    ),
-                ],
+              CompletedWishImage(
+                iconUrl: wish.iconUrl,
+                quantity: item.quantity,
+                size: 56,
+                borderRadius: 12,
               ),
               const Gap(12),
               Expanded(
@@ -322,12 +320,14 @@ class _CompletedWishCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Gap(8),
-              IconButton(
-                icon: const Icon(Icons.undo, color: AppColors.makara),
-                tooltip: l10n.unmarkWishAsCompleted,
-                onPressed: () => showUncompleteWishBottomSheet(context, item),
-              ),
+              if (_canUncomplete) ...[
+                const Gap(8),
+                IconButton(
+                  icon: const Icon(Icons.undo, color: AppColors.makara),
+                  tooltip: l10n.unmarkWishAsCompleted,
+                  onPressed: () => showUncompleteWishBottomSheet(context, item),
+                ),
+              ],
             ],
           ),
         ),

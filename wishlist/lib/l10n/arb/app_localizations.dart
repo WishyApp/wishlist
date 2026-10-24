@@ -1442,11 +1442,35 @@ abstract class AppLocalizations {
   /// **'Compléter'**
   String get completeSelectedWishes;
 
-  /// No description provided for @completedWishFromWishlist.
+  /// No description provided for @seeAllCompletedWishes.
   ///
   /// In fr, this message translates to:
-  /// **'Wishlist : {wishlistName}'**
-  String completedWishFromWishlist(String wishlistName);
+  /// **'Tout voir'**
+  String get seeAllCompletedWishes;
+
+  /// No description provided for @relativeDateToday.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aujourd\'hui'**
+  String get relativeDateToday;
+
+  /// No description provided for @relativeDateYesterday.
+  ///
+  /// In fr, this message translates to:
+  /// **'Hier'**
+  String get relativeDateYesterday;
+
+  /// No description provided for @relativeDateDaysAgo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Il y a {count} jours'**
+  String relativeDateDaysAgo(int count);
+
+  /// No description provided for @relativeDateWeeksAgo.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =1 {Il y a 1 semaine} other {Il y a {count} semaines}}'**
+  String relativeDateWeeksAgo(int count);
 
   /// No description provided for @bookedWishesTabToGive.
   ///

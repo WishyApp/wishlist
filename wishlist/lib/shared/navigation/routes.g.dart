@@ -68,6 +68,12 @@ RouteBase get $homeRoute => GoRouteData.$route(
         GoRouteData.$route(
           path: 'friend/:friendId',
           factory: $FriendDetailsRouteExtension._fromState,
+          routes: [
+            GoRouteData.$route(
+              path: 'completed-wishes',
+              factory: $FriendCompletedWishesRouteExtension._fromState,
+            ),
+          ],
         ),
         GoRouteData.$route(
           path: 'add-wish',
@@ -283,6 +289,7 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
                 state.uri.queryParameters,
                 _$WishQuantityDisplayEnumMap._$fromName) ??
             WishQuantityDisplay.total,
+        completedByUserId: state.uri.queryParameters['completed-by-user-id'],
       );
 
   String get location => GoRouteData.$location(
@@ -292,6 +299,8 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
           if (showActions != true) 'show-actions': showActions.toString(),
           if (quantityDisplay != WishQuantityDisplay.total)
             'quantity-display': _$WishQuantityDisplayEnumMap[quantityDisplay],
+          if (completedByUserId != null)
+            'completed-by-user-id': completedByUserId,
         },
       );
 
@@ -341,6 +350,26 @@ extension $FriendDetailsRouteExtension on FriendDetailsRoute {
 
   String get location => GoRouteData.$location(
         '/friend/${Uri.encodeComponent(friendId)}',
+      );
+
+  void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  void replace(BuildContext context) => context.replace(location);
+}
+
+extension $FriendCompletedWishesRouteExtension on FriendCompletedWishesRoute {
+  static FriendCompletedWishesRoute _fromState(GoRouterState state) =>
+      FriendCompletedWishesRoute(
+        state.pathParameters['friendId']!,
+      );
+
+  String get location => GoRouteData.$location(
+        '/friend/${Uri.encodeComponent(friendId)}/completed-wishes',
       );
 
   void go(BuildContext context) => context.go(location);

@@ -778,8 +778,28 @@ class AppLocalizationsFr extends AppLocalizations {
   String get completeSelectedWishes => 'Compléter';
 
   @override
-  String completedWishFromWishlist(String wishlistName) {
-    return 'Wishlist : $wishlistName';
+  String get seeAllCompletedWishes => 'Tout voir';
+
+  @override
+  String get relativeDateToday => 'Aujourd\'hui';
+
+  @override
+  String get relativeDateYesterday => 'Hier';
+
+  @override
+  String relativeDateDaysAgo(int count) {
+    return 'Il y a $count jours';
+  }
+
+  @override
+  String relativeDateWeeksAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Il y a $count semaines',
+      one: 'Il y a 1 semaine',
+    );
+    return '$_temp0';
   }
 
   @override

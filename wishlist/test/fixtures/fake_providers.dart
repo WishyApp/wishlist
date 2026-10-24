@@ -320,10 +320,11 @@ Override friendDetailsRealtimeOverride(
   );
 }
 
-/// Overrides pour FriendDetailsScreen
+/// Overrides pour FriendDetailsScreen (aucun wish complété par défaut)
 List<Override> friendDetailsScreenOverrides({
   required String friendId,
   FriendDetails? friendDetails,
+  List<CompletedWishWithDetails>? completedWishes,
   String? currentUserId,
   Map<String, Birthday>? birthdays,
   DateTime? now,
@@ -334,6 +335,9 @@ List<Override> friendDetailsScreenOverrides({
   return [
     supabaseClientOverride(userId: currentUserId),
     friendDetailsRealtimeOverride(friendId, friendDetails: friendDetails),
+    completedWishesByUserRealtimeProvider(friendId).overrideWith(
+      (ref) => Stream.value((completedWishes ?? const []).toIList()),
+    ),
     if (overrideBirthdays) visibleBirthdaysOverride(birthdays: birthdays),
     if (now != null) clockOverride(now),
   ];

@@ -276,11 +276,22 @@
   "deletedWishlist": "Wishlist supprimée",
   "friendCompletedWishesTitle": "Wishs complétés",
   "completeSelectedWishes": "Compléter",
-  "completedWishFromWishlist": "Wishlist : {wishlistName}",
-  "@completedWishFromWishlist": {
+  "seeAllCompletedWishes": "Tout voir",
+  "relativeDateToday": "Aujourd'hui",
+  "relativeDateYesterday": "Hier",
+  "relativeDateDaysAgo": "Il y a {count} jours",
+  "@relativeDateDaysAgo": {
     "placeholders": {
-      "wishlistName": {
-        "type": "String"
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeDateWeeksAgo": "{count, plural, =1 {Il y a 1 semaine} other {Il y a {count} semaines}}",
+  "@relativeDateWeeksAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
       }
     }
   },

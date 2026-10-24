@@ -73,6 +73,11 @@ part 'routes.g.dart';
     // Friend details (enfant de home)
     TypedGoRoute<FriendDetailsRoute>(
       path: 'friend/:friendId',
+      routes: [
+        TypedGoRoute<FriendCompletedWishesRoute>(
+          path: 'completed-wishes',
+        ),
+      ],
     ),
     // Ajouter un wish (partage externe, sans wishlist connue)
     TypedGoRoute<AddWishRoute>(
@@ -181,12 +186,16 @@ class ConsultWishRoute extends AuthenticatedRoute {
     required this.wishIds,
     this.showActions = true,
     this.quantityDisplay = WishQuantityDisplay.total,
+    this.completedByUserId,
   });
   final int wishlistId;
   final int wishId;
   final List<int> wishIds;
   final bool showActions;
   final WishQuantityDisplay quantityDisplay;
+
+  /// See [ConsultWishScreen.completedByUserId]
+  final String? completedByUserId;
 
   /// Liste ordonnée des wishs à afficher. Retombe sur `[wishId]` si le
   /// paramètre `wish-ids` est absent (deep link) ou ne contient pas `wishId`.
@@ -202,6 +211,7 @@ class ConsultWishRoute extends AuthenticatedRoute {
       initialIndex: ids.indexOf(wishId),
       showActions: showActions,
       quantityDisplay: quantityDisplay,
+      completedByUserId: completedByUserId,
     );
   }
 }
@@ -258,6 +268,16 @@ class FriendDetailsRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) {
     return FriendDetailsScreen(friendId: friendId);
+  }
+}
+
+class FriendCompletedWishesRoute extends AuthenticatedRoute {
+  FriendCompletedWishesRoute(this.friendId);
+  final String friendId;
+
+  @override
+  Widget buildScreen(BuildContext context, GoRouterState state) {
+    return CompletedWishesScreen(userId: friendId);
   }
 }
 
