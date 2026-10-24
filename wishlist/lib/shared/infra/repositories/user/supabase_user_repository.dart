@@ -1,4 +1,5 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
@@ -103,9 +104,43 @@ class SupabaseUserRepository implements UserRepository {
             .eq('profile_id', getCurrentUserId())
             .maybeSingle();
 
-        return response == null ? null : Birthday.fromJson(response);
+        return response == null ? null : Birthday.tryFromJson(response);
       },
       errorMessage: 'Failed to get current user birthday',
+    );
+  }
+
+  @override
+  Future<Map<String, Birthday>> getVisibleBirthdays(
+    ISet<String> friendIds,
+  ) async {
+    if (friendIds.isEmpty) {
+      return const {};
+    }
+    return executeSafely(
+      () async {
+        // Filtered on the client: the RLS policy calls a SECURITY DEFINER
+        // function per row, so an unfiltered select would scan the whole
+        // table (cost by number of users, not of friends).
+        final rows = await _client
+            .from('profile_birthdays')
+            .select('profile_id, month, day')
+            .inFilter('profile_id', friendIds.toList());
+
+        // One malformed row must not hide the other birthdays.
+        final birthdays = <String, Birthday>{};
+        for (final row in rows) {
+          final profileId = row['profile_id'];
+          final birthday = Birthday.tryFromJson(row);
+          if (profileId is String && birthday != null) {
+            birthdays[profileId] = birthday;
+          } else {
+            debugPrint('[Wishy birthdays] skipped a malformed row: $row');
+          }
+        }
+        return birthdays;
+      },
+      errorMessage: 'Failed to get visible birthdays',
     );
   }
 

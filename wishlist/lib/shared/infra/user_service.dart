@@ -34,6 +34,12 @@ class UserService {
     return _userRepository.getCurrentUserBirthday();
   }
 
+  Future<Map<String, Birthday>> getVisibleBirthdays(
+    ISet<String> friendIds,
+  ) async {
+    return _userRepository.getVisibleBirthdays(friendIds);
+  }
+
   Future<void> upsertCurrentUserBirthday(Birthday birthday) async {
     return _userRepository.upsertCurrentUserBirthday(birthday);
   }

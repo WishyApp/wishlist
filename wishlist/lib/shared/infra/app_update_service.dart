@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/app_version.dart';
+import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository_provider.dart';
 import 'package:wishlist/shared/infra/utils/network_error.dart';
@@ -206,10 +207,6 @@ final appUpdateUrlLauncherProvider = Provider<Future<void> Function(String)>(
   },
 );
 
-/// Current time, overridable in tests.
-final appUpdateClockProvider =
-    Provider<DateTime Function()>((ref) => DateTime.now);
-
 /// Result of the last version check. Starts as "up to date": nothing is
 /// shown until a check says otherwise.
 class AppUpdateNotifier extends Notifier<AppUpdateDecision> {
@@ -233,7 +230,7 @@ class AppUpdateNotifier extends Notifier<AppUpdateDecision> {
     if (platform == null || _isChecking) {
       return;
     }
-    final now = ref.read(appUpdateClockProvider)();
+    final now = ref.read(clockProvider)();
     final lastSuccessAt = _lastSuccessAt;
     if (!force &&
         lastSuccessAt != null &&

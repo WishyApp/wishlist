@@ -84,6 +84,8 @@
   "birthdayStepTitle": "When is your birthday?",
   "birthdayStepExplanation": "Only your friends will see it.",
   "birthdayStepLater": "Later",
+  "friendBirthdayBadge": "{days, plural, =0{today} =1{tomorrow} other{in {days} d}}",
+  "friendBirthdayWithCountdown": "{date} · {days, plural, =0{today!} =1{tomorrow} other{in {days} days}}",
   "changePasswordSuccess": "Password changed successfully!",
   "settingsScreenDeleteAccount": "Delete my account",
   "settingsScreenDeleteAccountDialogTitle": "Delete my account",
