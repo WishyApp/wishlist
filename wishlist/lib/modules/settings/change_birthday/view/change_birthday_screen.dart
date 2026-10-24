@@ -91,6 +91,10 @@ class _ChangeBirthdayFormState extends ConsumerState<_ChangeBirthdayForm> {
   /// choose: saving it as is would store a wrong date.
   late bool _hasPicked = widget.birthday != null;
 
+  /// Read once: the provider reloads after a save or a removal, possibly while
+  /// the page is leaving, and the Delete button must not change in it.
+  late final bool _hadBirthday = widget.birthday != null;
+
   bool _isSaving = false;
   bool _isRemoving = false;
 
@@ -98,9 +102,7 @@ class _ChangeBirthdayFormState extends ConsumerState<_ChangeBirthdayForm> {
 
   void _onSuccess(String message) {
     // The callers checked `mounted`
-    // Invalidated after the pop starts: the form would otherwise rebuild
-    // (Delete button) in the page that is leaving. The container outlives this
-    // State, and the settings line shows the new value.
+    // The container outlives this State: the settings line shows the new value
     final container = ProviderScope.containerOf(context);
     showAppSnackBar(
       context,
@@ -182,7 +184,7 @@ class _ChangeBirthdayFormState extends ConsumerState<_ChangeBirthdayForm> {
           isLoading: _isSaving,
           style: BaseButtonStyle.large,
         ),
-        if (widget.birthday != null) ...[
+        if (_hadBirthday) ...[
           const Gap(16),
           SecondaryButton(
             text: l10n.changeBirthdayRemove,
