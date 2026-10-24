@@ -65,6 +65,11 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
   }
 
   Future<void> onPressed() async {
+    // The keyboard's OK can be pressed again while the profile is created: a
+    // second creation would fail and skip the birthday step
+    if (_isLoading) {
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;

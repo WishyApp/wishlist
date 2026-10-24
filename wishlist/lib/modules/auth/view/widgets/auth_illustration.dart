@@ -22,7 +22,11 @@ class AuthIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height = (screenHeight * 0.36 - 40).clamp(140.0, 320.0);
+    // With the keyboard open on a very small screen (iPhone SE: 308 left), the
+    // field scrolls into view and only about 60 of the drawing stays visible
+    // whatever its size: a smaller drawing keeps most of it on screen.
+    final minHeight = screenHeight < 400 ? 100.0 : 140.0;
+    final height = (screenHeight * 0.36 - 40).clamp(minHeight, 320.0);
 
     return SvgPicture.asset(asset, height: height);
   }

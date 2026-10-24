@@ -96,10 +96,11 @@ void main() {
     expect(field.bottom, lessThanOrEqualTo(button.top));
 
     // The illustration is not pushed out of sight by the keyboard: it shrinks
-    // to leave room, and part of it is on screen on arrival
+    // to leave room, and at least half of it is on screen on arrival
     final illustration = tester.getRect(find.byType(SvgPicture));
-    expect(illustration.height, 140);
-    expect(illustration.bottom, greaterThan(0));
+    expect(illustration.height, 100);
+    final visible = illustration.intersect(Offset.zero & const Size(320, 568));
+    expect(visible.height, greaterThanOrEqualTo(illustration.height / 2));
     expect(illustration.top, lessThan(field.top));
   });
 
@@ -121,6 +122,35 @@ void main() {
     await tester.pumpAndSettle();
 
     verify(() => userService.createUserProfile(any())).called(1);
+  });
+
+  testWidgets('a second OK during the creation does not create twice',
+      (tester) async {
+    final userService = MockUserService();
+    final creation = Completer<void>();
+    when(() => userService.createUserProfile(any()))
+        .thenAnswer((_) => creation.future);
+
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: [
+        ...pseudoScreenOverrides(),
+        userServiceProvider.overrideWithValue(userService),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Alice');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    // OK closed the keyboard: touching the field again reopens it
+    await tester.enterText(find.byType(TextFormField), 'Alicia');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    verify(() => userService.createUserProfile(any())).called(1);
+    creation.complete();
+    await tester.pumpAndSettle();
   });
 
   group('on success', () {
