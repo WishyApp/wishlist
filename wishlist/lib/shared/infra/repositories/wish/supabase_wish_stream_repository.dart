@@ -21,6 +21,10 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
   static const _wishlistsTableName = 'wishlists';
   static const _canOwnerSeeTakenWishColumn = 'can_owner_see_taken_wish';
 
+  /// Booked wishes of each user, as last emitted by their bookings stream,
+  /// to skip the receipts of other wishes
+  final Map<String, Set<int>> _bookedWishIdsByUser = {};
+
   /// Un wish supprimé (ou masqué par la RLS) n'est pas une erreur passagère :
   /// on l'émet même après une valeur, sinon il resterait affiché.
   late final _streams = KeyedRealtimeStreams(
@@ -154,18 +158,11 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
   Stream<IList<BookedWishWithDetails>> watchBookedWishesByUser(String userId) {
     final key = 'booked_wishes_$userId';
 
-    // Wishes of the last load, to skip the receipts of other wishes
-    Set<int>? bookedWishIds;
+    Future<IList<BookedWishWithDetails>> fetch() =>
+        _wishRepository.getBookedWishesByUser(userId);
 
-    Future<IList<BookedWishWithDetails>> fetch() async {
-      final bookedWishes = await _wishRepository.getBookedWishesByUser(userId);
-      bookedWishIds = {
-        for (final bookedWish in bookedWishes) bookedWish.wish.id,
-      };
-      return bookedWishes;
-    }
-
-    return _streams.watch<IList<BookedWishWithDetails>>(
+    return _streams
+        .watch<IList<BookedWishWithDetails>>(
       key,
       load: fetch,
       // Écouter les changements sur wish_taken_by_user (réservations)
@@ -193,7 +190,7 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
             callback: (payload) {
               final wishId =
                   payload.newRecord['wish_id'] ?? payload.oldRecord['wish_id'];
-              final ids = bookedWishIds;
+              final ids = _bookedWishIdsByUser[userId];
               if (wishId is int && ids != null && !ids.contains(wishId)) {
                 return;
               }
@@ -222,7 +219,15 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
             table: 'profiles',
             callback: (payload) => reload(),
           ),
-    );
+    )
+        // Only the emitted bookings: a load that finishes after a newer one
+        // is dropped by the stream and must not replace them
+        .map((bookedWishes) {
+      _bookedWishIdsByUser[userId] = {
+        for (final bookedWish in bookedWishes) bookedWish.wish.id,
+      };
+      return bookedWishes;
+    });
   }
 
   static bool _isNotFound(Object error) {
