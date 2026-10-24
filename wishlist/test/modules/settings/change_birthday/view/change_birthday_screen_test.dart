@@ -246,5 +246,29 @@ void main() {
       expect(find.text('14 mars'), findsNothing);
       expect(find.text(l10n.settingsScreenBirthdayNotSet), findsOneWidget);
     });
+
+    testWidgets(
+        'does not show the remove button in the leaving page after a first '
+        'save', (tester) async {
+      stored = null;
+      await openScreen(tester);
+      await tester.tap(find.text(l10n.settingsScreenBirthday));
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const ValueKey('birthday-day-picker')),
+        const Offset(0, -80),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.changeBirthdayConfirm).first);
+
+      // Frame by frame through the pop animation: the reloaded birthday
+      // arrives while the page is still on screen
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 40));
+        expect(find.text(l10n.changeBirthdayRemove), findsNothing);
+      }
+      await flushSnackBar(tester);
+      expect(find.text('3 janvier'), findsOneWidget);
+    });
   });
 }
