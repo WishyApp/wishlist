@@ -232,6 +232,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changePseudoSuccess => 'Pseudo changed successfully!';
 
   @override
+  String get settingsScreenBirthday => 'My birthday';
+
+  @override
+  String get settingsScreenBirthdayNotSet => 'Not set';
+
+  @override
+  String get changeBirthdayScreenTitle => 'Birthday';
+
+  @override
+  String get changeBirthdayExplanation => 'Only your friends will see it.';
+
+  @override
+  String get changeBirthdayConfirm => 'Save';
+
+  @override
+  String get changeBirthdayRemove => 'Remove my birthday';
+
+  @override
+  String get changeBirthdaySuccess => 'Birthday saved!';
+
+  @override
+  String get changeBirthdayRemoved => 'Birthday removed!';
+
+  @override
   String get changePasswordSuccess => 'Password changed successfully!';
 
   @override

@@ -1,5 +1,6 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:wishlist/shared/models/app_user.dart';
+import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/profile.dart';
 
 abstract class UserRepository {
@@ -14,4 +15,9 @@ abstract class UserRepository {
   Future<void> updateUserProfile(Profile profile);
   Future<IList<AppUser>> searchUsersByEmailOrPseudo(String query);
   Future<AppUser> getAppUserById(String userId);
+
+  /// Birthday of the current user, null if they did not set one.
+  Future<Birthday?> getCurrentUserBirthday();
+  Future<void> upsertCurrentUserBirthday(Birthday birthday);
+  Future<void> deleteCurrentUserBirthday();
 }

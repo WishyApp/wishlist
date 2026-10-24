@@ -494,6 +494,54 @@ abstract class AppLocalizations {
   /// **'Pseudo modifié avec succès !'**
   String get changePseudoSuccess;
 
+  /// No description provided for @settingsScreenBirthday.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mon anniversaire'**
+  String get settingsScreenBirthday;
+
+  /// No description provided for @settingsScreenBirthdayNotSet.
+  ///
+  /// In fr, this message translates to:
+  /// **'Non renseigné'**
+  String get settingsScreenBirthdayNotSet;
+
+  /// No description provided for @changeBirthdayScreenTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire'**
+  String get changeBirthdayScreenTitle;
+
+  /// No description provided for @changeBirthdayExplanation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Seuls tes amis le verront.'**
+  String get changeBirthdayExplanation;
+
+  /// No description provided for @changeBirthdayConfirm.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrer'**
+  String get changeBirthdayConfirm;
+
+  /// No description provided for @changeBirthdayRemove.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer mon anniversaire'**
+  String get changeBirthdayRemove;
+
+  /// No description provided for @changeBirthdaySuccess.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire enregistré !'**
+  String get changeBirthdaySuccess;
+
+  /// No description provided for @changeBirthdayRemoved.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire supprimé !'**
+  String get changeBirthdayRemoved;
+
   /// No description provided for @changePasswordSuccess.
   ///
   /// In fr, this message translates to:

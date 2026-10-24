@@ -6,6 +6,7 @@ import 'package:wishlist/modules/auth/view/pseudo_screen.dart';
 import 'package:wishlist/modules/auth/view/reset_password_screen.dart';
 import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/modules/friends/view/screens/friend_details_screen.dart';
+import 'package:wishlist/modules/settings/change_birthday/view/change_birthday_screen.dart';
 import 'package:wishlist/modules/settings/change_password/view/change_password_screen.dart';
 import 'package:wishlist/modules/settings/change_pseudo/view/change_pseudo_screen.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
@@ -37,6 +38,9 @@ part 'routes.g.dart';
         ),
         TypedGoRoute<ChangePseudoRoute>(
           path: 'change-pseudo',
+        ),
+        TypedGoRoute<ChangeBirthdayRoute>(
+          path: 'change-birthday',
         ),
         TypedGoRoute<CompletedWishesRoute>(
           path: 'completed-wishes',
@@ -213,6 +217,12 @@ class ChangePseudoRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) =>
       const ChangePseudoScreen();
+}
+
+class ChangeBirthdayRoute extends AuthenticatedRoute {
+  @override
+  Widget buildScreen(BuildContext context, GoRouterState state) =>
+      const ChangeBirthdayScreen();
 }
 
 class CompletedWishesRoute extends AuthenticatedRoute {

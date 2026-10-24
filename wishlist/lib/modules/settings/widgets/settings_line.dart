@@ -7,13 +7,19 @@ class SettingsLine extends StatelessWidget {
     super.key,
     required this.title,
     required this.onTap,
+    this.value,
   });
 
   final String title;
+
+  /// Current value of the setting, shown before the arrow.
+  final String? value;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final value = this.value;
+
     return Material(
       color: AppColors.gainsboro,
       child: InkWell(
@@ -27,6 +33,21 @@ class SettingsLine extends StatelessWidget {
                 title,
                 style: AppTextStyles.smaller,
               ),
+              if (value != null) ...[
+                const SizedBox(width: 16),
+                // A long value ellipsizes (large text scale) instead of
+                // overflowing
+                Expanded(
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.smaller.copyWith(color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               const Icon(Icons.arrow_forward_ios, size: 18),
             ],
           ),
