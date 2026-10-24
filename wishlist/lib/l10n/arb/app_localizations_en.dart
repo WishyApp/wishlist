@@ -256,6 +256,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changeBirthdayRemoved => 'Birthday removed!';
 
   @override
+  String get birthdayStepTitle => 'When is your birthday?';
+
+  @override
+  String get birthdayStepExplanation => 'Only your friends will see it.';
+
+  @override
+  String get birthdayStepLater => 'Later';
+
+  @override
   String friendBirthdayBadge(int days) {
     String _temp0 = intl.Intl.pluralLogic(
       days,

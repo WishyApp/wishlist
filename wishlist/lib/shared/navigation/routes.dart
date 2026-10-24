@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishlist/modules/auth/view/auth_screen.dart';
+import 'package:wishlist/modules/auth/view/birthday_step_screen.dart';
 import 'package:wishlist/modules/auth/view/forgot_password_screen.dart';
 import 'package:wishlist/modules/auth/view/pseudo_screen.dart';
 import 'package:wishlist/modules/auth/view/reset_password_screen.dart';
@@ -18,6 +19,7 @@ import 'package:wishlist/modules/wishs/view/wish_form_screen.dart';
 import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
 import 'package:wishlist/shared/navigation/authenticated_route.dart';
 import 'package:wishlist/shared/navigation/floating_nav_bar_navigator.dart';
+import 'package:wishlist/shared/navigation/redirect_target.dart';
 
 part 'routes.g.dart';
 
@@ -28,6 +30,10 @@ part 'routes.g.dart';
     // Pseudo (enfant de home)
     TypedGoRoute<PseudoRoute>(
       path: 'pseudo',
+    ),
+    // Optional birthday step, after the pseudo at signup
+    TypedGoRoute<BirthdayStepRoute>(
+      path: 'birthday',
     ),
     // Settings et ses sous-routes
     TypedGoRoute<SettingsRoute>(
@@ -98,7 +104,21 @@ FloatingNavBarTab homeTabFromQuery(String? value) {
 class PseudoRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) => PseudoScreen(
-        redirectTo: state.uri.queryParameters['redirectTo'],
+        redirectTo: sanitizeRedirectTarget(
+          state.uri.queryParameters['redirectTo'],
+        ),
+      );
+}
+
+/// Optional step of the signup, right after the pseudo. It opens the deep link
+/// the user came from (the `redirectTo` query parameter) once it is done.
+class BirthdayStepRoute extends AuthenticatedRoute {
+  @override
+  Widget buildScreen(BuildContext context, GoRouterState state) =>
+      BirthdayStepScreen(
+        redirectTo: sanitizeRedirectTarget(
+          state.uri.queryParameters['redirectTo'],
+        ),
       );
 }
 

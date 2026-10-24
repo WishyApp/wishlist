@@ -9,6 +9,8 @@ import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_nul
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/profile.dart';
+import 'package:wishlist/shared/navigation/pseudo_creation_marker.dart';
+import 'package:wishlist/shared/navigation/redirect_target.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
@@ -32,17 +34,23 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
   bool _isLoading = false;
 
   void onSuccess() {
-    final redirectTo = widget.redirectTo;
-
     if (mounted) {
       setState(() {
         _isLoading = false;
       });
 
-      if (redirectTo != null && redirectTo.startsWith('/')) {
-        context.go(redirectTo);
-      } else {
-        HomeRoute().go(context);
+      // Normally the router redirect gets there first (creating the profile
+      // refreshes the session, and consumes the marker): this is the fallback,
+      // skipped when that redirect already left this route. The optional step
+      // carries the deep link the user came from.
+      if (ModalRoute.of(context)?.isCurrent ?? false) {
+        pseudoCreationMarker.clear();
+        context.go(
+          locationWithRedirectTo(
+            BirthdayStepRoute().location,
+            sanitizeRedirectTarget(widget.redirectTo),
+          ),
+        );
       }
     }
   }
@@ -62,6 +70,9 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
         _isLoading = true;
       });
 
+      // Read by the router redirect, which runs when the session is refreshed
+      pseudoCreationMarker.mark();
+
       try {
         await ref.read(userServiceProvider).createUserProfile(
               Profile(
@@ -72,6 +83,7 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
 
         onSuccess();
       } on AppException catch (appException) {
+        pseudoCreationMarker.clear();
         onError(appException);
       }
     }

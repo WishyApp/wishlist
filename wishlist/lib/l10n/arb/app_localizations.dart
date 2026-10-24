@@ -542,6 +542,24 @@ abstract class AppLocalizations {
   /// **'Anniversaire supprimé !'**
   String get changeBirthdayRemoved;
 
+  /// No description provided for @birthdayStepTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'C\'est quand ton anniversaire ?'**
+  String get birthdayStepTitle;
+
+  /// No description provided for @birthdayStepExplanation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Seuls tes amis le verront.'**
+  String get birthdayStepExplanation;
+
+  /// No description provided for @birthdayStepLater.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus tard'**
+  String get birthdayStepLater;
+
   /// No description provided for @friendBirthdayBadge.
   ///
   /// In fr, this message translates to:
