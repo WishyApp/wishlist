@@ -6,6 +6,7 @@ import 'package:wishlist/modules/friends/view/widgets/add_friend_bottom_sheet.da
 import 'package:wishlist/modules/friends/view/widgets/friend_pill.dart';
 import 'package:wishlist/modules/friends/view/widgets/user_pill.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
+import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/page_layout_empty/page_layout_empty.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
@@ -61,7 +62,9 @@ class FriendsScreen extends ConsumerWidget {
     final friendsData = ref.watch(friendshipsRealtimeProvider);
 
     Future<void> refreshFriends() async {
-      ref.invalidate(friendshipsRealtimeProvider);
+      ref
+        ..invalidate(friendshipsRealtimeProvider)
+        ..invalidate(visibleBirthdaysProvider);
 
       // Attendre que le nouveau stream soit initialisé
       try {
