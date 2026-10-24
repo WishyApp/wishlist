@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/modules/auth/view/widgets/signup_step_layout.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/birthday.dart';
@@ -78,11 +77,6 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    // The drawing is tall and narrow: it gets most of the space the short
-    // texts leave. Everything still fits an iPhone 8 without scrolling.
-    final illustrationHeight =
-        (MediaQuery.sizeOf(context).height * 0.3).clamp(140.0, 260.0);
-
     // Android back behaves like "later" (also during a save, so the step never
     // traps the user): popping would land on home and lose redirectTo. A
     // non-poppable route disables the iOS edge swipe, which does nothing here.
@@ -93,62 +87,31 @@ class _BirthdayStepScreenState extends ConsumerState<BirthdayStepScreen> {
           _goNext();
         }
       },
-      child: Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SvgPicture.asset(
-                    Assets.svg.birthday,
-                    height: illustrationHeight,
-                  ),
-                  const Gap(16),
-                  Text(
-                    l10n.birthdayStepTitle,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.titleSmall,
-                  ),
-                  const Gap(8),
-                  Text(
-                    l10n.birthdayStepExplanation,
-                    textAlign: TextAlign.center,
-                    style:
-                        AppTextStyles.smaller.copyWith(color: AppColors.makara),
-                  ),
-                  const Gap(16),
-                  BirthdayPicker(
-                    initialValue: _selected,
-                    onChanged: (value) {
-                      _selected = value;
-                      if (!_hasPicked) {
-                        setState(() => _hasPicked = true);
-                      }
-                    },
-                  ),
-                  const Gap(24),
-                  PrimaryButton(
-                    text: l10n.changeBirthdayConfirm,
-                    onPressed: _isSaving || !_hasPicked ? null : _onSave,
-                    isLoading: _isSaving,
-                    style: BaseButtonStyle.large,
-                  ),
-                  const Gap(8),
-                  TextButton(
-                    // Enabled during a save too: it may never answer
-                    onPressed: _goNext,
-                    child: Text(
-                      l10n.birthdayStepLater,
-                      style: AppTextStyles.small.copyWith(
-                        color: AppColors.makara,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+      child: SignupStepLayout(
+        illustration: Assets.svg.birthday,
+        title: l10n.birthdayStepTitle,
+        explanation: l10n.birthdayStepExplanation,
+        input: BirthdayPicker(
+          initialValue: _selected,
+          onChanged: (value) {
+            _selected = value;
+            if (!_hasPicked) {
+              setState(() => _hasPicked = true);
+            }
+          },
+        ),
+        primaryAction: PrimaryButton(
+          text: l10n.changeBirthdayConfirm,
+          onPressed: _isSaving || !_hasPicked ? null : _onSave,
+          isLoading: _isSaving,
+          style: BaseButtonStyle.large,
+        ),
+        secondaryAction: TextButton(
+          // Enabled during a save too: it may never answer
+          onPressed: _goNext,
+          child: Text(
+            l10n.birthdayStepLater,
+            style: AppTextStyles.small.copyWith(color: AppColors.makara),
           ),
         ),
       ),

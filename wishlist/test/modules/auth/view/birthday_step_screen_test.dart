@@ -95,6 +95,23 @@ void main() {
     expect(find.text(l10n.birthdayStepExplanation), findsOneWidget);
   });
 
+  testWidgets('fits a small screen with the buttons visible', (tester) async {
+    tester.view
+      ..physicalSize = const Size(320, 568)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await pumpStep(tester);
+
+    expect(tester.takeException(), isNull);
+    final save = tester.getRect(find.byType(PrimaryButton));
+    final later = tester.getRect(find.byType(TextButton));
+    expect(save.bottom, lessThanOrEqualTo(568));
+    expect(later.bottom, lessThanOrEqualTo(568));
+    // "Later" sits right above the main button
+    expect(later.bottom, lessThanOrEqualTo(save.top));
+  });
+
   testWidgets('saves the picked value then goes home', (tester) async {
     await pumpStep(tester);
 

@@ -47,6 +47,9 @@ class $AssetsSvgGen {
   /// File path: assets/svg/no_wishlist.svg
   String get noWishlist => 'assets/svg/no_wishlist.svg';
 
+  /// File path: assets/svg/pseudo.svg
+  String get pseudo => 'assets/svg/pseudo.svg';
+
   /// File path: assets/svg/server_error.svg
   String get serverError => 'assets/svg/server_error.svg';
 
@@ -60,6 +63,7 @@ class $AssetsSvgGen {
         noWishBoxHat,
         noWishFlashlight,
         noWishlist,
+        pseudo,
         serverError,
       ];
 }

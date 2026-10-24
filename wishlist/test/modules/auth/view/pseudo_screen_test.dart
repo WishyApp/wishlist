@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
     show AuthChangeEvent, AuthState;
 import 'package:wishlist/app/navigation/app_redirect.dart';
+import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/auth/view/pseudo_screen.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
@@ -39,6 +41,116 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.expectGolden<PseudoScreen>(variant);
+  });
+
+  testWidgets('focuses the field on arrival, to bring the keyboard up',
+      (tester) async {
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: pseudoScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect(field.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('shows the illustration, the title and the explanation',
+      (tester) async {
+    final l10n = AppLocalizationsFr();
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: pseudoScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SvgPicture), findsOneWidget);
+    expect(find.text(l10n.pseudoStepTitle), findsOneWidget);
+    expect(find.text(l10n.pseudoStepExplanation), findsOneWidget);
+  });
+
+  testWidgets('fits a small screen with the keyboard open', (tester) async {
+    // iPhone SE (1st gen) height, the smallest we support, with the keyboard
+    tester.view
+      ..physicalSize = const Size(320, 568)
+      ..devicePixelRatio = 1
+      ..viewInsets = const FakeViewPadding(bottom: 260);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: pseudoScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+
+    // The button is anchored above the keyboard, no scrolling needed
+    final button = tester.getRect(find.byType(PrimaryButton));
+    expect(button.bottom, lessThanOrEqualTo(568 - 260));
+
+    // The field is fully visible, above the button, without scrolling
+    final field = tester.getRect(find.byType(TextFormField));
+    expect(field.top, greaterThanOrEqualTo(0));
+    expect(field.bottom, lessThanOrEqualTo(button.top));
+
+    // The illustration is not pushed out of sight by the keyboard: it shrinks
+    // to leave room, and at least half of it is on screen on arrival
+    final illustration = tester.getRect(find.byType(SvgPicture));
+    expect(illustration.height, 100);
+    final visible = illustration.intersect(Offset.zero & const Size(320, 568));
+    expect(visible.height, greaterThanOrEqualTo(illustration.height / 2));
+    expect(illustration.top, lessThan(field.top));
+  });
+
+  testWidgets('submitting from the keyboard saves the pseudo', (tester) async {
+    final userService = MockUserService();
+    when(() => userService.createUserProfile(any())).thenAnswer((_) async {});
+
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: [
+        ...pseudoScreenOverrides(),
+        userServiceProvider.overrideWithValue(userService),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Alice');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    verify(() => userService.createUserProfile(any())).called(1);
+  });
+
+  testWidgets('a second OK during the creation does not create twice',
+      (tester) async {
+    final userService = MockUserService();
+    final creation = Completer<void>();
+    when(() => userService.createUserProfile(any()))
+        .thenAnswer((_) => creation.future);
+
+    await tester.pumpRouterApp(
+      PseudoRoute().location,
+      overrides: [
+        ...pseudoScreenOverrides(),
+        userServiceProvider.overrideWithValue(userService),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Alice');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    // OK closed the keyboard: touching the field again reopens it
+    await tester.enterText(find.byType(TextFormField), 'Alicia');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    verify(() => userService.createUserProfile(any())).called(1);
+    creation.complete();
+    await tester.pumpAndSettle();
   });
 
   group('on success', () {

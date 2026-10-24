@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
-import 'package:wishlist/modules/auth/view/auth_layout.dart';
+import 'package:wishlist/modules/auth/view/widgets/signup_step_layout.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
@@ -65,6 +65,11 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
   }
 
   Future<void> onPressed() async {
+    // The keyboard's OK can be pressed again while the profile is created: a
+    // second creation would fail and skip the birthday step
+    if (_isLoading) {
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
@@ -90,32 +95,41 @@ class _PseudoScreenState extends ConsumerState<PseudoScreen> {
   }
 
   @override
+  void dispose() {
+    _pseudoController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return AuthLayout(
-      formKey: _formKey,
-      child: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextFormField(
-              controller: _pseudoController,
-              decoration: InputDecoration(
-                labelText: l10n.pseudoField,
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              validator: (value) => pseudoValidator(value, l10n),
-            ),
-            const Gap(32),
-            PrimaryButton(
-              onPressed: onPressed,
-              text: l10n.savePseudo,
-              style: BaseButtonStyle.large,
-              isLoading: _isLoading,
-            ),
-          ],
+    // Same frame as the birthday step that follows, without the app title of
+    // the sign-in screen
+    return SignupStepLayout(
+      illustration: Assets.svg.pseudo,
+      title: l10n.pseudoStepTitle,
+      explanation: l10n.pseudoStepExplanation,
+      input: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _pseudoController,
+          // The only action of the step: the keyboard comes up right away
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: l10n.pseudoField,
+          ),
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) => onPressed(),
+          validator: (value) => pseudoValidator(value, l10n),
         ),
+      ),
+      primaryAction: PrimaryButton(
+        onPressed: onPressed,
+        text: l10n.savePseudo,
+        style: BaseButtonStyle.large,
+        isLoading: _isLoading,
       ),
     );
   }
