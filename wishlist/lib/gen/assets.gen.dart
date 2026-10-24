@@ -44,6 +44,9 @@ class $AssetsSvgGen {
   /// File path: assets/svg/no_wishlist.svg
   String get noWishlist => 'assets/svg/no_wishlist.svg';
 
+  /// File path: assets/svg/server_error.svg
+  String get serverError => 'assets/svg/server_error.svg';
+
   /// List of all assets
   List<String> get values => [
         noBookedWish,
@@ -53,6 +56,7 @@ class $AssetsSvgGen {
         noWishBoxHat,
         noWishFlashlight,
         noWishlist,
+        serverError,
       ];
 }
 

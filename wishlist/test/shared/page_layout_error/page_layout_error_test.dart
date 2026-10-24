@@ -43,7 +43,7 @@ void main() {
     expect(find.text(l10n.loadingErrorTitle), findsOneWidget);
     expect(find.text(l10n.loadingErrorDescription), findsOneWidget);
     expect(find.text(l10n.networkErrorTitle), findsNothing);
-    expect(_illustration(tester), Assets.svg.noWishFlashlight);
+    expect(_illustration(tester), Assets.svg.serverError);
   });
 
   testWidgets('retries from the button', (tester) async {

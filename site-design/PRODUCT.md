@@ -54,7 +54,7 @@ Le site a un seul objectif : que le visiteur reparte avec l'app installée. Il s
 ## Evidence on Hand
 
 - Captures de l'app et visuels store (FR/EN) : `~/Downloads/wishy-store-assets/` (hors repo). Captures brutes dans `raw/`, visuels Play dans `google-play/`, App Store dans `apple-*`. Les comptes démo permettent d'en refaire, par exemple la même liste vue par son propriétaire et par un ami.
-- Illustrations de l'app : `wishlist/assets/svg/` (`no_wishlist.svg`, `no_friend.svg`, `no_wish_box_hat.svg`, `no_wish_bag.svg`, `no_wish_flashlight.svg`, `no_booked_wish.svg`, `no_connection.svg` pour l'état hors ligne), dans leur version redessinée de la PR #241. Le site en garde une copie dans `site/img/` : la remettre à jour si elles changent encore.
+- Illustrations de l'app : `wishlist/assets/svg/` (`no_wishlist.svg`, `no_friend.svg`, `no_wish_box_hat.svg`, `no_wish_bag.svg`, `no_wish_flashlight.svg`, `no_booked_wish.svg`, `no_connection.svg` pour l'état hors ligne, `server_error.svg` pour les autres erreurs de chargement), dans leur version redessinée de la PR #241. Le site en garde une copie dans `site/img/` : la remettre à jour si elles changent encore.
 - Icône : `site/icon-512.png`, `site/icon-180.png`. Police : Plus Jakarta Sans (`site/fonts/`).
 - **Absents, à ne pas inventer** : avis ou témoignages, nombre d'utilisateurs, notes sur les stores, presse, partenaires.
 
