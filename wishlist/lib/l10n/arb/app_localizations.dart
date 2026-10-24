@@ -368,12 +368,6 @@ abstract class AppLocalizations {
   /// **'Explorer les wishlists de vos amis'**
   String get bookedWishesEmptyCallToAction;
 
-  /// No description provided for @bookedWishCount.
-  ///
-  /// In fr, this message translates to:
-  /// **'{count, plural, =1{1 réservation} other{{count} réservations}}'**
-  String bookedWishCount(int count);
-
   /// No description provided for @settingsScreenTitle.
   ///
   /// In fr, this message translates to:
@@ -1453,6 +1447,48 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Wishlist : {wishlistName}'**
   String completedWishFromWishlist(String wishlistName);
+
+  /// No description provided for @bookedWishesTabToGive.
+  ///
+  /// In fr, this message translates to:
+  /// **'À offrir'**
+  String get bookedWishesTabToGive;
+
+  /// No description provided for @bookedWishesTabGiven.
+  ///
+  /// In fr, this message translates to:
+  /// **'Offerts'**
+  String get bookedWishesTabGiven;
+
+  /// No description provided for @bookedWishesToGiveCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =1{1 à offrir} other{{count} à offrir}}'**
+  String bookedWishesToGiveCount(int count);
+
+  /// No description provided for @bookedWishesGivenCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =1{1 offert} other{{count} offerts}}'**
+  String bookedWishesGivenCount(int count);
+
+  /// No description provided for @bookedWishesNothingToGive.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus rien à offrir : tout a été reçu'**
+  String get bookedWishesNothingToGive;
+
+  /// No description provided for @bookedWishesNothingGiven.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les wishs réservés que tes amis ont reçus apparaîtront ici'**
+  String get bookedWishesNothingGiven;
+
+  /// No description provided for @bookedWishReceivedOn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reçu le {date}'**
+  String bookedWishReceivedOn(String date);
 }
 
 class _AppLocalizationsDelegate

@@ -24,6 +24,7 @@ class WishCard extends ConsumerWidget {
     this.onLongPress,
     this.isSelected = false,
     this.showAvatars = true,
+    this.showReceivedBadge = false,
   });
 
   static const double _cardPadding = 12;
@@ -39,6 +40,9 @@ class WishCard extends ConsumerWidget {
   final VoidCallback? onLongPress;
   final bool isSelected;
   final bool showAvatars;
+
+  /// Marks the wish as received by its owner
+  final bool showReceivedBadge;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -98,6 +102,7 @@ class WishCard extends ConsumerWidget {
                     iconUrl: wish.iconUrl,
                     quantityToDisplay: quantityToDisplay,
                     primaryColor: primaryColor,
+                    showReceivedBadge: showReceivedBadge,
                   ),
                   const Gap(16),
                   Expanded(
@@ -160,11 +165,13 @@ class _WishImageWithQuantity extends StatelessWidget {
     required this.iconUrl,
     required this.quantityToDisplay,
     required this.primaryColor,
+    required this.showReceivedBadge,
   });
 
   final String? iconUrl;
   final int quantityToDisplay;
   final Color primaryColor;
+  final bool showReceivedBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +181,21 @@ class _WishImageWithQuantity extends StatelessWidget {
         WishImage(
           iconUrl: iconUrl,
         ),
+        if (showReceivedBadge)
+          Positioned(
+            top: -4,
+            right: -4,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: AppColors.green,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.background, width: 2),
+              ),
+              child: const Icon(Icons.check, color: Colors.white, size: 14),
+            ),
+          ),
         if (quantityToDisplay > 1)
           Positioned(
             bottom: -4,

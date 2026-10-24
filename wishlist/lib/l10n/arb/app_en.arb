@@ -45,14 +45,6 @@
   "bookedWishesScreenTitle": "Bookings",
   "bookedWishesEmptyTitle": "No bookings",
   "bookedWishesEmptyCallToAction": "Explore your friends' wishlists",
-  "bookedWishCount": "{count, plural, =1{1 booking} other{{count} bookings}}",
-  "@bookedWishCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "settingsScreenTitle": "Settings",
   "settingsScreenEmail": "Email",
   "settingsScreenEmailModify": "Modify",
@@ -271,6 +263,34 @@
   "@completedWishFromWishlist": {
     "placeholders": {
       "wishlistName": {
+        "type": "String"
+      }
+    }
+  },
+  "bookedWishesTabToGive": "To give",
+  "bookedWishesTabGiven": "Given",
+  "bookedWishesToGiveCount": "{count, plural, =1{1 to give} other{{count} to give}}",
+  "@bookedWishesToGiveCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookedWishesGivenCount": "{count, plural, =1{1 given} other{{count} given}}",
+  "@bookedWishesGivenCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookedWishesNothingToGive": "Nothing left to give: everything was received",
+  "bookedWishesNothingGiven": "Booked wishes your friends received will show up here",
+  "bookedWishReceivedOn": "Received on {date}",
+  "@bookedWishReceivedOn": {
+    "placeholders": {
+      "date": {
         "type": "String"
       }
     }
