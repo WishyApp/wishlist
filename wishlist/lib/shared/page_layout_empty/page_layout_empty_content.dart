@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:gap/gap.dart';
-import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
+import 'package:wishlist/shared/widgets/illustrated_header.dart';
 
 class PageLayoutEmptyContent extends StatelessWidget {
   const PageLayoutEmptyContent({
@@ -31,29 +31,19 @@ class PageLayoutEmptyContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final callToAction = this.callToAction;
     final onCallToAction = this.onCallToAction;
-    final description = this.description;
     final hasCallToAction = callToAction != null && onCallToAction != null;
 
     return Column(
       children: <Widget>[
-        SvgPicture.asset(
-          illustrationUrl,
-          height: illustrationHeight,
-        ),
-        const Gap(32),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: titleTextStyle,
-        ),
-        if (description != null) ...[
-          const Gap(8),
-          Text(
-            description,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.small.copyWith(color: AppColors.makara),
+        IllustratedHeader(
+          illustration: SvgPicture.asset(
+            illustrationUrl,
+            height: illustrationHeight,
           ),
-        ],
+          title: title,
+          titleStyle: titleTextStyle,
+          description: description,
+        ),
         const Gap(16),
         if (hasCallToAction)
           PrimaryButton(

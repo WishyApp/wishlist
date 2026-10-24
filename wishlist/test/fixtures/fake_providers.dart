@@ -2,7 +2,10 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/current_user_profile_provider.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
@@ -11,8 +14,10 @@ import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.d
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
+import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
+import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/friend_details/friend_details.dart';
@@ -143,13 +148,36 @@ List<Override> homeScreenOverrides({
   FriendsData? friendsData,
   IList<BookedWishWithDetails>? bookedWishes,
   String? currentUserId,
+  Map<String, Birthday>? birthdays,
+  DateTime? now,
+
+  /// `false` : visibleBirthdaysProvider reste le vrai, au-dessus du service.
+  bool overrideBirthdays = true,
 }) {
   return [
     supabaseClientOverride(userId: currentUserId),
     wishlistsRealtimeOverride(wishlists: wishlists),
     friendshipsRealtimeOverride(friendsData: friendsData),
     bookedWishesRealtimeOverride(bookedWishes: bookedWishes),
+    if (overrideBirthdays) visibleBirthdaysOverride(birthdays: birthdays),
+    if (now != null) clockOverride(now),
   ];
+}
+
+/// Override pour visibleBirthdaysProvider (aucun anniversaire par défaut)
+Override visibleBirthdaysOverride({Map<String, Birthday>? birthdays}) {
+  return visibleBirthdaysProvider.overrideWith(
+    (ref) async => (
+      userId: ref.watch(currentUserIdProvider),
+      birthdays: birthdays ?? const <String, Birthday>{},
+    ),
+  );
+}
+
+/// Override pour clockProvider : date fixe, les tests de compte à rebours ne
+/// dépendent pas du jour où ils tournent.
+Override clockOverride(DateTime now) {
+  return clockProvider.overrideWithValue(() => now);
 }
 
 /// Overrides pour tous les écrans avec des données vides
@@ -167,6 +195,10 @@ List<Override> settingsScreenOverrides({
   String? currentUserId,
   String? currentUserEmail,
   Profile? currentUserProfile,
+  Birthday? currentUserBirthday,
+
+  /// `false` : currentUserBirthdayProvider reste le vrai, au-dessus du service.
+  bool overrideBirthday = true,
   bool signedOut = false,
 }) {
   return [
@@ -177,6 +209,8 @@ List<Override> settingsScreenOverrides({
     ),
     userServiceOverride(userId: currentUserId),
     watchCurrentUserProfileOverride(profile: currentUserProfile),
+    if (overrideBirthday)
+      currentUserBirthdayOverride(birthday: currentUserBirthday),
     appInfoOverride(),
   ];
 }
@@ -253,6 +287,15 @@ List<Override> wishlistScreenOverrides({
 }
 
 // =============================================================================
+// CURRENT USER BIRTHDAY OVERRIDE
+// =============================================================================
+
+/// Override pour currentUserBirthdayProvider (aucun anniversaire par défaut)
+Override currentUserBirthdayOverride({Birthday? birthday}) {
+  return currentUserBirthdayProvider.overrideWith((ref) async => birthday);
+}
+
+// =============================================================================
 // CURRENT USER PROFILE OVERRIDE
 // =============================================================================
 
@@ -283,6 +326,11 @@ List<Override> friendDetailsScreenOverrides({
   FriendDetails? friendDetails,
   List<CompletedWishWithDetails>? completedWishes,
   String? currentUserId,
+  Map<String, Birthday>? birthdays,
+  DateTime? now,
+
+  /// `false` : visibleBirthdaysProvider reste le vrai, au-dessus du service.
+  bool overrideBirthdays = true,
 }) {
   return [
     supabaseClientOverride(userId: currentUserId),
@@ -290,6 +338,8 @@ List<Override> friendDetailsScreenOverrides({
     completedWishesByUserRealtimeProvider(friendId).overrideWith(
       (ref) => Stream.value((completedWishes ?? const []).toIList()),
     ),
+    if (overrideBirthdays) visibleBirthdaysOverride(birthdays: birthdays),
+    if (now != null) clockOverride(now),
   ];
 }
 

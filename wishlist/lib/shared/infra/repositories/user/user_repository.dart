@@ -1,5 +1,6 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:wishlist/shared/models/app_user.dart';
+import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/profile.dart';
 
 abstract class UserRepository {
@@ -14,4 +15,13 @@ abstract class UserRepository {
   Future<void> updateUserProfile(Profile profile);
   Future<IList<AppUser>> searchUsersByEmailOrPseudo(String query);
   Future<AppUser> getAppUserById(String userId);
+
+  /// Birthday of the current user, null if they did not set one.
+  Future<Birthday?> getCurrentUserBirthday();
+
+  /// Birthdays of [friendIds] the current user may see (RLS only returns the
+  /// ones of accepted friends), by profile id. No request for an empty set.
+  Future<Map<String, Birthday>> getVisibleBirthdays(ISet<String> friendIds);
+  Future<void> upsertCurrentUserBirthday(Birthday birthday);
+  Future<void> deleteCurrentUserBirthday();
 }

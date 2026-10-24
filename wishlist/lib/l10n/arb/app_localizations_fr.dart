@@ -138,7 +138,14 @@ class AppLocalizationsFr extends AppLocalizations {
   String get pseudoAlreadyExists => 'Ce pseudo est déjà utilisé';
 
   @override
-  String get savePseudo => 'Sauvegarder';
+  String get savePseudo => 'Enregistrer';
+
+  @override
+  String get pseudoStepTitle => 'Choisis ton pseudo';
+
+  @override
+  String get pseudoStepExplanation =>
+      'C\'est le nom que tes amis verront dans Wishy.';
 
   @override
   String get bookedWishesScreenTitle => 'Réservations';
@@ -230,6 +237,63 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get changePseudoSuccess => 'Pseudo modifié avec succès !';
+
+  @override
+  String get settingsScreenBirthday => 'Mon anniversaire';
+
+  @override
+  String get settingsScreenBirthdayNotSet => 'Non renseigné';
+
+  @override
+  String get changeBirthdayScreenTitle => 'Anniversaire';
+
+  @override
+  String get changeBirthdayExplanation => 'Seuls tes amis le verront.';
+
+  @override
+  String get changeBirthdayConfirm => 'Enregistrer';
+
+  @override
+  String get changeBirthdayRemove => 'Supprimer mon anniversaire';
+
+  @override
+  String get changeBirthdaySuccess => 'Anniversaire enregistré !';
+
+  @override
+  String get changeBirthdayRemoved => 'Anniversaire supprimé !';
+
+  @override
+  String get birthdayStepTitle => 'C\'est quand ton anniversaire ?';
+
+  @override
+  String get birthdayStepExplanation => 'Seuls tes amis le verront.';
+
+  @override
+  String get birthdayStepLater => 'Plus tard';
+
+  @override
+  String friendBirthdayBadge(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'dans $days j',
+      one: 'demain',
+      zero: 'aujourd\'hui',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String friendBirthdayWithCountdown(String date, int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'dans $days jours',
+      one: 'demain',
+      zero: 'aujourd\'hui !',
+    );
+    return '$date · $_temp0';
+  }
 
   @override
   String get changePasswordSuccess => 'Mot de passe changé avec succès !';

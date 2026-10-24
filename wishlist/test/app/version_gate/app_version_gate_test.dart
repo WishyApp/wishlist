@@ -11,6 +11,7 @@ import 'package:wishlist/app/version_gate/app_update_required_screen.dart';
 import 'package:wishlist/app/version_gate/app_version_gate.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/app_update_service.dart';
+import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository.dart';
 import 'package:wishlist/shared/infra/repositories/app_version/app_version_repository_provider.dart';
 import 'package:wishlist/shared/models/app_version_policy.dart';
@@ -69,7 +70,7 @@ List<Override> _overrides(
   return [
     appVersionRepositoryProvider.overrideWithValue(repository),
     appUpdatePlatformProvider.overrideWithValue(platform),
-    appUpdateClockProvider.overrideWithValue(() => _fakeNow),
+    clockProvider.overrideWithValue(() => _fakeNow),
     appInfoProvider.overrideWith(
       (ref) async => PackageInfo(
         appName: 'Wishy',

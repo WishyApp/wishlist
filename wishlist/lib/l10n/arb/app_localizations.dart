@@ -335,8 +335,20 @@ abstract class AppLocalizations {
   /// No description provided for @savePseudo.
   ///
   /// In fr, this message translates to:
-  /// **'Sauvegarder'**
+  /// **'Enregistrer'**
   String get savePseudo;
+
+  /// No description provided for @pseudoStepTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisis ton pseudo'**
+  String get pseudoStepTitle;
+
+  /// No description provided for @pseudoStepExplanation.
+  ///
+  /// In fr, this message translates to:
+  /// **'C\'est le nom que tes amis verront dans Wishy.'**
+  String get pseudoStepExplanation;
 
   /// No description provided for @bookedWishesScreenTitle.
   ///
@@ -493,6 +505,84 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Pseudo modifié avec succès !'**
   String get changePseudoSuccess;
+
+  /// No description provided for @settingsScreenBirthday.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mon anniversaire'**
+  String get settingsScreenBirthday;
+
+  /// No description provided for @settingsScreenBirthdayNotSet.
+  ///
+  /// In fr, this message translates to:
+  /// **'Non renseigné'**
+  String get settingsScreenBirthdayNotSet;
+
+  /// No description provided for @changeBirthdayScreenTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire'**
+  String get changeBirthdayScreenTitle;
+
+  /// No description provided for @changeBirthdayExplanation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Seuls tes amis le verront.'**
+  String get changeBirthdayExplanation;
+
+  /// No description provided for @changeBirthdayConfirm.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrer'**
+  String get changeBirthdayConfirm;
+
+  /// No description provided for @changeBirthdayRemove.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer mon anniversaire'**
+  String get changeBirthdayRemove;
+
+  /// No description provided for @changeBirthdaySuccess.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire enregistré !'**
+  String get changeBirthdaySuccess;
+
+  /// No description provided for @changeBirthdayRemoved.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire supprimé !'**
+  String get changeBirthdayRemoved;
+
+  /// No description provided for @birthdayStepTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'C\'est quand ton anniversaire ?'**
+  String get birthdayStepTitle;
+
+  /// No description provided for @birthdayStepExplanation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Seuls tes amis le verront.'**
+  String get birthdayStepExplanation;
+
+  /// No description provided for @birthdayStepLater.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus tard'**
+  String get birthdayStepLater;
+
+  /// No description provided for @friendBirthdayBadge.
+  ///
+  /// In fr, this message translates to:
+  /// **'{days, plural, =0{aujourd\'hui} =1{demain} other{dans {days} j}}'**
+  String friendBirthdayBadge(int days);
+
+  /// No description provided for @friendBirthdayWithCountdown.
+  ///
+  /// In fr, this message translates to:
+  /// **'{date} · {days, plural, =0{aujourd\'hui !} =1{demain} other{dans {days} jours}}'**
+  String friendBirthdayWithCountdown(String date, int days);
 
   /// No description provided for @changePasswordSuccess.
   ///

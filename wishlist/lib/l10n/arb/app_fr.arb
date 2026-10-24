@@ -39,7 +39,9 @@
   "pseudoField": "Pseudo",
   "validPseudoError": "Le pseudo ne peut pas être vide",
   "pseudoAlreadyExists": "Ce pseudo est déjà utilisé",
-  "savePseudo": "Sauvegarder",
+  "savePseudo": "Enregistrer",
+  "pseudoStepTitle": "Choisis ton pseudo",
+  "pseudoStepExplanation": "C'est le nom que tes amis verront dans Wishy.",
   "bookedWishesScreenTitle": "Réservations",
   "bookedWishesEmptyTitle": "Aucune réservation",
   "bookedWishesEmptyCallToAction": "Explorer les wishlists de vos amis",
@@ -73,6 +75,36 @@
   "newPseudoField": "Nouveau pseudo",
   "changePseudoConfirm": "Modifier",
   "changePseudoSuccess": "Pseudo modifié avec succès !",
+  "settingsScreenBirthday": "Mon anniversaire",
+  "settingsScreenBirthdayNotSet": "Non renseigné",
+  "changeBirthdayScreenTitle": "Anniversaire",
+  "changeBirthdayExplanation": "Seuls tes amis le verront.",
+  "changeBirthdayConfirm": "Enregistrer",
+  "changeBirthdayRemove": "Supprimer mon anniversaire",
+  "changeBirthdaySuccess": "Anniversaire enregistré !",
+  "changeBirthdayRemoved": "Anniversaire supprimé !",
+  "birthdayStepTitle": "C'est quand ton anniversaire ?",
+  "birthdayStepExplanation": "Seuls tes amis le verront.",
+  "birthdayStepLater": "Plus tard",
+  "friendBirthdayBadge": "{days, plural, =0{aujourd'hui} =1{demain} other{dans {days} j}}",
+  "@friendBirthdayBadge": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "friendBirthdayWithCountdown": "{date} · {days, plural, =0{aujourd'hui !} =1{demain} other{dans {days} jours}}",
+  "@friendBirthdayWithCountdown": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "changePasswordSuccess": "Mot de passe changé avec succès !",
   "settingsScreenDeleteAccount": "Supprimer mon compte",
   "settingsScreenDeleteAccountDialogTitle": "Supprimer mon compte",

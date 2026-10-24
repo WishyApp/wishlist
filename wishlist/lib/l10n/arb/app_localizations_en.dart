@@ -141,6 +141,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get savePseudo => 'Save';
 
   @override
+  String get pseudoStepTitle => 'Pick your pseudo';
+
+  @override
+  String get pseudoStepExplanation =>
+      'It\'s the name your friends will see in Wishy.';
+
+  @override
   String get bookedWishesScreenTitle => 'Bookings';
 
   @override
@@ -230,6 +237,63 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get changePseudoSuccess => 'Pseudo changed successfully!';
+
+  @override
+  String get settingsScreenBirthday => 'My birthday';
+
+  @override
+  String get settingsScreenBirthdayNotSet => 'Not set';
+
+  @override
+  String get changeBirthdayScreenTitle => 'Birthday';
+
+  @override
+  String get changeBirthdayExplanation => 'Only your friends will see it.';
+
+  @override
+  String get changeBirthdayConfirm => 'Save';
+
+  @override
+  String get changeBirthdayRemove => 'Remove my birthday';
+
+  @override
+  String get changeBirthdaySuccess => 'Birthday saved!';
+
+  @override
+  String get changeBirthdayRemoved => 'Birthday removed!';
+
+  @override
+  String get birthdayStepTitle => 'When is your birthday?';
+
+  @override
+  String get birthdayStepExplanation => 'Only your friends will see it.';
+
+  @override
+  String get birthdayStepLater => 'Later';
+
+  @override
+  String friendBirthdayBadge(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'in $days d',
+      one: 'tomorrow',
+      zero: 'today',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String friendBirthdayWithCountdown(String date, int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'in $days days',
+      one: 'tomorrow',
+      zero: 'today!',
+    );
+    return '$date · $_temp0';
+  }
 
   @override
   String get changePasswordSuccess => 'Password changed successfully!';

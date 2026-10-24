@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_repository.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_repository_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
+import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/profile.dart';
 
 class UserService {
@@ -27,6 +28,24 @@ class UserService {
 
   Future<AppUser> getAppUserById(String userId) async {
     return _userRepository.getAppUserById(userId);
+  }
+
+  Future<Birthday?> getCurrentUserBirthday() async {
+    return _userRepository.getCurrentUserBirthday();
+  }
+
+  Future<Map<String, Birthday>> getVisibleBirthdays(
+    ISet<String> friendIds,
+  ) async {
+    return _userRepository.getVisibleBirthdays(friendIds);
+  }
+
+  Future<void> upsertCurrentUserBirthday(Birthday birthday) async {
+    return _userRepository.upsertCurrentUserBirthday(birthday);
+  }
+
+  Future<void> deleteCurrentUserBirthday() async {
+    return _userRepository.deleteCurrentUserBirthday();
   }
 }
 
