@@ -6,8 +6,10 @@ import 'package:gap/gap.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/friends/view/widgets/friend_details_app_bar.dart';
 import 'package:wishlist/modules/friends/view/widgets/friend_pill.dart';
+import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
+import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/friend_details/friend_details.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
@@ -141,21 +143,72 @@ class _FriendStatsSection extends ConsumerWidget {
           size: avatarSize,
         ),
         const Gap(16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              friendDetails.appUser.profile.pseudo,
-              style: AppTextStyles.titleSmall,
-            ),
-            Text(
-              personalStats,
-              style: AppTextStyles.smaller.copyWith(
-                color: AppColors.makara,
-                height: 0,
+        // Bounded, so that a long pseudo wraps instead of overflowing
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                friendDetails.appUser.profile.pseudo,
+                style: AppTextStyles.titleSmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
+              Text(
+                personalStats,
+                style: AppTextStyles.smaller.copyWith(
+                  color: AppColors.makara,
+                  height: 0,
+                ),
+              ),
+              _FriendBirthdayLine(friendId: friendDetails.appUser.user.id),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Cake icon + "12 mars · dans 5 jours" (countdown within 30 days only),
+/// nothing without a visible birthday.
+class _FriendBirthdayLine extends ConsumerWidget {
+  const _FriendBirthdayLine({required this.friendId});
+  final String friendId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final birthday = ref.watch(friendBirthdayProvider(friendId));
+    if (birthday == null) {
+      return const SizedBox.shrink();
+    }
+
+    final l10n = context.l10n;
+    final locale = Localizations.localeOf(context).toString();
+    final date = birthday.format(locale);
+    // Read at build time: a screen left open past midnight updates on its
+    // next rebuild.
+    final days = birthday.upcomingIn(ref.watch(clockProvider)());
+    final text =
+        days == null ? date : l10n.friendBirthdayWithCountdown(date, days);
+
+    return Row(
+      children: [
+        const Icon(
+          Icons.cake_rounded,
+          size: 16,
+          color: AppColors.makara,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.smaller.copyWith(
+              color: AppColors.makara,
             ),
-          ],
+          ),
         ),
       ],
     );

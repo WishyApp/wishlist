@@ -256,6 +256,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changeBirthdayRemoved => 'Birthday removed!';
 
   @override
+  String friendBirthdayBadge(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'in $days d',
+      one: 'tomorrow',
+      zero: 'today',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String friendBirthdayWithCountdown(String date, int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'in $days days',
+      one: 'tomorrow',
+      zero: 'today!',
+    );
+    return '$date · $_temp0';
+  }
+
+  @override
   String get changePasswordSuccess => 'Password changed successfully!';
 
   @override

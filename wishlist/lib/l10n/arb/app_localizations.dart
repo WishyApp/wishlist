@@ -542,6 +542,18 @@ abstract class AppLocalizations {
   /// **'Anniversaire supprimé !'**
   String get changeBirthdayRemoved;
 
+  /// No description provided for @friendBirthdayBadge.
+  ///
+  /// In fr, this message translates to:
+  /// **'{days, plural, =0{aujourd\'hui} =1{demain} other{dans {days} j}}'**
+  String friendBirthdayBadge(int days);
+
+  /// No description provided for @friendBirthdayWithCountdown.
+  ///
+  /// In fr, this message translates to:
+  /// **'{date} · {days, plural, =0{aujourd\'hui !} =1{demain} other{dans {days} jours}}'**
+  String friendBirthdayWithCountdown(String date, int days);
+
   /// No description provided for @changePasswordSuccess.
   ///
   /// In fr, this message translates to:
