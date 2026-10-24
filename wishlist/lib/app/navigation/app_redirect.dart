@@ -59,6 +59,12 @@ String? appRedirect(
   final isOnResetPasswordScreen =
       _isOnRoute(state, ResetPasswordRoute().location);
 
+  // A session that ends while the pseudo is being created leaves the marker
+  // set: an old link to /pseudo would later lead to the birthday step once.
+  if (session == null) {
+    (creationMarker ?? pseudoCreationMarker).clear();
+  }
+
   // Allow access to password recovery screens without authentication
   if (isOnForgotPasswordScreen || isOnResetPasswordScreen) {
     return null;
