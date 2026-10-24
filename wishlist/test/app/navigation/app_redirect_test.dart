@@ -237,6 +237,22 @@ void main() {
 
       expect(location, '/birthday');
     });
+
+    testWidgets(
+        'a marker left by a session ended during the creation is cleared, '
+        'so an old link to /pseudo later goes home', (tester) async {
+      pseudoCreationMarker.mark();
+      // The session ends while the profile is being created
+      await _landing(tester, PseudoRoute().location, session: null);
+
+      final location = await _landing(
+        tester,
+        PseudoRoute().location,
+        session: _session(hasPseudo: true),
+      );
+
+      expect(location, '/');
+    });
   });
 
   group('auth screen', () {
