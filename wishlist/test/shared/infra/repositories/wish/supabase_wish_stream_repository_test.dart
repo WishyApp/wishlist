@@ -440,6 +440,100 @@ void main() {
         verify(() => wishRepository.getBookedWishesByUser('me')).called(times),
   );
 
+  group('watchBookedWishesByUser receipts listener', () {
+    PostgresChangePayload receipt({
+      Map<String, dynamic> newRecord = const {},
+      Map<String, dynamic> oldRecord = const {},
+    }) {
+      final p = MockPostgresChangePayload();
+      when(() => p.newRecord).thenReturn(newRecord);
+      when(() => p.oldRecord).thenReturn(oldRecord);
+      return p;
+    }
+
+    Future<void> expectReload(
+      PostgresChangePayload payload, {
+      required bool reloads,
+    }) async {
+      when(() => wishRepository.getBookedWishesByUser(any()))
+          .thenAnswer((_) async => fakeBookedWishes);
+
+      final sub = repository.watchBookedWishesByUser('me').listen((_) {});
+      await pumpEventQueue();
+      verify(() => wishRepository.getBookedWishesByUser('me')).called(1);
+
+      listeners
+          .singleWhere((l) => l.table == 'user_completed_wishs')
+          .callback(payload);
+      await pumpEventQueue();
+      if (reloads) {
+        verify(() => wishRepository.getBookedWishesByUser('me')).called(1);
+      } else {
+        verifyNever(() => wishRepository.getBookedWishesByUser('me'));
+      }
+
+      await sub.cancel();
+    }
+
+    test('reloads when a booked wish is received', () async {
+      await expectReload(
+        receipt(newRecord: {'wish_id': fakeBookedWish1.wish.id}),
+        reloads: true,
+      );
+    });
+
+    test('reloads when the receipt of a booked wish is removed', () async {
+      await expectReload(
+        receipt(oldRecord: {'wish_id': fakeBookedWish1.wish.id}),
+        reloads: true,
+      );
+    });
+
+    test('keeps the wishes of the newest load when an older one ends last',
+        () async {
+      final loads = [
+        Completer<IList<BookedWishWithDetails>>(),
+        Completer<IList<BookedWishWithDetails>>(),
+        Completer<IList<BookedWishWithDetails>>(),
+      ];
+      var call = 0;
+      when(() => wishRepository.getBookedWishesByUser(any()))
+          .thenAnswer((_) => loads[call++].future);
+
+      final sub = repository.watchBookedWishesByUser('me').listen((_) {});
+      await pumpEventQueue();
+
+      // A new booking reloads while the first load is still running
+      listeners
+          .singleWhere((l) => l.table == 'wish_taken_by_user')
+          .callback(MockPostgresChangePayload());
+      await pumpEventQueue();
+
+      loads[1].complete(fakeBookedWishes);
+      await pumpEventQueue();
+      // The older load, without the new booking, ends last and is dropped
+      loads[0].complete(IList([fakeBookedWish1]));
+      await pumpEventQueue();
+
+      // The receipt of the new booking still reloads
+      listeners
+          .singleWhere((l) => l.table == 'user_completed_wishs')
+          .callback(receipt(newRecord: {'wish_id': fakeBookedWish2.wish.id}));
+      await pumpEventQueue();
+      expect(call, 3);
+
+      loads[2].complete(fakeBookedWishes);
+      await sub.cancel();
+    });
+
+    test('ignores the receipts of other wishes', () async {
+      await expectReload(
+        receipt(newRecord: {'wish_id': 999}),
+        reloads: false,
+      );
+    });
+  });
+
   group('watchWishsFromWishlist wishlists listener', () {
     PostgresChangePayload payload({
       required Map<String, dynamic> oldRecord,

@@ -17,8 +17,13 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
   final WishRepository _wishRepository;
   static const _wishsTableName = 'wishs';
   static const _wishTakenByUserTableName = 'wish_taken_by_user';
+  static const _userCompletedWishsTableName = 'user_completed_wishs';
   static const _wishlistsTableName = 'wishlists';
   static const _canOwnerSeeTakenWishColumn = 'can_owner_see_taken_wish';
+
+  /// Booked wishes of each user, as last emitted by their bookings stream,
+  /// to skip the receipts of other wishes
+  final Map<String, Set<int>> _bookedWishIdsByUser = {};
 
   /// Un wish supprimé (ou masqué par la RLS) n'est pas une erreur passagère :
   /// on l'émet même après une valeur, sinon il resterait affiché.
@@ -156,7 +161,8 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
     Future<IList<BookedWishWithDetails>> fetch() =>
         _wishRepository.getBookedWishesByUser(userId);
 
-    return _streams.watch<IList<BookedWishWithDetails>>(
+    return _streams
+        .watch<IList<BookedWishWithDetails>>(
       key,
       load: fetch,
       // Écouter les changements sur wish_taken_by_user (réservations)
@@ -172,6 +178,24 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
               value: userId,
             ),
             callback: (payload) => reload(),
+          )
+          // Écouter les réceptions (un wish réservé marqué comme reçu par
+          // son propriétaire passe dans les offerts). Pas de filtre possible
+          // sur les wishs réservés : on ignore les réceptions des autres
+          // wishs, que la RLS laisse passer (wishlists publiques, DELETE).
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: _userCompletedWishsTableName,
+            callback: (payload) {
+              final wishId =
+                  payload.newRecord['wish_id'] ?? payload.oldRecord['wish_id'];
+              final ids = _bookedWishIdsByUser[userId];
+              if (wishId is int && ids != null && !ids.contains(wishId)) {
+                return;
+              }
+              reload();
+            },
           )
           // Écouter les changements sur la table wishs
           // (si un wish réservé est modifié/supprimé)
@@ -195,7 +219,15 @@ class SupabaseWishStreamRepository implements WishStreamRepository {
             table: 'profiles',
             callback: (payload) => reload(),
           ),
-    );
+    )
+        // Only the emitted bookings: a load that finishes after a newer one
+        // is dropped by the stream and must not replace them
+        .map((bookedWishes) {
+      _bookedWishIdsByUser[userId] = {
+        for (final bookedWish in bookedWishes) bookedWish.wish.id,
+      };
+      return bookedWishes;
+    });
   }
 
   static bool _isNotFound(Object error) {

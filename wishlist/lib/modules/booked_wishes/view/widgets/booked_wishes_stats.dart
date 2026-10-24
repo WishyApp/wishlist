@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
-import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
@@ -10,11 +9,11 @@ class BookedWishesStats extends StatelessWidget {
   const BookedWishesStats({
     super.key,
     required this.bookedWishes,
+    required this.countLabel,
   });
 
   final List<BookedWishWithDetails> bookedWishes;
-
-  int get _totalCount => bookedWishes.length;
+  final String countLabel;
 
   double? get _totalBudget {
     double total = 0;
@@ -33,7 +32,6 @@ class BookedWishesStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final totalBudget = _totalBudget;
 
     return Container(
@@ -47,14 +45,15 @@ class BookedWishesStats extends StatelessWidget {
           ),
           const Gap(6),
           Expanded(
-            child: RichText(
-              text: TextSpan(
+            // Text.rich, unlike RichText, follows the system text scale
+            child: Text.rich(
+              TextSpan(
                 style: AppTextStyles.small.copyWith(
                   color: AppColors.darkGrey,
                 ),
                 children: [
                   TextSpan(
-                    text: l10n.bookedWishCount(_totalCount),
+                    text: countLabel,
                     style: const TextStyle(
                       color: AppColors.darkGrey,
                     ),

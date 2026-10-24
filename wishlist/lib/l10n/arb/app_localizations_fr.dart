@@ -158,17 +158,6 @@ class AppLocalizationsFr extends AppLocalizations {
       'Explorer les wishlists de vos amis';
 
   @override
-  String bookedWishCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count réservations',
-      one: '1 réservation',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String get settingsScreenTitle => 'Paramètres';
 
   @override
@@ -811,5 +800,46 @@ class AppLocalizationsFr extends AppLocalizations {
       one: 'Il y a 1 semaine',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get bookedWishesTabToGive => 'À offrir';
+
+  @override
+  String get bookedWishesTabGiven => 'Offerts';
+
+  @override
+  String bookedWishesToGiveCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count à offrir',
+      one: '1 à offrir',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bookedWishesGivenCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count offerts',
+      one: '1 offert',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bookedWishesNothingToGive =>
+      'Plus rien à offrir : tout a été reçu';
+
+  @override
+  String get bookedWishesNothingGiven =>
+      'Les wishs réservés que tes amis ont reçus apparaîtront ici';
+
+  @override
+  String bookedWishReceivedOn(String date) {
+    return 'Reçu le $date';
   }
 }
