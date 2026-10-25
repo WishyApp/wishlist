@@ -43,6 +43,9 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   late final PageController pageController;
   var _isDisposed = false;
 
+  /// Une action sur la sélection est en cours (voir [runOnSelection])
+  var _isSelectionActionRunning = false;
+
   @override
   WishlistScreenState build(int wishlistId) {
     _isDisposed = false;
@@ -161,15 +164,11 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   /// supprimés ou déplacés ailleurs, ou entièrement reçus. Sans cela, le
   /// compteur les compterait et les actions s'y appliqueraient.
   void _keepSelectionInWishs(WishlistScreenData data) {
-    if (state.selectedWishIds.isEmpty) {
+    if (_isSelectionActionRunning || state.selectedWishIds.isEmpty) {
       return;
     }
-    final receivedById = {
-      for (final c in data.completedWishes) c.wish.id: c.quantity,
-    };
     final listedIds = {
-      for (final wish in data.wishs)
-        if ((receivedById[wish.id] ?? 0) < wish.quantity) wish.id,
+      for (final wish in data.listedWishs(data.receivedQuantityById)) wish.id,
     };
     final kept = state.selectedWishIds.intersection(listedIds);
     if (kept.length == state.selectedWishIds.length) {
@@ -181,37 +180,69 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
     );
   }
 
-  Future<void> deleteSelectedWishs() async {
+  /// Lance [action] sur les wishs sélectionnés, puis quitte le mode
+  /// sélection. Pendant l'action, les wishs qu'elle traite quittent la liste
+  /// un à un : la sélection n'est pas nettoyée avant la fin, sinon le mode
+  /// sélection se fermerait en pleine action. En cas d'erreur, la sélection
+  /// reste, sans les wishs qui ont quitté la liste.
+  ///
+  /// Renvoie le nombre de wishs traités, lu au lancement : la sélection a pu
+  /// changer pendant une confirmation (0 si elle s'est vidée, sans action).
+  Future<int> runOnSelection(
+    Future<void> Function(Set<int> wishIds) action,
+  ) async {
     final selectedIds = state.selectedWishIds;
-    // Les wishs sont déjà chargés : on lit l'iconUrl sans aller-retour réseau
-    // (et sans échouer si un wish a déjà été supprimé ailleurs).
-    final wishs = ref
-            .read(wishlistScreenDataRealtimeProvider(wishlistId))
-            .valueOrNull
-            ?.wishs ??
-        <Wish>[].lock;
-    final iconUrlById = {for (final w in wishs) w.id: w.iconUrl};
-    for (final wishId in selectedIds) {
-      // Les images (principale + miniature) sont supprimées avec le wish,
-      // tant que la RLS du bucket autorise encore le propriétaire.
-      await ref.read(wishMutationsProvider.notifier).delete(
-            wishId,
-            iconUrl: iconUrlById[wishId],
-          );
+    if (selectedIds.isEmpty) {
+      return 0;
     }
-    exitSelectionMode();
+    _isSelectionActionRunning = true;
+    try {
+      await action(selectedIds);
+      if (!_isDisposed) {
+        exitSelectionMode();
+      }
+      return selectedIds.length;
+    } finally {
+      _isSelectionActionRunning = false;
+      final data = _isDisposed
+          ? null
+          : ref
+              .read(wishlistScreenDataRealtimeProvider(wishlistId))
+              .valueOrNull;
+      if (data != null) {
+        _keepSelectionInWishs(data);
+      }
+    }
   }
 
-  Future<void> moveSelectedWishs(int targetWishlistId) async {
-    final selectedIds = state.selectedWishIds;
-    for (final wishId in selectedIds) {
-      await ref.read(wishMutationsProvider.notifier).moveToWishlist(
-            wishId: wishId,
-            targetWishlistId: targetWishlistId,
-          );
-    }
-    exitSelectionMode();
-  }
+  Future<int> deleteSelectedWishs() => runOnSelection((selectedIds) async {
+        // Les wishs sont déjà chargés : on lit l'iconUrl sans aller-retour
+        // réseau (et sans échouer si un wish a déjà été supprimé ailleurs).
+        final wishs = ref
+                .read(wishlistScreenDataRealtimeProvider(wishlistId))
+                .valueOrNull
+                ?.wishs ??
+            <Wish>[].lock;
+        final iconUrlById = {for (final w in wishs) w.id: w.iconUrl};
+        for (final wishId in selectedIds) {
+          // Les images (principale + miniature) sont supprimées avec le wish,
+          // tant que la RLS du bucket autorise encore le propriétaire.
+          await ref.read(wishMutationsProvider.notifier).delete(
+                wishId,
+                iconUrl: iconUrlById[wishId],
+              );
+        }
+      });
+
+  Future<int> moveSelectedWishs(int targetWishlistId) =>
+      runOnSelection((selectedIds) async {
+        for (final wishId in selectedIds) {
+          await ref.read(wishMutationsProvider.notifier).moveToWishlist(
+                wishId: wishId,
+                targetWishlistId: targetWishlistId,
+              );
+        }
+      });
 
   Future<void> toggleFavorite(Wish wish) async {
     final updatedWish = wish.copyWith(isFavourite: !wish.isFavourite);

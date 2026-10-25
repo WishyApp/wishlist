@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_selection_card.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 
 import '../../../../pump_app.dart';
 
@@ -23,6 +24,7 @@ void main() {
           height: height,
           child: WishlistSelectionCard(
             selectedCount: 12,
+            tab: WishlistStatsCardType.pending,
             areAllSelected: areAllSelected,
             onToggleSelectAll: onToggleSelectAll,
             onExit: onExit ?? () {},

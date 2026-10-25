@@ -15,6 +15,11 @@ typedef WishlistScreenDisplay = ({
   IList<Wish> all,
   IList<Wish> available,
   IList<Wish> booked,
+  // Ids des listes ci-dessus, pour "Tout sélectionner" : calculés ici une
+  // fois par changement de données, de tri ou de recherche
+  IList<int> allIds,
+  IList<int> availableIds,
+  IList<int> bookedIds,
   IMap<int, int> pendingQuantityOverrides,
   IMap<int, int> bookedQuantityOverrides,
 });
@@ -23,6 +28,9 @@ const _emptyDisplay = (
   all: IListConst<Wish>([]),
   available: IListConst<Wish>([]),
   booked: IListConst<Wish>([]),
+  allIds: IListConst<int>([]),
+  availableIds: IListConst<int>([]),
+  bookedIds: IListConst<int>([]),
   pendingQuantityOverrides: IMapConst<int, int>({}),
   bookedQuantityOverrides: IMapConst<int, int>({}),
 );
@@ -48,14 +56,10 @@ final wishlistScreenDisplayProvider =
     return _emptyDisplay;
   }
 
-  final completedByWishId = <int, int>{
-    for (final c in screenData.completedWishes) c.wish.id: c.quantity,
-  };
+  final completedByWishId = screenData.receivedQuantityById;
 
   // Un wish entièrement reçu n'est ni en attente ni à offrir.
-  final adjustedWishs = screenData.wishs
-      .where((w) => (completedByWishId[w.id] ?? 0) < w.quantity)
-      .toIList();
+  final adjustedWishs = screenData.listedWishs(completedByWishId);
 
   final wishs = WishSortUtils.sortAndFilterWishs(
     adjustedWishs,
@@ -89,6 +93,9 @@ final wishlistScreenDisplayProvider =
     all: wishs,
     available: available,
     booked: booked,
+    allIds: wishs.map((wish) => wish.id).toIList(),
+    availableIds: available.map((wish) => wish.id).toIList(),
+    bookedIds: booked.map((wish) => wish.id).toIList(),
     pendingQuantityOverrides: pendingQuantityOverrides,
     bookedQuantityOverrides: bookedQuantityOverrides,
   );

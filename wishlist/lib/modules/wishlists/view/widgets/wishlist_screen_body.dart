@@ -14,7 +14,7 @@ import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
-import 'package:wishlist/shared/widgets/inert_switcher_layout.dart';
+import 'package:wishlist/shared/widgets/inert.dart';
 
 class WishlistScreenBody extends ConsumerWidget {
   const WishlistScreenBody({
@@ -133,12 +133,11 @@ class WishlistScreenBody extends ConsumerWidget {
     // Wishs affichés par l'onglet courant, avec la recherche et le tri en
     // cours : ceux que "Tout sélectionner" coche
     final visibleWishIds = switch (screenState.statCardSelected) {
-      WishlistStatsCardType.pending => wishsPending,
+      WishlistStatsCardType.pending =>
+        isWishsBookedHidden ? display.allIds : display.availableIds,
       WishlistStatsCardType.booked =>
-        isWishsBookedHidden ? const IListConst<Wish>([]) : wishsBooked,
-    }
-        .map((wish) => wish.id)
-        .toList();
+        isWishsBookedHidden ? const IListConst<int>([]) : display.bookedIds,
+    };
     final areAllVisibleSelected = screenState.areAllSelected(visibleWishIds);
 
     return Column(
@@ -148,21 +147,18 @@ class WishlistScreenBody extends ConsumerWidget {
         // exactement leur hauteur
         Stack(
           children: [
-            IgnorePointer(
-              ignoring: screenState.isSelectionMode,
-              child: ExcludeFocus(
-                excluding: screenState.isSelectionMode,
-                child: AnimatedOpacity(
-                  duration: _cardsFadeDuration,
-                  opacity: screenState.isSelectionMode ? 0 : 1,
-                  child: WishlistStatsSection(
-                    statCardSelected: screenState.statCardSelected,
-                    nbWishsTotal: wishs.length,
-                    nbWishsPending: nbWishsPending,
-                    nbWishsBooked: nbWishsBooked,
-                    isWishsBookedHidden: isWishsBookedHidden,
-                    onTapStatCard: notifier.selectStatCard,
-                  ),
+            Inert(
+              inert: screenState.isSelectionMode,
+              child: AnimatedOpacity(
+                duration: _cardsFadeDuration,
+                opacity: screenState.isSelectionMode ? 0 : 1,
+                child: WishlistStatsSection(
+                  statCardSelected: screenState.statCardSelected,
+                  nbWishsTotal: wishs.length,
+                  nbWishsPending: nbWishsPending,
+                  nbWishsBooked: nbWishsBooked,
+                  isWishsBookedHidden: isWishsBookedHidden,
+                  onTapStatCard: notifier.selectStatCard,
                 ),
               ),
             ),
@@ -175,6 +171,7 @@ class WishlistScreenBody extends ConsumerWidget {
                   child: screenState.isSelectionMode
                       ? WishlistSelectionCard(
                           selectedCount: screenState.selectedWishIds.length,
+                          tab: screenState.statCardSelected,
                           areAllSelected: areAllVisibleSelected,
                           onToggleSelectAll: visibleWishIds.isEmpty
                               ? null

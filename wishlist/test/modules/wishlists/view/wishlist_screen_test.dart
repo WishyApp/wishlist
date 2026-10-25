@@ -31,6 +31,7 @@ import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wish_taken_by_user/wish_taken_by_user.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
+import 'package:wishlist/shared/page_layout_empty/page_layout_empty_content.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -621,7 +622,10 @@ void main() {
 
       expect(find.text('1'), findsOneWidget);
       expect(inSelectionCard(find.text('1')), findsOneWidget);
-      expect(inSelectionCard(find.text('sélectionné')), findsOneWidget);
+      expect(
+        inSelectionCard(find.text('sélectionné')),
+        findsOneWidget,
+      );
       expect(find.text(l10n.wishlistSelectionComplete), findsOneWidget);
       expect(find.text(l10n.wishlistSelectionMove), findsOneWidget);
       expect(find.text(l10n.wishlistSelectionDelete), findsOneWidget);
@@ -631,7 +635,62 @@ void main() {
 
       expect(find.text('2'), findsOneWidget);
       expect(inSelectionCard(find.text('2')), findsOneWidget);
-      expect(inSelectionCard(find.text('sélectionnés')), findsOneWidget);
+      expect(
+        inSelectionCard(find.text('sélectionnés')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('names the current tab in the selection card', (tester) async {
+      await pumpOwnerWishlist(tester, wishes: fakeWishesWithBooked);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+      expect(
+        inSelectionCard(
+          find.text(l10n.wishlistStatusPending),
+        ),
+        findsOneWidget,
+      );
+
+      // Swiping still changes the tab, which "Tout sélectionner" follows
+      await tester.fling(
+        find.byType(PageView),
+        const Offset(-400, 0),
+        1000,
+      );
+      await tester.pumpAndSettle();
+      expect(
+        inSelectionCard(
+          find.text(l10n.wishlistStatusBooked),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('keeps the empty state clear of the action bar',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Wulfgar');
+      await tester.pumpAndSettle();
+
+      // Adding is hidden in selection mode, like the "+" button
+      expect(find.text(l10n.wishlistAddWish), findsNothing);
+      final emptyContent = find
+          .descendant(
+            of: find.byType(WishsTab).first,
+            matching: find.byType(PageLayoutEmptyContent),
+          )
+          .first;
+      expect(
+        tester.getBottomLeft(emptyContent).dy,
+        lessThanOrEqualTo(
+          tester.getTopLeft(find.byType(WishlistSelectionActionBar)).dy,
+        ),
+      );
     });
 
     testWidgets('ignores taps on the card and the bar while they leave',
@@ -686,12 +745,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.bySemanticsLabel(l10n.wishlistSelectionCount(1)),
+        find.bySemanticsLabel(
+          '${l10n.wishlistSelectionCount(1)}, ${l10n.wishlistStatusPending}',
+        ),
         findsOneWidget,
       );
       expect(
         tester.getSemantics(
-          find.bySemanticsLabel(l10n.wishlistSelectionCount(1)),
+          find.bySemanticsLabel(
+            '${l10n.wishlistSelectionCount(1)}, ${l10n.wishlistStatusPending}',
+          ),
         ),
         isSemantics(isLiveRegion: true),
       );
