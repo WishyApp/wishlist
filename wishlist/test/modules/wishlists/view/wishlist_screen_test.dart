@@ -149,7 +149,10 @@ void main() {
       windowConfig: variant,
       overrides: wishlistScreenOverrides(
         wishlistId: 2,
-        wishlist: fakeWishlist2,
+        // Le jaune, la couleur la plus claire, que la carte doit foncer
+        wishlist: fakeWishlist2.copyWith(
+          color: AppColors.getHexValue(AppColors.yellow),
+        ),
         wishes: fakeWishes,
         currentUserId: fakeCurrentUserId,
       ),
@@ -570,12 +573,13 @@ void main() {
     Future<void> pumpOwnerWishlist(
       WidgetTester tester, {
       List<Wish>? wishes,
+      Wishlist? wishlist,
     }) async {
       await tester.pumpRouterApp(
         WishlistRoute(wishlistId: 2).location,
         overrides: wishlistScreenOverrides(
           wishlistId: 2,
-          wishlist: fakeWishlist2,
+          wishlist: wishlist ?? fakeWishlist2,
           wishes: wishes ?? fakeWishes,
           currentUserId: fakeCurrentUserId,
         ),
@@ -611,7 +615,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(inSelectionCard(find.text('1')), findsOneWidget);
-      expect(inSelectionCard(find.text('sélectionnée')), findsOneWidget);
+      expect(inSelectionCard(find.text('sélectionné')), findsOneWidget);
       // No badge on the actions, and the stats cards are hidden
       expect(
         find.descendant(
@@ -629,7 +633,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(inSelectionCard(find.text('2')), findsOneWidget);
-      expect(inSelectionCard(find.text('sélectionnées')), findsOneWidget);
+      expect(inSelectionCard(find.text('sélectionnés')), findsOneWidget);
     });
 
     testWidgets('announces the count to screen readers', (tester) async {
@@ -730,6 +734,28 @@ void main() {
       expect(
         container.read(wishlistScreenNotifierProvider(2)).selectedWishIds,
         isEmpty,
+      );
+    });
+
+    testWidgets('keeps the count readable on a light wishlist color',
+        (tester) async {
+      await pumpOwnerWishlist(
+        tester,
+        wishlist: fakeWishlist2.copyWith(
+          color: AppColors.getHexValue(AppColors.yellow),
+        ),
+      );
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      final card = tester.widget<Container>(
+        inSelectionCard(find.byType(Container)).first,
+      );
+      final background = (card.decoration! as BoxDecoration).color!;
+      expect(
+        AppColors.contrastRatio(background, AppColors.background),
+        greaterThanOrEqualTo(4.5),
       );
     });
 

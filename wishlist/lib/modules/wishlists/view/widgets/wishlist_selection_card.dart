@@ -30,8 +30,13 @@ class WishlistSelectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final backgroundColor = Theme.of(context).primaryColorDark;
     const textColor = AppColors.background;
+    // La couleur foncée de la wishlist, foncée encore si le texte n'y est pas
+    // assez lisible (jaune, vert, bleu)
+    final backgroundColor = AppColors.darkenForContrast(
+      Theme.of(context).primaryColorDark,
+      foreground: textColor,
+    );
 
     return Container(
       padding: const EdgeInsets.only(left: 16, right: 4),

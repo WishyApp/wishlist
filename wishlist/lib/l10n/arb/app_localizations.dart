@@ -1517,13 +1517,13 @@ abstract class AppLocalizations {
   /// No description provided for @wishlistSelectionCountLabel.
   ///
   /// In fr, this message translates to:
-  /// **'{count, plural, =0{sélectionnée} =1{sélectionnée} other{sélectionnées}}'**
+  /// **'{count, plural, =0{sélectionné} =1{sélectionné} other{sélectionnés}}'**
   String wishlistSelectionCountLabel(int count);
 
   /// No description provided for @wishlistSelectionCount.
   ///
   /// In fr, this message translates to:
-  /// **'{count, plural, =0{0 sélectionnée} =1{1 sélectionnée} other{{count} sélectionnées}}'**
+  /// **'{count, plural, =0{0 sélectionné} =1{1 sélectionné} other{{count} sélectionnés}}'**
   String wishlistSelectionCount(int count);
 
   /// No description provided for @wishlistSelectAll.
