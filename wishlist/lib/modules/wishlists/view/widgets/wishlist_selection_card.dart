@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
@@ -17,6 +16,9 @@ class WishlistSelectionCard extends StatelessWidget {
 
   /// Taille minimale des zones tactiles
   static const double _minTapSize = 48;
+
+  /// Part maximale de la carte laissée au bouton "Tout sélectionner"
+  static const double _maxButtonWidthRatio = 0.55;
 
   final int selectedCount;
 
@@ -44,74 +46,92 @@ class WishlistSelectionCard extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        children: [
-          // Annonce le nouveau compteur aux lecteurs d'écran à chaque
-          // changement
-          Semantics(
-            container: true,
-            liveRegion: true,
-            label: l10n.wishlistSelectionCount(selectedCount),
-            excludeSemantics: true,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  selectedCount.toString(),
-                  style: AppTextStyles.title.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.bold,
-                    height: 1,
-                  ),
-                ),
-                Text(
-                  l10n.wishlistSelectionCountLabel(selectedCount),
-                  style: AppTextStyles.smaller.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Gap(8),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: onToggleSelectAll,
-                style: TextButton.styleFrom(
-                  foregroundColor: textColor,
-                  disabledForegroundColor: textColor.withValues(alpha: 0.5),
-                  minimumSize: const Size(_minTapSize, _minTapSize),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: Text(
-                  areAllSelected
-                      ? l10n.wishlistDeselectAll
-                      : l10n.wishlistSelectAll,
-                  textAlign: TextAlign.end,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.smaller.copyWith(
-                    fontWeight: FontWeight.bold,
+      // Le bouton garde une vraie largeur avec un grand texte : c'est le
+      // compteur qui rétrécit
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                // Annonce le nouveau compteur aux lecteurs d'écran à chaque
+                // changement
+                child: Semantics(
+                  container: true,
+                  liveRegion: true,
+                  label: l10n.wishlistSelectionCount(selectedCount),
+                  excludeSemantics: true,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selectedCount.toString(),
+                          style: AppTextStyles.title.copyWith(
+                            color: textColor,
+                            fontWeight: FontWeight.bold,
+                            height: 1,
+                          ),
+                        ),
+                        Text(
+                          l10n.wishlistSelectionCountLabel(selectedCount),
+                          style: AppTextStyles.smaller.copyWith(
+                            color: textColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          IconButton(
-            onPressed: onExit,
-            tooltip: l10n.wishlistExitSelection,
-            color: textColor,
-            constraints: const BoxConstraints(
-              minWidth: _minTapSize,
-              minHeight: _minTapSize,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constraints.maxWidth * _maxButtonWidthRatio,
+                  ),
+                  child: TextButton(
+                    onPressed: onToggleSelectAll,
+                    style: TextButton.styleFrom(
+                      foregroundColor: textColor,
+                      disabledForegroundColor: textColor.withValues(alpha: 0.5),
+                      minimumSize: const Size(_minTapSize, _minTapSize),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    child: Text(
+                      areAllSelected
+                          ? l10n.wishlistDeselectAll
+                          : l10n.wishlistSelectAll,
+                      textAlign: TextAlign.end,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.smaller.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onExit,
+                  tooltip: l10n.wishlistExitSelection,
+                  color: textColor,
+                  constraints: const BoxConstraints(
+                    minWidth: _minTapSize,
+                    minHeight: _minTapSize,
+                  ),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
             ),
-            icon: const Icon(Icons.close),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -8,6 +8,7 @@ import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository_provider.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
+import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wish/wish_sort_type.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
@@ -208,6 +209,80 @@ void main() {
       expect(state().areAllSelected([1, 2, 3]), isFalse);
       // Nothing displayed: nothing to deselect
       expect(state().areAllSelected([]), isFalse);
+    });
+  });
+
+  group('WishlistScreenNotifier keeps the selection in the listed wishs', () {
+    late ProviderContainer container;
+    late StateController<AsyncValue<WishlistScreenData>> data;
+    final provider = wishlistScreenNotifierProvider(1);
+    final wishs = [for (var id = 1; id <= 3; id++) wishWith(id, '')];
+
+    CompletedWishWithDetails received(Wish wish, int quantity) =>
+        CompletedWishWithDetails(
+          wish: wish,
+          fromWishlistId: wish.wishlistId,
+          fromWishlistName: fakeWishlist1.name,
+          ownerPseudo: 'owner',
+          ownerId: fakeCurrentUserId,
+          completedAt: fakeCreatedAt,
+          quantity: quantity,
+        );
+
+    void emit(
+      List<Wish> listed, [
+      List<CompletedWishWithDetails> completed = const [],
+    ]) =>
+        data.state = AsyncData(
+          (fakeWishlist1, IList<Wish>(listed), IList(completed)),
+        );
+
+    setUp(() {
+      final dataProvider = StateProvider<AsyncValue<WishlistScreenData>>(
+        (ref) => AsyncData((fakeWishlist1, IList<Wish>(wishs), IList())),
+      );
+      container = ProviderContainer(
+        overrides: [
+          wishlistThemeCacheProvider(1).overrideWith((ref) => null),
+          wishlistScreenDataRealtimeProvider(1)
+              .overrideWith((ref) => ref.watch(dataProvider)),
+        ],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(provider, (_, __) {});
+      addTearDown(sub.close);
+      data = container.read(dataProvider.notifier);
+      container.read(provider.notifier)
+        ..enableSelectionMode(1)
+        ..toggleWishSelection(2);
+    });
+
+    test('drops a selected wish deleted or moved elsewhere', () {
+      emit([wishs[1], wishs[2]]);
+
+      expect(container.read(provider).selectedWishIds, {2});
+      expect(container.read(provider).isSelectionMode, isTrue);
+    });
+
+    test('drops a selected wish fully received', () {
+      emit(wishs, [received(wishs[0], 1)]);
+
+      expect(container.read(provider).selectedWishIds, {2});
+    });
+
+    test('exits selection mode once no selected wish is listed', () {
+      emit([wishs[2]]);
+
+      expect(container.read(provider).selectedWishIds, isEmpty);
+      expect(container.read(provider).isSelectionMode, isFalse);
+    });
+
+    test('keeps the selection while its wishs are listed', () {
+      final before = container.read(provider);
+
+      emit([...wishs, wishWith(4, '')]);
+
+      expect(identical(container.read(provider), before), isTrue);
     });
   });
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_selection_action_bar.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
+import 'package:wishlist/shared/widgets/inert_switcher_layout.dart';
 import 'package:wishlist/shared/widgets/nav_bar_add_button.dart';
 
 /// Actions du propriétaire posées sur la liste : le bouton d'ajout, remplacé
@@ -40,6 +41,7 @@ class WishlistFloatingActions extends ConsumerWidget {
             right: 24,
             child: AnimatedSwitcher(
               duration: _animationDuration,
+              layoutBuilder: inertSwitcherLayout(),
               transitionBuilder: (child, animation) => FadeTransition(
                 opacity: animation,
                 child: ScaleTransition(scale: animation, child: child),
@@ -58,6 +60,9 @@ class WishlistFloatingActions extends ConsumerWidget {
               duration: _animationDuration,
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
+              layoutBuilder: inertSwitcherLayout(
+                alignment: Alignment.bottomCenter,
+              ),
               transitionBuilder: (child, animation) => SlideTransition(
                 position: Tween(
                   begin: const Offset(0, 1),

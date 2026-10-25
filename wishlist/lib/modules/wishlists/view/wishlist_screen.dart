@@ -45,6 +45,10 @@ class WishlistScreen extends ConsumerWidget {
         .read(wishlistScreenNotifierProvider(wishlistId))
         .selectedWishIds
         .length;
+    // La sélection a pu se vider entre-temps (wishs supprimés ailleurs)
+    if (count == 0) {
+      return;
+    }
     final l10n = context.l10n;
 
     final explanation = count == 1
@@ -84,6 +88,10 @@ class WishlistScreen extends ConsumerWidget {
         .read(wishlistScreenNotifierProvider(wishlistId))
         .selectedWishIds
         .length;
+    // La sélection a pu se vider entre-temps (wishs supprimés ailleurs)
+    if (count == 0) {
+      return;
+    }
     final l10n = context.l10n;
 
     await showMoveWishesDialog(
@@ -117,6 +125,9 @@ class WishlistScreen extends ConsumerWidget {
         ref.read(wishlistScreenNotifierProvider(wishlistId).notifier);
     final selectedIds =
         ref.read(wishlistScreenNotifierProvider(wishlistId)).selectedWishIds;
+    if (selectedIds.isEmpty) {
+      return;
+    }
     final wishs = ref
             .read(wishlistScreenDataRealtimeProvider(wishlistId))
             .valueOrNull

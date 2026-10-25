@@ -14,6 +14,7 @@ import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
+import 'package:wishlist/shared/widgets/inert_switcher_layout.dart';
 
 class WishlistScreenBody extends ConsumerWidget {
   const WishlistScreenBody({
@@ -143,21 +144,25 @@ class WishlistScreenBody extends ConsumerWidget {
     return Column(
       children: [
         // La carte de sélection prend la place des stats, qui restent dans
-        // l'arbre (invisibles) pour lui donner exactement leur hauteur
+        // l'arbre (invisibles, sans touche ni focus) pour lui donner
+        // exactement leur hauteur
         Stack(
           children: [
             IgnorePointer(
               ignoring: screenState.isSelectionMode,
-              child: AnimatedOpacity(
-                duration: _cardsFadeDuration,
-                opacity: screenState.isSelectionMode ? 0 : 1,
-                child: WishlistStatsSection(
-                  statCardSelected: screenState.statCardSelected,
-                  nbWishsTotal: wishs.length,
-                  nbWishsPending: nbWishsPending,
-                  nbWishsBooked: nbWishsBooked,
-                  isWishsBookedHidden: isWishsBookedHidden,
-                  onTapStatCard: notifier.selectStatCard,
+              child: ExcludeFocus(
+                excluding: screenState.isSelectionMode,
+                child: AnimatedOpacity(
+                  duration: _cardsFadeDuration,
+                  opacity: screenState.isSelectionMode ? 0 : 1,
+                  child: WishlistStatsSection(
+                    statCardSelected: screenState.statCardSelected,
+                    nbWishsTotal: wishs.length,
+                    nbWishsPending: nbWishsPending,
+                    nbWishsBooked: nbWishsBooked,
+                    isWishsBookedHidden: isWishsBookedHidden,
+                    onTapStatCard: notifier.selectStatCard,
+                  ),
                 ),
               ),
             ),
@@ -166,13 +171,7 @@ class WishlistScreenBody extends ConsumerWidget {
                 padding: WishlistStatsSection.padding,
                 child: AnimatedSwitcher(
                   duration: _cardsFadeDuration,
-                  layoutBuilder: (currentChild, previousChildren) => Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ...previousChildren,
-                      if (currentChild != null) currentChild,
-                    ],
-                  ),
+                  layoutBuilder: inertSwitcherLayout(fit: StackFit.expand),
                   child: screenState.isSelectionMode
                       ? WishlistSelectionCard(
                           selectedCount: screenState.selectedWishIds.length,

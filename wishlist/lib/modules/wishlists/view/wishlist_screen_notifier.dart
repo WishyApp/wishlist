@@ -69,10 +69,18 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
     // base of the screen's, so no context is needed.
     ref.listen(
       wishlistScreenDataRealtimeProvider(wishlistId),
-      (_, next) {
-        final wishlist = next.valueOrNull?.wishlist;
-        if (wishlist != null) {
-          cacheWishlistTheme(wishlist.id, getWishlistTheme(null, wishlist));
+      (previous, next) {
+        final data = next.valueOrNull;
+        if (data != null) {
+          cacheWishlistTheme(
+            data.wishlist.id,
+            getWishlistTheme(null, data.wishlist),
+          );
+          // Pas au premier appel, pendant build : l'état n'existe pas encore,
+          // et la sélection est vide
+          if (previous != null) {
+            _keepSelectionInWishs(data);
+          }
         }
       },
       fireImmediately: true,
@@ -146,6 +154,30 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
     state = state.copyWith(
       isSelectionMode: false,
       selectedWishIds: {},
+    );
+  }
+
+  /// Retire de la sélection les wishs qui ne sont plus dans la liste :
+  /// supprimés ou déplacés ailleurs, ou entièrement reçus. Sans cela, le
+  /// compteur les compterait et les actions s'y appliqueraient.
+  void _keepSelectionInWishs(WishlistScreenData data) {
+    if (state.selectedWishIds.isEmpty) {
+      return;
+    }
+    final receivedById = {
+      for (final c in data.completedWishes) c.wish.id: c.quantity,
+    };
+    final listedIds = {
+      for (final wish in data.wishs)
+        if ((receivedById[wish.id] ?? 0) < wish.quantity) wish.id,
+    };
+    final kept = state.selectedWishIds.intersection(listedIds);
+    if (kept.length == state.selectedWishIds.length) {
+      return;
+    }
+    state = state.copyWith(
+      selectedWishIds: kept,
+      isSelectionMode: kept.isNotEmpty,
     );
   }
 

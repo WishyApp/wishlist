@@ -130,6 +130,8 @@ class _WishList extends StatelessWidget {
     this.quantityOverrideMap,
   });
 
+  /// Laisse le dernier wish au-dessus du bouton d'ajout et de la barre
+  /// d'actions du mode sélection (WishlistSelectionActionBar)
   static const double _bottomPadding = 120;
   static const double _itemSpacing = 8;
 
