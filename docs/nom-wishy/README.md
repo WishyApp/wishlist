@@ -17,4 +17,4 @@ Ce dossier garde la trace de nos recherches et de notre raisonnement. Ce n'est p
 - [chronologie.md](chronologie.md) : les dates clés, des deux côtés
 - [recherches.md](recherches.md) : résultats bruts des recherches (TMview, KVK, web) et leur lecture
 - [analyse.md](analyse.md) : risques, droits en jeu, options (déposer ou non) et raisonnement
-- [actions.md](actions.md) : liste des actions à mener, à cocher
+- [rappels.md](rappels.md) : ce qu'il ne faut pas oublier dans la durée (les actions ponctuelles sont suivies dans un ticket Notion)

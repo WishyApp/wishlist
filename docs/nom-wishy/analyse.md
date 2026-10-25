@@ -33,7 +33,7 @@ Les montants sont des ordres de grandeur, à vérifier sur les sites de l'INPI e
 
 ## Décision
 
-Au 25 octobre 2026 : **pas de dépôt pour l'instant**. L'app est amateur et sans but lucratif, hormis couvrir un jour les frais d'exploitation. On suit les actions de [actions.md](actions.md).
+Au 25 octobre 2026 : **pas de dépôt pour l'instant**. L'app est amateur et sans but lucratif, hormis couvrir un jour les frais d'exploitation. Les actions ponctuelles sont suivies dans un ticket Notion, les rappels dans la durée dans [rappels.md](rappels.md).
 
 À réévaluer : si on décide de promouvoir l'app publiquement, si l'alerte TMview signale un dépôt, ou si on reçoit une mise en demeure.
 
