@@ -29,6 +29,13 @@ class WishlistScreenState with _$WishlistScreenState {
   }) = _WishlistScreenState;
 }
 
+extension WishlistScreenSelection on WishlistScreenState {
+  /// Vrai si tous les [wishIds] affichés sont sélectionnés : "Tout
+  /// sélectionner" devient alors "Tout désélectionner"
+  bool areAllSelected(Iterable<int> wishIds) =>
+      wishIds.isNotEmpty && wishIds.every(selectedWishIds.contains);
+}
+
 @riverpod
 class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   late final TextEditingController searchController;
@@ -107,6 +114,28 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
     } else {
       newIds.add(wishId);
     }
+    state = state.copyWith(
+      selectedWishIds: newIds,
+      isSelectionMode: newIds.isNotEmpty,
+    );
+  }
+
+  /// Ajoute [wishIds] (les wishs affichés) à la sélection, sans toucher aux
+  /// wishs déjà sélectionnés que la recherche ou l'onglet masquent
+  void selectAll(Iterable<int> wishIds) {
+    if (wishIds.isEmpty) {
+      return;
+    }
+    state = state.copyWith(
+      isSelectionMode: true,
+      selectedWishIds: {...state.selectedWishIds, ...wishIds},
+    );
+  }
+
+  /// Retire [wishIds] (les wishs affichés) de la sélection. Comme pour un
+  /// wish décoché à la main, le mode sélection se ferme quand elle est vide
+  void deselectAll(Iterable<int> wishIds) {
+    final newIds = state.selectedWishIds.difference(wishIds.toSet());
     state = state.copyWith(
       selectedWishIds: newIds,
       isSelectionMode: newIds.isNotEmpty,

@@ -1513,6 +1513,54 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Reçu le {date}'**
   String bookedWishReceivedOn(String date);
+
+  /// No description provided for @wishlistSelectionCountLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{sélectionnée} =1{sélectionnée} other{sélectionnées}}'**
+  String wishlistSelectionCountLabel(int count);
+
+  /// No description provided for @wishlistSelectionCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 sélectionnée} =1{1 sélectionnée} other{{count} sélectionnées}}'**
+  String wishlistSelectionCount(int count);
+
+  /// No description provided for @wishlistSelectAll.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout sélectionner'**
+  String get wishlistSelectAll;
+
+  /// No description provided for @wishlistDeselectAll.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout désélectionner'**
+  String get wishlistDeselectAll;
+
+  /// No description provided for @wishlistExitSelection.
+  ///
+  /// In fr, this message translates to:
+  /// **'Quitter la sélection'**
+  String get wishlistExitSelection;
+
+  /// No description provided for @wishlistSelectionComplete.
+  ///
+  /// In fr, this message translates to:
+  /// **'Valider'**
+  String get wishlistSelectionComplete;
+
+  /// No description provided for @wishlistSelectionMove.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déplacer'**
+  String get wishlistSelectionMove;
+
+  /// No description provided for @wishlistSelectionDelete.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer'**
+  String get wishlistSelectionDelete;
 }
 
 class _AppLocalizationsDelegate

@@ -9,6 +9,7 @@ import 'package:wishlist/shared/infra/repositories/wish/wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository_provider.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
+import 'package:wishlist/shared/models/wish/wish_sort_type.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
 
 import '../../../fixtures/fake_data.dart';
@@ -117,6 +118,96 @@ void main() {
       }
       verifyNever(() => repository.getWishById(any()));
       expect(container.read(provider).isSelectionMode, isFalse);
+    });
+  });
+
+  group('WishlistScreenNotifier selection', () {
+    late ProviderContainer container;
+    final provider = wishlistScreenNotifierProvider(1);
+
+    WishlistScreenState state() => container.read(provider);
+    WishlistScreenNotifier notifier() => container.read(provider.notifier);
+
+    setUp(() {
+      container = ProviderContainer(
+        overrides: [
+          wishlistThemeCacheProvider(1).overrideWith((ref) => null),
+          wishlistScreenDataRealtimeProvider(1).overrideWithValue(
+            AsyncData((fakeWishlist1, IList<Wish>(), IList())),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(provider, (_, __) {});
+      addTearDown(sub.close);
+    });
+
+    test('selectAll adds the visible wishes to the current selection', () {
+      notifier()
+        ..enableSelectionMode(1)
+        ..selectAll([2, 3]);
+
+      expect(state().selectedWishIds, {1, 2, 3});
+      expect(state().isSelectionMode, isTrue);
+    });
+
+    test('selectAll enters selection mode and ignores an empty list', () {
+      notifier().selectAll([]);
+      expect(state().isSelectionMode, isFalse);
+
+      notifier().selectAll([4, 5]);
+      expect(state().selectedWishIds, {4, 5});
+      expect(state().isSelectionMode, isTrue);
+    });
+
+    test('deselectAll keeps the wishes hidden by the search', () {
+      notifier()
+        ..enableSelectionMode(1)
+        ..toggleWishSelection(2)
+        ..toggleWishSelection(3)
+        ..deselectAll([2, 3]);
+
+      expect(state().selectedWishIds, {1});
+      expect(state().isSelectionMode, isTrue);
+    });
+
+    test('deselectAll exits selection mode once nothing is selected', () {
+      notifier()
+        ..enableSelectionMode(1)
+        ..toggleWishSelection(2)
+        ..deselectAll([1, 2]);
+
+      expect(state().selectedWishIds, isEmpty);
+      expect(state().isSelectionMode, isFalse);
+    });
+
+    test('keeps the selection when the search or the sort change', () {
+      notifier()
+        ..enableSelectionMode(1)
+        ..toggleWishSelection(2)
+        ..updateSort(
+          const WishSort(
+            type: WishSortType.price,
+            order: SortOrder.ascending,
+          ),
+        );
+      notifier().searchController.text = 'Wulfgar';
+
+      expect(state().searchQuery, 'wulfgar');
+      expect(state().selectedWishIds, {1, 2});
+      expect(state().isSelectionMode, isTrue);
+    });
+
+    test('areAllSelected is true only when every visible wish is selected', () {
+      notifier()
+        ..enableSelectionMode(1)
+        ..toggleWishSelection(2);
+
+      expect(state().areAllSelected([1, 2]), isTrue);
+      expect(state().areAllSelected([2]), isTrue);
+      expect(state().areAllSelected([1, 2, 3]), isFalse);
+      // Nothing displayed: nothing to deselect
+      expect(state().areAllSelected([]), isFalse);
     });
   });
 

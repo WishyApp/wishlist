@@ -13,6 +13,10 @@ class WishlistStatsSection extends StatelessWidget {
     required this.onTapStatCard,
   });
 
+  /// Marges autour des cartes, reprises par la carte de sélection qui les
+  /// remplace
+  static const EdgeInsets padding = EdgeInsets.all(16);
+
   final WishlistStatsCardType statCardSelected;
   final int nbWishsTotal;
   final int nbWishsPending;
@@ -26,7 +30,7 @@ class WishlistStatsSection extends StatelessWidget {
         isWishsBookedHidden ? nbWishsTotal : nbWishsPending;
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: padding,
       child: Row(
         children: [
           Expanded(

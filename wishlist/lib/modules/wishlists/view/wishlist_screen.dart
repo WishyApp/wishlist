@@ -317,7 +317,6 @@ class WishlistScreen extends ConsumerWidget {
                         if (isMyWishlist)
                           WishlistFloatingActions(
                             wishlistId: wishlistId,
-                            wishlistTheme: wishlistTheme,
                             onAdd: () => CreateWishRoute(
                               wishlistId: wishlist.id,
                             ).push(context),

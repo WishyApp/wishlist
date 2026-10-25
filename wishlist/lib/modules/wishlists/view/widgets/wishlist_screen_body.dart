@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/wishlists/infra/wishlist_screen_data_realtime_provider.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_search_bar.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wishlist_selection_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_section.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishs_tab.dart';
@@ -21,6 +22,8 @@ class WishlistScreenBody extends ConsumerWidget {
     required this.wishlistScreenData,
     required this.isMyWishlist,
   });
+
+  static const Duration _cardsFadeDuration = Duration(milliseconds: 250);
 
   final int wishlistId;
   final WishlistScreenData wishlistScreenData;
@@ -126,15 +129,66 @@ class WishlistScreenBody extends ConsumerWidget {
     final nbWishsPending = wishsPending.length;
     final nbWishsBooked = wishsBooked.length;
 
+    // Wishs affichés par l'onglet courant, avec la recherche et le tri en
+    // cours : ceux que "Tout sélectionner" coche
+    final visibleWishIds = switch (screenState.statCardSelected) {
+      WishlistStatsCardType.pending => wishsPending,
+      WishlistStatsCardType.booked =>
+        isWishsBookedHidden ? const IListConst<Wish>([]) : wishsBooked,
+    }
+        .map((wish) => wish.id)
+        .toList();
+    final areAllVisibleSelected = screenState.areAllSelected(visibleWishIds);
+
     return Column(
       children: [
-        WishlistStatsSection(
-          statCardSelected: screenState.statCardSelected,
-          nbWishsTotal: wishs.length,
-          nbWishsPending: nbWishsPending,
-          nbWishsBooked: nbWishsBooked,
-          isWishsBookedHidden: isWishsBookedHidden,
-          onTapStatCard: notifier.selectStatCard,
+        // La carte de sélection prend la place des stats, qui restent dans
+        // l'arbre (invisibles) pour lui donner exactement leur hauteur
+        Stack(
+          children: [
+            IgnorePointer(
+              ignoring: screenState.isSelectionMode,
+              child: AnimatedOpacity(
+                duration: _cardsFadeDuration,
+                opacity: screenState.isSelectionMode ? 0 : 1,
+                child: WishlistStatsSection(
+                  statCardSelected: screenState.statCardSelected,
+                  nbWishsTotal: wishs.length,
+                  nbWishsPending: nbWishsPending,
+                  nbWishsBooked: nbWishsBooked,
+                  isWishsBookedHidden: isWishsBookedHidden,
+                  onTapStatCard: notifier.selectStatCard,
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: Padding(
+                padding: WishlistStatsSection.padding,
+                child: AnimatedSwitcher(
+                  duration: _cardsFadeDuration,
+                  layoutBuilder: (currentChild, previousChildren) => Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ...previousChildren,
+                      if (currentChild != null) currentChild,
+                    ],
+                  ),
+                  child: screenState.isSelectionMode
+                      ? WishlistSelectionCard(
+                          selectedCount: screenState.selectedWishIds.length,
+                          areAllSelected: areAllVisibleSelected,
+                          onToggleSelectAll: visibleWishIds.isEmpty
+                              ? null
+                              : () => areAllVisibleSelected
+                                  ? notifier.deselectAll(visibleWishIds)
+                                  : notifier.selectAll(visibleWishIds),
+                          onExit: notifier.exitSelectionMode,
+                        )
+                      : null,
+                ),
+              ),
+            ),
+          ],
         ),
         WishlistSearchBar(
           searchController: notifier.searchController,

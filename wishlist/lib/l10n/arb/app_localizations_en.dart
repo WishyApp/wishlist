@@ -839,4 +839,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String bookedWishReceivedOn(String date) {
     return 'Received on $date';
   }
+
+  @override
+  String wishlistSelectionCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wishlistSelectionCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get wishlistSelectAll => 'Select all';
+
+  @override
+  String get wishlistDeselectAll => 'Deselect all';
+
+  @override
+  String get wishlistExitSelection => 'Exit selection';
+
+  @override
+  String get wishlistSelectionComplete => 'Complete';
+
+  @override
+  String get wishlistSelectionMove => 'Move';
+
+  @override
+  String get wishlistSelectionDelete => 'Delete';
 }

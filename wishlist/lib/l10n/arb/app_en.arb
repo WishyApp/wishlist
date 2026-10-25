@@ -305,5 +305,27 @@
         "type": "String"
       }
     }
-  }
+  },
+  "wishlistSelectionCountLabel": "{count, plural, other{selected}}",
+  "@wishlistSelectionCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wishlistSelectionCount": "{count} selected",
+  "@wishlistSelectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wishlistSelectAll": "Select all",
+  "wishlistDeselectAll": "Deselect all",
+  "wishlistExitSelection": "Exit selection",
+  "wishlistSelectionComplete": "Complete",
+  "wishlistSelectionMove": "Move",
+  "wishlistSelectionDelete": "Delete"
 }
