@@ -118,9 +118,13 @@ class WishlistScreenBody extends ConsumerWidget {
     final display = ref.watch(wishlistScreenDisplayProvider(wishlistId));
     final wishs = display.all;
     final wishsBooked = display.booked;
-    final pendingQuantityOverrides = display.pendingQuantityOverrides;
     final bookedQuantityOverrides = display.bookedQuantityOverrides;
     final isWishsBookedHidden = !wishlist.canOwnerSeeTakenWish && isMyWishlist;
+    // Réservations masquées : elles ne se déduisent pas de l'attente, même si
+    // le propriétaire lit sa propre réservation (ligne héritée).
+    final pendingQuantityOverrides = isWishsBookedHidden
+        ? display.pendingQuantityIgnoringBookingsOverrides
+        : display.pendingQuantityOverrides;
     final wishsPending = isWishsBookedHidden ? wishs : display.available;
 
     final nbWishsPending = wishsPending.length;

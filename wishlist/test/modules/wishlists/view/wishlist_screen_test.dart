@@ -433,6 +433,87 @@ void main() {
     expect(find.text('x2'), findsOneWidget);
   });
 
+  group('pending quantity when the owner does not see the bookings', () {
+    // fakeWishlist2 belongs to the current user and hides the bookings: the
+    // only booking they can still read is their own (legacy row).
+    Wish wishWithBookings({required int quantity, required int booked}) =>
+        fakeWish1.copyWith(
+          wishlistId: fakeWishlist2.id,
+          quantity: quantity,
+          takenByUser: [
+            fakeWishTakenByUser.copyWith(
+              wishId: fakeWish1.id,
+              userId: fakeCurrentUserId,
+              quantity: booked,
+            ),
+          ].toIList(),
+        );
+
+    Future<void> pumpWishlist(
+      WidgetTester tester, {
+      required Wishlist wishlist,
+      required Wish wish,
+      List<CompletedWishWithDetails> completedWishes = const [],
+    }) async {
+      await tester.pumpRouterApp(
+        WishlistRoute(wishlistId: wishlist.id).location,
+        overrides: wishlistScreenOverrides(
+          wishlistId: wishlist.id,
+          wishlist: wishlist,
+          wishes: [wish],
+          completedWishes: completedWishes,
+          currentUserId: fakeCurrentUserId,
+        ),
+      );
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+    }
+
+    testWidgets('still shows a fully booked wish with its whole quantity',
+        (tester) async {
+      final wish = wishWithBookings(quantity: 3, booked: 3);
+
+      await pumpWishlist(tester, wishlist: fakeWishlist2, wish: wish);
+
+      expect(find.text(wish.name), findsOneWidget);
+      expect(find.text('x3'), findsOneWidget);
+    });
+
+    testWidgets('only subtracts the received quantity', (tester) async {
+      final wish = wishWithBookings(quantity: 3, booked: 1);
+
+      await pumpWishlist(
+        tester,
+        wishlist: fakeWishlist2,
+        wish: wish,
+        completedWishes: [completedWish(wish, 1)],
+      );
+
+      expect(find.text('x2'), findsOneWidget);
+    });
+
+    testWidgets('subtracts the bookings on the wishlist of a friend',
+        (tester) async {
+      final friendWishlist = Wishlist(
+        id: fakeWishlist2.id,
+        createdAt: fakeWishlist2.createdAt,
+        name: fakeWishlist2.name,
+        idOwner: fakeFriendUserId1,
+        color: fakeWishlist2.color,
+        endDate: fakeWishlist2.endDate,
+        visibility: fakeWishlist2.visibility,
+        order: fakeWishlist2.order,
+        updatedBy: fakeFriendUserId1,
+        updatedAt: fakeWishlist2.updatedAt,
+      );
+      final wish = wishWithBookings(quantity: 3, booked: 1);
+
+      await pumpWishlist(tester, wishlist: friendWishlist, wish: wish);
+
+      expect(find.text('x2'), findsOneWidget);
+      expect(find.text('x3'), findsNothing);
+    });
+  });
+
   testWidgets('adjusts the booked quantity after a partial completion',
       (tester) async {
     final wishWithBookings = fakeWishBooked.copyWith(

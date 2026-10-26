@@ -36,6 +36,24 @@ void main() {
       expect(bookedOne.pendingQuantity(receivedQuantity: 2), 1);
     });
 
+    test('ignoreBookings only subtracts the received quantity', () {
+      final bookedTwo = wish.copyWith(
+        takenByUser: [
+          fakeWishTakenByUser.copyWith(wishId: wish.id, quantity: 2),
+        ].toIList(),
+      );
+
+      expect(bookedOne.pendingQuantity(ignoreBookings: true), 3);
+      expect(
+        bookedTwo.pendingQuantity(receivedQuantity: 1, ignoreBookings: true),
+        2,
+      );
+      expect(
+        bookedTwo.pendingQuantity(receivedQuantity: 5, ignoreBookings: true),
+        0,
+      );
+    });
+
     test('never goes below 0', () {
       expect(fakeWishBooked.bookableQuantity(receivedQuantity: 1), 0);
       expect(wish.bookableQuantity(receivedQuantity: 5), 0);

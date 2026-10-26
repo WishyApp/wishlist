@@ -46,8 +46,15 @@ class Wish with _$Wish implements Updatable {
   /// reçue par le propriétaire ([receivedQuantity]) consomme d'abord les
   /// réservations (l'ami réserve, offre, puis le propriétaire marque reçu).
   /// Même règle que le serveur : max(réservé, reçu) <= quantité du wish.
-  int pendingQuantity({int receivedQuantity = 0}) =>
-      (quantity - max(totalBookedQuantity, receivedQuantity))
+  /// Avec [ignoreBookings], les réservations ne comptent pas : quantité -
+  /// reçu. C'est le cas d'un propriétaire qui ne voit pas les réservations de
+  /// sa wishlist, pour qui elles ne doivent pas se déduire de l'attente.
+  int pendingQuantity({
+    int receivedQuantity = 0,
+    bool ignoreBookings = false,
+  }) =>
+      (quantity -
+              max(ignoreBookings ? 0 : totalBookedQuantity, receivedQuantity))
           .clamp(0, quantity)
           .toInt();
 

@@ -12,12 +12,17 @@ import 'package:wishlist/shared/utils/wish_sort_utils.dart';
 /// sont pas réduites : les overrides portent la quantité en attente / réservée
 /// restante.
 /// Les wishs en attente se déduisent dans le body : ce sont tous les wishs si
-/// le propriétaire ne voit pas les réservations, sinon les disponibles
+/// le propriétaire ne voit pas les réservations, sinon les disponibles.
+/// `pendingQuantityIgnoringBookingsOverrides` donne la quantité en attente
+/// sans tenir compte des réservations (quantité - reçu) : c'est celle que le
+/// propriétaire qui ne voit pas les réservations affiche, car il peut encore
+/// lire sa propre réservation (ligne héritée), qui ne doit pas s'en déduire.
 typedef WishlistScreenDisplay = ({
   IList<Wish> all,
   IList<Wish> available,
   IList<Wish> booked,
   IMap<int, int> pendingQuantityOverrides,
+  IMap<int, int> pendingQuantityIgnoringBookingsOverrides,
   IMap<int, int> bookedQuantityOverrides,
 });
 
@@ -26,6 +31,7 @@ const _emptyDisplay = (
   available: IListConst<Wish>([]),
   booked: IListConst<Wish>([]),
   pendingQuantityOverrides: IMapConst<int, int>({}),
+  pendingQuantityIgnoringBookingsOverrides: IMapConst<int, int>({}),
   bookedQuantityOverrides: IMapConst<int, int>({}),
 );
 
@@ -78,6 +84,14 @@ final wishlistScreenDisplayProvider =
     for (final wish in wishs) wish.id: pendingQuantityOf(wish),
   });
 
+  final pendingQuantityIgnoringBookingsOverrides = IMap<int, int>({
+    for (final wish in wishs)
+      wish.id: wish.pendingQuantity(
+        receivedQuantity: completedByWishId[wish.id] ?? 0,
+        ignoreBookings: true,
+      ),
+  });
+
   // Réservé restant = réservé - reçu : la quantité reçue consomme d'abord les
   // réservations. Un wish dont toutes les réservations sont reçues n'est plus
   // listé comme réservé.
@@ -99,6 +113,8 @@ final wishlistScreenDisplayProvider =
     available: available,
     booked: booked,
     pendingQuantityOverrides: pendingQuantityOverrides,
+    pendingQuantityIgnoringBookingsOverrides:
+        pendingQuantityIgnoringBookingsOverrides,
     bookedQuantityOverrides: bookedQuantityOverrides,
   );
 });
