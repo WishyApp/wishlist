@@ -36,8 +36,9 @@ Recherche sur https://www.tmdn.org/tmview/ (couvre notamment EUIPO, BOIP, INPI, 
 Lecture :
 
 - **Aucune marque à l'EUIPO, au BOIP ni à l'INPI.** Aucune n'appartient à Boysenberry.
-- De Agostini (classes 16, 28, 41) : papeterie, jouets, édition et divertissement. Ce sont des produits éloignés d'une app de listes de souhaits, qui relève des classes 9 (logiciel téléchargeable) et 42 (logiciel en ligne). À vérifier : les pays désignés par l'enregistrement OMPI 1506567, peut-être l'UE.
+- De Agostini (classes 16, 28, 41) : papeterie, jouets, édition et divertissement. Ce sont des produits éloignés d'une app de listes de souhaits, qui relève des classes 9 (logiciel téléchargeable) et 42 (logiciel en ligne). À vérifier : les pays désignés par l'enregistrement OMPI 1506567 (fiche WIPO Madrid Monitor), peut-être l'UE. La classe 41 (divertissement, éducation) n'est pas si loin d'une app.
 - Classe 42 aux États-Unis (2026) et au Brésil (2024) : ces marques ne valent que dans ces pays. À regarder avant toute publication aux États-Unis.
+- USPTO 99592783 : déposée le 13/01/2026, numéro de série en 99. Malgré le statut « Enregistrée » affiché par TMview, c'est très probablement encore une demande en cours d'examen. Statut exact à vérifier sur TSDR (USPTO).
 
 ## 3. TMview : « Boysenberry »
 
