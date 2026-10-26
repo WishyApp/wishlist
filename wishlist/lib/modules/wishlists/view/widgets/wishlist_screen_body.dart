@@ -169,12 +169,17 @@ class WishlistScreenBody extends ConsumerWidget {
                   duration: _cardsFadeDuration,
                   layoutBuilder: inertSwitcherLayout(fit: StackFit.expand),
                   child: screenState.isSelectionMode
-                      ? WishlistSelectionCard(
-                          selectedCount: screenState.selectedWishIds.length,
-                          onSelectAll: areAllVisibleSelected
-                              ? null
-                              : () => notifier.selectAll(visibleWishIds),
-                          onExit: notifier.exitSelectionMode,
+                      // Inerte pendant une action sur la sélection, comme la
+                      // barre d'actions
+                      ? Inert(
+                          inert: screenState.isSelectionActionRunning,
+                          child: WishlistSelectionCard(
+                            selectedCount: screenState.selectedWishIds.length,
+                            onSelectAll: areAllVisibleSelected
+                                ? null
+                                : () => notifier.selectAll(visibleWishIds),
+                            onExit: notifier.exitSelectionMode,
+                          ),
                         )
                       : null,
                 ),

@@ -723,6 +723,45 @@ void main() {
       );
     });
 
+    testWidgets('ignores the selection buttons while an action runs',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WishlistScreen)),
+      );
+      final provider = wishlistScreenNotifierProvider(2);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      // An action without dialog, e.g. completing wishs of quantity 1
+      final actionDone = Completer<void>();
+      final action = container
+          .read(provider.notifier)
+          .runOnSelection((_) => actionDone.future);
+      await tester.pump();
+
+      await tester.tap(
+        find.text(l10n.wishlistSelectionDelete),
+        warnIfMissed: false,
+      );
+      await tester.tap(
+        find.byTooltip(l10n.wishlistExitSelection),
+        warnIfMissed: false,
+      );
+      await tester.tap(find.text(fakeWish2.name), warnIfMissed: false);
+      await tester.pump();
+
+      expect(find.text(l10n.deleteSelectedWishes), findsNothing);
+      expect(container.read(provider).selectedWishIds, {fakeWish1.id});
+      expect(container.read(provider).isSelectionMode, isTrue);
+
+      actionDone.complete();
+      await action;
+      await tester.pumpAndSettle();
+      expect(container.read(provider).isSelectionMode, isFalse);
+    });
+
     testWidgets('does not move the keyboard focus to the hidden stats',
         (tester) async {
       await pumpOwnerWishlist(tester);

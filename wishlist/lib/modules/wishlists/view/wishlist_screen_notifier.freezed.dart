@@ -23,6 +23,11 @@ mixin _$WishlistScreenState {
   bool get isSelectionMode => throw _privateConstructorUsedError;
   Set<int> get selectedWishIds => throw _privateConstructorUsedError;
 
+  /// Une action sur la sélection est en cours (voir
+  /// [WishlistScreenNotifier.runOnSelection]) : la sélection est figée et ses
+  /// boutons inertes jusqu'à la fin
+  bool get isSelectionActionRunning => throw _privateConstructorUsedError;
+
   /// Create a copy of WishlistScreenState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -41,7 +46,8 @@ abstract class $WishlistScreenStateCopyWith<$Res> {
       WishSort wishSort,
       String searchQuery,
       bool isSelectionMode,
-      Set<int> selectedWishIds});
+      Set<int> selectedWishIds,
+      bool isSelectionActionRunning});
 }
 
 /// @nodoc
@@ -64,6 +70,7 @@ class _$WishlistScreenStateCopyWithImpl<$Res, $Val extends WishlistScreenState>
     Object? searchQuery = null,
     Object? isSelectionMode = null,
     Object? selectedWishIds = null,
+    Object? isSelectionActionRunning = null,
   }) {
     return _then(_value.copyWith(
       statCardSelected: null == statCardSelected
@@ -86,6 +93,10 @@ class _$WishlistScreenStateCopyWithImpl<$Res, $Val extends WishlistScreenState>
           ? _value.selectedWishIds
           : selectedWishIds // ignore: cast_nullable_to_non_nullable
               as Set<int>,
+      isSelectionActionRunning: null == isSelectionActionRunning
+          ? _value.isSelectionActionRunning
+          : isSelectionActionRunning // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -103,7 +114,8 @@ abstract class _$$WishlistScreenStateImplCopyWith<$Res>
       WishSort wishSort,
       String searchQuery,
       bool isSelectionMode,
-      Set<int> selectedWishIds});
+      Set<int> selectedWishIds,
+      bool isSelectionActionRunning});
 }
 
 /// @nodoc
@@ -124,6 +136,7 @@ class __$$WishlistScreenStateImplCopyWithImpl<$Res>
     Object? searchQuery = null,
     Object? isSelectionMode = null,
     Object? selectedWishIds = null,
+    Object? isSelectionActionRunning = null,
   }) {
     return _then(_$WishlistScreenStateImpl(
       statCardSelected: null == statCardSelected
@@ -146,6 +159,10 @@ class __$$WishlistScreenStateImplCopyWithImpl<$Res>
           ? _value._selectedWishIds
           : selectedWishIds // ignore: cast_nullable_to_non_nullable
               as Set<int>,
+      isSelectionActionRunning: null == isSelectionActionRunning
+          ? _value.isSelectionActionRunning
+          : isSelectionActionRunning // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -159,7 +176,8 @@ class _$WishlistScreenStateImpl implements _WishlistScreenState {
           type: WishSortType.favorite, order: SortOrder.descending),
       this.searchQuery = '',
       this.isSelectionMode = false,
-      final Set<int> selectedWishIds = const <int>{}})
+      final Set<int> selectedWishIds = const <int>{},
+      this.isSelectionActionRunning = false})
       : _selectedWishIds = selectedWishIds;
 
   @override
@@ -183,9 +201,16 @@ class _$WishlistScreenStateImpl implements _WishlistScreenState {
     return EqualUnmodifiableSetView(_selectedWishIds);
   }
 
+  /// Une action sur la sélection est en cours (voir
+  /// [WishlistScreenNotifier.runOnSelection]) : la sélection est figée et ses
+  /// boutons inertes jusqu'à la fin
+  @override
+  @JsonKey()
+  final bool isSelectionActionRunning;
+
   @override
   String toString() {
-    return 'WishlistScreenState(statCardSelected: $statCardSelected, wishSort: $wishSort, searchQuery: $searchQuery, isSelectionMode: $isSelectionMode, selectedWishIds: $selectedWishIds)';
+    return 'WishlistScreenState(statCardSelected: $statCardSelected, wishSort: $wishSort, searchQuery: $searchQuery, isSelectionMode: $isSelectionMode, selectedWishIds: $selectedWishIds, isSelectionActionRunning: $isSelectionActionRunning)';
   }
 
   @override
@@ -202,7 +227,10 @@ class _$WishlistScreenStateImpl implements _WishlistScreenState {
             (identical(other.isSelectionMode, isSelectionMode) ||
                 other.isSelectionMode == isSelectionMode) &&
             const DeepCollectionEquality()
-                .equals(other._selectedWishIds, _selectedWishIds));
+                .equals(other._selectedWishIds, _selectedWishIds) &&
+            (identical(
+                    other.isSelectionActionRunning, isSelectionActionRunning) ||
+                other.isSelectionActionRunning == isSelectionActionRunning));
   }
 
   @override
@@ -212,7 +240,8 @@ class _$WishlistScreenStateImpl implements _WishlistScreenState {
       wishSort,
       searchQuery,
       isSelectionMode,
-      const DeepCollectionEquality().hash(_selectedWishIds));
+      const DeepCollectionEquality().hash(_selectedWishIds),
+      isSelectionActionRunning);
 
   /// Create a copy of WishlistScreenState
   /// with the given fields replaced by the non-null parameter values.
@@ -230,7 +259,8 @@ abstract class _WishlistScreenState implements WishlistScreenState {
       final WishSort wishSort,
       final String searchQuery,
       final bool isSelectionMode,
-      final Set<int> selectedWishIds}) = _$WishlistScreenStateImpl;
+      final Set<int> selectedWishIds,
+      final bool isSelectionActionRunning}) = _$WishlistScreenStateImpl;
 
   @override
   WishlistStatsCardType get statCardSelected;
@@ -242,6 +272,12 @@ abstract class _WishlistScreenState implements WishlistScreenState {
   bool get isSelectionMode;
   @override
   Set<int> get selectedWishIds;
+
+  /// Une action sur la sélection est en cours (voir
+  /// [WishlistScreenNotifier.runOnSelection]) : la sélection est figée et ses
+  /// boutons inertes jusqu'à la fin
+  @override
+  bool get isSelectionActionRunning;
 
   /// Create a copy of WishlistScreenState
   /// with the given fields replaced by the non-null parameter values.

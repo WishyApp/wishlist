@@ -26,6 +26,11 @@ class WishlistScreenState with _$WishlistScreenState {
     @Default('') String searchQuery,
     @Default(false) bool isSelectionMode,
     @Default(<int>{}) Set<int> selectedWishIds,
+
+    /// Une action sur la sélection est en cours (voir
+    /// [WishlistScreenNotifier.runOnSelection]) : la sélection est figée et ses
+    /// boutons inertes jusqu'à la fin
+    @Default(false) bool isSelectionActionRunning,
   }) = _WishlistScreenState;
 }
 
@@ -42,9 +47,6 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   late final FocusNode searchFocusNode;
   late final PageController pageController;
   var _isDisposed = false;
-
-  /// Une action sur la sélection est en cours (voir [runOnSelection])
-  var _isSelectionActionRunning = false;
 
   @override
   WishlistScreenState build(int wishlistId) {
@@ -112,6 +114,9 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   }
 
   void enableSelectionMode(int wishId) {
+    if (state.isSelectionActionRunning) {
+      return;
+    }
     state = state.copyWith(
       isSelectionMode: true,
       selectedWishIds: {...state.selectedWishIds, wishId},
@@ -119,6 +124,9 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   }
 
   void toggleWishSelection(int wishId) {
+    if (state.isSelectionActionRunning) {
+      return;
+    }
     final newIds = {...state.selectedWishIds};
     if (newIds.contains(wishId)) {
       newIds.remove(wishId);
@@ -134,7 +142,7 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   /// Ajoute [wishIds] (les wishs affichés) à la sélection, sans toucher aux
   /// wishs déjà sélectionnés que la recherche ou l'onglet masquent
   void selectAll(Iterable<int> wishIds) {
-    if (wishIds.isEmpty) {
+    if (state.isSelectionActionRunning || wishIds.isEmpty) {
       return;
     }
     state = state.copyWith(
@@ -154,7 +162,7 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   /// supprimés ou déplacés ailleurs, ou entièrement reçus. Sans cela, le
   /// compteur les compterait et les actions s'y appliqueraient.
   void _keepSelectionInWishs(WishlistScreenData data) {
-    if (_isSelectionActionRunning || state.selectedWishIds.isEmpty) {
+    if (state.isSelectionActionRunning || state.selectedWishIds.isEmpty) {
       return;
     }
     final listedIds = {
@@ -176,16 +184,20 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
   /// sélection se fermerait en pleine action. En cas d'erreur, la sélection
   /// reste, sans les wishs qui ont quitté la liste.
   ///
+  /// Une seule action à la fois : pendant qu'elle tourne, une autre n'est pas
+  /// lancée et la sélection ne change pas.
+  ///
   /// Renvoie le nombre de wishs traités, lu au lancement : la sélection a pu
-  /// changer pendant une confirmation (0 si elle s'est vidée, sans action).
+  /// changer pendant une confirmation (0 si elle s'est vidée ou si une action
+  /// tournait déjà, sans action).
   Future<int> runOnSelection(
     Future<void> Function(Set<int> wishIds) action,
   ) async {
     final selectedIds = state.selectedWishIds;
-    if (selectedIds.isEmpty) {
+    if (state.isSelectionActionRunning || selectedIds.isEmpty) {
       return 0;
     }
-    _isSelectionActionRunning = true;
+    state = state.copyWith(isSelectionActionRunning: true);
     try {
       await action(selectedIds);
       if (!_isDisposed) {
@@ -193,14 +205,14 @@ class WishlistScreenNotifier extends _$WishlistScreenNotifier {
       }
       return selectedIds.length;
     } finally {
-      _isSelectionActionRunning = false;
-      final data = _isDisposed
-          ? null
-          : ref
-              .read(wishlistScreenDataRealtimeProvider(wishlistId))
-              .valueOrNull;
-      if (data != null) {
-        _keepSelectionInWishs(data);
+      if (!_isDisposed) {
+        state = state.copyWith(isSelectionActionRunning: false);
+        final data = ref
+            .read(wishlistScreenDataRealtimeProvider(wishlistId))
+            .valueOrNull;
+        if (data != null) {
+          _keepSelectionInWishs(data);
+        }
       }
     }
   }

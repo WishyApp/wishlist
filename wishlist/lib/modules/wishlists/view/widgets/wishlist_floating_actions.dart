@@ -27,9 +27,10 @@ class WishlistFloatingActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isSelection = ref.watch(
-      wishlistScreenNotifierProvider(wishlistId)
-          .select((state) => state.isSelectionMode),
+    final (isSelection, isActionRunning) = ref.watch(
+      wishlistScreenNotifierProvider(wishlistId).select(
+        (state) => (state.isSelectionMode, state.isSelectionActionRunning),
+      ),
     );
 
     // Les zones vides laissent passer les touches vers la liste
@@ -71,10 +72,14 @@ class WishlistFloatingActions extends ConsumerWidget {
                 child: child,
               ),
               child: isSelection
-                  ? WishlistSelectionActionBar(
-                      onComplete: onComplete,
-                      onMove: onMove,
-                      onDelete: onDelete,
+                  // Une action à la fois : inerte tant qu'une action tourne
+                  ? Inert(
+                      inert: isActionRunning,
+                      child: WishlistSelectionActionBar(
+                        onComplete: onComplete,
+                        onMove: onMove,
+                        onDelete: onDelete,
+                      ),
                     )
                   : null,
             ),

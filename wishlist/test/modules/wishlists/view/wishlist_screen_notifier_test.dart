@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -313,6 +315,31 @@ void main() {
       verify(() => repository.deleteWish(1)).called(1);
       verify(() => repository.deleteWish(2)).called(1);
       verifyNever(() => repository.deleteWish(3));
+    });
+
+    test('runs one action at a time, on a frozen selection', () async {
+      final notifier = container.read(provider.notifier);
+      final firstDone = Completer<void>();
+      var secondRuns = 0;
+
+      final first = notifier.runOnSelection((_) => firstDone.future);
+      expect(container.read(provider).isSelectionActionRunning, isTrue);
+
+      // A second action, and selection changes, are ignored meanwhile
+      expect(await notifier.runOnSelection((_) async => secondRuns++), 0);
+      expect(secondRuns, 0);
+      notifier
+        ..toggleWishSelection(3)
+        ..toggleWishSelection(1)
+        ..selectAll([3])
+        ..enableSelectionMode(3);
+      expect(container.read(provider).selectedWishIds, {1, 2});
+      expect(container.read(provider).isSelectionActionRunning, isTrue);
+
+      firstDone.complete();
+      expect(await first, 2);
+      expect(container.read(provider).isSelectionActionRunning, isFalse);
+      expect(container.read(provider).isSelectionMode, isFalse);
     });
 
     test('runs nothing on an empty selection', () async {
