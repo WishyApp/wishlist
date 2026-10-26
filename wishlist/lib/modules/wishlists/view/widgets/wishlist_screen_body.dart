@@ -192,7 +192,11 @@ class WishlistScreenBody extends ConsumerWidget {
         ),
         Expanded(
           child: PageView(
-            physics: const ClampingScrollPhysics(),
+            // En mode sélection, l'onglet reste celui où la sélection a
+            // commencé : c'est lui que "Tout sélectionner" coche
+            physics: screenState.isSelectionMode
+                ? const NeverScrollableScrollPhysics()
+                : const ClampingScrollPhysics(),
             controller: notifier.pageController,
             onPageChanged: notifier.onPageChanged,
             children: [

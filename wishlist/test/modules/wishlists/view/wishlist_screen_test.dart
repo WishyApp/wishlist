@@ -648,6 +648,30 @@ void main() {
       );
     });
 
+    testWidgets('stays on its tab until the selection mode ends',
+        (tester) async {
+      await pumpOwnerWishlist(tester, wishes: fakeWishesWithBooked);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WishlistScreen)),
+      );
+      WishlistStatsCardType tab() =>
+          container.read(wishlistScreenNotifierProvider(2)).statCardSelected;
+      Future<void> swipeToBooked() async {
+        await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
+        await tester.pumpAndSettle();
+      }
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+      await swipeToBooked();
+      expect(tab(), WishlistStatsCardType.pending);
+
+      await tester.tap(find.byTooltip(l10n.wishlistExitSelection));
+      await tester.pumpAndSettle();
+      await swipeToBooked();
+      expect(tab(), WishlistStatsCardType.booked);
+    });
+
     testWidgets('keeps the empty state clear of the action bar',
         (tester) async {
       await pumpOwnerWishlist(tester);
