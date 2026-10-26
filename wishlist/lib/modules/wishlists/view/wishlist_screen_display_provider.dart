@@ -7,8 +7,10 @@ import 'package:wishlist/shared/utils/wish_sort_utils.dart';
 
 /// Listes de wishs affichées par l'écran wishlist, déjà ajustées des wishs
 /// complétés, filtrées, triées et réparties entre en attente et réservés.
-/// Les wishs entièrement reçus sont exclus. Les quantités affichées ne sont pas
-/// réduites : les overrides portent la quantité en attente / réservée.
+/// Les wishs entièrement reçus sont exclus, et ceux dont toutes les
+/// réservations sont reçues quittent les réservés. Les quantités affichées ne
+/// sont pas réduites : les overrides portent la quantité en attente / réservée
+/// restante.
 /// Les wishs en attente se déduisent dans le body : ce sont tous les wishs si
 /// le propriétaire ne voit pas les réservations, sinon les disponibles
 typedef WishlistScreenDisplay = ({
@@ -76,13 +78,22 @@ final wishlistScreenDisplayProvider =
     for (final wish in wishs) wish.id: pendingQuantityOf(wish),
   });
 
-  final booked = wishs.where((wish) => wish.totalBookedQuantity > 0).toIList();
+  // Réservé restant = réservé - reçu : la quantité reçue consomme d'abord les
+  // réservations. Un wish dont toutes les réservations sont reçues n'est plus
+  // listé comme réservé.
+  int remainingBookedQuantityOf(Wish wish) =>
+      (wish.totalBookedQuantity - (completedByWishId[wish.id] ?? 0)).clamp(
+        0,
+        wish.totalBookedQuantity,
+      );
+
+  final booked =
+      wishs.where((wish) => remainingBookedQuantityOf(wish) > 0).toIList();
 
   final bookedQuantityOverrides = IMap<int, int>({
     for (final wish in booked)
       if ((completedByWishId[wish.id] ?? 0) > 0)
-        wish.id: (wish.totalBookedQuantity - (completedByWishId[wish.id] ?? 0))
-            .clamp(0, wish.totalBookedQuantity),
+        wish.id: remainingBookedQuantityOf(wish),
   });
 
   return (
