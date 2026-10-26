@@ -127,8 +127,9 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
         final quantityToDisplay = _quantityToDisplay(
           wishData,
           ownerReceivedQuantity: ownerReceivedQuantity,
-          ignoreBookings: isMyWishlist &&
-              wishlistAsync.valueOrNull?.canOwnerSeeTakenWish == false,
+          ignoreBookings:
+              wishlistAsync.valueOrNull?.hidesBookingsFrom(currentUserId) ??
+                  false,
         );
         // Tant que le propriétaire n'est pas connu, on masque les actions
         // pour ne pas afficher brièvement celles d'un invité au propriétaire.

@@ -547,6 +547,50 @@ void main() {
     expect(find.text('x2'), findsOneWidget);
   });
 
+  testWidgets('hides the bookings from the owner and lists the wish as pending',
+      (tester) async {
+    final wishBookedByFriend = fakeWishBooked.copyWith(
+      quantity: 4,
+      takenByUser: [
+        fakeWishTakenByUser.copyWith(quantity: 2),
+        fakeWishTakenByUser.copyWith(
+          userId: fakeCurrentUserId,
+          quantity: 1,
+        ),
+      ].toIList(),
+    );
+
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 1).location,
+      overrides: wishlistScreenOverrides(
+        wishlistId: 1,
+        wishlist: fakeWishlist1.copyWith(canOwnerSeeTakenWish: false),
+        wishes: [wishBookedByFriend],
+        currentUserId: fakeCurrentUserId,
+      ),
+    );
+
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    final bookedStatsCard = find.byWidgetPredicate(
+      (widget) =>
+          widget is WishlistStatsCard &&
+          widget.type == WishlistStatsCardType.booked,
+    );
+    expect(
+      find.descendant(of: bookedStatsCard, matching: find.text('?')),
+      findsOneWidget,
+    );
+    // Les réservations ne se déduisent pas : 4 en attente
+    expect(find.text(wishBookedByFriend.name), findsOneWidget);
+    expect(find.text('x4'), findsOneWidget);
+
+    await tester.tap(bookedStatsCard);
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    expect(find.text(wishBookedByFriend.name), findsNothing);
+  });
+
   testWidgets(
       'removes a wish from the booked tab once its bookings are received',
       (tester) async {
@@ -772,7 +816,7 @@ void main() {
     final container = ProviderContainer(
       overrides: wishlistScreenOverrides(
         wishlistId: 2,
-        wishlist: fakeWishlist2,
+        wishlist: fakeWishlist2.copyWith(canOwnerSeeTakenWish: true),
         wishes: [
           wishBooked1Received1,
           wishBooked1Received2,
@@ -808,7 +852,7 @@ void main() {
     expect(display.pendingQuantityOverrides[101], 2);
     expect(display.pendingQuantityOverrides[102], 1);
     expect(
-      display.available.map((w) => w.id),
+      display.pending.map((w) => w.id),
       unorderedEquals([101, 102, 105, 106, 107]),
     );
     // Entièrement réservé : plus rien en attente
@@ -827,6 +871,66 @@ void main() {
       105: 2,
       107: 2,
     });
+  });
+
+  test('ignores the own booking of an owner who does not see bookings',
+      () async {
+    // Ligne héritée : le propriétaire lit encore sa propre réservation
+    final ownBooked = fakeWish1.copyWith(
+      quantity: 4,
+      takenByUser: [
+        fakeWishTakenByUser.copyWith(
+          wishId: fakeWish1.id,
+          userId: fakeCurrentUserId,
+          quantity: 4,
+        ),
+      ].toIList(),
+    );
+
+    Future<WishlistScreenDisplay> displayFor({
+      required Wishlist wishlist,
+      required String currentUserId,
+    }) async {
+      final container = ProviderContainer(
+        overrides: wishlistScreenOverrides(
+          wishlistId: 2,
+          wishlist: wishlist,
+          wishes: [ownBooked],
+          completedWishes: [completedWish(ownBooked, 1)],
+          currentUserId: currentUserId,
+        ),
+      );
+      addTearDown(container.dispose);
+      container
+        ..listen(wishlistScreenDisplayProvider(2), (_, __) {})
+        ..listen(wishlistScreenNotifierProvider(2), (_, __) {});
+      await pumpEventQueue();
+      return container.read(wishlistScreenDisplayProvider(2));
+    }
+
+    // Masqué : quantité - reçu, le wish reste en attente
+    final hidden = await displayFor(
+      wishlist: fakeWishlist2,
+      currentUserId: fakeCurrentUserId,
+    );
+    expect(hidden.pending.map((w) => w.id), [ownBooked.id]);
+    expect(hidden.pendingQuantityOverrides[ownBooked.id], 3);
+
+    // Réservations visibles : entièrement réservé, plus rien en attente
+    final visible = await displayFor(
+      wishlist: fakeWishlist2.copyWith(canOwnerSeeTakenWish: true),
+      currentUserId: fakeCurrentUserId,
+    );
+    expect(visible.pending, isEmpty);
+    expect(visible.pendingQuantityOverrides[ownBooked.id], 0);
+
+    // Un autre utilisateur n'est pas concerné
+    final other = await displayFor(
+      wishlist: fakeWishlist2,
+      currentUserId: fakeFriendUserId2,
+    );
+    expect(other.pending, isEmpty);
+    expect(other.pendingQuantityOverrides[ownBooked.id], 0);
   });
 
   test('does not recompute the displayed wishs on selection change', () async {
