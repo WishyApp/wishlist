@@ -498,6 +498,24 @@ void main() {
     // Il reste 2 à offrir : le wish reste en attente
     expect(find.text(wishWithBookings.name), findsOneWidget);
     expect(find.text('x2'), findsOneWidget);
+
+    await tester.tap(find.byWidget(bookedStatsCard));
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    // La page réservés reçoit une liste vide et affiche son état vide
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is WishsTab &&
+            widget.statCardSelected == WishlistStatsCardType.booked &&
+            widget.wishsToDisplay.isEmpty,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(AppLocalizationsFr().wishlistNoWishBooked),
+      findsOneWidget,
+    );
   });
 
   testWidgets('completes the selected wish with its default quantity',
@@ -654,6 +672,22 @@ void main() {
       quantity: 5,
       takenByUser: [fakeWishTakenByUser.copyWith(quantity: 3)].toIList(),
     );
+    // Wishlist privée : l'ami ne lit que sa réservation (2), le reçu (3)
+    // couvre aussi le cadeau d'un autre ami
+    final wishPrivateOwnBookingOnly = wishWithId(
+      106,
+      quantity: 10,
+      takenByUser: [fakeWishTakenByUser.copyWith(quantity: 2)].toIList(),
+    );
+    // Wishlist publique : les deux réservations (2 + 3) sont lisibles
+    final wishTwoBookers = wishWithId(
+      107,
+      quantity: 10,
+      takenByUser: [
+        fakeWishTakenByUser.copyWith(quantity: 2),
+        fakeWishTakenByUser.copyWith(userId: fakeFriendUserId2, quantity: 3),
+      ].toIList(),
+    );
     final container = ProviderContainer(
       overrides: wishlistScreenOverrides(
         wishlistId: 2,
@@ -664,12 +698,16 @@ void main() {
           wishFullyReceived,
           wishFullyBooked,
           wishBooked3Received1,
+          wishPrivateOwnBookingOnly,
+          wishTwoBookers,
         ],
         completedWishes: [
           completedWish(wishBooked1Received1, 1),
           completedWish(wishBooked1Received2, 2),
           completedWish(wishFullyReceived, 2),
           completedWish(wishBooked3Received1, 1),
+          completedWish(wishPrivateOwnBookingOnly, 3),
+          completedWish(wishTwoBookers, 3),
         ],
         currentUserId: fakeCurrentUserId,
       ),
@@ -690,15 +728,24 @@ void main() {
     expect(display.pendingQuantityOverrides[102], 1);
     expect(
       display.available.map((w) => w.id),
-      unorderedEquals([101, 102, 105]),
+      unorderedEquals([101, 102, 105, 106, 107]),
     );
     // Entièrement réservé : plus rien en attente
     expect(display.pendingQuantityOverrides[104], 0);
     // Réservé restant = max(réservé - reçu, 0) : un wish dont toutes les
     // réservations sont reçues quitte l'onglet réservés
-    expect(display.booked.map((w) => w.id), unorderedEquals([104, 105]));
-    // Réservé 3, reçu 1 -> 2 encore à offrir
-    expect(display.bookedQuantityOverrides.unlockView, {105: 2});
+    expect(
+      display.booked.map((w) => w.id),
+      unorderedEquals([104, 105, 107]),
+    );
+    // Réservé 2, reçu 0 -> 2 ; réservé 3, reçu 1 -> 2 ; réservé 2 + 3,
+    // reçu 3 -> 2. Limite wishlist privée : réservation visible 2, reçu 3 (le
+    // cadeau d'un autre ami) -> 106 quitte les réservés
+    expect(display.bookedQuantityOverrides.unlockView, {
+      104: 2,
+      105: 2,
+      107: 2,
+    });
   });
 
   test('does not recompute the displayed wishs on selection change', () async {

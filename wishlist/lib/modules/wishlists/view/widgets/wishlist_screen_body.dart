@@ -172,9 +172,7 @@ class WishlistScreenBody extends ConsumerWidget {
                 isWishsBookedHidden: isWishsBookedHidden,
                 screenState: screenState,
                 notifier: notifier,
-                quantityOverrideMap: bookedQuantityOverrides.isNotEmpty
-                    ? bookedQuantityOverrides.unlockView
-                    : null,
+                quantityOverrideMap: bookedQuantityOverrides.unlockView,
               ),
             ],
           ),

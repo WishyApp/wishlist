@@ -51,6 +51,18 @@ class Wish with _$Wish implements Updatable {
           .clamp(0, quantity)
           .toInt();
 
+  /// Quantité encore réservée : réservé - reçu. La quantité reçue par le
+  /// propriétaire ([receivedQuantity]) consomme d'abord les réservations,
+  /// comme pour [pendingQuantity].
+  /// Limite : sur une wishlist privée, un ami ne lit que sa propre
+  /// réservation alors que la quantité reçue est totale, donc le cadeau reçu
+  /// d'un autre ami peut faire disparaître la sienne. Accepté : réserver
+  /// exige une wishlist publique, le cas ne se produit que si elle est
+  /// devenue privée, ou si le wish a été déplacé vers une wishlist privée,
+  /// après plusieurs réservations.
+  int remainingBookedQuantity({int receivedQuantity = 0}) =>
+      (totalBookedQuantity - receivedQuantity).clamp(0, totalBookedQuantity);
+
   /// Quantité qu'un ami peut encore réserver (= quantité en attente).
   int bookableQuantity({int receivedQuantity = 0}) =>
       pendingQuantity(receivedQuantity: receivedQuantity);

@@ -81,19 +81,17 @@ final wishlistScreenDisplayProvider =
   // Réservé restant = réservé - reçu : la quantité reçue consomme d'abord les
   // réservations. Un wish dont toutes les réservations sont reçues n'est plus
   // listé comme réservé.
-  int remainingBookedQuantityOf(Wish wish) =>
-      (wish.totalBookedQuantity - (completedByWishId[wish.id] ?? 0)).clamp(
-        0,
-        wish.totalBookedQuantity,
+  // Limite des wishlists privées : voir Wish.remainingBookedQuantity. Même
+  // comportement que BookedWishWithDetails.isGiven et l'écran du wish.
+  int remainingBookedQuantityOf(Wish wish) => wish.remainingBookedQuantity(
+        receivedQuantity: completedByWishId[wish.id] ?? 0,
       );
 
   final booked =
       wishs.where((wish) => remainingBookedQuantityOf(wish) > 0).toIList();
 
   final bookedQuantityOverrides = IMap<int, int>({
-    for (final wish in booked)
-      if ((completedByWishId[wish.id] ?? 0) > 0)
-        wish.id: remainingBookedQuantityOf(wish),
+    for (final wish in booked) wish.id: remainingBookedQuantityOf(wish),
   });
 
   return (

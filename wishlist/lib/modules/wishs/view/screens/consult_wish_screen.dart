@@ -224,9 +224,8 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
         if (ownerReceivedQuantity == null) {
           return 0;
         }
-        return (wish.totalBookedQuantity - ownerReceivedQuantity).clamp(
-          0,
-          wish.totalBookedQuantity,
+        return wish.remainingBookedQuantity(
+          receivedQuantity: ownerReceivedQuantity,
         );
       case WishQuantityDisplay.myBooked:
         final currentUserId = ref.watch(currentUserIdProvider);
