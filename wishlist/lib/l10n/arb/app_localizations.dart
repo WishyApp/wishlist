@@ -1532,12 +1532,6 @@ abstract class AppLocalizations {
   /// **'Tout sélectionner'**
   String get wishlistSelectAll;
 
-  /// No description provided for @wishlistDeselectAll.
-  ///
-  /// In fr, this message translates to:
-  /// **'Tout désélectionner'**
-  String get wishlistDeselectAll;
-
   /// No description provided for @wishlistExitSelection.
   ///
   /// In fr, this message translates to:

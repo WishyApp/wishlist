@@ -871,9 +871,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get wishlistSelectAll => 'Tout sélectionner';
 
   @override
-  String get wishlistDeselectAll => 'Tout désélectionner';
-
-  @override
   String get wishlistExitSelection => 'Quitter la sélection';
 
   @override

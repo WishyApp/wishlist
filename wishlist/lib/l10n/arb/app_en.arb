@@ -323,7 +323,6 @@
     }
   },
   "wishlistSelectAll": "Select all",
-  "wishlistDeselectAll": "Deselect all",
   "wishlistExitSelection": "Exit selection",
   "wishlistSelectionComplete": "Complete",
   "wishlistSelectionMove": "Move",

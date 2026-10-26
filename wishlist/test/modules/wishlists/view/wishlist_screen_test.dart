@@ -606,6 +606,13 @@ void main() {
           updatedAt: fakeUpdatedAt,
         );
 
+    TextButton selectAllButton(WidgetTester tester) => tester.widget(
+          find.ancestor(
+            of: find.text(l10n.wishlistSelectAll),
+            matching: find.byType(TextButton),
+          ),
+        );
+
     int selectedCount(WidgetTester tester) => tester
         .widget<WishlistSelectionCard>(find.byType(WishlistSelectionCard))
         .selectedCount;
@@ -637,33 +644,6 @@ void main() {
       expect(inSelectionCard(find.text('2')), findsOneWidget);
       expect(
         inSelectionCard(find.text('sélectionnés')),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('names the current tab in the selection card', (tester) async {
-      await pumpOwnerWishlist(tester, wishes: fakeWishesWithBooked);
-
-      await tester.longPress(find.text(fakeWish1.name));
-      await tester.pumpAndSettle();
-      expect(
-        inSelectionCard(
-          find.text(l10n.wishlistStatusPending),
-        ),
-        findsOneWidget,
-      );
-
-      // Swiping still changes the tab, which "Tout sélectionner" follows
-      await tester.fling(
-        find.byType(PageView),
-        const Offset(-400, 0),
-        1000,
-      );
-      await tester.pumpAndSettle();
-      expect(
-        inSelectionCard(
-          find.text(l10n.wishlistStatusBooked),
-        ),
         findsOneWidget,
       );
     });
@@ -746,14 +726,14 @@ void main() {
 
       expect(
         find.bySemanticsLabel(
-          '${l10n.wishlistSelectionCount(1)}, ${l10n.wishlistStatusPending}',
+          l10n.wishlistSelectionCount(1),
         ),
         findsOneWidget,
       );
       expect(
         tester.getSemantics(
           find.bySemanticsLabel(
-            '${l10n.wishlistSelectionCount(1)}, ${l10n.wishlistStatusPending}',
+            l10n.wishlistSelectionCount(1),
           ),
         ),
         isSemantics(isLiveRegion: true),
@@ -798,25 +778,31 @@ void main() {
       await tester.tap(find.text(l10n.wishlistSelectAll));
       await tester.pumpAndSettle();
 
-      // Only the 2 AirPods are added, and the button now deselects them
+      // Only the 2 AirPods are added: nothing left to add among the results
       expect(selectedCount(tester), 2);
-      expect(find.text(l10n.wishlistDeselectAll), findsOneWidget);
+      expect(selectAllButton(tester).enabled, isFalse);
 
       await tester.enterText(find.byType(TextField), '');
       await tester.pumpAndSettle();
       expect(selectedCount(tester), 2);
-      expect(find.text(l10n.wishlistSelectAll), findsOneWidget);
+      expect(selectAllButton(tester).enabled, isTrue);
 
       await tester.tap(find.text(l10n.wishlistSelectAll));
       await tester.pumpAndSettle();
       expect(selectedCount(tester), 3);
+      expect(selectAllButton(tester).enabled, isFalse);
+    });
 
-      await tester.tap(find.text(l10n.wishlistDeselectAll));
+    testWidgets('disables select all for a search without result',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Wulfgar');
       await tester.pumpAndSettle();
 
-      // Nothing left selected: back to the stats
-      expect(find.byType(WishlistSelectionCard), findsNothing);
-      expect(find.byIcon(Icons.add), findsOneWidget);
+      expect(selectAllButton(tester).enabled, isFalse);
     });
 
     testWidgets('exits and clears the selection with the close button',

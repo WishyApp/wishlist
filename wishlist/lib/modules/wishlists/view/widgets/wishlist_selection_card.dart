@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:wishlist/l10n/l10n.dart';
-import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 
@@ -10,9 +9,7 @@ class WishlistSelectionCard extends StatelessWidget {
   const WishlistSelectionCard({
     super.key,
     required this.selectedCount,
-    required this.tab,
-    required this.areAllSelected,
-    required this.onToggleSelectAll,
+    required this.onSelectAll,
     required this.onExit,
   });
 
@@ -24,26 +21,16 @@ class WishlistSelectionCard extends StatelessWidget {
 
   final int selectedCount;
 
-  /// Onglet affiché, rappelé dans la carte puisque les cartes de stats sont
-  /// masquées : c'est à lui que s'applique "Tout sélectionner"
-  final WishlistStatsCardType tab;
-
-  /// Tous les wishs affichés sont sélectionnés : le bouton les désélectionne
-  final bool areAllSelected;
-
-  /// Null quand aucun wish n'est affiché (recherche sans résultat)
-  final VoidCallback? onToggleSelectAll;
+  /// Null quand il n'y a rien à ajouter : aucun wish affiché (recherche sans
+  /// résultat) ou tous déjà sélectionnés. Pour tout désélectionner, la croix
+  /// quitte le mode sélection.
+  final VoidCallback? onSelectAll;
   final VoidCallback onExit;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     const textColor = AppColors.background;
-    final tabLabel = switch (tab) {
-      WishlistStatsCardType.pending => l10n.wishlistStatusPending,
-      WishlistStatsCardType.booked => l10n.wishlistStatusBooked,
-    };
-    final selectionLabel = l10n.wishlistSelectionCount(selectedCount);
     // La couleur foncée de la wishlist, foncée encore si le texte n'y est pas
     // assez lisible (jaune, vert, bleu)
     final backgroundColor = AppColors.darkenForContrast(
@@ -71,7 +58,7 @@ class WishlistSelectionCard extends StatelessWidget {
                 child: Semantics(
                   container: true,
                   liveRegion: true,
-                  label: '$selectionLabel, $tabLabel',
+                  label: l10n.wishlistSelectionCount(selectedCount),
                   excludeSemantics: true,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -95,12 +82,6 @@ class WishlistSelectionCard extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Text(
-                          tabLabel,
-                          style: AppTextStyles.smaller.copyWith(
-                            color: textColor,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -115,7 +96,7 @@ class WishlistSelectionCard extends StatelessWidget {
                     maxWidth: constraints.maxWidth * _maxButtonWidthRatio,
                   ),
                   child: TextButton(
-                    onPressed: onToggleSelectAll,
+                    onPressed: onSelectAll,
                     style: TextButton.styleFrom(
                       foregroundColor: textColor,
                       disabledForegroundColor: textColor.withValues(alpha: 0.5),
@@ -123,9 +104,7 @@ class WishlistSelectionCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     child: Text(
-                      areAllSelected
-                          ? l10n.wishlistDeselectAll
-                          : l10n.wishlistSelectAll,
+                      l10n.wishlistSelectAll,
                       textAlign: TextAlign.end,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

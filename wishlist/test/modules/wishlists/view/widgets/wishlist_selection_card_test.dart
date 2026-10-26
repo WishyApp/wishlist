@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_selection_card.dart';
-import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 
 import '../../../../pump_app.dart';
 
@@ -13,8 +12,7 @@ void main() {
     WidgetTester tester, {
     double width = 343,
     double height = 90,
-    bool areAllSelected = false,
-    VoidCallback? onToggleSelectAll,
+    VoidCallback? onSelectAll,
     VoidCallback? onExit,
   }) {
     return tester.pumpApp(
@@ -24,9 +22,7 @@ void main() {
           height: height,
           child: WishlistSelectionCard(
             selectedCount: 12,
-            tab: WishlistStatsCardType.pending,
-            areAllSelected: areAllSelected,
-            onToggleSelectAll: onToggleSelectAll,
+            onSelectAll: onSelectAll,
             onExit: onExit ?? () {},
           ),
         ),
@@ -39,18 +35,16 @@ void main() {
         matching: find.byType(TextButton),
       );
 
-  testWidgets('toggles between select all and deselect all', (tester) async {
-    var toggles = 0;
-    await pumpCard(tester, onToggleSelectAll: () => toggles++);
+  testWidgets('selects all on tap', (tester) async {
+    var selections = 0;
+    await pumpCard(tester, onSelectAll: () => selections++);
 
     await tester.tap(find.text(l10n.wishlistSelectAll));
-    expect(toggles, 1);
-
-    await pumpCard(tester, areAllSelected: true, onToggleSelectAll: () {});
-    expect(find.text(l10n.wishlistDeselectAll), findsOneWidget);
+    expect(selections, 1);
   });
 
-  testWidgets('disables select all when no wish is displayed', (tester) async {
+  testWidgets('disables select all when there is nothing to add',
+      (tester) async {
     await pumpCard(tester);
 
     expect(
@@ -70,7 +64,7 @@ void main() {
       tester,
       width: 288,
       height: 130,
-      onToggleSelectAll: () {},
+      onSelectAll: () {},
     );
 
     for (final target in [

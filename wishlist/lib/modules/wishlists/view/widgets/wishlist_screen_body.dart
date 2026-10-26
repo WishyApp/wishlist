@@ -171,13 +171,9 @@ class WishlistScreenBody extends ConsumerWidget {
                   child: screenState.isSelectionMode
                       ? WishlistSelectionCard(
                           selectedCount: screenState.selectedWishIds.length,
-                          tab: screenState.statCardSelected,
-                          areAllSelected: areAllVisibleSelected,
-                          onToggleSelectAll: visibleWishIds.isEmpty
+                          onSelectAll: areAllVisibleSelected
                               ? null
-                              : () => areAllVisibleSelected
-                                  ? notifier.deselectAll(visibleWishIds)
-                                  : notifier.selectAll(visibleWishIds),
+                              : () => notifier.selectAll(visibleWishIds),
                           onExit: notifier.exitSelectionMode,
                         )
                       : null,

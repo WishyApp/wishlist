@@ -161,27 +161,6 @@ void main() {
       expect(state().isSelectionMode, isTrue);
     });
 
-    test('deselectAll keeps the wishes hidden by the search', () {
-      notifier()
-        ..enableSelectionMode(1)
-        ..toggleWishSelection(2)
-        ..toggleWishSelection(3)
-        ..deselectAll([2, 3]);
-
-      expect(state().selectedWishIds, {1});
-      expect(state().isSelectionMode, isTrue);
-    });
-
-    test('deselectAll exits selection mode once nothing is selected', () {
-      notifier()
-        ..enableSelectionMode(1)
-        ..toggleWishSelection(2)
-        ..deselectAll([1, 2]);
-
-      expect(state().selectedWishIds, isEmpty);
-      expect(state().isSelectionMode, isFalse);
-    });
-
     test('keeps the selection when the search or the sort change', () {
       notifier()
         ..enableSelectionMode(1)
@@ -199,7 +178,7 @@ void main() {
       expect(state().isSelectionMode, isTrue);
     });
 
-    test('areAllSelected is true only when every visible wish is selected', () {
+    test('areAllSelected is true once every visible wish is selected', () {
       notifier()
         ..enableSelectionMode(1)
         ..toggleWishSelection(2);
@@ -207,8 +186,8 @@ void main() {
       expect(state().areAllSelected([1, 2]), isTrue);
       expect(state().areAllSelected([2]), isTrue);
       expect(state().areAllSelected([1, 2, 3]), isFalse);
-      // Nothing displayed: nothing to deselect
-      expect(state().areAllSelected([]), isFalse);
+      // Nothing displayed: nothing to add
+      expect(state().areAllSelected([]), isTrue);
     });
   });
 

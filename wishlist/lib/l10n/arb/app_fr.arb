@@ -340,7 +340,6 @@
     }
   },
   "wishlistSelectAll": "Tout sélectionner",
-  "wishlistDeselectAll": "Tout désélectionner",
   "wishlistExitSelection": "Quitter la sélection",
   "wishlistSelectionComplete": "Valider",
   "wishlistSelectionMove": "Déplacer",

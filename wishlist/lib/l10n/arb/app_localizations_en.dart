@@ -859,9 +859,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wishlistSelectAll => 'Select all';
 
   @override
-  String get wishlistDeselectAll => 'Deselect all';
-
-  @override
   String get wishlistExitSelection => 'Exit selection';
 
   @override
