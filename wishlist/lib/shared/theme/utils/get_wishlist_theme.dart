@@ -5,7 +5,14 @@ import 'package:wishlist/shared/theme/theme.dart';
 
 ThemeData getWishlistTheme(BuildContext? context, Wishlist wishlist) {
   final wishlistColor = AppColors.getColorFromHexValue(wishlist.color);
-  final wishlistDarkColor = AppColors.darken(wishlistColor);
+  // Fond du centre du bouton « + » et de la carte de sélection, sous un texte
+  // ou une icône clairs : foncé encore si besoin pour un contraste de 3:1, le
+  // minimum WCAG pour une icône ou un texte en gras (seul le jaune est foncé)
+  final wishlistDarkColor = AppColors.darkenForContrast(
+    AppColors.darken(wishlistColor),
+    foreground: AppColors.background,
+    minContrast: 3,
+  );
 
   final currentTheme = context != null ? Theme.of(context) : theme;
 

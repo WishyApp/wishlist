@@ -24,7 +24,7 @@ void main() {
   });
 
   group('AppColors.darkenForContrast', () {
-    // Les couleurs foncées des wishlists, comme dans getWishlistTheme
+    // Les couleurs foncées des wishlists, au seuil par défaut (4.5)
     for (final color in AppColors.colorPalette.keys) {
       test('makes light text readable on ${AppColors.colorPalette[color]}', () {
         final adjusted = AppColors.darkenForContrast(

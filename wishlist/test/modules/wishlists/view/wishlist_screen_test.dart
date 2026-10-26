@@ -909,7 +909,7 @@ void main() {
       final background = (card.decoration! as BoxDecoration).color!;
       expect(
         AppColors.contrastRatio(background, AppColors.background),
-        greaterThanOrEqualTo(4.5),
+        greaterThanOrEqualTo(3),
       );
     });
 
