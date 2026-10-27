@@ -219,6 +219,26 @@ void main() {
     });
   });
 
+  testWidgets('warns before deleting, and deletes nothing when cancelled',
+      (tester) async {
+    await pumpScreen(tester);
+
+    await tester.ensureVisible(find.text(l10n.deleteWishlist));
+    await tester.tap(find.text(l10n.deleteWishlist));
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.deleteWishlistConfirmation), findsOneWidget);
+    expect(find.text(l10n.deleteWishlistWishesWarning), findsOneWidget);
+    verifyNever(() => service.deleteWishlist(any()));
+
+    await tester.tap(find.text(l10n.cancelButton).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.deleteWishlistConfirmation), findsNothing);
+    expect(find.byType(WishlistSettingsAppBar), findsOneWidget);
+    verifyNever(() => service.deleteWishlist(any()));
+  });
+
   testWidgets('deletes the wishlist once confirmed, then goes home',
       (tester) async {
     // The stream says the wishlist is gone as soon as it is deleted
