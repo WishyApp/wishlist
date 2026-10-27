@@ -762,6 +762,38 @@ void main() {
       expect(container.read(provider).isSelectionMode, isFalse);
     });
 
+    testWidgets('keeps the selection mode on back while an action runs',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WishlistScreen)),
+      );
+      final provider = wishlistScreenNotifierProvider(2);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      final actionDone = Completer<void>();
+      final action = container
+          .read(provider.notifier)
+          .runOnSelection((_) => actionDone.future);
+      await tester.pump();
+
+      // System back (PopScope), like the app bar arrow or the iOS gesture
+      final context = tester.element(find.byType(WishlistScreen));
+      await Navigator.of(context).maybePop();
+      await tester.pump();
+
+      expect(find.byType(WishlistScreen), findsOneWidget);
+      expect(container.read(provider).isSelectionMode, isTrue);
+      expect(container.read(provider).selectedWishIds, {fakeWish1.id});
+
+      actionDone.complete();
+      await action;
+      await tester.pumpAndSettle();
+      expect(container.read(provider).isSelectionMode, isFalse);
+    });
+
     testWidgets('does not move the keyboard focus to the hidden stats',
         (tester) async {
       await pumpOwnerWishlist(tester);

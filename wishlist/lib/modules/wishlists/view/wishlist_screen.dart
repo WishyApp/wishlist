@@ -249,12 +249,13 @@ class WishlistScreen extends ConsumerWidget {
       }
     });
 
-    // Seul le mode sélection est utilisé ici : la recherche, le tri et la
-    // sélection sont watchés par le body et les actions flottantes, sinon tout
-    // l'écran se reconstruirait à chaque frappe
-    final isSelectionMode = ref.watch(
-      wishlistScreenNotifierProvider(wishlistId)
-          .select((state) => state.isSelectionMode),
+    // Seuls le mode sélection et l'action en cours sont utilisés ici : la
+    // recherche, le tri et la sélection sont watchés par le body et les
+    // actions flottantes, sinon tout l'écran se reconstruirait à chaque frappe
+    final (isSelectionMode, isSelectionActionRunning) = ref.watch(
+      wishlistScreenNotifierProvider(wishlistId).select(
+        (state) => (state.isSelectionMode, state.isSelectionActionRunning),
+      ),
     );
     final notifier =
         ref.read(wishlistScreenNotifierProvider(wishlistId).notifier);
@@ -297,7 +298,9 @@ class WishlistScreen extends ConsumerWidget {
               return PopScope(
                 canPop: !isSelectionMode,
                 onPopInvokedWithResult: (didPop, result) {
-                  if (!didPop && isSelectionMode) {
+                  // Le retour fait comme la croix, inerte pendant une action
+                  // sur la sélection : il attend la fin de l'action
+                  if (!didPop && isSelectionMode && !isSelectionActionRunning) {
                     notifier.exitSelectionMode();
                   }
                 },
