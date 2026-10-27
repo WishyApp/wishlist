@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_settings_app_bar.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wishlist_settings_card.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_settings_screen.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/infra/wishlist_service.dart';
@@ -95,6 +97,21 @@ void main() {
 
   Finder deleteButton() => find.byType(SecondaryButton);
 
+  /// The switch of the setting titled [title]
+  Finder switchOf(String title) => find.descendant(
+        of: find.ancestor(
+          of: find.text(title),
+          matching: find.byType(WishlistSettingsCard),
+        ),
+        matching: find.byType(AppSwitch),
+      );
+
+  Future<void> toggle(WidgetTester tester, String title) async {
+    await tester.ensureVisible(switchOf(title));
+    await tester.tap(switchOf(title));
+    await tester.pump();
+  }
+
   bool isSaveEnabled(WidgetTester tester) =>
       tester.widget<PrimaryButton>(saveButton()).onPressed != null;
 
@@ -116,12 +133,10 @@ void main() {
 
     expect(isSaveEnabled(tester), isFalse);
 
-    await tester.tap(find.text(l10n.private));
-    await tester.pump();
+    await toggle(tester, l10n.publicWishlistLabel);
     expect(isSaveEnabled(tester), isTrue);
 
-    await tester.tap(find.text(l10n.public));
-    await tester.pump();
+    await toggle(tester, l10n.publicWishlistLabel);
     expect(isSaveEnabled(tester), isFalse);
   });
 
@@ -157,10 +172,8 @@ void main() {
 
     await tester.enterText(nameField(), '  Noël 2026  ');
     await tester.tap(find.bySemanticsLabel(l10n.colorPurple));
-    await tester.tap(find.text(l10n.private));
-    await tester.ensureVisible(find.byType(AppSwitch));
-    await tester.tap(find.byType(AppSwitch));
-    await tester.pump();
+    await toggle(tester, l10n.publicWishlistLabel);
+    await toggle(tester, l10n.seeBookedWishesLabel);
     await tester.tap(saveButton());
     await tester.pumpAndSettle();
 
@@ -327,14 +340,16 @@ void main() {
     when(() => service.updateWishlist(any())).thenAnswer((_) => saving.future);
     await pumpScreen(tester);
 
-    await tester.tap(find.text(l10n.private));
-    await tester.pump();
+    await toggle(tester, l10n.publicWishlistLabel);
     await tester.tap(saveButton());
     await tester.pump();
 
     // Too late for this save: ignored rather than lost when the page closes
-    await tester.ensureVisible(find.byType(AppSwitch));
-    await tester.tap(find.byType(AppSwitch), warnIfMissed: false);
+    await tester.ensureVisible(switchOf(l10n.seeBookedWishesLabel));
+    await tester.tap(
+      switchOf(l10n.seeBookedWishesLabel),
+      warnIfMissed: false,
+    );
     await tester.pump();
     expect(find.text(l10n.seeBookedWishesOffDescription), findsOneWidget);
 
@@ -362,9 +377,11 @@ void main() {
 
     // An overflow would have failed the test. Next to the swatches, the
     // color title would also have broken over several lines
+    final colorTitle = tester
+        .renderObject<RenderParagraph>(find.text(l10n.wishlistColorLabel));
     expect(
-      tester.getSize(find.text(l10n.wishlistColorLabel)).height,
-      tester.getSize(find.text(l10n.wishlistVisibilityLabel)).height,
+      colorTitle.size.width,
+      greaterThanOrEqualTo(colorTitle.getMaxIntrinsicWidth(double.infinity)),
     );
   });
 }

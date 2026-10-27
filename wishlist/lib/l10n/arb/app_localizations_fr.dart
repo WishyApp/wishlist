@@ -502,12 +502,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get noDescription => 'Aucune description';
 
   @override
-  String get private => 'Privée';
-
-  @override
-  String get public => 'Publique';
-
-  @override
   String get save => 'Enregistrer';
 
   @override
@@ -879,7 +873,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get colorGreen => 'Vert';
 
   @override
-  String get wishlistVisibilityLabel => 'Visibilité';
+  String get publicWishlistLabel => 'Wishlist publique';
 
   @override
   String get wishlistPublicDescription =>

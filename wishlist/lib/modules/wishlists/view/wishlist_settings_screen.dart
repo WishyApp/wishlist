@@ -5,7 +5,6 @@ import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_color_selector.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_settings_app_bar.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_settings_card.dart';
-import 'package:wishlist/modules/wishlists/view/widgets/wishlist_visibility_selector.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/infra/wishlist_mutations_provider.dart';
@@ -187,6 +186,15 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
     if (_nameController.text != _nameText) {
       setState(() => _nameText = _nameController.text);
     }
+  }
+
+  bool get _isPublic => _visibility == WishlistVisibility.public;
+
+  void _setPublic({required bool isPublic}) {
+    setState(() {
+      _visibility =
+          isPublic ? WishlistVisibility.public : WishlistVisibility.private;
+    });
   }
 
   String get _trimmedName => _nameController.text.trim();
@@ -399,28 +407,23 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
                               ),
                             ),
                             const Gap(16),
-                            WishlistSettingsCard(
-                              icon: Icons.public,
-                              title: l10n.wishlistVisibilityLabel,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  WishlistVisibilitySelector(
-                                    selected: _visibility,
-                                    onSelected: (visibility) => setState(
-                                      () => _visibility = visibility,
-                                    ),
-                                  ),
-                                  const Gap(8),
-                                  Text(
-                                    _visibility == WishlistVisibility.public
-                                        ? l10n.wishlistPublicDescription
-                                        : l10n.wishlistPrivateDescription,
-                                    style: AppTextStyles.smaller.copyWith(
-                                      color: AppColors.makara,
-                                    ),
-                                  ),
-                                ],
+                            MergeSemantics(
+                              child: WishlistSettingsCard(
+                                icon: _isPublic
+                                    ? Icons.public
+                                    : Icons.lock_outline,
+                                title: l10n.publicWishlistLabel,
+                                description: _isPublic
+                                    ? l10n.wishlistPublicDescription
+                                    : l10n.wishlistPrivateDescription,
+                                onTap: () => _setPublic(isPublic: !_isPublic),
+                                trailing: AppSwitch(
+                                  value: _isPublic,
+                                  activeIcon: Icons.public,
+                                  inactiveIcon: Icons.lock_outline,
+                                  onChanged: (value) =>
+                                      _setPublic(isPublic: value),
+                                ),
                               ),
                             ),
                             const Gap(16),

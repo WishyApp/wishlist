@@ -962,18 +962,6 @@ abstract class AppLocalizations {
   /// **'Aucune description'**
   String get noDescription;
 
-  /// No description provided for @private.
-  ///
-  /// In fr, this message translates to:
-  /// **'Privée'**
-  String get private;
-
-  /// No description provided for @public.
-  ///
-  /// In fr, this message translates to:
-  /// **'Publique'**
-  String get public;
-
   /// No description provided for @save.
   ///
   /// In fr, this message translates to:
@@ -1550,11 +1538,11 @@ abstract class AppLocalizations {
   /// **'Vert'**
   String get colorGreen;
 
-  /// No description provided for @wishlistVisibilityLabel.
+  /// No description provided for @publicWishlistLabel.
   ///
   /// In fr, this message translates to:
-  /// **'Visibilité'**
-  String get wishlistVisibilityLabel;
+  /// **'Wishlist publique'**
+  String get publicWishlistLabel;
 
   /// No description provided for @wishlistPublicDescription.
   ///
