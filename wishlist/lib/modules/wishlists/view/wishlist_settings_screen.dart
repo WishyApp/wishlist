@@ -410,7 +410,7 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
                             MergeSemantics(
                               child: WishlistSettingsCard(
                                 icon: _isPublic
-                                    ? Icons.public
+                                    ? Icons.lock_open_outlined
                                     : Icons.lock_outline,
                                 title: l10n.publicWishlistLabel,
                                 description: _isPublic
@@ -419,7 +419,7 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
                                 onTap: () => _setPublic(isPublic: !_isPublic),
                                 trailing: AppSwitch(
                                   value: _isPublic,
-                                  activeIcon: Icons.public,
+                                  activeIcon: Icons.lock_open_outlined,
                                   inactiveIcon: Icons.lock_outline,
                                   onChanged: (value) =>
                                       _setPublic(isPublic: value),
