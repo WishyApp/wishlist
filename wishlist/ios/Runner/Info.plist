@@ -67,6 +67,15 @@
 					<string>wishy</string>
 				</array>
 			</dict>
+			<!-- Retour de la connexion Google : ID du client OAuth iOS, inversé -->
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.581924542057-mri9147jm9hnospuvi6aeqerqv04min6</string>
+				</array>
+			</dict>
 			<!-- Scheme utilisé par ShareExtension (share_intent_package) pour rouvrir l’app -->
 			<dict>
 				<key>CFBundleTypeRole</key>
