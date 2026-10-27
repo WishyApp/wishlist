@@ -1,14 +1,21 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/gen/fonts.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/auth/view/auth_layout.dart';
+import 'package:wishlist/modules/auth/view/widgets/social_sign_in_buttons.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
 import 'package:wishlist/shared/infra/first_launch_service.dart';
+import 'package:wishlist/shared/infra/social_sign_in_client.dart';
+import 'package:wishlist/shared/infra/utils/network_error.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -35,6 +42,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _passwordController = TextEditingController();
 
   bool _isLoading = false;
+
+  bool _isSocialSignInInProgress = false;
 
   /// Whether the user is signing in or signing up
   bool _isSigningIn = false;
@@ -177,9 +186,41 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
+  /// Runs a Google or Apple sign-in. There is nothing to navigate to on
+  /// success: the router redirects on the new session, to the pseudo screen
+  /// for a new account.
+  Future<void> _signInWith(Future<bool> Function() signIn) async {
+    setState(() {
+      _isSocialSignInInProgress = true;
+    });
+    try {
+      await signIn();
+    } catch (e, stackTrace) {
+      // Mostly a misconfigured provider or client ID: worth seeing in Sentry,
+      // unlike a lost connection or a sheet the user closed.
+      if (!isNetworkError(e) && !SocialSignInClient.isUserSideFailure(e)) {
+        unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+      }
+      if (mounted) {
+        showGenericError(context, error: e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSocialSignInInProgress = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final googleSignInConfig = ref.watch(googleSignInConfigProvider);
+    final authService = ref.read(authServiceProvider);
+    final showGoogle = googleSignInConfig != null &&
+        (defaultTargetPlatform != TargetPlatform.iOS ||
+            googleSignInConfig.iosClientId != null);
 
     final emailOrPseudoInput = _isSigningIn
         ? InputPseudoOrEmail(
@@ -206,9 +247,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           const Gap(32),
           PrimaryButton(
             text: _isSigningIn ? l10n.signIn : l10n.signUp,
-            onPressed: onPressed,
+            onPressed: _isSocialSignInInProgress ? null : onPressed,
             isLoading: _isLoading,
             style: BaseButtonStyle.large,
+          ),
+          SocialSignInButtons(
+            showGoogle: showGoogle,
+            isEnabled: !_isLoading && !_isSocialSignInInProgress,
+            onGooglePressed: () {
+              if (googleSignInConfig != null) {
+                _signInWith(
+                  () => authService.signInWithGoogle(googleSignInConfig),
+                );
+              }
+            },
+            onApplePressed: () => _signInWith(authService.signInWithApple),
           ),
           const Gap(16),
           TextButton(

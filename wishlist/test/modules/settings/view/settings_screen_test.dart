@@ -49,6 +49,28 @@ void main() {
     expect(find.text('me@x.fr'), findsOneWidget);
   });
 
+  testWidgets('offers to change the password of an email account',
+      (tester) async {
+    await tester.pumpRouterApp(
+      SettingsRoute().location,
+      overrides: settingsScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Modifier mon mot de passe'), findsOneWidget);
+  });
+
+  testWidgets('hides the password line for a Google-only account',
+      (tester) async {
+    await tester.pumpRouterApp(
+      SettingsRoute().location,
+      overrides: settingsScreenOverrides(authProviders: ['google']),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Modifier mon mot de passe'), findsNothing);
+  });
+
   testWidgets('shows the birthday of the current user', (tester) async {
     await tester.pumpRouterApp(
       SettingsRoute().location,

@@ -26,6 +26,9 @@ class $AssetsSvgGen {
   /// File path: assets/svg/birthday.svg
   String get birthday => 'assets/svg/birthday.svg';
 
+  /// File path: assets/svg/google_logo.svg
+  String get googleLogo => 'assets/svg/google_logo.svg';
+
   /// File path: assets/svg/no_booked_wish.svg
   String get noBookedWish => 'assets/svg/no_booked_wish.svg';
 
@@ -56,6 +59,7 @@ class $AssetsSvgGen {
   /// List of all assets
   List<String> get values => [
         birthday,
+        googleLogo,
         noBookedWish,
         noConnection,
         noFriend,

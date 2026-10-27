@@ -49,6 +49,7 @@ MockSupabaseClient createMockSupabaseClient({
   String? userId,
   String? userEmail,
   bool signedOut = false,
+  List<String> authProviders = const ['email'],
 }) {
   final mockSupabaseClient = MockSupabaseClient();
   final mockAuth = MockGoTrueClient();
@@ -63,6 +64,10 @@ MockSupabaseClient createMockSupabaseClient({
       .thenReturn(signedOut ? null : mockSession);
   when(() => mockUser.id).thenReturn(effectiveUserId);
   when(() => mockUser.email).thenReturn(userEmail ?? 'test@example.com');
+  when(() => mockUser.appMetadata).thenReturn({
+    'provider': authProviders.first,
+    'providers': authProviders,
+  });
   when(() => mockAuth.onAuthStateChange)
       .thenAnswer((_) => const Stream.empty());
 

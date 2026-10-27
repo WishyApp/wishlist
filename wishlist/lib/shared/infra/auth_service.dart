@@ -2,17 +2,22 @@ import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/app/config/deeplink_config.dart';
 import 'package:wishlist/main.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
+import 'package:wishlist/shared/infra/social_sign_in_client.dart';
 import 'package:wishlist/shared/infra/utils/auth_user_message_key.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 
 class AuthService {
-  AuthService({GoTrueClient? auth}) : _authOverride = auth;
+  AuthService({GoTrueClient? auth, SocialSignInClient? socialSignIn})
+      : _authOverride = auth,
+        _socialSignIn = socialSignIn ?? SocialSignInClient();
 
   final GoTrueClient? _authOverride;
+  final SocialSignInClient _socialSignIn;
 
   GoTrueClient get _auth => _authOverride ?? supabase.auth;
 
@@ -22,6 +27,50 @@ class AuthService {
 
   Future<void> signOut(BuildContext context, WidgetRef ref) async {
     await _auth.signOut();
+    await _signOutOfGoogle();
+  }
+
+  Future<void> _signOutOfGoogle() async {
+    try {
+      await _socialSignIn.signOutOfGoogle();
+    } catch (e) {
+      // The Supabase session is gone, which is what signing out means: a
+      // Google account still remembered only skips the picker next time.
+      debugPrint('Could not sign out of Google: $e');
+    }
+  }
+
+  /// Returns false when the user dismissed the Google sheet.
+  ///
+  /// A first sign-in creates the account: the router then asks for the
+  /// pseudo, as after an email sign-up.
+  Future<bool> signInWithGoogle(GoogleSignInConfig config) async {
+    final token = await _socialSignIn.googleIdToken(config);
+    if (token == null) {
+      return false;
+    }
+
+    await _auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: token.idToken,
+      nonce: token.rawNonce,
+    );
+    return true;
+  }
+
+  /// Returns false when the user dismissed the Apple sheet.
+  Future<bool> signInWithApple() async {
+    final token = await _socialSignIn.appleIdToken();
+    if (token == null) {
+      return false;
+    }
+
+    await _auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: token.idToken,
+      nonce: token.rawNonce,
+    );
+    return true;
   }
 
   Future<void> signIn({
@@ -187,6 +236,7 @@ class AuthService {
 
       // Déconnecter l'utilisateur après la suppression
       await _auth.signOut();
+      await _signOutOfGoogle();
     } catch (e) {
       if (e is AuthException) {
         final statusCode = e.statusCode;
@@ -206,3 +256,7 @@ class AuthService {
 }
 
 final authServiceProvider = Provider((ref) => AuthService.instance);
+
+/// Null when the environment has no Google client IDs: the Google button is
+/// then hidden. Overridden in `main.dart` with the loaded config.
+final googleSignInConfigProvider = Provider<GoogleSignInConfig?>((ref) => null);

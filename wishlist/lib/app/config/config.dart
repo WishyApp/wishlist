@@ -8,11 +8,15 @@ class Config extends Equatable {
   const Config({
     required this.supabaseConfig,
     this.sentryDsn,
+    this.googleSignInConfig,
   });
 
   @visibleForTesting
   factory Config.fromDotEnv(DotEnv dotEnvConfig) {
     final sentryDsn = dotEnvConfig.maybeGet('SENTRY_DSN')?.trim();
+    final googleWebClientId = _nonEmpty(
+      dotEnvConfig.maybeGet('GOOGLE_WEB_CLIENT_ID'),
+    );
 
     return Config(
       supabaseConfig: SupabaseConfig(
@@ -21,7 +25,20 @@ class Config extends Equatable {
       ),
       sentryDsn:
           sentryDsn != null && _isValidSentryDsn(sentryDsn) ? sentryDsn : null,
+      googleSignInConfig: googleWebClientId != null
+          ? GoogleSignInConfig(
+              webClientId: googleWebClientId,
+              iosClientId: _nonEmpty(
+                dotEnvConfig.maybeGet('GOOGLE_IOS_CLIENT_ID'),
+              ),
+            )
+          : null,
     );
+  }
+
+  static String? _nonEmpty(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 
   /// A malformed DSN must never prevent the app from starting, it just
@@ -40,6 +57,9 @@ class Config extends Equatable {
 
   /// Sentry DSN, null when crash reporting is not configured.
   final String? sentryDsn;
+
+  /// Google sign-in client IDs, null when Google sign-in is not configured.
+  final GoogleSignInConfig? googleSignInConfig;
 
   // Load all environment variables from .env.{environment} file
   static Future<void> _loadEnvironment(
@@ -71,6 +91,7 @@ class Config extends Equatable {
   List<Object?> get props => [
         supabaseConfig,
         sentryDsn,
+        googleSignInConfig,
       ];
 }
 
@@ -87,5 +108,25 @@ class SupabaseConfig extends Equatable {
   List<Object?> get props => [
         url,
         anonKey,
+      ];
+}
+
+/// OAuth client IDs from the Google Cloud console.
+class GoogleSignInConfig extends Equatable {
+  const GoogleSignInConfig({
+    required this.webClientId,
+    this.iosClientId,
+  });
+
+  /// The Web client: Supabase checks that the ID token was issued to it.
+  final String webClientId;
+
+  /// The iOS client, required by the native sign-in on iOS only.
+  final String? iosClientId;
+
+  @override
+  List<Object?> get props => [
+        webClientId,
+        iosClientId,
       ];
 }

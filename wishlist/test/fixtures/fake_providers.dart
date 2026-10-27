@@ -37,12 +37,14 @@ Override supabaseClientOverride({
   String? userId,
   String? userEmail,
   bool signedOut = false,
+  List<String> authProviders = const ['email'],
 }) {
   return supabaseClientProvider.overrideWithValue(
     createMockSupabaseClient(
       userId: userId,
       userEmail: userEmail,
       signedOut: signedOut,
+      authProviders: authProviders,
     ),
   );
 }
@@ -200,12 +202,14 @@ List<Override> settingsScreenOverrides({
   /// `false` : currentUserBirthdayProvider reste le vrai, au-dessus du service.
   bool overrideBirthday = true,
   bool signedOut = false,
+  List<String> authProviders = const ['email'],
 }) {
   return [
     supabaseClientOverride(
       userId: currentUserId,
       userEmail: currentUserEmail,
       signedOut: signedOut,
+      authProviders: authProviders,
     ),
     userServiceOverride(userId: currentUserId),
     watchCurrentUserProfileOverride(profile: currentUserProfile),

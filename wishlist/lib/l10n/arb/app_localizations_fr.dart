@@ -52,6 +52,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get haveAccount => 'Vous avez déjà un compte ?\nConnectez-vous !';
 
   @override
+  String get socialSignInSeparator => 'ou';
+
+  @override
+  String get continueWithGoogle => 'Continuer avec Google';
+
+  @override
+  String get continueWithApple => 'Continuer avec Apple';
+
+  @override
   String get invalidLoginCredentials => 'Identifiants de connexion invalides';
 
   @override

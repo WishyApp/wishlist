@@ -1,15 +1,24 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
+import 'package:wishlist/shared/infra/social_sign_in_client.dart';
 
 import '../../fixtures/mock_supabase.dart';
 
+class MockSocialSignInClient extends Mock implements SocialSignInClient {}
+
 void main() {
-  setUpAll(() => registerFallbackValue(UserAttributes()));
+  setUpAll(() {
+    registerFallbackValue(UserAttributes());
+    registerFallbackValue(OAuthProvider.google);
+    registerFallbackValue(const GoogleSignInConfig(webClientId: 'web'));
+  });
 
   late MockGoTrueClient auth;
+  late MockSocialSignInClient socialSignIn;
   late AuthService service;
 
   setUp(() {
@@ -17,7 +26,8 @@ void main() {
     final user = MockUser();
     when(() => user.email).thenReturn('me@example.com');
     when(() => auth.currentUser).thenReturn(user);
-    service = AuthService(auth: auth);
+    socialSignIn = MockSocialSignInClient();
+    service = AuthService(auth: auth, socialSignIn: socialSignIn);
   });
 
   void stubSignIn(Object error) {
@@ -189,6 +199,99 @@ void main() {
         throwsA(
           isA<AppException>().having((e) => e.cause, 'cause', networkError),
         ),
+      );
+    });
+  });
+
+  group('social sign-in', () {
+    const googleConfig = GoogleSignInConfig(webClientId: 'web');
+    const token = SocialIdToken(idToken: 'id-token', rawNonce: 'raw-nonce');
+
+    void stubSignInWithIdToken() {
+      when(
+        () => auth.signInWithIdToken(
+          provider: any(named: 'provider'),
+          idToken: any(named: 'idToken'),
+          nonce: any(named: 'nonce'),
+        ),
+      ).thenAnswer((_) async => AuthResponse());
+    }
+
+    test('Google: signs in to Supabase with the ID token and raw nonce',
+        () async {
+      when(() => socialSignIn.googleIdToken(googleConfig))
+          .thenAnswer((_) async => token);
+      stubSignInWithIdToken();
+
+      expect(await service.signInWithGoogle(googleConfig), isTrue);
+
+      verify(
+        () => auth.signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: 'id-token',
+          nonce: 'raw-nonce',
+        ),
+      ).called(1);
+    });
+
+    test('Google: does nothing when the user dismisses the sheet', () async {
+      when(() => socialSignIn.googleIdToken(any()))
+          .thenAnswer((_) async => null);
+
+      expect(await service.signInWithGoogle(googleConfig), isFalse);
+
+      verifyNever(
+        () => auth.signInWithIdToken(
+          provider: any(named: 'provider'),
+          idToken: any(named: 'idToken'),
+          nonce: any(named: 'nonce'),
+        ),
+      );
+    });
+
+    test('Apple: signs in to Supabase with the ID token and raw nonce',
+        () async {
+      when(() => socialSignIn.appleIdToken()).thenAnswer((_) async => token);
+      stubSignInWithIdToken();
+
+      expect(await service.signInWithApple(), isTrue);
+
+      verify(
+        () => auth.signInWithIdToken(
+          provider: OAuthProvider.apple,
+          idToken: 'id-token',
+          nonce: 'raw-nonce',
+        ),
+      ).called(1);
+    });
+
+    test('Apple: does nothing when the user dismisses the sheet', () async {
+      when(() => socialSignIn.appleIdToken()).thenAnswer((_) async => null);
+
+      expect(await service.signInWithApple(), isFalse);
+
+      verifyNever(
+        () => auth.signInWithIdToken(
+          provider: any(named: 'provider'),
+          idToken: any(named: 'idToken'),
+          nonce: any(named: 'nonce'),
+        ),
+      );
+    });
+
+    test('propagates a Supabase rejection of the token', () async {
+      when(() => socialSignIn.appleIdToken()).thenAnswer((_) async => token);
+      when(
+        () => auth.signInWithIdToken(
+          provider: any(named: 'provider'),
+          idToken: any(named: 'idToken'),
+          nonce: any(named: 'nonce'),
+        ),
+      ).thenThrow(const AuthApiException('Bad ID token', statusCode: '400'));
+
+      await expectLater(
+        service.signInWithApple(),
+        throwsA(isA<AuthApiException>()),
       );
     });
   });
