@@ -116,7 +116,7 @@ final wishlistScreenDisplayProvider =
     pending: pending,
     booked: booked,
     allIds: wishs.map((wish) => wish.id).toIList(),
-    availableIds: available.map((wish) => wish.id).toIList(),
+    availableIds: pending.map((wish) => wish.id).toIList(),
     bookedIds: booked.map((wish) => wish.id).toIList(),
     pendingQuantityOverrides: pendingQuantityOverrides,
     bookedQuantityOverrides: bookedQuantityOverrides,
