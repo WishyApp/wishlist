@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/theme/colors.dart';
@@ -64,46 +63,84 @@ class SocialSignInButtons extends StatelessWidget {
             ),
             const Gap(16),
             if (showApple)
-              SignInWithAppleButton(
-                text: l10n.continueWithApple,
+              _SocialButton(
                 onPressed: onApplePressed,
-                height: _height,
-                borderRadius: _borderRadius,
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                logo: const Icon(Icons.apple, size: 22),
+                label: l10n.continueWithApple,
               ),
             if (showApple && showGoogle) const Gap(12),
             if (showGoogle)
-              SizedBox(
-                height: _height,
-                child: OutlinedButton(
-                  onPressed: onGooglePressed,
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    side: const BorderSide(color: AppColors.pastelGray),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: _borderRadius,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SvgPicture.asset(
-                        Assets.svg.googleLogo,
-                        width: 18,
-                        height: 18,
-                      ),
-                      const Gap(12),
-                      Text(
-                        l10n.continueWithGoogle,
-                        style: AppTextStyles.small.copyWith(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+              _SocialButton(
+                onPressed: onGooglePressed,
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                borderColor: AppColors.pastelGray,
+                logo: SvgPicture.asset(
+                  Assets.svg.googleLogo,
+                  width: 18,
+                  height: 18,
                 ),
+                label: l10n.continueWithGoogle,
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Same shape and text style for both providers, only the colors and the
+/// logo change: Apple's guidelines allow a custom button in black with the
+/// white logo.
+class _SocialButton extends StatelessWidget {
+  const _SocialButton({
+    required this.onPressed,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.logo,
+    required this.label,
+    this.borderColor,
+  });
+
+  final VoidCallback onPressed;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final Color? borderColor;
+  final Widget logo;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = this.borderColor;
+
+    return SizedBox(
+      height: SocialSignInButtons._height,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          side: borderColor != null
+              ? BorderSide(color: borderColor)
+              : BorderSide.none,
+          shape: RoundedRectangleBorder(
+            borderRadius: SocialSignInButtons._borderRadius,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            logo,
+            const Gap(12),
+            Text(
+              label,
+              style: AppTextStyles.small.copyWith(
+                color: foregroundColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),

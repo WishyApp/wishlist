@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/modules/auth/view/auth_screen.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
@@ -52,14 +51,14 @@ void main() {
     await pump(tester);
 
     expect(find.text('Continuer avec Google'), findsNothing);
-    expect(find.byType(SignInWithAppleButton), findsNothing);
+    expect(find.text('Continuer avec Apple'), findsNothing);
     expect(find.text('ou'), findsNothing);
   });
 
   testWidgets('signs in with Google when configured', (tester) async {
     await pump(tester, config: googleConfig);
 
-    expect(find.byType(SignInWithAppleButton), findsNothing);
+    expect(find.text('Continuer avec Apple'), findsNothing);
     await tester.ensureVisible(find.text('Continuer avec Google'));
     await tester.tap(find.text('Continuer avec Google'));
     await tester.pumpAndSettle();
@@ -72,11 +71,11 @@ void main() {
     try {
       await pump(tester, config: googleConfig);
 
-      expect(find.byType(SignInWithAppleButton), findsOneWidget);
+      expect(find.text('Continuer avec Apple'), findsOneWidget);
       expect(find.text('Continuer avec Google'), findsOneWidget);
 
-      await tester.ensureVisible(find.byType(SignInWithAppleButton));
-      await tester.tap(find.byType(SignInWithAppleButton));
+      await tester.ensureVisible(find.text('Continuer avec Apple'));
+      await tester.tap(find.text('Continuer avec Apple'));
       await tester.pumpAndSettle();
 
       verify(() => authService.signInWithApple()).called(1);
@@ -93,7 +92,7 @@ void main() {
         config: const GoogleSignInConfig(webClientId: 'web'),
       );
 
-      expect(find.byType(SignInWithAppleButton), findsOneWidget);
+      expect(find.text('Continuer avec Apple'), findsOneWidget);
       expect(find.text('Continuer avec Google'), findsNothing);
     } finally {
       debugDefaultTargetPlatformOverride = null;
