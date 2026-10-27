@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +10,9 @@ import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_repository_provider.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
+import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
+import 'package:wishlist/shared/models/wish/wish_sort_type.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
 
 import '../../../fixtures/fake_data.dart';
@@ -117,6 +121,237 @@ void main() {
       }
       verifyNever(() => repository.getWishById(any()));
       expect(container.read(provider).isSelectionMode, isFalse);
+    });
+  });
+
+  group('WishlistScreenNotifier selection', () {
+    late ProviderContainer container;
+    final provider = wishlistScreenNotifierProvider(1);
+
+    WishlistScreenState state() => container.read(provider);
+    WishlistScreenNotifier notifier() => container.read(provider.notifier);
+
+    setUp(() {
+      container = ProviderContainer(
+        overrides: [
+          wishlistThemeCacheProvider(1).overrideWith((ref) => null),
+          wishlistScreenDataRealtimeProvider(1).overrideWithValue(
+            AsyncData((fakeWishlist1, IList<Wish>(), IList())),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(provider, (_, __) {});
+      addTearDown(sub.close);
+    });
+
+    test('selectAll adds the visible wishes to the current selection', () {
+      notifier()
+        ..enableSelectionMode(1)
+        ..selectAll([2, 3]);
+
+      expect(state().selectedWishIds, {1, 2, 3});
+      expect(state().isSelectionMode, isTrue);
+    });
+
+    test('selectAll enters selection mode and ignores an empty list', () {
+      notifier().selectAll([]);
+      expect(state().isSelectionMode, isFalse);
+
+      notifier().selectAll([4, 5]);
+      expect(state().selectedWishIds, {4, 5});
+      expect(state().isSelectionMode, isTrue);
+    });
+
+    test('keeps the selection when the search or the sort change', () {
+      notifier()
+        ..enableSelectionMode(1)
+        ..toggleWishSelection(2)
+        ..updateSort(
+          const WishSort(
+            type: WishSortType.price,
+            order: SortOrder.ascending,
+          ),
+        );
+      notifier().searchController.text = 'Wulfgar';
+
+      expect(state().searchQuery, 'wulfgar');
+      expect(state().selectedWishIds, {1, 2});
+      expect(state().isSelectionMode, isTrue);
+    });
+
+    test('areAllSelected is true once every visible wish is selected', () {
+      notifier()
+        ..enableSelectionMode(1)
+        ..toggleWishSelection(2);
+
+      expect(state().areAllSelected([1, 2]), isTrue);
+      expect(state().areAllSelected([2]), isTrue);
+      expect(state().areAllSelected([1, 2, 3]), isFalse);
+      // Nothing displayed: nothing to add
+      expect(state().areAllSelected([]), isTrue);
+    });
+  });
+
+  group('WishlistScreenNotifier keeps the selection in the listed wishs', () {
+    late ProviderContainer container;
+    late StateController<AsyncValue<WishlistScreenData>> data;
+    late MockWishRepository repository;
+    final provider = wishlistScreenNotifierProvider(1);
+    final wishs = [for (var id = 1; id <= 3; id++) wishWith(id, '')];
+
+    CompletedWishWithDetails received(Wish wish, int quantity) =>
+        CompletedWishWithDetails(
+          wish: wish,
+          fromWishlistId: wish.wishlistId,
+          fromWishlistName: fakeWishlist1.name,
+          ownerPseudo: 'owner',
+          ownerId: fakeCurrentUserId,
+          completedAt: fakeCreatedAt,
+          quantity: quantity,
+        );
+
+    void emit(
+      List<Wish> listed, [
+      List<CompletedWishWithDetails> completed = const [],
+    ]) =>
+        data.state = AsyncData(
+          (fakeWishlist1, IList<Wish>(listed), IList(completed)),
+        );
+
+    setUp(() {
+      final dataProvider = StateProvider<AsyncValue<WishlistScreenData>>(
+        (ref) => AsyncData((fakeWishlist1, IList<Wish>(wishs), IList())),
+      );
+      repository = MockWishRepository();
+      when(() => repository.deleteWish(any())).thenAnswer((_) async {});
+      container = ProviderContainer(
+        overrides: [
+          wishRepositoryProvider.overrideWithValue(repository),
+          wishlistThemeCacheProvider(1).overrideWith((ref) => null),
+          wishlistScreenDataRealtimeProvider(1)
+              .overrideWith((ref) => ref.watch(dataProvider)),
+        ],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(provider, (_, __) {});
+      addTearDown(sub.close);
+      data = container.read(dataProvider.notifier);
+      container.read(provider.notifier)
+        ..enableSelectionMode(1)
+        ..toggleWishSelection(2);
+    });
+
+    test('drops a selected wish deleted or moved elsewhere', () {
+      emit([wishs[1], wishs[2]]);
+
+      expect(container.read(provider).selectedWishIds, {2});
+      expect(container.read(provider).isSelectionMode, isTrue);
+    });
+
+    test('drops a selected wish fully received', () {
+      emit(wishs, [received(wishs[0], 1)]);
+
+      expect(container.read(provider).selectedWishIds, {2});
+    });
+
+    test('exits selection mode once no selected wish is listed', () {
+      emit([wishs[2]]);
+
+      expect(container.read(provider).selectedWishIds, isEmpty);
+      expect(container.read(provider).isSelectionMode, isFalse);
+    });
+
+    test('keeps the selection while its wishs are listed', () {
+      final before = container.read(provider);
+
+      emit([...wishs, wishWith(4, '')]);
+
+      expect(identical(container.read(provider), before), isTrue);
+    });
+
+    test('keeps the selection until the end of an action on it', () async {
+      final notifier = container.read(provider.notifier);
+      WishlistScreenState? during;
+
+      final count = await notifier.runOnSelection((wishIds) async {
+        // The wishs leave the list one by one as the action handles them
+        emit([wishs[1], wishs[2]]);
+        emit([wishs[2]]);
+        during = container.read(provider);
+      });
+
+      expect(count, 2);
+      expect(during!.selectedWishIds, {1, 2});
+      expect(during!.isSelectionMode, isTrue);
+      expect(container.read(provider).isSelectionMode, isFalse);
+      expect(container.read(provider).selectedWishIds, isEmpty);
+    });
+
+    test('keeps the wishs still listed when an action fails', () async {
+      final notifier = container.read(provider.notifier);
+
+      await expectLater(
+        notifier.runOnSelection((wishIds) async {
+          emit([wishs[1], wishs[2]]);
+          throw Exception('network');
+        }),
+        throwsException,
+      );
+
+      expect(container.read(provider).selectedWishIds, {2});
+      expect(container.read(provider).isSelectionMode, isTrue);
+    });
+
+    test('deletes, and counts, the wishs selected when it runs', () async {
+      container.read(provider.notifier).toggleWishSelection(3);
+      // Wish 3 deleted from another device while the confirmation is open
+      emit([wishs[0], wishs[1]]);
+
+      final deleted =
+          await container.read(provider.notifier).deleteSelectedWishs();
+
+      expect(deleted, 2);
+      verify(() => repository.deleteWish(1)).called(1);
+      verify(() => repository.deleteWish(2)).called(1);
+      verifyNever(() => repository.deleteWish(3));
+    });
+
+    test('runs one action at a time, on a frozen selection', () async {
+      final notifier = container.read(provider.notifier);
+      final firstDone = Completer<void>();
+      var secondRuns = 0;
+
+      final first = notifier.runOnSelection((_) => firstDone.future);
+      expect(container.read(provider).isSelectionActionRunning, isTrue);
+
+      // A second action, and selection changes, are ignored meanwhile
+      expect(await notifier.runOnSelection((_) async => secondRuns++), 0);
+      expect(secondRuns, 0);
+      notifier
+        ..toggleWishSelection(3)
+        ..toggleWishSelection(1)
+        ..selectAll([3])
+        ..enableSelectionMode(3);
+      expect(container.read(provider).selectedWishIds, {1, 2});
+      expect(container.read(provider).isSelectionActionRunning, isTrue);
+
+      firstDone.complete();
+      expect(await first, 2);
+      expect(container.read(provider).isSelectionActionRunning, isFalse);
+      expect(container.read(provider).isSelectionMode, isFalse);
+    });
+
+    test('runs nothing on an empty selection', () async {
+      container.read(provider.notifier).exitSelectionMode();
+      var runs = 0;
+
+      final count = await container
+          .read(provider.notifier)
+          .runOnSelection((_) async => runs++);
+
+      expect(count, 0);
+      expect(runs, 0);
     });
   });
 

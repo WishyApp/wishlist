@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/wishlists/infra/wishlist_screen_data_realtime_provider.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_search_bar.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wishlist_selection_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_section.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishs_tab.dart';
@@ -13,6 +14,7 @@ import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
+import 'package:wishlist/shared/widgets/inert.dart';
 
 class WishlistScreenBody extends ConsumerWidget {
   const WishlistScreenBody({
@@ -21,6 +23,8 @@ class WishlistScreenBody extends ConsumerWidget {
     required this.wishlistScreenData,
     required this.isMyWishlist,
   });
+
+  static const Duration _cardsFadeDuration = Duration(milliseconds: 250);
 
   final int wishlistId;
   final WishlistScreenData wishlistScreenData;
@@ -118,23 +122,70 @@ class WishlistScreenBody extends ConsumerWidget {
     final display = ref.watch(wishlistScreenDisplayProvider(wishlistId));
     final wishs = display.all;
     final wishsBooked = display.booked;
-    final pendingQuantityOverrides = display.pendingQuantityOverrides;
     final bookedQuantityOverrides = display.bookedQuantityOverrides;
-    final isWishsBookedHidden = !wishlist.canOwnerSeeTakenWish && isMyWishlist;
-    final wishsPending = isWishsBookedHidden ? wishs : display.available;
+    final isWishsBookedHidden = display.bookingsHidden;
+    final pendingQuantityOverrides = display.pendingQuantityOverrides;
+    final wishsPending = display.pending;
 
     final nbWishsPending = wishsPending.length;
     final nbWishsBooked = wishsBooked.length;
 
+    // Wishs affichés par l'onglet courant, avec la recherche et le tri en
+    // cours : ceux que "Tout sélectionner" coche
+    final visibleWishIds = switch (screenState.statCardSelected) {
+      WishlistStatsCardType.pending =>
+        isWishsBookedHidden ? display.allIds : display.availableIds,
+      WishlistStatsCardType.booked =>
+        isWishsBookedHidden ? const IListConst<int>([]) : display.bookedIds,
+    };
+    final areAllVisibleSelected = screenState.areAllSelected(visibleWishIds);
+
     return Column(
       children: [
-        WishlistStatsSection(
-          statCardSelected: screenState.statCardSelected,
-          nbWishsTotal: wishs.length,
-          nbWishsPending: nbWishsPending,
-          nbWishsBooked: nbWishsBooked,
-          isWishsBookedHidden: isWishsBookedHidden,
-          onTapStatCard: notifier.selectStatCard,
+        // La carte de sélection prend la place des stats, qui restent dans
+        // l'arbre (invisibles, sans touche ni focus) pour lui donner
+        // exactement leur hauteur
+        Stack(
+          children: [
+            Inert(
+              inert: screenState.isSelectionMode,
+              child: AnimatedOpacity(
+                duration: _cardsFadeDuration,
+                opacity: screenState.isSelectionMode ? 0 : 1,
+                child: WishlistStatsSection(
+                  statCardSelected: screenState.statCardSelected,
+                  nbWishsTotal: wishs.length,
+                  nbWishsPending: nbWishsPending,
+                  nbWishsBooked: nbWishsBooked,
+                  isWishsBookedHidden: isWishsBookedHidden,
+                  onTapStatCard: notifier.selectStatCard,
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: Padding(
+                padding: WishlistStatsSection.padding,
+                child: AnimatedSwitcher(
+                  duration: _cardsFadeDuration,
+                  layoutBuilder: inertSwitcherLayout(fit: StackFit.expand),
+                  child: screenState.isSelectionMode
+                      // Inerte pendant une action sur la sélection, comme la
+                      // barre d'actions
+                      ? Inert(
+                          inert: screenState.isSelectionActionRunning,
+                          child: WishlistSelectionCard(
+                            selectedCount: screenState.selectedWishIds.length,
+                            onSelectAll: areAllVisibleSelected
+                                ? null
+                                : () => notifier.selectAll(visibleWishIds),
+                            onExit: notifier.exitSelectionMode,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+          ],
         ),
         WishlistSearchBar(
           searchController: notifier.searchController,
@@ -146,7 +197,11 @@ class WishlistScreenBody extends ConsumerWidget {
         ),
         Expanded(
           child: PageView(
-            physics: const ClampingScrollPhysics(),
+            // En mode sélection, l'onglet reste celui où la sélection a
+            // commencé : c'est lui que "Tout sélectionner" coche
+            physics: screenState.isSelectionMode
+                ? const NeverScrollableScrollPhysics()
+                : const ClampingScrollPhysics(),
             controller: notifier.pageController,
             onPageChanged: notifier.onPageChanged,
             children: [
@@ -172,9 +227,7 @@ class WishlistScreenBody extends ConsumerWidget {
                 isWishsBookedHidden: isWishsBookedHidden,
                 screenState: screenState,
                 notifier: notifier,
-                quantityOverrideMap: bookedQuantityOverrides.isNotEmpty
-                    ? bookedQuantityOverrides.unlockView
-                    : null,
+                quantityOverrideMap: bookedQuantityOverrides.unlockView,
               ),
             ],
           ),

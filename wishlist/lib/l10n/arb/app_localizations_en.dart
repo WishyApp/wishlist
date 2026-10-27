@@ -814,6 +814,36 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String wishlistSelectionCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wishlistSelectionCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get wishlistSelectAll => 'Select all';
+
+  @override
+  String get wishlistExitSelection => 'Exit selection';
+
+  @override
+  String get wishlistSelectionComplete => 'Complete';
+
+  @override
+  String get wishlistSelectionMove => 'Move';
+
+  @override
+  String get wishlistSelectionDelete => 'Delete';
+
+  @override
   String get wishlistSettingsTitle => 'Settings';
 
   @override

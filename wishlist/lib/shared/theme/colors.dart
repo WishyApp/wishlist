@@ -52,6 +52,35 @@ abstract final class AppColors {
     return Color.from(alpha: color.a, red: red, green: green, blue: blue);
   }
 
+  /// Rapport de contraste WCAG entre deux couleurs, de 1 à 21
+  static double contrastRatio(Color a, Color b) {
+    final luminanceA = a.computeLuminance();
+    final luminanceB = b.computeLuminance();
+
+    return (max(luminanceA, luminanceB) + 0.05) /
+        (min(luminanceA, luminanceB) + 0.05);
+  }
+
+  /// Fonce [color] par petits pas jusqu'à ce que [foreground] y soit lisible
+  /// ([minContrast] : 4.5, le minimum WCAG AA pour un texte normal). Une
+  /// couleur déjà assez foncée est rendue telle quelle.
+  static Color darkenForContrast(
+    Color color, {
+    required Color foreground,
+    double minContrast = 4.5,
+  }) {
+    var result = color;
+    // Le noir contraste à plus de 18:1 avec un texte clair : la boucle
+    // s'arrête bien avant la limite
+    for (var step = 0;
+        step < 50 && contrastRatio(result, foreground) < minContrast;
+        step++) {
+      result = darken(result, 0.95);
+    }
+
+    return result;
+  }
+
   static Color lighten(Color color, [double factor = 1.07]) {
     final red = color.r * factor;
     final green = color.g * factor;

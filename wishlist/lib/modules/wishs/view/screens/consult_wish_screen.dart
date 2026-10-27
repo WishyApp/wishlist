@@ -127,6 +127,9 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
         final quantityToDisplay = _quantityToDisplay(
           wishData,
           ownerReceivedQuantity: ownerReceivedQuantity,
+          ignoreBookings:
+              wishlistAsync.valueOrNull?.hidesBookingsFrom(currentUserId) ??
+                  false,
         );
         // Tant que le propriétaire n'est pas connu, on masque les actions
         // pour ne pas afficher brièvement celles d'un invité au propriétaire.
@@ -210,6 +213,7 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
   int _quantityToDisplay(
     Wish wish, {
     required int? ownerReceivedQuantity,
+    required bool ignoreBookings,
   }) {
     switch (widget.quantityDisplay) {
       case WishQuantityDisplay.total:
@@ -219,14 +223,18 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
         if (ownerReceivedQuantity == null) {
           return 0;
         }
-        return wish.pendingQuantity(receivedQuantity: ownerReceivedQuantity);
+        // Propriétaire qui ne voit pas les réservations : elles ne se
+        // déduisent pas de l'attente.
+        return wish.pendingQuantity(
+          receivedQuantity: ownerReceivedQuantity,
+          ignoreBookings: ignoreBookings,
+        );
       case WishQuantityDisplay.booked:
         if (ownerReceivedQuantity == null) {
           return 0;
         }
-        return (wish.totalBookedQuantity - ownerReceivedQuantity).clamp(
-          0,
-          wish.totalBookedQuantity,
+        return wish.remainingBookedQuantity(
+          receivedQuantity: ownerReceivedQuantity,
         );
       case WishQuantityDisplay.myBooked:
         final currentUserId = ref.watch(currentUserIdProvider);

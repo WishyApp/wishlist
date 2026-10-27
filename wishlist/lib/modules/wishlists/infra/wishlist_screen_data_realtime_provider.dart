@@ -54,4 +54,15 @@ extension WishlistScreenDataGetters on WishlistScreenData {
   Wishlist get wishlist => $1;
   IList<Wish> get wishs => $2;
   IList<CompletedWishWithDetails> get completedWishes => $3;
+
+  /// Quantité déjà reçue de chaque wish complété
+  Map<int, int> get receivedQuantityById => {
+        for (final c in completedWishes) c.wish.id: c.quantity,
+      };
+
+  /// Wishs que l'écran liste : un wish entièrement reçu n'est ni en attente
+  /// ni à offrir. Règle partagée par l'affichage et la sélection.
+  IList<Wish> listedWishs(Map<int, int> receivedQuantityById) => wishs
+      .where((w) => (receivedQuantityById[w.id] ?? 0) < w.quantity)
+      .toIList();
 }

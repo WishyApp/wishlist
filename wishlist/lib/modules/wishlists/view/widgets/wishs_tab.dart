@@ -34,6 +34,10 @@ class WishsTab extends StatelessWidget {
 
   static const double _verticalPadding = 16;
 
+  /// Laisse le contenu au-dessus du bouton d'ajout et de la barre d'actions
+  /// du mode sélection (WishlistSelectionActionBar)
+  static const double _actionsBottomPadding = 120;
+
   final Wishlist wishlist;
   final IList<Wish> wishsToDisplay;
   final bool shouldDisplayWishs;
@@ -72,8 +76,10 @@ class WishsTab extends StatelessWidget {
         ? wishlist.noWishIllustration
         : Assets.svg.noBookedWish;
 
-    final shouldShowCallToAction =
-        isMyWishlist && (!isWishsBookedHidden || isPendingTab);
+    // En mode sélection, l'ajout est masqué, comme le "+"
+    final shouldShowCallToAction = isMyWishlist &&
+        !isSelectionMode &&
+        (!isWishsBookedHidden || isPendingTab);
 
     return Container(
       width: double.infinity,
@@ -108,6 +114,8 @@ class WishsTab extends StatelessWidget {
                   shouldShowCallToAction: shouldShowCallToAction,
                   wishlist: wishlist,
                   onAddWish: onAddWish,
+                  // Hors sélection, rien ne recouvre l'écran vide
+                  reservesActionsSpace: isSelectionMode,
                 );
         },
       ),
@@ -130,7 +138,6 @@ class _WishList extends StatelessWidget {
     this.quantityOverrideMap,
   });
 
-  static const double _bottomPadding = 120;
   static const double _itemSpacing = 8;
 
   final Wishlist wishlist;
@@ -159,7 +166,7 @@ class _WishList extends StatelessWidget {
       child: AnimatedListView<Wish>(
         items: wishsToDisplay.toList(),
         padding: EdgeInsets.only(
-          bottom: _WishList._bottomPadding + bottomInset,
+          bottom: WishsTab._actionsBottomPadding + bottomInset,
         ),
         animationDuration: const Duration(milliseconds: 500),
         itemSpacing: _WishList._itemSpacing,
@@ -196,6 +203,7 @@ class _EmptyState extends StatelessWidget {
     required this.shouldShowCallToAction,
     required this.wishlist,
     required this.onAddWish,
+    required this.reservesActionsSpace,
   });
 
   static const double _topPadding = 16;
@@ -208,10 +216,14 @@ class _EmptyState extends StatelessWidget {
   final Wishlist wishlist;
   final Function(BuildContext, Wishlist) onAddWish;
 
+  /// Réserve la place de la barre d'actions, posée sur le bas de l'écran
+  final bool reservesActionsSpace;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom +
+        (reservesActionsSpace ? WishsTab._actionsBottomPadding : 0);
 
     return Padding(
       padding: EdgeInsets.only(top: _topPadding, bottom: bottomInset),

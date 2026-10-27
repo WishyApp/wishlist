@@ -173,15 +173,22 @@ void main() {
 
     Future<void> pumpOwnWish(
       WidgetTester tester, {
-      required Stream<IList<CompletedWishWithDetails>> Function() receipts,
+      Stream<IList<CompletedWishWithDetails>> Function()? receipts,
+      Wish? wish,
+      Wishlist? wishlist,
+      WishQuantityDisplay quantityDisplay = WishQuantityDisplay.total,
     }) async {
       await tester.pumpApp(
-        const ConsultWishScreen(wishIds: [1], initialIndex: 0),
+        ConsultWishScreen(
+          wishIds: const [1],
+          initialIndex: 0,
+          quantityDisplay: quantityDisplay,
+        ),
         overrides: wishScreenOverrides(
           wishId: 1,
           wishlistId: 1,
-          wish: fakeWish1,
-          wishlist: fakeWishlist1,
+          wish: wish ?? fakeWish1,
+          wishlist: wishlist ?? fakeWishlist1,
           receipts: receipts,
         ),
       );
@@ -309,6 +316,43 @@ void main() {
       );
 
       expect(find.text('x2'), findsOneWidget);
+    });
+
+    group('owner who does not see the bookings', () {
+      // The only booking they can still read is their own (legacy row).
+      final ownBooked = fakeWish1.copyWith(
+        quantity: 3,
+        takenByUser: [
+          fakeWishTakenByUser.copyWith(
+            wishId: fakeWish1.id,
+            userId: fakeCurrentUserId,
+          ),
+        ].toIList(),
+      );
+      final hiddenWishlist =
+          fakeWishlist1.copyWith(canOwnerSeeTakenWish: false);
+
+      testWidgets('ignores its own booking', (tester) async {
+        await pumpOwnWish(
+          tester,
+          wish: ownBooked,
+          wishlist: hiddenWishlist,
+          quantityDisplay: WishQuantityDisplay.pending,
+        );
+
+        expect(find.text('x3'), findsOneWidget);
+      });
+
+      testWidgets('subtracts the bookings when it sees them', (tester) async {
+        await pumpOwnWish(
+          tester,
+          wish: ownBooked,
+          wishlist: fakeWishlist1,
+          quantityDisplay: WishQuantityDisplay.pending,
+        );
+
+        expect(find.text('x2'), findsOneWidget);
+      });
     });
 
     testWidgets('shows the give action when nothing was received',

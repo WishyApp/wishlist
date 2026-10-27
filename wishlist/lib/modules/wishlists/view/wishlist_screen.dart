@@ -44,6 +44,10 @@ class WishlistScreen extends ConsumerWidget {
         .read(wishlistScreenNotifierProvider(wishlistId))
         .selectedWishIds
         .length;
+    // La sélection a pu se vider entre-temps (wishs supprimés ailleurs)
+    if (count == 0) {
+      return;
+    }
     final l10n = context.l10n;
 
     final explanation = count == 1
@@ -56,11 +60,15 @@ class WishlistScreen extends ConsumerWidget {
       explanation: explanation,
       onConfirm: () async {
         try {
-          await notifier.deleteSelectedWishs();
-          if (context.mounted) {
+          // La sélection a pu changer pendant la confirmation (wishs
+          // supprimés ailleurs) : le message compte les wishs traités
+          final deleted = await notifier.deleteSelectedWishs();
+          if (deleted > 0 && context.mounted) {
             showAppSnackBar(
               context,
-              count == 1 ? l10n.deleteWishSuccess : l10n.wishesDeleted(count),
+              deleted == 1
+                  ? l10n.deleteWishSuccess
+                  : l10n.wishesDeleted(deleted),
               type: SnackBarType.success,
             );
           }
@@ -83,6 +91,10 @@ class WishlistScreen extends ConsumerWidget {
         .read(wishlistScreenNotifierProvider(wishlistId))
         .selectedWishIds
         .length;
+    // La sélection a pu se vider entre-temps (wishs supprimés ailleurs)
+    if (count == 0) {
+      return;
+    }
     final l10n = context.l10n;
 
     await showMoveWishesDialog(
@@ -91,11 +103,12 @@ class WishlistScreen extends ConsumerWidget {
       wishCount: count,
       onConfirm: (targetWishlistId) async {
         try {
-          await notifier.moveSelectedWishs(targetWishlistId);
-          if (context.mounted) {
+          // Comme pour la suppression : les wishs traités, pas ceux annoncés
+          final moved = await notifier.moveSelectedWishs(targetWishlistId);
+          if (moved > 0 && context.mounted) {
             showAppSnackBar(
               context,
-              l10n.wishesMoved(count),
+              l10n.wishesMoved(moved),
               type: SnackBarType.success,
             );
           }
@@ -114,8 +127,6 @@ class WishlistScreen extends ConsumerWidget {
   ) async {
     final notifier =
         ref.read(wishlistScreenNotifierProvider(wishlistId).notifier);
-    final selectedIds =
-        ref.read(wishlistScreenNotifierProvider(wishlistId)).selectedWishIds;
     final wishs = ref
             .read(wishlistScreenDataRealtimeProvider(wishlistId))
             .valueOrNull
@@ -125,45 +136,48 @@ class WishlistScreen extends ConsumerWidget {
         ref.read(completedWishesRealtimeProvider).valueOrNull;
 
     var anyCompleted = false;
-    for (final wishId in selectedIds) {
-      if (!context.mounted) {
-        break;
-      }
-      final matching = wishs.where((w) => w.id == wishId);
-      if (matching.isEmpty) {
-        continue;
-      }
-      final wish = matching.first;
-
-      final completedEntry =
-          completedWishs?.where((c) => c.wish.id == wish.id).firstOrNull;
-      final alreadyCompletedQuantity = completedEntry?.quantity ?? 0;
-
-      if (wish.quantity > 1) {
-        final confirmed = await showCompleteWishQuantityDialog(
-          context,
-          ref,
-          wish: wish,
-          alreadyCompletedQuantity: alreadyCompletedQuantity,
-        );
-        if (confirmed) {
-          anyCompleted = true;
+    // Chaque wish reçu quitte la liste pendant la boucle : runOnSelection
+    // garde le mode sélection ouvert jusqu'à la fin
+    await notifier.runOnSelection((selectedIds) async {
+      for (final wishId in selectedIds) {
+        if (!context.mounted) {
+          break;
         }
-      } else {
-        try {
-          await ref
-              .read(completedWishMutationsProvider.notifier)
-              .markAsCompleted(wish);
-          anyCompleted = true;
-        } catch (e) {
-          if (context.mounted) {
-            showGenericError(context, error: e);
+        final matching = wishs.where((w) => w.id == wishId);
+        if (matching.isEmpty) {
+          continue;
+        }
+        final wish = matching.first;
+
+        final completedEntry =
+            completedWishs?.where((c) => c.wish.id == wish.id).firstOrNull;
+        final alreadyCompletedQuantity = completedEntry?.quantity ?? 0;
+
+        if (wish.quantity > 1) {
+          final confirmed = await showCompleteWishQuantityDialog(
+            context,
+            ref,
+            wish: wish,
+            alreadyCompletedQuantity: alreadyCompletedQuantity,
+          );
+          if (confirmed) {
+            anyCompleted = true;
+          }
+        } else {
+          try {
+            await ref
+                .read(completedWishMutationsProvider.notifier)
+                .markAsCompleted(wish);
+            anyCompleted = true;
+          } catch (e) {
+            if (context.mounted) {
+              showGenericError(context, error: e);
+            }
           }
         }
       }
-    }
+    });
 
-    notifier.exitSelectionMode();
     if (anyCompleted && context.mounted) {
       showAppSnackBar(
         context,
@@ -234,12 +248,13 @@ class WishlistScreen extends ConsumerWidget {
       }
     });
 
-    // Seul le mode sélection est utilisé ici : la recherche, le tri et la
-    // sélection sont watchés par le body et les actions flottantes, sinon tout
-    // l'écran se reconstruirait à chaque frappe
-    final isSelectionMode = ref.watch(
-      wishlistScreenNotifierProvider(wishlistId)
-          .select((state) => state.isSelectionMode),
+    // Seuls le mode sélection et l'action en cours sont utilisés ici : la
+    // recherche, le tri et la sélection sont watchés par le body et les
+    // actions flottantes, sinon tout l'écran se reconstruirait à chaque frappe
+    final (isSelectionMode, isSelectionActionRunning) = ref.watch(
+      wishlistScreenNotifierProvider(wishlistId).select(
+        (state) => (state.isSelectionMode, state.isSelectionActionRunning),
+      ),
     );
     final notifier =
         ref.read(wishlistScreenNotifierProvider(wishlistId).notifier);
@@ -282,7 +297,9 @@ class WishlistScreen extends ConsumerWidget {
               return PopScope(
                 canPop: !isSelectionMode,
                 onPopInvokedWithResult: (didPop, result) {
-                  if (!didPop && isSelectionMode) {
+                  // Le retour fait comme la croix, inerte pendant une action
+                  // sur la sélection : il attend la fin de l'action
+                  if (!didPop && isSelectionMode && !isSelectionActionRunning) {
                     notifier.exitSelectionMode();
                   }
                 },
@@ -315,7 +332,6 @@ class WishlistScreen extends ConsumerWidget {
                         if (isMyWishlist)
                           WishlistFloatingActions(
                             wishlistId: wishlistId,
-                            wishlistTheme: wishlistTheme,
                             onAdd: () => CreateWishRoute(
                               wishlistId: wishlist.id,
                             ).push(context),

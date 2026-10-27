@@ -297,6 +297,27 @@
       }
     }
   },
+  "wishlistSelectionCountLabel": "{count, plural, other{selected}}",
+  "@wishlistSelectionCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wishlistSelectionCount": "{count} selected",
+  "@wishlistSelectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wishlistSelectAll": "Select all",
+  "wishlistExitSelection": "Exit selection",
+  "wishlistSelectionComplete": "Complete",
+  "wishlistSelectionMove": "Move",
+  "wishlistSelectionDelete": "Delete",
   "wishlistSettingsTitle": "Settings",
   "wishlistNameLabel": "Wishlist name",
   "wishlistNameRequired": "Give your wishlist a name",
