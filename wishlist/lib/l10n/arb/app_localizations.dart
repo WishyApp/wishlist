@@ -962,12 +962,6 @@ abstract class AppLocalizations {
   /// **'Aucune description'**
   String get noDescription;
 
-  /// No description provided for @wishlistVisibility.
-  ///
-  /// In fr, this message translates to:
-  /// **'Visibilité de la wishlist'**
-  String get wishlistVisibility;
-
   /// No description provided for @private.
   ///
   /// In fr, this message translates to:
@@ -979,36 +973,6 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Publique'**
   String get public;
-
-  /// No description provided for @seeTakenWishs.
-  ///
-  /// In fr, this message translates to:
-  /// **'Voir les wishs réservés'**
-  String get seeTakenWishs;
-
-  /// No description provided for @yes.
-  ///
-  /// In fr, this message translates to:
-  /// **'Oui'**
-  String get yes;
-
-  /// No description provided for @no.
-  ///
-  /// In fr, this message translates to:
-  /// **'Non'**
-  String get no;
-
-  /// No description provided for @wishlistSharedWith.
-  ///
-  /// In fr, this message translates to:
-  /// **'Wishlist partagée avec'**
-  String get wishlistSharedWith;
-
-  /// No description provided for @addCollaborator.
-  ///
-  /// In fr, this message translates to:
-  /// **'Ajouter un collaborateur'**
-  String get addCollaborator;
 
   /// No description provided for @save.
   ///
@@ -1057,12 +1021,6 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Ce wish n\'est plus disponible'**
   String get wishUnavailable;
-
-  /// No description provided for @wishlistColor.
-  ///
-  /// In fr, this message translates to:
-  /// **'Couleur de la wishlist'**
-  String get wishlistColor;
 
   /// No description provided for @sortWishs.
   ///
@@ -1364,18 +1322,6 @@ abstract class AppLocalizations {
   /// **'Politique de confidentialité'**
   String get settingsPrivacyPolicy;
 
-  /// No description provided for @comingSoonTitle.
-  ///
-  /// In fr, this message translates to:
-  /// **'Bientôt disponible'**
-  String get comingSoonTitle;
-
-  /// No description provided for @comingSoonMessage.
-  ///
-  /// In fr, this message translates to:
-  /// **'Cette fonctionnalité arrivera prochainement !'**
-  String get comingSoonMessage;
-
   /// No description provided for @completedWishesScreenTitle.
   ///
   /// In fr, this message translates to:
@@ -1513,6 +1459,120 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Reçu le {date}'**
   String bookedWishReceivedOn(String date);
+
+  /// No description provided for @wishlistSettingsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paramètres'**
+  String get wishlistSettingsTitle;
+
+  /// No description provided for @wishlistNameLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom de la wishlist'**
+  String get wishlistNameLabel;
+
+  /// No description provided for @wishlistNameRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Donne un nom à ta wishlist'**
+  String get wishlistNameRequired;
+
+  /// No description provided for @wishlistColorLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Couleur'**
+  String get wishlistColorLabel;
+
+  /// No description provided for @colorBlue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Bleu'**
+  String get colorBlue;
+
+  /// No description provided for @colorPurple.
+  ///
+  /// In fr, this message translates to:
+  /// **'Violet'**
+  String get colorPurple;
+
+  /// No description provided for @colorYellow.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jaune'**
+  String get colorYellow;
+
+  /// No description provided for @colorGreen.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vert'**
+  String get colorGreen;
+
+  /// No description provided for @wishlistVisibilityLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Visibilité'**
+  String get wishlistVisibilityLabel;
+
+  /// No description provided for @wishlistPublicDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tes proches peuvent la voir et tu peux la partager par lien.'**
+  String get wishlistPublicDescription;
+
+  /// No description provided for @wishlistPrivateDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Toi seul la vois. Le partage par lien est désactivé.'**
+  String get wishlistPrivateDescription;
+
+  /// No description provided for @seeBookedWishesLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir ce qui est réservé'**
+  String get seeBookedWishesLabel;
+
+  /// No description provided for @seeBookedWishesOnDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tu vois quels wishs ont été réservés. Adieu la surprise !'**
+  String get seeBookedWishesOnDescription;
+
+  /// No description provided for @seeBookedWishesOffDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tu ne sais pas ce qui a été réservé : la surprise reste entière.'**
+  String get seeBookedWishesOffDescription;
+
+  /// No description provided for @deleteButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer'**
+  String get deleteButton;
+
+  /// No description provided for @unsavedChangesTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Quitter sans enregistrer ?'**
+  String get unsavedChangesTitle;
+
+  /// No description provided for @unsavedChangesMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tes modifications seront perdues.'**
+  String get unsavedChangesMessage;
+
+  /// No description provided for @unsavedChangesLeave.
+  ///
+  /// In fr, this message translates to:
+  /// **'Quitter sans enregistrer'**
+  String get unsavedChangesLeave;
+
+  /// No description provided for @unsavedChangesKeepEditing.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer à modifier'**
+  String get unsavedChangesKeepEditing;
 }
 
 class _AppLocalizationsDelegate

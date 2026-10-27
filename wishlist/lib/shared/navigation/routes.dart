@@ -12,6 +12,7 @@ import 'package:wishlist/modules/settings/change_password/view/change_password_s
 import 'package:wishlist/modules/settings/change_pseudo/view/change_pseudo_screen.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen.dart';
+import 'package:wishlist/modules/wishlists/view/wishlist_settings_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/add_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/edit_wish_screen.dart';
@@ -59,6 +60,9 @@ part 'routes.g.dart';
       routes: [
         TypedGoRoute<CreateWishRoute>(
           path: 'create-wish',
+        ),
+        TypedGoRoute<WishlistSettingsRoute>(
+          path: 'settings',
         ),
         TypedGoRoute<ConsultWishRoute>(
           path: 'wish/:wishId',
@@ -137,6 +141,21 @@ class WishlistRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) {
     return WishlistScreen(
+      wishlistId: wishlistId,
+    );
+  }
+}
+
+class WishlistSettingsRoute extends AuthenticatedRoute {
+  WishlistSettingsRoute({
+    required this.wishlistId,
+  });
+
+  final int wishlistId;
+
+  @override
+  Widget buildScreen(BuildContext context, GoRouterState state) {
+    return WishlistSettingsScreen(
       wishlistId: wishlistId,
     );
   }

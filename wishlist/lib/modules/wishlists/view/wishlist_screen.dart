@@ -10,7 +10,6 @@ import 'package:wishlist/modules/wishlists/view/widgets/move_wishes_dialog.dart'
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_floating_actions.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_screen_body.dart';
-import 'package:wishlist/modules/wishlists/view/widgets/wishlist_settings_bottom_sheet.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
@@ -298,10 +297,9 @@ class WishlistScreen extends ConsumerWidget {
                       context,
                       wishlist,
                     ),
-                    onSettings: () => showWishlistSettingsBottomSheet(
-                      context,
-                      wishlist,
-                    ),
+                    onSettings: () => WishlistSettingsRoute(
+                      wishlistId: wishlist.id,
+                    ).push(context),
                   ),
                   body: SafeArea(
                     // Le bas est géré par les enfants pour que le fond gris

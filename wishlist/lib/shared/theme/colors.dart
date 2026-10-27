@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
@@ -26,6 +25,10 @@ abstract final class AppColors {
   static const Color makara = Color(0xFF887A6B);
 
   static const Color favorite = Color(0xFFFF675C);
+
+  /// Destructive actions and errors written as text: dark enough to be read
+  /// on [background] and [gainsboro].
+  static const Color danger = Color(0xFFC62828);
 
   static final Map<Color, String> colorPalette = {
     blue: 'blue',
@@ -64,9 +67,4 @@ abstract final class AppColors {
   static Color getColorFromHexValue(String hexColor) {
     return Color(int.parse(hexColor.substring(1, 7), radix: 16) + 0xFF000000);
   }
-
-  static final Map<ColorSwatch<Object>, String> colorSwatches = {
-    for (var entry in colorPalette.entries)
-      ColorTools.createPrimarySwatch(entry.key): entry.value,
-  };
 }

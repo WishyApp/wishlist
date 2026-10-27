@@ -502,28 +502,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDescription => 'No description';
 
   @override
-  String get wishlistVisibility => 'Wishlist visibility';
-
-  @override
   String get private => 'Private';
 
   @override
   String get public => 'Public';
-
-  @override
-  String get seeTakenWishs => 'See taken wishes';
-
-  @override
-  String get yes => 'Yes';
-
-  @override
-  String get no => 'No';
-
-  @override
-  String get wishlistSharedWith => 'Wishlist shared with';
-
-  @override
-  String get addCollaborator => 'Add a collaborator';
 
   @override
   String get save => 'Save';
@@ -550,9 +532,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wishUnavailable => 'This wish is no longer available';
-
-  @override
-  String get wishlistColor => 'Wishlist color';
 
   @override
   String get sortWishs => 'Sort wishes';
@@ -733,12 +712,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPrivacyPolicy => 'Privacy policy';
 
   @override
-  String get comingSoonTitle => 'Coming Soon';
-
-  @override
-  String get comingSoonMessage => 'This feature is coming soon!';
-
-  @override
   String get completedWishesScreenTitle => 'Completed wishes';
 
   @override
@@ -839,4 +812,65 @@ class AppLocalizationsEn extends AppLocalizations {
   String bookedWishReceivedOn(String date) {
     return 'Received on $date';
   }
+
+  @override
+  String get wishlistSettingsTitle => 'Settings';
+
+  @override
+  String get wishlistNameLabel => 'Wishlist name';
+
+  @override
+  String get wishlistNameRequired => 'Give your wishlist a name';
+
+  @override
+  String get wishlistColorLabel => 'Color';
+
+  @override
+  String get colorBlue => 'Blue';
+
+  @override
+  String get colorPurple => 'Purple';
+
+  @override
+  String get colorYellow => 'Yellow';
+
+  @override
+  String get colorGreen => 'Green';
+
+  @override
+  String get wishlistVisibilityLabel => 'Visibility';
+
+  @override
+  String get wishlistPublicDescription =>
+      'Your loved ones can see it and you can share it with a link.';
+
+  @override
+  String get wishlistPrivateDescription =>
+      'Only you can see it. Sharing with a link is turned off.';
+
+  @override
+  String get seeBookedWishesLabel => 'See what is booked';
+
+  @override
+  String get seeBookedWishesOnDescription =>
+      'You can see which wishes have been booked. Goodbye surprise!';
+
+  @override
+  String get seeBookedWishesOffDescription =>
+      'You don\'t know what has been booked: the surprise stays whole.';
+
+  @override
+  String get deleteButton => 'Delete';
+
+  @override
+  String get unsavedChangesTitle => 'Leave without saving?';
+
+  @override
+  String get unsavedChangesMessage => 'Your changes will be lost.';
+
+  @override
+  String get unsavedChangesLeave => 'Leave without saving';
+
+  @override
+  String get unsavedChangesKeepEditing => 'Keep editing';
 }
