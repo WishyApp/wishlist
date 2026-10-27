@@ -914,4 +914,8 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get unsavedChangesKeepEditing => 'Continuer à modifier';
+
+  @override
+  String get wishlistSettingsOwnerOnly =>
+      'Seul le propriétaire de cette wishlist peut modifier ses paramètres';
 }

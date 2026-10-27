@@ -353,5 +353,6 @@
   "unsavedChangesTitle": "Quitter sans enregistrer ?",
   "unsavedChangesMessage": "Tes modifications seront perdues.",
   "unsavedChangesLeave": "Quitter sans enregistrer",
-  "unsavedChangesKeepEditing": "Continuer à modifier"
+  "unsavedChangesKeepEditing": "Continuer à modifier",
+  "wishlistSettingsOwnerOnly": "Seul le propriétaire de cette wishlist peut modifier ses paramètres"
 }

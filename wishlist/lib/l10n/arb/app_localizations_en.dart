@@ -903,4 +903,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unsavedChangesKeepEditing => 'Keep editing';
+
+  @override
+  String get wishlistSettingsOwnerOnly =>
+      'Only the owner of this wishlist can change its settings';
 }

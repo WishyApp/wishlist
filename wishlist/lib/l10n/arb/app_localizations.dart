@@ -1615,6 +1615,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Continuer à modifier'**
   String get unsavedChangesKeepEditing;
+
+  /// No description provided for @wishlistSettingsOwnerOnly.
+  ///
+  /// In fr, this message translates to:
+  /// **'Seul le propriétaire de cette wishlist peut modifier ses paramètres'**
+  String get wishlistSettingsOwnerOnly;
 }
 
 class _AppLocalizationsDelegate

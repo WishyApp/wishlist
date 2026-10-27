@@ -336,5 +336,6 @@
   "unsavedChangesTitle": "Leave without saving?",
   "unsavedChangesMessage": "Your changes will be lost.",
   "unsavedChangesLeave": "Leave without saving",
-  "unsavedChangesKeepEditing": "Keep editing"
+  "unsavedChangesKeepEditing": "Keep editing",
+  "wishlistSettingsOwnerOnly": "Only the owner of this wishlist can change its settings"
 }

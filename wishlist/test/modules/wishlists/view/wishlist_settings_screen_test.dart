@@ -17,6 +17,7 @@ import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/widgets/app_switch.dart';
 
 import '../../../fixtures/fake_data.dart';
+import '../../../fixtures/fake_providers.dart';
 import '../../../pump_app.dart';
 
 class _MockWishlistService extends Mock implements WishlistService {}
@@ -63,6 +64,7 @@ void main() {
   });
 
   List<Override> overrides({Stream<Wishlist?>? wishlists}) => [
+        supabaseClientOverride(userId: fakeCurrentUserId),
         watchWishlistByIdProvider(wishlist.id).overrideWith(
           (ref) => wishlists ?? Stream.value(wishlist),
         ),
@@ -273,5 +275,74 @@ void main() {
       'Noël 2026',
     );
     expect(find.text(l10n.wishlistPrivateDescription), findsOneWidget);
+  });
+  testWidgets('is only open to the owner of the wishlist', (tester) async {
+    // A public wishlist of another user, reached by a deep link
+    final othersWishlist = Wishlist(
+      id: wishlist.id,
+      createdAt: wishlist.createdAt,
+      name: wishlist.name,
+      idOwner: fakePendingUserId,
+      color: wishlist.color,
+      visibility: WishlistVisibility.public,
+      order: 0,
+      updatedBy: fakePendingUserId,
+      updatedAt: wishlist.updatedAt,
+    );
+    await tester.pumpRouterApp(
+      '/wishlist/${wishlist.id}/settings',
+      routes: _routes(wishlist.id),
+      overrides: overrides(wishlists: Stream.value(othersWishlist)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.wishlistSettingsOwnerOnly), findsOneWidget);
+    expect(find.byType(AppSwitch), findsNothing);
+  });
+
+  testWidgets('freezes the page while saving, so that no edit is lost',
+      (tester) async {
+    final saving = Completer<Wishlist>();
+    when(() => service.updateWishlist(any())).thenAnswer((_) => saving.future);
+    await pumpScreen(tester);
+
+    await tester.tap(find.text(l10n.private));
+    await tester.pump();
+    await tester.tap(saveButton());
+    await tester.pump();
+
+    // Too late for this save: ignored rather than lost when the page closes
+    await tester.tap(find.byType(AppSwitch));
+    await tester.pump();
+    expect(find.text(l10n.seeBookedWishesOffDescription), findsOneWidget);
+
+    saving.complete(wishlist);
+    await tester.pumpAndSettle();
+
+    final saved = verify(() => service.updateWishlist(captureAny()))
+        .captured
+        .single as Wishlist;
+    expect(saved.visibility, WishlistVisibility.private);
+    expect(saved.canOwnerSeeTakenWish, isFalse);
+    expect(find.text(_wishlistText), findsOneWidget);
+
+    await dismissSnackBar(tester);
+  });
+
+  testWidgets('fits a narrow screen with a large text', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await pumpScreen(tester);
+
+    // An overflow would have failed the test. Next to the swatches, the
+    // color title would also have broken over several lines
+    expect(
+      tester.getSize(find.text(l10n.wishlistColorLabel)).height,
+      tester.getSize(find.text(l10n.wishlistVisibilityLabel)).height,
+    );
   });
 }
