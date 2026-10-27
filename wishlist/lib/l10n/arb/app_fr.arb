@@ -322,5 +322,26 @@
         "type": "String"
       }
     }
-  }
+  },
+  "wishlistSelectionCountLabel": "{count, plural, =0{sélectionné} =1{sélectionné} other{sélectionnés}}",
+  "@wishlistSelectionCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wishlistSelectionCount": "{count, plural, =0{0 sélectionné} =1{1 sélectionné} other{{count} sélectionnés}}",
+  "@wishlistSelectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wishlistSelectAll": "Tout sélectionner",
+  "wishlistExitSelection": "Quitter la sélection",
+  "wishlistSelectionComplete": "Valider",
+  "wishlistSelectionMove": "Déplacer",
+  "wishlistSelectionDelete": "Supprimer"
 }

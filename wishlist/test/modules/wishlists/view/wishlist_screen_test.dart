@@ -4,13 +4,16 @@ import 'dart:io';
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wish_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
-import 'package:wishlist/modules/wishlists/view/widgets/wishlist_floating_actions.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wishlist_selection_action_bar.dart';
+import 'package:wishlist/modules/wishlists/view/widgets/wishlist_selection_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishs_tab.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen.dart';
@@ -28,6 +31,7 @@ import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wish_taken_by_user/wish_taken_by_user.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
+import 'package:wishlist/shared/page_layout_empty/page_layout_empty_content.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/providers/wishlist_theme_provider.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -138,6 +142,29 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.expectGolden<WishlistScreen>(variant, suffix: 'empty');
+  });
+
+  testAdaptiveWidgets('$WishlistScreen golden test in selection mode',
+      (tester, variant) async {
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 2).location,
+      windowConfig: variant,
+      overrides: wishlistScreenOverrides(
+        wishlistId: 2,
+        // Le jaune, la couleur la plus claire, que la carte doit foncer
+        wishlist: fakeWishlist2.copyWith(
+          color: AppColors.getHexValue(AppColors.yellow),
+        ),
+        wishes: fakeWishes,
+        currentUserId: fakeCurrentUserId,
+      ),
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    await tester.longPress(find.text(fakeWish1.name));
+    await tester.pumpAndSettle();
+
+    await tester.expectGolden<WishlistScreen>(variant, suffix: 'selection');
   });
 
   testWidgets('shows the per-wishlist illustration when there is no wish',
@@ -719,36 +746,476 @@ void main() {
     );
   });
 
-  testWidgets('updates the selection badge when a second wish is selected',
-      (tester) async {
-    await tester.pumpRouterApp(
-      WishlistRoute(wishlistId: 2).location,
-      overrides: wishlistScreenOverrides(
-        wishlistId: 2,
-        wishlist: fakeWishlist2,
-        wishes: fakeWishes,
-        currentUserId: fakeCurrentUserId,
-      ),
-    );
-    await tester.pumpAndSettle(const Duration(seconds: 1));
+  group('in selection mode', () {
+    final l10n = AppLocalizationsFr();
 
-    Finder badges(String count) => find.descendant(
-          of: find.byType(WishlistFloatingActions),
-          matching: find.text(count),
+    Future<void> pumpOwnerWishlist(
+      WidgetTester tester, {
+      List<Wish>? wishes,
+      Wishlist? wishlist,
+    }) async {
+      await tester.pumpRouterApp(
+        WishlistRoute(wishlistId: 2).location,
+        overrides: wishlistScreenOverrides(
+          wishlistId: 2,
+          wishlist: wishlist ?? fakeWishlist2,
+          wishes: wishes ?? fakeWishes,
+          currentUserId: fakeCurrentUserId,
+        ),
+      );
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+    }
+
+    Finder inSelectionCard(Finder matching) => find.descendant(
+          of: find.byType(WishlistSelectionCard),
+          matching: matching,
         );
 
-    await tester.longPress(find.text(fakeWish1.name));
-    await tester.pumpAndSettle();
+    Wish wishNamed(int id, String name) => Wish(
+          id: id,
+          createdAt: fakeCreatedAt,
+          name: name,
+          description: '',
+          price: 10,
+          quantity: 1,
+          wishlistId: fakeWishlist2.id,
+          updatedBy: fakeCurrentUserId,
+          updatedAt: fakeUpdatedAt,
+        );
 
-    // Un badge par bouton d'action (compléter, déplacer, supprimer)
-    expect(badges('1'), findsNWidgets(3));
-    expect(badges('2'), findsNothing);
+    TextButton selectAllButton(WidgetTester tester) => tester.widget(
+          find.ancestor(
+            of: find.text(l10n.wishlistSelectAll),
+            matching: find.byType(TextButton),
+          ),
+        );
 
-    await tester.tap(find.text(fakeWish2.name));
-    await tester.pumpAndSettle();
+    int selectedCount(WidgetTester tester) => tester
+        .widget<WishlistSelectionCard>(find.byType(WishlistSelectionCard))
+        .selectedCount;
 
-    expect(badges('2'), findsNWidgets(3));
-    expect(badges('1'), findsNothing);
+    testWidgets('shows the count once, in the selection card', (tester) async {
+      // 3 wishs: the stats show other numbers than the selected count
+      await pumpOwnerWishlist(
+        tester,
+        wishes: [for (var id = 1; id <= 3; id++) wishNamed(id, 'Wish $id')],
+      );
+
+      await tester.longPress(find.text('Wish 1'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1'), findsOneWidget);
+      expect(inSelectionCard(find.text('1')), findsOneWidget);
+      expect(
+        inSelectionCard(find.text('sélectionné')),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.wishlistSelectionComplete), findsOneWidget);
+      expect(find.text(l10n.wishlistSelectionMove), findsOneWidget);
+      expect(find.text(l10n.wishlistSelectionDelete), findsOneWidget);
+
+      await tester.tap(find.text('Wish 2'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2'), findsOneWidget);
+      expect(inSelectionCard(find.text('2')), findsOneWidget);
+      expect(
+        inSelectionCard(find.text('sélectionnés')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('stays on its tab until the selection mode ends',
+        (tester) async {
+      await pumpOwnerWishlist(tester, wishes: fakeWishesWithBooked);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WishlistScreen)),
+      );
+      WishlistStatsCardType tab() =>
+          container.read(wishlistScreenNotifierProvider(2)).statCardSelected;
+      Future<void> swipeToBooked() async {
+        await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
+        await tester.pumpAndSettle();
+      }
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+      await swipeToBooked();
+      expect(tab(), WishlistStatsCardType.pending);
+
+      await tester.tap(find.byTooltip(l10n.wishlistExitSelection));
+      await tester.pumpAndSettle();
+      await swipeToBooked();
+      expect(tab(), WishlistStatsCardType.booked);
+    });
+
+    testWidgets('keeps the empty state clear of the action bar',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Wulfgar');
+      await tester.pumpAndSettle();
+
+      // Adding is hidden in selection mode, like the "+" button
+      expect(find.text(l10n.wishlistAddWish), findsNothing);
+      final emptyContent = find
+          .descendant(
+            of: find.byType(WishsTab).first,
+            matching: find.byType(PageLayoutEmptyContent),
+          )
+          .first;
+      expect(
+        tester.getBottomLeft(emptyContent).dy,
+        lessThanOrEqualTo(
+          tester.getTopLeft(find.byType(WishlistSelectionActionBar)).dy,
+        ),
+      );
+    });
+
+    testWidgets('ignores taps on the card and the bar while they leave',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+      final selectAll = tester.getCenter(find.text(l10n.wishlistSelectAll));
+      final delete = tester.getCenter(find.text(l10n.wishlistSelectionDelete));
+
+      await tester.tap(find.byTooltip(l10n.wishlistExitSelection));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      await tester.tapAt(delete);
+      await tester.tapAt(selectAll);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.deleteSelectedWishes), findsNothing);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WishlistScreen)),
+      );
+      expect(
+        container.read(wishlistScreenNotifierProvider(2)).isSelectionMode,
+        isFalse,
+      );
+    });
+
+    testWidgets('ignores the selection buttons while an action runs',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WishlistScreen)),
+      );
+      final provider = wishlistScreenNotifierProvider(2);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      // An action without dialog, e.g. completing wishs of quantity 1
+      final actionDone = Completer<void>();
+      final action = container
+          .read(provider.notifier)
+          .runOnSelection((_) => actionDone.future);
+      await tester.pump();
+
+      await tester.tap(
+        find.text(l10n.wishlistSelectionDelete),
+        warnIfMissed: false,
+      );
+      await tester.tap(
+        find.byTooltip(l10n.wishlistExitSelection),
+        warnIfMissed: false,
+      );
+      await tester.tap(find.text(fakeWish2.name), warnIfMissed: false);
+      await tester.pump();
+
+      expect(find.text(l10n.deleteSelectedWishes), findsNothing);
+      expect(container.read(provider).selectedWishIds, {fakeWish1.id});
+      expect(container.read(provider).isSelectionMode, isTrue);
+
+      actionDone.complete();
+      await action;
+      await tester.pumpAndSettle();
+      expect(container.read(provider).isSelectionMode, isFalse);
+    });
+
+    testWidgets('keeps the selection mode on back while an action runs',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WishlistScreen)),
+      );
+      final provider = wishlistScreenNotifierProvider(2);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      final actionDone = Completer<void>();
+      final action = container
+          .read(provider.notifier)
+          .runOnSelection((_) => actionDone.future);
+      await tester.pump();
+
+      // System back (PopScope), like the app bar arrow or the iOS gesture
+      final context = tester.element(find.byType(WishlistScreen));
+      await Navigator.of(context).maybePop();
+      await tester.pump();
+
+      expect(find.byType(WishlistScreen), findsOneWidget);
+      expect(container.read(provider).isSelectionMode, isTrue);
+      expect(container.read(provider).selectedWishIds, {fakeWish1.id});
+
+      actionDone.complete();
+      await action;
+      await tester.pumpAndSettle();
+      expect(container.read(provider).isSelectionMode, isFalse);
+    });
+
+    testWidgets('does not move the keyboard focus to the hidden stats',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      for (var i = 0; i < 12; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        expect(
+          FocusManager.instance.primaryFocus?.context
+              ?.findAncestorWidgetOfExactType<WishlistStatsCard>(),
+          isNull,
+        );
+      }
+    });
+
+    testWidgets('announces the count to screen readers', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpOwnerWishlist(tester);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.bySemanticsLabel(
+          l10n.wishlistSelectionCount(1),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.getSemantics(
+          find.bySemanticsLabel(
+            l10n.wishlistSelectionCount(1),
+          ),
+        ),
+        isSemantics(isLiveRegion: true),
+      );
+      expect(find.byTooltip(l10n.wishlistExitSelection), findsOneWidget);
+      semantics.dispose();
+    });
+
+    testWidgets('keeps the selection through a search', (tester) async {
+      await pumpOwnerWishlist(tester);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'AirPods');
+      await tester.pumpAndSettle();
+      expect(find.text(fakeWish1.name), findsNothing);
+      expect(selectedCount(tester), 1);
+
+      await tester.tap(find.text(fakeWish2.name));
+      await tester.pumpAndSettle();
+      expect(selectedCount(tester), 2);
+
+      // The wish hidden by the search is still selected
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+      expect(selectedCount(tester), 2);
+    });
+
+    testWidgets('selects all the wishes matching the search', (tester) async {
+      final otherAirPods = wishNamed(10, 'AirPods Max');
+      await pumpOwnerWishlist(
+        tester,
+        wishes: [...fakeWishes, otherAirPods],
+      );
+
+      await tester.longPress(find.text(fakeWish2.name));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'AirPods');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(l10n.wishlistSelectAll));
+      await tester.pumpAndSettle();
+
+      // Only the 2 AirPods are added: nothing left to add among the results
+      expect(selectedCount(tester), 2);
+      expect(selectAllButton(tester).enabled, isFalse);
+
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+      expect(selectedCount(tester), 2);
+      expect(selectAllButton(tester).enabled, isTrue);
+
+      await tester.tap(find.text(l10n.wishlistSelectAll));
+      await tester.pumpAndSettle();
+      expect(selectedCount(tester), 3);
+      expect(selectAllButton(tester).enabled, isFalse);
+    });
+
+    testWidgets('disables select all for a search without result',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Wulfgar');
+      await tester.pumpAndSettle();
+
+      expect(selectAllButton(tester).enabled, isFalse);
+    });
+
+    testWidgets('exits and clears the selection with the close button',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip(l10n.wishlistExitSelection));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(WishlistSelectionCard), findsNothing);
+      expect(find.byType(WishlistSelectionActionBar), findsNothing);
+      expect(find.byType(WishlistStatsCard).hitTestable(), findsNWidgets(2));
+      expect(find.byIcon(Icons.add), findsOneWidget);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WishlistScreen)),
+      );
+      expect(
+        container.read(wishlistScreenNotifierProvider(2)).selectedWishIds,
+        isEmpty,
+      );
+    });
+
+    testWidgets('keeps the count readable on a light wishlist color',
+        (tester) async {
+      await pumpOwnerWishlist(
+        tester,
+        wishlist: fakeWishlist2.copyWith(
+          color: AppColors.getHexValue(AppColors.yellow),
+        ),
+      );
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      final card = tester.widget<Container>(
+        inSelectionCard(find.byType(Container)).first,
+      );
+      final background = (card.decoration! as BoxDecoration).color!;
+      expect(
+        AppColors.contrastRatio(background, AppColors.background),
+        greaterThanOrEqualTo(3),
+      );
+    });
+
+    testWidgets('keeps the last wish above the bar with a large text',
+        (tester) async {
+      // Wide enough for the stats cards, which overflow at this scale below
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 3;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await pumpOwnerWishlist(
+        tester,
+        wishes: [for (var id = 1; id <= 15; id++) wishNamed(id, 'Wish $id')],
+      );
+      await tester.longPress(find.text('Wish 1'));
+      await tester.pumpAndSettle();
+
+      // The action bar stays lower than the bottom margin of the list: the
+      // last wish keeps some space above it
+      await tester.drag(
+        find
+            .descendant(
+              of: find.byType(WishsTab).first,
+              matching: find.byType(Scrollable),
+            )
+            .first,
+        const Offset(0, -20000),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .getBottomLeft(
+              find.ancestor(
+                of: find.text('Wish 15'),
+                matching: find.byType(WishCard),
+              ),
+            )
+            .dy,
+        lessThanOrEqualTo(
+          tester.getTopLeft(find.byType(WishlistSelectionActionBar)).dy - 8,
+        ),
+      );
+    });
+
+    testWidgets('keeps the selection card at the height of the stats',
+        (tester) async {
+      await pumpOwnerWishlist(tester);
+      final statsHeight = tester.getSize(find.byType(WishlistStatsCard).first);
+
+      await tester.longPress(find.text(fakeWish1.name));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getSize(find.byType(WishlistSelectionCard)).height,
+        statsHeight.height,
+      );
+    });
+
+    testWidgets('does not cover the last wish with the action bar',
+        (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.viewPadding = const FakeViewPadding(bottom: 34);
+      tester.view.padding = const FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.reset);
+
+      final wishes = [
+        for (var id = 1; id <= 15; id++) wishNamed(id, 'Wish $id'),
+      ];
+      await pumpOwnerWishlist(tester, wishes: wishes);
+
+      await tester.longPress(find.text('Wish 1'));
+      await tester.pumpAndSettle();
+
+      await tester.drag(
+        find
+            .descendant(
+              of: find.byType(WishsTab).first,
+              matching: find.byType(Scrollable),
+            )
+            .first,
+        const Offset(0, -5000),
+      );
+      await tester.pumpAndSettle();
+
+      final lastWish = find.ancestor(
+        of: find.text('Wish 15'),
+        matching: find.byType(WishCard),
+      );
+      expect(
+        tester.getBottomLeft(lastWish).dy,
+        lessThanOrEqualTo(
+          tester.getTopLeft(find.byType(WishlistSelectionActionBar)).dy,
+        ),
+      );
+    });
   });
 
   test('derives pending and booked quantities from received quantities',
