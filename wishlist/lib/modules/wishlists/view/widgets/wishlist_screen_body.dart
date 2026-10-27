@@ -118,10 +118,10 @@ class WishlistScreenBody extends ConsumerWidget {
     final display = ref.watch(wishlistScreenDisplayProvider(wishlistId));
     final wishs = display.all;
     final wishsBooked = display.booked;
-    final pendingQuantityOverrides = display.pendingQuantityOverrides;
     final bookedQuantityOverrides = display.bookedQuantityOverrides;
-    final isWishsBookedHidden = !wishlist.canOwnerSeeTakenWish && isMyWishlist;
-    final wishsPending = isWishsBookedHidden ? wishs : display.available;
+    final isWishsBookedHidden = display.bookingsHidden;
+    final pendingQuantityOverrides = display.pendingQuantityOverrides;
+    final wishsPending = display.pending;
 
     final nbWishsPending = wishsPending.length;
     final nbWishsBooked = wishsBooked.length;

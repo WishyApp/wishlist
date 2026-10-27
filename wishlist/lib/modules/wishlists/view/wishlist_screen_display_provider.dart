@@ -2,6 +2,7 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/wishlists/infra/wishlist_screen_data_realtime_provider.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen_notifier.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/utils/wish_sort_utils.dart';
 
@@ -11,22 +12,29 @@ import 'package:wishlist/shared/utils/wish_sort_utils.dart';
 /// réservations sont reçues quittent les réservés. Les quantités affichées ne
 /// sont pas réduites : les overrides portent la quantité en attente / réservée
 /// restante.
-/// Les wishs en attente se déduisent dans le body : ce sont tous les wishs si
-/// le propriétaire ne voit pas les réservations, sinon les disponibles
+/// Les wishs en attente (`pending`) et leurs quantités sont déjà résolus.
+/// `bookingsHidden` dit si les réservations sont masquées pour l'utilisateur
+/// courant (Wishlist.hidesBookingsFrom).
+/// Dans ce cas, la quantité en attente est quantité - reçu. L'utilisateur
+/// peut encore lire sa propre réservation (ligne héritée) : elle ne doit pas
+/// s'en déduire.
+/// Sinon, les réservations se déduisent de la quantité en attente.
 typedef WishlistScreenDisplay = ({
   IList<Wish> all,
-  IList<Wish> available,
+  IList<Wish> pending,
   IList<Wish> booked,
   IMap<int, int> pendingQuantityOverrides,
   IMap<int, int> bookedQuantityOverrides,
+  bool bookingsHidden,
 });
 
 const _emptyDisplay = (
   all: IListConst<Wish>([]),
-  available: IListConst<Wish>([]),
+  pending: IListConst<Wish>([]),
   booked: IListConst<Wish>([]),
   pendingQuantityOverrides: IMapConst<int, int>({}),
   bookedQuantityOverrides: IMapConst<int, int>({}),
+  bookingsHidden: false,
 );
 
 /// Provider dérivé : le calcul coûteux ne dépend que des données de la
@@ -44,6 +52,7 @@ final wishlistScreenDisplayProvider =
   final searchQuery = ref.watch(
     wishlistScreenNotifierProvider(wishlistId).select((s) => s.searchQuery),
   );
+  final currentUserId = ref.watch(currentUserIdProvider);
 
   final screenData = data.valueOrNull;
   if (screenData == null) {
@@ -65,14 +74,18 @@ final wishlistScreenDisplayProvider =
     searchQuery: searchQuery,
   );
 
-  // En attente = quantité - max(réservé, reçu), comme sur l'écran du wish
-  // et côté serveur.
+  // Réservations masquées : elles ne comptent pas dans l'attente (quantité -
+  // reçu) et tous les wishs restent listés. Sinon, en attente = quantité -
+  // max(réservé, reçu), comme sur l'écran du wish et côté serveur.
+  final hidden = screenData.wishlist.hidesBookingsFrom(currentUserId);
   int pendingQuantityOf(Wish wish) => wish.pendingQuantity(
         receivedQuantity: completedByWishId[wish.id] ?? 0,
+        ignoreBookings: hidden,
       );
 
-  final available =
-      wishs.where((wish) => pendingQuantityOf(wish) > 0).toIList();
+  // Masqué, tous les wishs non reçus restent en attente : les wishs
+  // entièrement reçus sont déjà exclus plus haut.
+  final pending = wishs.where((wish) => pendingQuantityOf(wish) > 0).toIList();
 
   final pendingQuantityOverrides = IMap<int, int>({
     for (final wish in wishs) wish.id: pendingQuantityOf(wish),
@@ -96,9 +109,10 @@ final wishlistScreenDisplayProvider =
 
   return (
     all: wishs,
-    available: available,
+    pending: pending,
     booked: booked,
     pendingQuantityOverrides: pendingQuantityOverrides,
     bookedQuantityOverrides: bookedQuantityOverrides,
+    bookingsHidden: hidden,
   );
 });

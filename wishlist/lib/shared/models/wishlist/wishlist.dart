@@ -31,6 +31,13 @@ class Wishlist with _$Wishlist implements Updatable {
   factory Wishlist.fromJson(Map<String, dynamic> json) =>
       _$WishlistFromJson(json);
 
+  /// Règle unique « réservations masquées pour cet utilisateur » : le
+  /// propriétaire d'une wishlist qui ne lui montre pas les réservations. À
+  /// étendre aux co-propriétaires quand les wishlists collaboratives
+  /// arriveront.
+  bool hidesBookingsFrom(String? userId) =>
+      userId != null && userId == idOwner && !canOwnerSeeTakenWish;
+
   @override
   Wishlist copyWith({
     String? name,
