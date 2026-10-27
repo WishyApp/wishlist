@@ -14,6 +14,7 @@ import 'package:wishlist/shared/infra/wishlist_service.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
+import 'package:wishlist/shared/widgets/app_switch.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../pump_app.dart';
@@ -153,7 +154,7 @@ void main() {
     await tester.enterText(nameField(), '  Noël 2026  ');
     await tester.tap(find.bySemanticsLabel(l10n.colorPurple));
     await tester.tap(find.text(l10n.private));
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(AppSwitch));
     await tester.pump();
     await tester.tap(saveButton());
     await tester.pumpAndSettle();

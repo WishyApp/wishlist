@@ -16,6 +16,7 @@ import 'package:wishlist/shared/theme/utils/get_wishlist_theme.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
+import 'package:wishlist/shared/widgets/app_switch.dart';
 import 'package:wishlist/shared/widgets/dialogs/app_dialog.dart';
 import 'package:wishlist/shared/widgets/error_page_with_back.dart';
 import 'package:wishlist/shared/widgets/text_form_fields/app_text_field.dart';
@@ -371,14 +372,10 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
                                 () => _canOwnerSeeTakenWish =
                                     !_canOwnerSeeTakenWish,
                               ),
-                              trailing: Switch(
+                              trailing: AppSwitch(
                                 value: _canOwnerSeeTakenWish,
-                                activeTrackColor: theme.primaryColor,
-                                inactiveTrackColor: AppColors.pastelGray,
-                                inactiveThumbColor: AppColors.background,
-                                trackOutlineColor: const WidgetStatePropertyAll(
-                                  Colors.transparent,
-                                ),
+                                activeIcon: Icons.visibility_rounded,
+                                inactiveIcon: Icons.visibility_off_rounded,
                                 onChanged: (value) => setState(
                                   () => _canOwnerSeeTakenWish = value,
                                 ),
