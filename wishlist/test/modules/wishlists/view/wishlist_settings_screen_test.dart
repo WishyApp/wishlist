@@ -93,6 +93,8 @@ void main() {
   // also laid out invisible, to keep the height of the button while loading
   Finder saveButton() => find.byType(PrimaryButton);
 
+  Finder deleteButton() => find.byType(SecondaryButton);
+
   bool isSaveEnabled(WidgetTester tester) =>
       tester.widget<PrimaryButton>(saveButton()).onPressed != null;
 
@@ -156,6 +158,7 @@ void main() {
     await tester.enterText(nameField(), '  Noël 2026  ');
     await tester.tap(find.bySemanticsLabel(l10n.colorPurple));
     await tester.tap(find.text(l10n.private));
+    await tester.ensureVisible(find.byType(AppSwitch));
     await tester.tap(find.byType(AppSwitch));
     await tester.pump();
     await tester.tap(saveButton());
@@ -200,7 +203,7 @@ void main() {
 
       expect(find.text(l10n.unsavedChangesTitle), findsOneWidget);
 
-      await tester.tap(find.text(l10n.unsavedChangesKeepEditing).first);
+      await tester.tap(find.text(l10n.unsavedChangesKeepEditing).last);
       await tester.pumpAndSettle();
 
       expect(find.text(l10n.unsavedChangesTitle), findsNothing);
@@ -211,7 +214,7 @@ void main() {
     testWidgets('leaves without saving once confirmed', (tester) async {
       await changeThenGoBack(tester);
 
-      await tester.tap(find.text(l10n.unsavedChangesLeave).first);
+      await tester.tap(find.text(l10n.unsavedChangesLeave).last);
       await tester.pumpAndSettle();
 
       expect(find.text(_wishlistText), findsOneWidget);
@@ -223,15 +226,14 @@ void main() {
       (tester) async {
     await pumpScreen(tester);
 
-    await tester.ensureVisible(find.text(l10n.deleteWishlist));
-    await tester.tap(find.text(l10n.deleteWishlist));
+    await tester.tap(deleteButton());
     await tester.pumpAndSettle();
 
     expect(find.text(l10n.deleteWishlistConfirmation), findsOneWidget);
     expect(find.text(l10n.deleteWishlistWishesWarning), findsOneWidget);
     verifyNever(() => service.deleteWishlist(any()));
 
-    await tester.tap(find.text(l10n.cancelButton).first);
+    await tester.tap(find.text(l10n.cancelButton).last);
     await tester.pumpAndSettle();
 
     expect(find.text(l10n.deleteWishlistConfirmation), findsNothing);
@@ -250,10 +252,9 @@ void main() {
     });
     await pumpScreen(tester, wishlists: wishlists);
 
-    await tester.ensureVisible(find.text(l10n.deleteWishlist));
-    await tester.tap(find.text(l10n.deleteWishlist));
+    await tester.tap(deleteButton());
     await tester.pumpAndSettle();
-    await tester.tap(find.text(l10n.deleteButton).first);
+    await tester.tap(find.text(l10n.deleteButton).last);
     await tester.pumpAndSettle();
 
     verify(() => service.deleteWishlist(wishlist.id)).called(1);
@@ -332,7 +333,8 @@ void main() {
     await tester.pump();
 
     // Too late for this save: ignored rather than lost when the page closes
-    await tester.tap(find.byType(AppSwitch));
+    await tester.ensureVisible(find.byType(AppSwitch));
+    await tester.tap(find.byType(AppSwitch), warnIfMissed: false);
     await tester.pump();
     expect(find.text(l10n.seeBookedWishesOffDescription), findsOneWidget);
 

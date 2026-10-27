@@ -445,19 +445,6 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
                                 ),
                               ),
                             ),
-                            const Gap(16),
-                            TextButton.icon(
-                              onPressed: _confirmDelete,
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppColors.danger,
-                                minimumSize: const Size.fromHeight(48),
-                                textStyle: AppTextStyles.small.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              icon: const Icon(Icons.delete_outline),
-                              label: Text(l10n.deleteWishlist),
-                            ),
                           ],
                         ),
                       ),
@@ -466,12 +453,24 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
                 ),
                 Padding(
                   padding: const EdgeInsets.all(20).copyWith(top: 8),
-                  child: PrimaryButton(
-                    text: l10n.save,
-                    onPressed: hasChanges && _isNameValid ? _save : null,
-                    style: BaseButtonStyle.large,
-                    isStretched: true,
-                    isLoading: _isSaving,
+                  // Comme sur l'écran d'édition d'un wish
+                  child: Column(
+                    spacing: 12,
+                    children: [
+                      SecondaryButton(
+                        text: l10n.deleteWishlist,
+                        onPressed: _isSaving ? null : _confirmDelete,
+                        style: BaseButtonStyle.large,
+                        isStretched: true,
+                      ),
+                      PrimaryButton(
+                        text: l10n.save,
+                        onPressed: hasChanges && _isNameValid ? _save : null,
+                        style: BaseButtonStyle.large,
+                        isStretched: true,
+                        isLoading: _isSaving,
+                      ),
+                    ],
                   ),
                 ),
               ],
