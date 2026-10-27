@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -20,6 +21,13 @@ import 'package:wishlist/shared/infra/sentry_user_sync.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Bord à bord sur Android 10+ comme Android 15+ l'impose : sans ça, la
+  // barre système ne compte pas dans le viewPadding et la nav bar flottante
+  // se colle à elle (Android 14 et moins). Sans effet avant Android 10.
+  unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(systemNavigationBarColor: Colors.transparent),
+  );
   final environment = Environment.values.byName(EnvironmentService.appEnv);
 
   final config = await Config.load(environment: environment);
