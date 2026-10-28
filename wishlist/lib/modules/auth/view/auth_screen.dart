@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -216,11 +215,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final googleSignInConfig = ref.watch(googleSignInConfigProvider);
+    final showGoogle = ref.watch(googleSignInConfigProvider) != null;
     final authService = ref.read(authServiceProvider);
-    final showGoogle = googleSignInConfig != null &&
-        (defaultTargetPlatform != TargetPlatform.iOS ||
-            googleSignInConfig.iosClientId != null);
+    // The links would leave the screen while a sheet is open: the session
+    // that comes back would then redirect from another screen.
+    final areLinksEnabled = !_isSocialSignInInProgress;
 
     final emailOrPseudoInput = _isSigningIn
         ? InputPseudoOrEmail(
@@ -236,7 +235,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           // Same footer in both modes: sign-up is the first screen shown, and
           // someone reinstalling the app looks for this link there too.
           TextButton(
-            onPressed: () => ForgotPasswordRoute().push(context),
+            onPressed: areLinksEnabled
+                ? () => ForgotPasswordRoute().push(context)
+                : null,
             child: Text(
               l10n.forgotPasswordButton,
               style: AppTextStyles.smaller.copyWith(
@@ -247,11 +248,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {
-              setState(() {
-                _isSigningIn = !_isSigningIn;
-              });
-            },
+            onPressed: areLinksEnabled
+                ? () {
+                    setState(() {
+                      _isSigningIn = !_isSigningIn;
+                    });
+                  }
+                : null,
             child: Text(
               _isSigningIn ? l10n.dontHaveAccount : l10n.haveAccount,
               style: AppTextStyles.smaller.copyWith(
@@ -289,13 +292,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           SocialSignInButtons(
             showGoogle: showGoogle,
             isEnabled: !_isLoading && !_isSocialSignInInProgress,
-            onGooglePressed: () {
-              if (googleSignInConfig != null) {
-                _signInWith(
-                  () => authService.signInWithGoogle(googleSignInConfig),
-                );
-              }
-            },
+            onGooglePressed: () => _signInWith(authService.signInWithGoogle),
             onApplePressed: () => _signInWith(authService.signInWithApple),
           ),
         ],

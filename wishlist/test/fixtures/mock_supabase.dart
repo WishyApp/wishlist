@@ -112,7 +112,12 @@ class FakeAuthSession {
   late final BehaviorSubject<AuthState> _events;
   User? _user;
 
-  void setUserSilently(String? userId, {String? email}) {
+  /// [providers] are the sign-in methods of `app_metadata.providers`.
+  void setUserSilently(
+    String? userId, {
+    String? email,
+    List<String> providers = const ['email'],
+  }) {
     if (userId == null) {
       _user = null;
       return;
@@ -120,11 +125,16 @@ class FakeAuthSession {
     final user = MockUser();
     when(() => user.id).thenReturn(userId);
     when(() => user.email).thenReturn(email);
+    when(() => user.appMetadata).thenReturn({'providers': providers});
     _user = user;
   }
 
-  void signIn(String userId, {String? email}) {
-    setUserSilently(userId, email: email);
+  void signIn(
+    String userId, {
+    String? email,
+    List<String> providers = const ['email'],
+  }) {
+    setUserSilently(userId, email: email, providers: providers);
     _events.add(const AuthState(AuthChangeEvent.signedIn, null));
   }
 

@@ -3,36 +3,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
+import 'package:wishlist/app/config/config_provider.dart';
 import 'package:wishlist/app/config/deeplink_config.dart';
 import 'package:wishlist/main.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
 import 'package:wishlist/shared/infra/social_sign_in_client.dart';
+import 'package:wishlist/shared/infra/user_auth_providers_extension.dart';
 import 'package:wishlist/shared/infra/utils/auth_user_message_key.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 
 class AuthService {
-  AuthService({GoTrueClient? auth, SocialSignInClient? socialSignIn})
-      : _authOverride = auth,
-        _socialSignIn = socialSignIn ?? SocialSignInClient();
+  AuthService({
+    GoTrueClient? auth,
+    SocialSignInClient? socialSignIn,
+    GoogleSignInConfig? googleSignInConfig,
+  })  : _authOverride = auth,
+        _socialSignIn = socialSignIn ?? SocialSignInClient(),
+        _googleSignInConfig = googleSignInConfig;
 
   final GoTrueClient? _authOverride;
   final SocialSignInClient _socialSignIn;
 
+  /// Null when Google sign-in is not configured.
+  final GoogleSignInConfig? _googleSignInConfig;
+
   GoTrueClient get _auth => _authOverride ?? supabase.auth;
 
-  static final AuthService _instance = AuthService();
-
-  static AuthService get instance => _instance;
-
   Future<void> signOut(BuildContext context, WidgetRef ref) async {
+    // Read before the sign-out, which clears the current user.
+    final hasGoogleSignIn = _auth.currentUser?.hasGoogleSignIn ?? false;
     await _auth.signOut();
-    await _signOutOfGoogle();
+    if (hasGoogleSignIn) {
+      await _signOutOfGoogle();
+    }
   }
 
   Future<void> _signOutOfGoogle() async {
+    final config = _googleSignInConfig;
+    if (config == null) {
+      return;
+    }
     try {
-      await _socialSignIn.signOutOfGoogle();
+      await _socialSignIn.signOutOfGoogle(config);
     } catch (e) {
       // The Supabase session is gone, which is what signing out means: a
       // Google account still remembered only skips the picker next time.
@@ -43,8 +56,13 @@ class AuthService {
   /// Returns false when the user dismissed the Google sheet.
   ///
   /// A first sign-in creates the account: the router then asks for the
-  /// pseudo, as after an email sign-up.
-  Future<bool> signInWithGoogle(GoogleSignInConfig config) async {
+  /// pseudo, as after an email sign-up. Only called when Google sign-in is
+  /// configured: the button is hidden otherwise.
+  Future<bool> signInWithGoogle() async {
+    final config = _googleSignInConfig;
+    if (config == null) {
+      throw StateError('Google sign-in is not configured');
+    }
     final token = await _socialSignIn.googleIdToken(config);
     if (token == null) {
       return false;
@@ -255,8 +273,14 @@ class AuthService {
   }
 }
 
-final authServiceProvider = Provider((ref) => AuthService.instance);
+final authServiceProvider = Provider(
+  (ref) => AuthService(
+    googleSignInConfig: ref.watch(googleSignInConfigProvider),
+  ),
+);
 
-/// Null when the environment has no Google client IDs: the Google button is
-/// then hidden. Overridden in `main.dart` with the loaded config.
-final googleSignInConfigProvider = Provider<GoogleSignInConfig?>((ref) => null);
+/// Null when the environment has no Google client ID: the Google button is
+/// then hidden.
+final googleSignInConfigProvider = Provider<GoogleSignInConfig?>(
+  (ref) => ref.watch(configProvider).googleSignInConfig,
+);

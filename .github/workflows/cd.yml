@@ -199,14 +199,14 @@ jobs:
           EOF
 
       - name: Create .env.prod
-        # The Google OAuth client IDs are public: they ship in the app anyway.
+        # GOOGLE_WEB_CLIENT_ID is a repository variable, not a secret: the
+        # client ID ships in the app anyway. The iOS client is in Info.plist.
         run: |
           cat > env/.env.prod << EOF
           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-          GOOGLE_WEB_CLIENT_ID=581924542057-cmo38utub9g3fkco7uc1hq67oomhkg04.apps.googleusercontent.com
-          GOOGLE_IOS_CLIENT_ID=581924542057-mri9147jm9hnospuvi6aeqerqv04min6.apps.googleusercontent.com
+          GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}
           EOF
 
       - name: Build App Bundle
@@ -267,14 +267,14 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Create .env.prod
-        # The Google OAuth client IDs are public: they ship in the app anyway.
+        # GOOGLE_WEB_CLIENT_ID is a repository variable, not a secret: the
+        # client ID ships in the app anyway. The iOS client is in Info.plist.
         run: |
           cat > env/.env.prod << EOF
           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-          GOOGLE_WEB_CLIENT_ID=581924542057-cmo38utub9g3fkco7uc1hq67oomhkg04.apps.googleusercontent.com
-          GOOGLE_IOS_CLIENT_ID=581924542057-mri9147jm9hnospuvi6aeqerqv04min6.apps.googleusercontent.com
+          GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}
           EOF
 
       - name: Install Apple Certificate

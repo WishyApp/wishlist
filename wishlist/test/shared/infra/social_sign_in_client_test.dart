@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/shared/infra/social_sign_in_client.dart';
@@ -14,7 +15,7 @@ class _MockGoogleSignIn extends Mock implements GoogleSignIn {}
 class _MockGoogleSignInAccount extends Mock implements GoogleSignInAccount {}
 
 void main() {
-  const config = GoogleSignInConfig(webClientId: 'web', iosClientId: 'ios');
+  const config = GoogleSignInConfig(webClientId: 'web');
 
   late _MockGoogleSignIn googleSignIn;
   late _MockGoogleSignInAccount account;
@@ -56,7 +57,6 @@ void main() {
       );
       verify(
         () => googleSignIn.initialize(
-          clientId: 'ios',
           serverClientId: 'web',
           nonce: any(named: 'nonce'),
         ),
@@ -125,17 +125,38 @@ void main() {
   });
 
   group('SocialSignInClient.signOutOfGoogle', () {
-    test('does nothing before any Google sign-in', () async {
-      await client.signOutOfGoogle();
-
-      verifyNever(() => googleSignIn.signOut());
-    });
-
     test('signs out of Google after a sign-in', () async {
       await client.googleIdToken(config);
-      await client.signOutOfGoogle();
+      await client.signOutOfGoogle(config);
 
       verify(() => googleSignIn.signOut()).called(1);
+    });
+
+    test('initializes Google first after a restart of the app', () async {
+      // A new client on a fresh GoogleSignIn: nothing initialized yet.
+      await client.signOutOfGoogle(config);
+
+      verify(
+        () => googleSignIn.initialize(
+          serverClientId: 'web',
+          nonce: any(named: 'nonce'),
+        ),
+      ).called(1);
+      verify(() => googleSignIn.signOut()).called(1);
+    });
+
+    test('shares the initialization between clients', () async {
+      await client.googleIdToken(config);
+      await SocialSignInClient(googleSignIn: googleSignIn)
+          .signOutOfGoogle(config);
+
+      verify(
+        () => googleSignIn.initialize(
+          clientId: any(named: 'clientId'),
+          serverClientId: any(named: 'serverClientId'),
+          nonce: any(named: 'nonce'),
+        ),
+      ).called(1);
     });
   });
 
@@ -153,6 +174,29 @@ void main() {
           isTrue,
         );
       }
+    });
+
+    test('is true for a dismissed Apple sheet or no Apple ID signed in', () {
+      for (final code in [
+        AuthorizationErrorCode.canceled,
+        AuthorizationErrorCode.unknown,
+      ]) {
+        expect(
+          SocialSignInClient.isUserSideFailure(
+            SignInWithAppleAuthorizationException(code: code, message: ''),
+          ),
+          isTrue,
+        );
+      }
+      expect(
+        SocialSignInClient.isUserSideFailure(
+          const SignInWithAppleAuthorizationException(
+            code: AuthorizationErrorCode.failed,
+            message: '',
+          ),
+        ),
+        isFalse,
+      );
     });
 
     test('is false for a misconfiguration', () {

@@ -12,6 +12,7 @@ import 'package:wishlist/shared/infra/auth_service.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/widgets/text_form_fields/input_password.dart';
 
+import '../../../fixtures/fake_providers.dart';
 import '../../../pump_app.dart';
 
 class _MockAuthService extends Mock implements AuthService {}
@@ -74,7 +75,10 @@ void main() {
           routes: [GoRoute(path: 'screen', builder: (_, __) => screen)],
         ),
       ],
-      overrides: [authServiceProvider.overrideWithValue(authService)],
+      overrides: [
+        configOverride(),
+        authServiceProvider.overrideWithValue(authService),
+      ],
     );
     await tester.pumpAndSettle();
   }
