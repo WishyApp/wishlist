@@ -103,8 +103,9 @@ Deno.test("revokeAppleTokens : échange le code puis révoque le refresh token",
   const { config } = await testConfig();
   const { calls, fetchFn } = fakeApple();
 
-  await revokeAppleTokens({ config, authorizationCode: "code", appleUserId: "apple-user", fetchFn });
+  const result = await revokeAppleTokens({ config, authorizationCode: "code", appleUserId: "apple-user", fetchFn });
 
+  assertEquals(result, { belongsToAccount: true });
   assertEquals(calls.map((c) => c.url), [
     "https://appleid.apple.com/auth/token",
     "https://appleid.apple.com/auth/revoke",
@@ -128,15 +129,15 @@ Deno.test("revokeAppleTokens : révoque l'access token sans refresh token", asyn
   assertEquals(calls[1].form.get("token_type_hint"), "access_token");
 });
 
-Deno.test("revokeAppleTokens : refuse un code d'un autre compte Apple", async () => {
+Deno.test("revokeAppleTokens : révoque aussi le code d'un autre identifiant Apple", async () => {
   const { config } = await testConfig();
   const { calls, fetchFn } = fakeApple();
 
-  await assertRejects(
-    () => revokeAppleTokens({ config, authorizationCode: "code", appleUserId: "someone-else", fetchFn }),
-    AppleRevocationError,
-  );
-  assertEquals(calls.length, 1);
+  const result = await revokeAppleTokens({ config, authorizationCode: "code", appleUserId: "someone-else", fetchFn });
+
+  assertEquals(result, { belongsToAccount: false });
+  assertEquals(calls.length, 2);
+  assertEquals(calls[1].form.get("token"), "refresh");
 });
 
 Deno.test("revokeAppleTokens : erreur si Apple refuse l'échange ou la révocation", async () => {
@@ -184,15 +185,13 @@ Deno.test("appleUserIdOf : sub de l'identité Apple", () => {
   assertEquals(appleUserIdOf(undefined), null);
 });
 
-Deno.test("revokeAppleTokens : id_token absent ou sans sub refusé", async () => {
+Deno.test("revokeAppleTokens : id_token absent ou sans sub, révoqué mais hors du compte", async () => {
   const { config } = await testConfig();
   for (const tokens of [{ refresh_token: "r" }, { refresh_token: "r", id_token: "pas-un-jwt" }, { refresh_token: "r", id_token: idTokenFor("") }]) {
     const { calls, fetchFn } = fakeApple({ token: new Response(JSON.stringify(tokens)) });
-    await assertRejects(
-      () => revokeAppleTokens({ config, authorizationCode: "code", appleUserId: "apple-user", fetchFn }),
-      AppleRevocationError,
-    );
-    assertEquals(calls.length, 1);
+    const result = await revokeAppleTokens({ config, authorizationCode: "code", appleUserId: "apple-user", fetchFn });
+    assertEquals(result, { belongsToAccount: false });
+    assertEquals(calls.length, 2);
   }
 });
 

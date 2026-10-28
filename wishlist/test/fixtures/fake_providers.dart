@@ -1,5 +1,7 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wishlist/app/config/config.dart';
+import 'package:wishlist/app/config/config_provider.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
@@ -31,6 +33,20 @@ import 'mock_supabase.dart';
 // =============================================================================
 // SUPABASE PROVIDER OVERRIDE
 // =============================================================================
+
+/// Override pour configProvider, que l'app reçoit de `main.dart` : sans
+/// [googleSignInConfig], le bouton Google est masqué.
+Override configOverride({GoogleSignInConfig? googleSignInConfig}) {
+  return configProvider.overrideWithValue(
+    Config(
+      supabaseConfig: const SupabaseConfig(
+        url: 'https://test.supabase.co',
+        anonKey: 'anon-key',
+      ),
+      googleSignInConfig: googleSignInConfig,
+    ),
+  );
+}
 
 /// Override pour supabaseClientProvider avec un mock
 Override supabaseClientOverride({

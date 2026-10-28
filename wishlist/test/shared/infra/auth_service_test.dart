@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -38,6 +40,7 @@ void main() {
       auth: auth,
       functions: functions,
       socialSignIn: socialSignIn,
+      googleSignInConfig: const GoogleSignInConfig(webClientId: 'web'),
     );
   });
 
@@ -234,7 +237,7 @@ void main() {
           .thenAnswer((_) async => token);
       stubSignInWithIdToken();
 
-      expect(await service.signInWithGoogle(googleConfig), isTrue);
+      expect(await service.signInWithGoogle(), isTrue);
 
       verify(
         () => auth.signInWithIdToken(
@@ -249,7 +252,7 @@ void main() {
       when(() => socialSignIn.googleIdToken(any()))
           .thenAnswer((_) async => null);
 
-      expect(await service.signInWithGoogle(googleConfig), isFalse);
+      expect(await service.signInWithGoogle(), isFalse);
 
       verifyNever(
         () => auth.signInWithIdToken(
@@ -320,7 +323,7 @@ void main() {
 
     setUp(() {
       when(() => auth.signOut()).thenAnswer((_) async {});
-      when(() => socialSignIn.signOutOfGoogle()).thenAnswer((_) async {});
+      when(() => socialSignIn.signOutOfGoogle(any())).thenAnswer((_) async {});
     });
 
     tearDown(() => debugDefaultTargetPlatformOverride = null);
@@ -329,7 +332,7 @@ void main() {
       stubProviders(['email']);
       stubInvoke();
 
-      expect(await service.deleteAccount(), isTrue);
+      await service.deleteAccount();
 
       verify(
         () => functions.invoke('delete-user-account', body: <String, Object>{}),
@@ -345,7 +348,7 @@ void main() {
       when(() => socialSignIn.appleAuthorizationCode())
           .thenAnswer((_) async => 'apple-code');
 
-      expect(await service.deleteAccount(), isTrue);
+      await service.deleteAccount();
 
       verify(
         () => functions.invoke(
@@ -361,7 +364,7 @@ void main() {
       when(() => socialSignIn.appleAuthorizationCode())
           .thenAnswer((_) async => null);
 
-      expect(await service.deleteAccount(), isFalse);
+      await service.deleteAccount();
 
       verifyNever(() => functions.invoke(any(), body: any(named: 'body')));
       verifyNever(() => auth.signOut());
@@ -378,7 +381,7 @@ void main() {
         ),
       );
 
-      expect(await service.deleteAccount(), isTrue);
+      await service.deleteAccount();
 
       verify(
         () => functions.invoke('delete-user-account', body: <String, Object>{}),
@@ -390,11 +393,34 @@ void main() {
       stubProviders(['apple', 'email']);
       stubInvoke();
 
-      expect(await service.deleteAccount(), isTrue);
+      await service.deleteAccount();
 
       verifyNever(() => socialSignIn.appleAuthorizationCode());
       verify(
         () => functions.invoke('delete-user-account', body: <String, Object>{}),
+      ).called(1);
+    });
+
+    test('fails without deleting on an unexpected sheet error', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      stubProviders(['apple']);
+      when(() => socialSignIn.appleAuthorizationCode())
+          .thenThrow(StateError('bug'));
+
+      await expectLater(service.deleteAccount(), throwsA(isA<AppException>()));
+      verifyNever(() => functions.invoke(any(), body: any(named: 'body')));
+    });
+
+    test('signs out of Google after deleting a Google account', () async {
+      stubProviders(['google']);
+      stubInvoke();
+
+      await service.deleteAccount();
+
+      verify(
+        () => socialSignIn.signOutOfGoogle(
+          const GoogleSignInConfig(webClientId: 'web'),
+        ),
       ).called(1);
     });
 
@@ -408,4 +434,50 @@ void main() {
       verifyNever(() => auth.signOut());
     });
   });
+
+  group('AuthService.signOut', () {
+    const config = GoogleSignInConfig(webClientId: 'web');
+
+    setUp(() {
+      when(() => auth.signOut()).thenAnswer((_) async {});
+      when(() => socialSignIn.signOutOfGoogle(config)).thenAnswer((_) async {});
+    });
+
+    test('signs out of Google too for a Google account', () async {
+      when(() => user.appMetadata).thenReturn({
+        'providers': ['google'],
+      });
+
+      await service.signOut(_FakeContext(), _FakeRef());
+
+      verify(() => auth.signOut()).called(1);
+      verify(() => socialSignIn.signOutOfGoogle(config)).called(1);
+    });
+
+    test('leaves Google alone for an email account', () async {
+      when(() => user.appMetadata).thenReturn({
+        'providers': ['email'],
+      });
+
+      await service.signOut(_FakeContext(), _FakeRef());
+
+      verifyNever(() => socialSignIn.signOutOfGoogle(any()));
+    });
+
+    test('still signs out when Google fails', () async {
+      when(() => user.appMetadata).thenReturn({
+        'providers': ['google'],
+      });
+      when(() => socialSignIn.signOutOfGoogle(config))
+          .thenThrow(Exception('Play services missing'));
+
+      await service.signOut(_FakeContext(), _FakeRef());
+
+      verify(() => auth.signOut()).called(1);
+    });
+  });
 }
+
+class _FakeContext extends Fake implements BuildContext {}
+
+class _FakeRef extends Fake implements WidgetRef {}

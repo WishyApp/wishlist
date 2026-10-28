@@ -55,30 +55,15 @@ void main() {
     group('googleSignInConfig', () {
       test('is null without GOOGLE_WEB_CLIENT_ID', () {
         expect(configFrom(baseEnv).googleSignInConfig, isNull);
-        final withEmptyWebClientId = configFrom(
-          '${baseEnv}GOOGLE_WEB_CLIENT_ID=\nGOOGLE_IOS_CLIENT_ID=ios',
-        );
-        expect(withEmptyWebClientId.googleSignInConfig, isNull);
-      });
-
-      test('reads the Web and iOS client IDs', () {
-        final config = configFrom(
-          '${baseEnv}GOOGLE_WEB_CLIENT_ID=web\nGOOGLE_IOS_CLIENT_ID=ios',
-        );
-
         expect(
-          config.googleSignInConfig,
-          const GoogleSignInConfig(webClientId: 'web', iosClientId: 'ios'),
+          configFrom('${baseEnv}GOOGLE_WEB_CLIENT_ID= ').googleSignInConfig,
+          isNull,
         );
       });
 
-      test('has no iOS client ID when GOOGLE_IOS_CLIENT_ID is empty', () {
-        final config = configFrom(
-          '${baseEnv}GOOGLE_WEB_CLIENT_ID=web\nGOOGLE_IOS_CLIENT_ID=',
-        );
-
+      test('reads the Web client ID', () {
         expect(
-          config.googleSignInConfig,
+          configFrom('${baseEnv}GOOGLE_WEB_CLIENT_ID=web').googleSignInConfig,
           const GoogleSignInConfig(webClientId: 'web'),
         );
       });

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
@@ -12,20 +15,14 @@ import '../../../pump_app.dart';
 class _MockAuthService extends Mock implements AuthService {}
 
 void main() {
-  const googleConfig = GoogleSignInConfig(
-    webClientId: 'web',
-    iosClientId: 'ios',
-  );
-
-  setUpAll(() => registerFallbackValue(googleConfig));
+  const googleConfig = GoogleSignInConfig(webClientId: 'web');
 
   late _MockAuthService authService;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     authService = _MockAuthService();
-    when(() => authService.signInWithGoogle(any()))
-        .thenAnswer((_) async => true);
+    when(() => authService.signInWithGoogle()).thenAnswer((_) async => true);
     when(() => authService.signInWithApple()).thenAnswer((_) async => true);
   });
 
@@ -63,7 +60,7 @@ void main() {
     await tester.tap(find.text('Continuer avec Google'));
     await tester.pumpAndSettle();
 
-    verify(() => authService.signInWithGoogle(googleConfig)).called(1);
+    verify(() => authService.signInWithGoogle()).called(1);
   });
 
   testWidgets('shows Apple then Google on iOS', (tester) async {
@@ -84,23 +81,8 @@ void main() {
     }
   });
 
-  testWidgets('hides Google on iOS without the iOS client ID', (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    try {
-      await pump(
-        tester,
-        config: const GoogleSignInConfig(webClientId: 'web'),
-      );
-
-      expect(find.text('Continuer avec Apple'), findsOneWidget);
-      expect(find.text('Continuer avec Google'), findsNothing);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
-
   testWidgets('shows an error when the sign-in fails', (tester) async {
-    when(() => authService.signInWithGoogle(any()))
+    when(() => authService.signInWithGoogle())
         .thenThrow(Exception('misconfigured'));
     await pump(tester, config: googleConfig);
 
@@ -115,7 +97,32 @@ void main() {
     // The buttons are usable again for another attempt.
     await tester.tap(find.text('Continuer avec Google'));
     await tester.pump();
-    verify(() => authService.signInWithGoogle(googleConfig)).called(2);
+    verify(() => authService.signInWithGoogle()).called(2);
     await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
+  testWidgets('disables the links while a social sign-in is running',
+      (tester) async {
+    final signIn = Completer<bool>();
+    when(() => authService.signInWithGoogle()).thenAnswer((_) => signIn.future);
+    await pump(tester, config: googleConfig);
+
+    await tester.ensureVisible(find.text('Continuer avec Google'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuer avec Google'));
+    await tester.pump();
+
+    for (final link in ['Mot de passe oublié ?', 'Vous avez déjà un compte']) {
+      final button = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.textContaining(link),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(button.onPressed, isNull, reason: link);
+    }
+
+    signIn.complete(false);
+    await tester.pumpAndSettle();
   });
 }

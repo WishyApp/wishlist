@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/shared/infra/social_sign_in_client.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 
@@ -11,7 +11,7 @@ import 'package:wishlist/shared/theme/text_styles.dart';
 /// is available.
 ///
 /// Apple only shows on iOS, where the App Store requires it next to Google.
-/// Google only shows when [showGoogle] is true, i.e. its client IDs are set.
+/// Google only shows when [showGoogle] is true, i.e. its client ID is set.
 class SocialSignInButtons extends StatelessWidget {
   const SocialSignInButtons({
     super.key,
@@ -32,7 +32,7 @@ class SocialSignInButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final showApple = defaultTargetPlatform == TargetPlatform.iOS;
+    final showApple = SocialSignInClient.isAppleAvailable;
 
     if (!showApple && !showGoogle) {
       return const SizedBox.shrink();

@@ -258,6 +258,10 @@ Les Edge Functions vivent dans `supabase/functions/<nom>/index.ts` et sont dépl
 * Une fonction supprimée du dépôt n'est pas supprimée des projets : la retirer à la main avec `supabase functions delete <nom> --project-ref <ref>` (dev et prod).
 * `delete-user-account` révoque les jetons Sign in with Apple d'un compte supprimé (guideline App Store 5.1.1(v)). Elle lit quatre secrets, posés à la main sur dev et prod (Edge Functions → Secrets), jamais dans le dépôt : `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` (contenu du fichier `.p8` de la clé « Sign in with Apple ») et `APPLE_CLIENT_ID` (le bundle ID). S'il en manque un, la suppression se fait quand même et la fonction logue `Apple revocation skipped`.
 
+#### Connexion Google
+
+Un seul jeu de clients OAuth sert dev et prod (même bundle ID). Le client Web est dans `GOOGLE_WEB_CLIENT_ID` : fichiers `env/.env.dev` et `env/.env.prod` en local, variable de repo du même nom pour la CD. Le client iOS est dans `ios/Runner/Info.plist` (`GIDClientID`), avec son ID inversé en URL scheme ; un test vérifie qu'ils correspondent. Le fournisseur Google de Supabase (dev et prod) liste les deux, Web puis iOS : sur iOS, l'ID token est émis pour le client iOS.
+
 #### Secrets GitHub requis
 
 | Secret | Description |

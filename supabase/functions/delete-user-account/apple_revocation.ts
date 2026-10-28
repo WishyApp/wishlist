@@ -139,8 +139,11 @@ async function postForm(
 /**
  * Exchanges [authorizationCode] and revokes the resulting token.
  *
- * [appleUserId] is the Apple ID of the account being deleted: a code issued to
- * another Apple account is refused, so that it can't revoke someone else.
+ * Returns whether the code was issued to [appleUserId], the Apple ID of the
+ * account being deleted. A code from another Apple ID (a family device signed
+ * in with someone else's Apple ID) is revoked all the same: the exchange
+ * created that authorization, and the code can only come from the caller's
+ * own device. The deleted account's authorization is then left as is.
  */
 export async function revokeAppleTokens({
   config,
@@ -152,7 +155,7 @@ export async function revokeAppleTokens({
   authorizationCode: string;
   appleUserId: string;
   fetchFn?: typeof fetch;
-}): Promise<void> {
+}): Promise<{ belongsToAccount: boolean }> {
   const clientSecret = await createClientSecret(config);
 
   const tokenResponse = await postForm(fetchFn, "token", {
@@ -167,10 +170,8 @@ export async function revokeAppleTokens({
     );
   }
   const tokens = await tokenResponse.json();
-
-  if (typeof tokens.id_token !== "string" || subjectOf(tokens.id_token) !== appleUserId) {
-    throw new AppleRevocationError("The Apple code belongs to another account");
-  }
+  const belongsToAccount = typeof tokens.id_token === "string" &&
+    subjectOf(tokens.id_token) === appleUserId;
 
   const refreshToken = typeof tokens.refresh_token === "string" ? tokens.refresh_token : null;
   const token = refreshToken ?? tokens.access_token;
@@ -189,4 +190,5 @@ export async function revokeAppleTokens({
       `Apple revocation failed: ${revokeResponse.status} ${await revokeResponse.text()}`,
     );
   }
+  return { belongsToAccount };
 }

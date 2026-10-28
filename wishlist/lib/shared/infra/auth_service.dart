@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:email_validator/email_validator.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
+import 'package:wishlist/app/config/config_provider.dart';
 import 'package:wishlist/app/config/deeplink_config.dart';
 import 'package:wishlist/main.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
@@ -18,30 +22,39 @@ class AuthService {
     GoTrueClient? auth,
     FunctionsClient? functions,
     SocialSignInClient? socialSignIn,
+    GoogleSignInConfig? googleSignInConfig,
   })  : _authOverride = auth,
         _functionsOverride = functions,
-        _socialSignIn = socialSignIn ?? SocialSignInClient();
+        _socialSignIn = socialSignIn ?? SocialSignInClient(),
+        _googleSignInConfig = googleSignInConfig;
 
   final GoTrueClient? _authOverride;
   final FunctionsClient? _functionsOverride;
   final SocialSignInClient _socialSignIn;
 
+  /// Null when Google sign-in is not configured.
+  final GoogleSignInConfig? _googleSignInConfig;
+
   GoTrueClient get _auth => _authOverride ?? supabase.auth;
 
   FunctionsClient get _functions => _functionsOverride ?? supabase.functions;
 
-  static final AuthService _instance = AuthService();
-
-  static AuthService get instance => _instance;
-
   Future<void> signOut(BuildContext context, WidgetRef ref) async {
+    // Read before the sign-out, which clears the current user.
+    final hasGoogleSignIn = _auth.currentUser?.hasGoogleSignIn ?? false;
     await _auth.signOut();
-    await _signOutOfGoogle();
+    if (hasGoogleSignIn) {
+      await _signOutOfGoogle();
+    }
   }
 
   Future<void> _signOutOfGoogle() async {
+    final config = _googleSignInConfig;
+    if (config == null) {
+      return;
+    }
     try {
-      await _socialSignIn.signOutOfGoogle();
+      await _socialSignIn.signOutOfGoogle(config);
     } catch (e) {
       // The Supabase session is gone, which is what signing out means: a
       // Google account still remembered only skips the picker next time.
@@ -52,8 +65,13 @@ class AuthService {
   /// Returns false when the user dismissed the Google sheet.
   ///
   /// A first sign-in creates the account: the router then asks for the
-  /// pseudo, as after an email sign-up.
-  Future<bool> signInWithGoogle(GoogleSignInConfig config) async {
+  /// pseudo, as after an email sign-up. Only called when Google sign-in is
+  /// configured: the button is hidden otherwise.
+  Future<bool> signInWithGoogle() async {
+    final config = _googleSignInConfig;
+    if (config == null) {
+      throw StateError('Google sign-in is not configured');
+    }
     final token = await _socialSignIn.googleIdToken(config);
     if (token == null) {
       return false;
@@ -237,28 +255,32 @@ class AuthService {
     }
   }
 
-  /// Returns false when the user dismissed the Apple sheet: nothing is
-  /// deleted then.
-  ///
   /// An Apple account first goes through the Apple sheet again: its fresh
   /// authorization code lets the server revoke the account's Apple tokens,
-  /// as the App Store requires. Only on iOS, the only platform offering
-  /// Apple sign-in. Closing the sheet cancels the deletion; any other sheet
-  /// failure deletes the account without revoking.
-  Future<bool> deleteAccount() async {
+  /// as the App Store requires. Closing the sheet cancels the deletion;
+  /// an Apple failure (no Apple ID on the device…) deletes the account
+  /// without revoking, reported to Sentry.
+  ///
+  /// Only where Apple sign-in is offered: an Apple account deleted from
+  /// Android (it also has a password or Google) is not revoked, which the
+  /// server logs.
+  Future<void> deleteAccount() async {
+    // Read before the deletion, which signs the user out.
+    final user = _auth.currentUser;
+    final hasGoogleSignIn = user?.hasGoogleSignIn ?? false;
     try {
       String? appleAuthorizationCode;
-      if (defaultTargetPlatform == TargetPlatform.iOS &&
-          (_auth.currentUser?.hasAppleSignIn ?? false)) {
+      if (SocialSignInClient.isAppleAvailable &&
+          (user?.hasAppleSignIn ?? false)) {
         try {
           appleAuthorizationCode = await _socialSignIn.appleAuthorizationCode();
           if (appleAuthorizationCode == null) {
-            return false;
+            return;
           }
-        } catch (e) {
-          // No iCloud account, Apple ID in a bad state…: the user must still
-          // be able to leave, as when the server fails to revoke.
-          debugPrint('Could not get an Apple code, deleting anyway: $e');
+        } on SignInWithAppleException catch (e, stackTrace) {
+          // The user must still be able to leave, as when the server fails
+          // to revoke. Any other error is a bug and fails the deletion.
+          unawaited(Sentry.captureException(e, stackTrace: stackTrace));
         }
       }
 
@@ -274,8 +296,9 @@ class AuthService {
 
       // Déconnecter l'utilisateur après la suppression
       await _auth.signOut();
-      await _signOutOfGoogle();
-      return true;
+      if (hasGoogleSignIn) {
+        await _signOutOfGoogle();
+      }
     } catch (e) {
       if (e is AuthException) {
         final statusCode = e.statusCode;
@@ -294,8 +317,14 @@ class AuthService {
   }
 }
 
-final authServiceProvider = Provider((ref) => AuthService.instance);
+final authServiceProvider = Provider(
+  (ref) => AuthService(
+    googleSignInConfig: ref.watch(googleSignInConfigProvider),
+  ),
+);
 
-/// Null when the environment has no Google client IDs: the Google button is
-/// then hidden. Overridden in `main.dart` with the loaded config.
-final googleSignInConfigProvider = Provider<GoogleSignInConfig?>((ref) => null);
+/// Null when the environment has no Google client ID: the Google button is
+/// then hidden.
+final googleSignInConfigProvider = Provider<GoogleSignInConfig?>(
+  (ref) => ref.watch(configProvider).googleSignInConfig,
+);

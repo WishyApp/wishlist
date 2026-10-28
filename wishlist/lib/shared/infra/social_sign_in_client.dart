@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,23 +26,35 @@ class SocialSignInClient {
 
   final GoogleSignIn _googleSignIn;
 
-  /// google_sign_in takes its nonce once, at initialization: the raw nonce
-  /// lives as long as the app, so every Google token of a run carries the
-  /// same one: it ties a token to this run of the app, not to one attempt.
-  Future<String>? _googleRawNonce;
+  /// Apple sign-in is offered on iOS only, where the App Store requires it
+  /// next to Google.
+  static bool get isAppleAvailable =>
+      defaultTargetPlatform == TargetPlatform.iOS;
 
-  Future<SocialIdToken?> googleIdToken(GoogleSignInConfig config) async {
-    final initialization = _googleRawNonce ??= _initializeGoogle(config);
-    final String rawNonce;
+  /// The raw nonce of each initialized [GoogleSignIn], keyed by the instance:
+  /// it must be initialized once per process, whichever client asks first.
+  ///
+  /// google_sign_in takes its nonce once, at initialization: every Google
+  /// token of a run carries the same one, which ties a token to this run of
+  /// the app, not to one attempt.
+  static final _googleRawNonces = Expando<Future<String>>();
+
+  /// Initializes Google once, and again after a failed initialization.
+  Future<String> _initializedGoogle(GoogleSignInConfig config) async {
+    final initialization =
+        _googleRawNonces[_googleSignIn] ??= _initializeGoogle(config);
     try {
-      rawNonce = await initialization;
+      return await initialization;
     } catch (_) {
-      // Let the next attempt initialize again.
-      if (identical(_googleRawNonce, initialization)) {
-        _googleRawNonce = null;
+      if (identical(_googleRawNonces[_googleSignIn], initialization)) {
+        _googleRawNonces[_googleSignIn] = null;
       }
       rethrow;
     }
+  }
+
+  Future<SocialIdToken?> googleIdToken(GoogleSignInConfig config) async {
+    final rawNonce = await _initializedGoogle(config);
 
     final GoogleSignInAccount account;
     try {
@@ -64,7 +77,7 @@ class SocialSignInClient {
   Future<String> _initializeGoogle(GoogleSignInConfig config) async {
     final rawNonce = _generateRawNonce();
     await _googleSignIn.initialize(
-      clientId: config.iosClientId,
+      // On iOS, the client ID comes from GIDClientID in Info.plist.
       serverClientId: config.webClientId,
       nonce: _sha256(rawNonce),
     );
@@ -74,17 +87,12 @@ class SocialSignInClient {
   Future<SocialIdToken?> appleIdToken() async {
     final rawNonce = _generateRawNonce();
 
-    final AuthorizationCredentialAppleID credential;
-    try {
-      credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [AppleIDAuthorizationScopes.email],
-        nonce: _sha256(rawNonce),
-      );
-    } on SignInWithAppleAuthorizationException catch (e) {
-      if (e.code == AuthorizationErrorCode.canceled) {
-        return null;
-      }
-      rethrow;
+    final credential = await _appleCredential(
+      scopes: [AppleIDAuthorizationScopes.email],
+      nonce: _sha256(rawNonce),
+    );
+    if (credential == null) {
+      return null;
     }
 
     final idToken = credential.identityToken;
@@ -98,11 +106,20 @@ class SocialSignInClient {
   /// A fresh authorization code from the Apple sheet, for the server to
   /// revoke the account's Apple tokens when it is deleted.
   Future<String?> appleAuthorizationCode() async {
+    final credential = await _appleCredential(scopes: const []);
+    return credential?.authorizationCode;
+  }
+
+  /// The Apple sheet; null when the user closes it.
+  Future<AuthorizationCredentialAppleID?> _appleCredential({
+    required List<AppleIDAuthorizationScopes> scopes,
+    String? nonce,
+  }) async {
     try {
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: const [],
+      return await SignInWithApple.getAppleIDCredential(
+        scopes: scopes,
+        nonce: nonce,
       );
-      return credential.authorizationCode;
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
         return null;
@@ -112,24 +129,30 @@ class SocialSignInClient {
   }
 
   /// Signs out of Google so that the next sign-in shows the account picker.
-  Future<void> signOutOfGoogle() async {
-    final initialization = _googleRawNonce;
-    if (initialization == null) {
-      return;
-    }
-    await initialization;
+  ///
+  /// Initializes Google first when the app was restarted since the sign-in:
+  /// the plugin refuses any call before its initialization.
+  Future<void> signOutOfGoogle(GoogleSignInConfig config) async {
+    await _initializedGoogle(config);
     await _googleSignIn.signOut();
   }
 
   /// Whether [error] is an expected failure of the sheet itself (dismissed,
-  /// interrupted, no UI to show it), as opposed to a misconfiguration.
+  /// interrupted, no UI to show it, no Apple ID signed in on the device), as
+  /// opposed to a misconfiguration.
   static bool isUserSideFailure(Object error) {
-    return error is GoogleSignInException &&
-        const [
+    return switch (error) {
+      GoogleSignInException(:final code) => const [
           GoogleSignInExceptionCode.canceled,
           GoogleSignInExceptionCode.interrupted,
           GoogleSignInExceptionCode.uiUnavailable,
-        ].contains(error.code);
+        ].contains(code),
+      SignInWithAppleAuthorizationException(:final code) => const [
+          AuthorizationErrorCode.canceled,
+          AuthorizationErrorCode.unknown,
+        ].contains(code),
+      _ => false,
+    };
   }
 
   static String _generateRawNonce() {
