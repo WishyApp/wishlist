@@ -26,12 +26,7 @@ class Config extends Equatable {
       sentryDsn:
           sentryDsn != null && _isValidSentryDsn(sentryDsn) ? sentryDsn : null,
       googleSignInConfig: googleWebClientId != null
-          ? GoogleSignInConfig(
-              webClientId: googleWebClientId,
-              iosClientId: _nonEmpty(
-                dotEnvConfig.maybeGet('GOOGLE_IOS_CLIENT_ID'),
-              ),
-            )
+          ? GoogleSignInConfig(webClientId: googleWebClientId)
           : null,
     );
   }
@@ -111,22 +106,18 @@ class SupabaseConfig extends Equatable {
       ];
 }
 
-/// OAuth client IDs from the Google Cloud console.
+/// The Google OAuth client the native sign-in asks ID tokens for.
+///
+/// The iOS client is not here: the plugin reads it from `GIDClientID` in
+/// `ios/Runner/Info.plist`, next to the URL scheme derived from it.
 class GoogleSignInConfig extends Equatable {
-  const GoogleSignInConfig({
-    required this.webClientId,
-    this.iosClientId,
-  });
+  const GoogleSignInConfig({required this.webClientId});
 
-  /// The Web client: Supabase checks that the ID token was issued to it.
+  /// The Web client, passed as `serverClientId`. On Android the ID token is
+  /// issued to it; on iOS it is issued to the iOS client. Supabase checks
+  /// this audience, so its Google provider lists both client IDs.
   final String webClientId;
 
-  /// The iOS client, required by the native sign-in on iOS only.
-  final String? iosClientId;
-
   @override
-  List<Object?> get props => [
-        webClientId,
-        iosClientId,
-      ];
+  List<Object?> get props => [webClientId];
 }

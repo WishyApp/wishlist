@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -19,15 +21,20 @@ void main() {
 
   late MockGoTrueClient auth;
   late MockSocialSignInClient socialSignIn;
+  late MockUser user;
   late AuthService service;
 
   setUp(() {
     auth = MockGoTrueClient();
-    final user = MockUser();
+    user = MockUser();
     when(() => user.email).thenReturn('me@example.com');
     when(() => auth.currentUser).thenReturn(user);
     socialSignIn = MockSocialSignInClient();
-    service = AuthService(auth: auth, socialSignIn: socialSignIn);
+    service = AuthService(
+      auth: auth,
+      socialSignIn: socialSignIn,
+      googleSignInConfig: const GoogleSignInConfig(webClientId: 'web'),
+    );
   });
 
   void stubSignIn(Object error) {
@@ -223,7 +230,7 @@ void main() {
           .thenAnswer((_) async => token);
       stubSignInWithIdToken();
 
-      expect(await service.signInWithGoogle(googleConfig), isTrue);
+      expect(await service.signInWithGoogle(), isTrue);
 
       verify(
         () => auth.signInWithIdToken(
@@ -238,7 +245,7 @@ void main() {
       when(() => socialSignIn.googleIdToken(any()))
           .thenAnswer((_) async => null);
 
-      expect(await service.signInWithGoogle(googleConfig), isFalse);
+      expect(await service.signInWithGoogle(), isFalse);
 
       verifyNever(
         () => auth.signInWithIdToken(
@@ -295,4 +302,50 @@ void main() {
       );
     });
   });
+
+  group('AuthService.signOut', () {
+    const config = GoogleSignInConfig(webClientId: 'web');
+
+    setUp(() {
+      when(() => auth.signOut()).thenAnswer((_) async {});
+      when(() => socialSignIn.signOutOfGoogle(config)).thenAnswer((_) async {});
+    });
+
+    test('signs out of Google too for a Google account', () async {
+      when(() => user.appMetadata).thenReturn({
+        'providers': ['google'],
+      });
+
+      await service.signOut(_FakeContext(), _FakeRef());
+
+      verify(() => auth.signOut()).called(1);
+      verify(() => socialSignIn.signOutOfGoogle(config)).called(1);
+    });
+
+    test('leaves Google alone for an email account', () async {
+      when(() => user.appMetadata).thenReturn({
+        'providers': ['email'],
+      });
+
+      await service.signOut(_FakeContext(), _FakeRef());
+
+      verifyNever(() => socialSignIn.signOutOfGoogle(any()));
+    });
+
+    test('still signs out when Google fails', () async {
+      when(() => user.appMetadata).thenReturn({
+        'providers': ['google'],
+      });
+      when(() => socialSignIn.signOutOfGoogle(config))
+          .thenThrow(Exception('Play services missing'));
+
+      await service.signOut(_FakeContext(), _FakeRef());
+
+      verify(() => auth.signOut()).called(1);
+    });
+  });
 }
+
+class _FakeContext extends Fake implements BuildContext {}
+
+class _FakeRef extends Fake implements WidgetRef {}

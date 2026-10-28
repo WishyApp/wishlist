@@ -14,6 +14,7 @@ import 'package:wishlist/shared/theme/theme.dart';
 import 'package:wishlist/shared/widgets/dialogs/create_dialog.dart';
 
 import '../../fixtures/fake_data.dart';
+import '../../fixtures/fake_providers.dart';
 import '../../fixtures/mock_supabase.dart';
 
 const _boundKey = Key('user-bound');
@@ -46,7 +47,10 @@ Widget _app(
   Widget? home,
 }) {
   return ProviderScope(
-    overrides: [supabaseClientProvider.overrideWithValue(session.client)],
+    overrides: [
+      configOverride(),
+      supabaseClientProvider.overrideWithValue(session.client),
+    ],
     child: router != null
         ? MaterialApp.router(
             routerConfig: router,

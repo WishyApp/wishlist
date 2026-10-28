@@ -15,7 +15,6 @@ import 'package:wishlist/app/config/environment_provider.dart';
 import 'package:wishlist/app/config/environment_service.dart';
 import 'package:wishlist/app/dev/store_screenshot_mode.dart';
 import 'package:wishlist/app/navigation/router.dart';
-import 'package:wishlist/shared/infra/auth_service.dart';
 import 'package:wishlist/shared/infra/deep_link_navigator.dart';
 import 'package:wishlist/shared/infra/sentry_user_sync.dart';
 
@@ -59,9 +58,6 @@ void main() async {
         overrides: [
           configProvider.overrideWithValue(config),
           environmentProvider.overrideWithValue(environment),
-          googleSignInConfigProvider.overrideWithValue(
-            config.googleSignInConfig,
-          ),
         ],
         child: const MyApp(),
       ),

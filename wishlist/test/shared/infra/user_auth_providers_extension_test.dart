@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:wishlist/shared/infra/user_password_extension.dart';
+import 'package:wishlist/shared/infra/user_auth_providers_extension.dart';
 
 void main() {
   User userWith(Map<String, dynamic> appMetadata) => User(
@@ -11,7 +11,7 @@ void main() {
         createdAt: '2026-01-01T00:00:00Z',
       );
 
-  group('UserPasswordExtension.hasPassword', () {
+  group('UserAuthProvidersExtension.hasPassword', () {
     test('is true for an email account', () {
       expect(
         userWith({
