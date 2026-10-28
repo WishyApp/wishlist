@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
+import 'package:wishlist/shared/infra/utils/network_error.dart';
 
 /// An ID token from a native sign-in, with the raw nonce whose SHA-256 the
 /// provider embedded in it: Supabase hashes [rawNonce] to check the token.
@@ -157,6 +158,14 @@ class SocialSignInClient {
       _ => false,
     };
   }
+
+  /// Whether a failed sign-in is worth a Sentry report: mostly a
+  /// misconfigured provider or client ID. Not a lost connection, a passing
+  /// server error (5xx, WISHY-6) or a sheet the user closed.
+  static bool isWorthReporting(Object error) =>
+      !isNetworkError(error) &&
+      error is! AuthRetryableFetchException &&
+      !isUserSideFailure(error);
 
   /// Whether the Google sheet could not open on iOS: it runs in an
   /// `ASWebAuthenticationSession`, which refuses to start when Safari is

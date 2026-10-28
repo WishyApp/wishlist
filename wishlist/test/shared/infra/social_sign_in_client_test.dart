@@ -160,6 +160,50 @@ void main() {
     });
   });
 
+  group('SocialSignInClient.isWorthReporting', () {
+    test('reports a misconfiguration', () {
+      expect(
+        SocialSignInClient.isWorthReporting(
+          const GoogleSignInException(
+            code: GoogleSignInExceptionCode.clientConfigurationError,
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        SocialSignInClient.isWorthReporting(
+          const AuthApiException('Bad ID token', statusCode: '400'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('skips a passing server error or a lost connection', () {
+      expect(
+        SocialSignInClient.isWorthReporting(
+          AuthRetryableFetchException(statusCode: '504'),
+        ),
+        isFalse,
+      );
+      expect(
+        SocialSignInClient.isWorthReporting(AuthRetryableFetchException()),
+        isFalse,
+      );
+    });
+
+    test('skips a closed sheet and Safari unavailable', () {
+      expect(
+        SocialSignInClient.isWorthReporting(
+          const GoogleSignInException(
+            code: GoogleSignInExceptionCode.unknownError,
+            description: 'Unable to open Safari.',
+          ),
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('SocialSignInClient.isSafariUnavailable', () {
     test('is true when the Google sheet cannot open Safari', () {
       const error = GoogleSignInException(
