@@ -96,5 +96,43 @@ void main() {
 
       expect(find.byType(PasswordStrengthIndicator), findsNothing);
     });
+
+    testWidgets(
+        'hides the indicator when enabled while focused, then left empty',
+        (tester) async {
+      // Sign-in to sign-up with the empty password field focused: the
+      // parent enables the indicator on the same element.
+      final showIndicator = ValueNotifier(false);
+      addTearDown(showIndicator.dispose);
+      await tester.pumpApp(
+        ValueListenableBuilder(
+          valueListenable: showIndicator,
+          builder: (context, show, _) => Column(
+            children: [
+              InputPassword(
+                autofillHints: AutofillHints.password,
+                controller: controller,
+                label: 'Mot de passe',
+                textInputAction: TextInputAction.done,
+                showStrengthIndicator: show,
+                deferStrengthIndicator: true,
+              ),
+              const TextField(key: Key('other')),
+            ],
+          ),
+        ),
+      );
+      await tester.tap(find.byType(TextFormField));
+      await tester.pumpAndSettle();
+
+      showIndicator.value = true;
+      await tester.pumpAndSettle();
+      expect(find.byType(PasswordStrengthIndicator), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('other')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PasswordStrengthIndicator), findsNothing);
+    });
   });
 }

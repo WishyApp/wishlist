@@ -21,7 +21,7 @@ class SocialSignInButtons extends StatelessWidget {
     required this.isEnabled,
   });
 
-  static const _height = 52.0;
+  static const _minHeight = 52.0;
   static final _borderRadius = BorderRadius.circular(16);
 
   final bool showGoogle;
@@ -45,7 +45,7 @@ class SocialSignInButtons extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Gap(24),
+            const Gap(16),
             Row(
               children: [
                 const Expanded(child: Divider(color: AppColors.pastelGray)),
@@ -115,13 +115,17 @@ class _SocialButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final borderColor = this.borderColor;
 
-    return SizedBox(
-      height: SocialSignInButtons._height,
+    return ConstrainedBox(
+      // Grows with a label on two lines
+      constraints: const BoxConstraints(
+        minHeight: SocialSignInButtons._minHeight,
+      ),
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           side: borderColor != null
               ? BorderSide(color: borderColor)
               : BorderSide.none,
@@ -134,16 +138,16 @@ class _SocialButton extends StatelessWidget {
           children: [
             logo,
             const Gap(12),
-            // Shrinks rather than overflows on a narrow phone.
+            // Wraps rather than overflows on a narrow phone or with a large
+            // system text size, which a shrinking label would cancel.
             Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: AppTextStyles.small.copyWith(
-                    color: foregroundColor,
-                    fontWeight: FontWeight.w600,
-                  ),
+              child: Text(
+                label,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.small.copyWith(
+                  color: foregroundColor,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

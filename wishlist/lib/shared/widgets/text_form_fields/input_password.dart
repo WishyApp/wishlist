@@ -35,25 +35,7 @@ class _InputPasswordState extends State<InputPassword> {
   final _focusNode = FocusNode();
 
   @override
-  void initState() {
-    super.initState();
-    _notifiedStrengthIndicatorVisible = _isStrengthIndicatorVisible;
-    _focusNode.addListener(_onFocusOrTextChanged);
-    widget.controller.addListener(_onFocusOrTextChanged);
-  }
-
-  @override
-  void didUpdateWidget(InputPassword oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      oldWidget.controller.removeListener(_onFocusOrTextChanged);
-      widget.controller.addListener(_onFocusOrTextChanged);
-    }
-  }
-
-  @override
   void dispose() {
-    widget.controller.removeListener(_onFocusOrTextChanged);
     _focusNode.dispose();
     super.dispose();
   }
@@ -63,22 +45,6 @@ class _InputPasswordState extends State<InputPassword> {
       (!widget.deferStrengthIndicator ||
           _focusNode.hasFocus ||
           widget.controller.text.isNotEmpty);
-
-  /// Visibility at the last rebuild asked by [_onFocusOrTextChanged].
-  late bool _notifiedStrengthIndicatorVisible;
-
-  /// Rebuilds only when the indicator appears or disappears: the indicator
-  /// follows the text by itself.
-  void _onFocusOrTextChanged() {
-    if (!mounted) {
-      return;
-    }
-    final isVisible = _isStrengthIndicatorVisible;
-    if (isVisible != _notifiedStrengthIndicatorVisible) {
-      _notifiedStrengthIndicatorVisible = isVisible;
-      setState(() {});
-    }
-  }
 
   void _toggleObscureText() {
     setState(() {
@@ -136,27 +102,32 @@ class _InputPasswordState extends State<InputPassword> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         textField,
-        AnimatedSwitcher(
-          duration: kThemeAnimationDuration,
-          switchInCurve: Curves.fastOutSlowIn,
-          switchOutCurve: Curves.fastOutSlowIn,
-          transitionBuilder: (child, animation) {
-            return SizeTransition(
-              sizeFactor: animation,
-              child: FadeTransition(
-                opacity: animation,
-                child: child,
-              ),
-            );
-          },
-          child: _isStrengthIndicatorVisible
-              ? Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: PasswordStrengthIndicator(
-                    controller: widget.controller,
-                  ),
-                )
-              : const SizedBox.shrink(),
+        // Recomputed on every focus or text change: nothing cached, so it
+        // can't go stale when the parent changes the parameters.
+        ListenableBuilder(
+          listenable: Listenable.merge([_focusNode, widget.controller]),
+          builder: (context, _) => AnimatedSwitcher(
+            duration: kThemeAnimationDuration,
+            switchInCurve: Curves.fastOutSlowIn,
+            switchOutCurve: Curves.fastOutSlowIn,
+            transitionBuilder: (child, animation) {
+              return SizeTransition(
+                sizeFactor: animation,
+                child: FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+              );
+            },
+            child: _isStrengthIndicatorVisible
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: PasswordStrengthIndicator(
+                      controller: widget.controller,
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ),
       ],
     );

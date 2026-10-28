@@ -233,28 +233,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       footer: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Meaningless before having an account, and it saves room. Above the
-          // sign-in/sign-up switch, which then stays at the very bottom in
-          // both modes.
-          if (_isSigningIn) ...[
-            TextButton(
-              // Keys keep each button's state (and its ink splash) on it
-              // when "forgot password" appears or disappears above.
-              key: const ValueKey('forgotPassword'),
-              onPressed: () => ForgotPasswordRoute().push(context),
-              child: Text(
-                l10n.forgotPasswordButton,
-                style: AppTextStyles.smaller.copyWith(
-                  decoration: TextDecoration.underline,
-                  color: Colors.black54,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const Gap(8),
-          ],
+          // Same footer in both modes: sign-up is the first screen shown, and
+          // someone reinstalling the app looks for this link there too.
           TextButton(
-            key: const ValueKey('signInSignUpSwitch'),
+            onPressed: () => ForgotPasswordRoute().push(context),
+            child: Text(
+              l10n.forgotPasswordButton,
+              style: AppTextStyles.smaller.copyWith(
+                decoration: TextDecoration.underline,
+                color: Colors.black54,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          TextButton(
             onPressed: () {
               setState(() {
                 _isSigningIn = !_isSigningIn;

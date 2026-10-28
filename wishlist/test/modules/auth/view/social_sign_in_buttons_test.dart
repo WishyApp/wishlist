@@ -61,6 +61,7 @@ void main() {
 
     expect(find.text('Continuer avec Apple'), findsNothing);
     await tester.ensureVisible(find.text('Continuer avec Google'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Continuer avec Google'));
     await tester.pumpAndSettle();
 
@@ -76,6 +77,7 @@ void main() {
       expect(find.text('Continuer avec Google'), findsOneWidget);
 
       await tester.ensureVisible(find.text('Continuer avec Apple'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Continuer avec Apple'));
       await tester.pumpAndSettle();
 
@@ -106,6 +108,7 @@ void main() {
     await pump(tester, config: googleConfig);
 
     await tester.ensureVisible(find.text('Continuer avec Google'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Continuer avec Google'));
     await tester.pump();
     await tester.pump();
@@ -120,39 +123,82 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 5));
   });
 
-  testWidgets('offers "forgot password" in sign-in mode only', (tester) async {
+  testWidgets('shows the same footer in both modes', (tester) async {
     await pump(tester);
     // First launch: the screen is in sign-up mode.
-    expect(find.text('Mot de passe oublié ?'), findsNothing);
+    expect(find.text('Mot de passe oublié ?'), findsOneWidget);
+    expect(find.textContaining('Vous avez déjà un compte'), findsOneWidget);
 
     await tester.tap(find.textContaining('Vous avez déjà un compte'));
     await tester.pumpAndSettle();
 
     expect(find.text('Mot de passe oublié ?'), findsOneWidget);
+    expect(find.textContaining("Vous n'avez pas de compte"), findsOneWidget);
   });
 
-  testWidgets('keeps the footer reachable on a small screen with the keyboard',
-      (tester) async {
-    tester.view.physicalSize = const Size(320, 480);
-    tester.view.devicePixelRatio = 1;
-    tester.view.viewInsets = const FakeViewPadding(bottom: 200);
-    addTearDown(tester.view.reset);
-
-    await pump(tester, config: googleConfig);
-
-    expect(tester.takeException(), isNull);
+  group('layout', () {
     final footerLink = find.textContaining('Vous avez déjà un compte');
-    await tester.scrollUntilVisible(
-      footerLink,
-      100,
-      // The text fields have their own scrollables.
-      scrollable: find
-          .descendant(
-            of: find.byType(SingleChildScrollView),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
-    expect(footerLink.hitTestable(), findsOneWidget);
+
+    Future<void> setScreen(
+      WidgetTester tester,
+      Size size, {
+      double keyboardHeight = 0,
+      double textScale = 1,
+    }) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboardHeight);
+      tester.platformDispatcher.textScaleFactorTestValue = textScale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    }
+
+    /// Scrolls the screen until the footer shows: it is then on screen and
+    /// tappable.
+    Future<void> scrollToFooter(WidgetTester tester) async {
+      await tester.scrollUntilVisible(
+        footerLink,
+        100,
+        // The text fields have their own scrollables.
+        scrollable: find
+            .descendant(
+              of: find.byType(CustomScrollView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
+      expect(footerLink.hitTestable(), findsOneWidget);
+    }
+
+    testWidgets('anchors the footer on a phone in portrait', (tester) async {
+      await setScreen(tester, const Size(375, 667));
+      await pump(tester, config: googleConfig);
+
+      expect(tester.takeException(), isNull);
+      // Visible without scrolling
+      await tester.pumpAndSettle();
+      expect(footerLink.hitTestable(), findsOneWidget);
+    });
+
+    for (final (name, size, keyboard, textScale) in [
+      ('small phone with the keyboard', const Size(320, 480), 200.0, 1.0),
+      ('phone in landscape', const Size(844, 390), 0.0, 1.0),
+      ('phone with a very large text', const Size(375, 667), 0.0, 2.0),
+    ]) {
+      testWidgets('keeps the footer reachable on a $name', (tester) async {
+        await setScreen(
+          tester,
+          size,
+          keyboardHeight: keyboard,
+          textScale: textScale,
+        );
+        await pump(tester, config: googleConfig);
+
+        expect(tester.takeException(), isNull);
+        await scrollToFooter(tester);
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }
