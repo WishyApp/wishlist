@@ -10,7 +10,7 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 ### Nouvelles fonctionnalités
 
-- **Connexion avec Google et Apple** : « Continuer avec Google » (iPhone et Android) et « Continuer avec Apple » (iPhone) à côté de l'email et du mot de passe. Un nouveau compte passe par le choix du pseudo, comme après une inscription par email. Supprimer un compte Apple révoque aussi l'autorisation donnée à Wishy chez Apple
+- **Connexion avec Google et Apple** : « Continuer avec Google » (iPhone et Android) et « Continuer avec Apple » (iPhone) à côté de l'email et du mot de passe. Un nouveau compte passe par le choix du pseudo, comme après une inscription par email ; avec l'adresse d'un compte Wishy existant, on retrouve ce compte. Supprimer un compte Apple révoque aussi l'autorisation donnée à Wishy chez Apple
 - **Écran de connexion revu** : logo de l'app, boutons Apple et Google, liens « Mot de passe oublié ? » et « Vous avez déjà un compte ? » toujours visibles en bas de l'écran, y compris sur les petits téléphones ; à l'inscription, les critères du mot de passe s'affichent au moment de le saisir
 - **Anniversaires** : chacun peut indiquer son anniversaire (jour et mois, sans l'année) dans les Réglages ou à l'inscription, à une étape facultative après le pseudo. Seuls les amis le voient : un badge dans la liste d'amis quand il approche (30 jours), et la date sur la fiche de l'ami
 - **Inscription illustrée** : les étapes du pseudo et de l'anniversaire ont leur illustration
