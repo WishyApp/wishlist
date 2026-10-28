@@ -279,8 +279,11 @@ class AuthService {
           }
         } on SignInWithAppleException catch (e, stackTrace) {
           // The user must still be able to leave, as when the server fails
-          // to revoke. Any other error is a bug and fails the deletion.
-          unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+          // to revoke. Any other error is a bug and fails the deletion. No
+          // Apple ID on the device is expected: not worth a Sentry event.
+          if (!SocialSignInClient.isUserSideFailure(e)) {
+            unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+          }
         }
       }
 
