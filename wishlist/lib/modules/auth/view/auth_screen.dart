@@ -229,34 +229,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     return AuthLayout(
       formKey: _formKey,
-      child: Column(
+      footer: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          emailOrPseudoInput,
-          const Gap(16),
-          InputPassword(
-            autofillHints: _isSigningIn
-                ? AutofillHints.password
-                : AutofillHints.newPassword,
-            controller: _passwordController,
-            label: l10n.passwordField,
-            textInputAction: TextInputAction.done,
-            showStrengthIndicator: !_isSigningIn,
+          // Same footer in both modes: sign-up is the first screen shown, and
+          // someone reinstalling the app looks for this link there too.
+          TextButton(
+            onPressed: areLinksEnabled
+                ? () => ForgotPasswordRoute().push(context)
+                : null,
+            child: Text(
+              l10n.forgotPasswordButton,
+              style: AppTextStyles.smaller.copyWith(
+                decoration: TextDecoration.underline,
+                color: Colors.black54,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
-          const Gap(32),
-          PrimaryButton(
-            text: _isSigningIn ? l10n.signIn : l10n.signUp,
-            onPressed: _isSocialSignInInProgress ? null : onPressed,
-            isLoading: _isLoading,
-            style: BaseButtonStyle.large,
-          ),
-          SocialSignInButtons(
-            showGoogle: showGoogle,
-            isEnabled: !_isLoading && !_isSocialSignInInProgress,
-            onGooglePressed: () => _signInWith(authService.signInWithGoogle),
-            onApplePressed: () => _signInWith(authService.signInWithApple),
-          ),
-          const Gap(16),
           TextButton(
             onPressed: areLinksEnabled
                 ? () {
@@ -275,19 +265,35 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               textAlign: TextAlign.center,
             ),
           ),
-          const Gap(8),
-          TextButton(
-            onPressed: areLinksEnabled
-                ? () => ForgotPasswordRoute().push(context)
-                : null,
-            child: Text(
-              l10n.forgotPasswordButton,
-              style: AppTextStyles.smaller.copyWith(
-                decoration: TextDecoration.underline,
-                color: Colors.black54,
-              ),
-              textAlign: TextAlign.center,
-            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          emailOrPseudoInput,
+          const Gap(16),
+          InputPassword(
+            autofillHints: _isSigningIn
+                ? AutofillHints.password
+                : AutofillHints.newPassword,
+            controller: _passwordController,
+            label: l10n.passwordField,
+            textInputAction: TextInputAction.done,
+            showStrengthIndicator: !_isSigningIn,
+            deferStrengthIndicator: true,
+          ),
+          const Gap(32),
+          PrimaryButton(
+            text: _isSigningIn ? l10n.signIn : l10n.signUp,
+            onPressed: _isSocialSignInInProgress ? null : onPressed,
+            isLoading: _isLoading,
+            style: BaseButtonStyle.large,
+          ),
+          SocialSignInButtons(
+            showGoogle: showGoogle,
+            isEnabled: !_isLoading && !_isSocialSignInInProgress,
+            onGooglePressed: () => _signInWith(authService.signInWithGoogle),
+            onApplePressed: () => _signInWith(authService.signInWithApple),
           ),
         ],
       ),
