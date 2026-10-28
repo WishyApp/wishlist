@@ -27,6 +27,8 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 - **Android** : la barre de navigation n'est plus collée à la barre système sur certains téléphones (Android 10 à 14, navigation à 3 boutons)
 - Dans une wishlist, un souhait déjà reçu ne reste plus dans l'onglet « Réservés »
 - Écran des réservations : « 0 offert » et « 0 à offrir » au lieu de « 1 » quand l'onglet est vide
+- Les liens « Conditions d'utilisation » et « Politique de confidentialité » des Réglages ouvrent les pages à jour sur wishy-app.fr
+- Les écrans vides et les erreurs en pleine page ont une marge sur les côtés
 - Fiche d'un ami : plus de bande vide en bas de l'écran
 - Barre de navigation : plus d'ondulation au toucher des onglets
 
