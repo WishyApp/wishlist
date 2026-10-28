@@ -24,10 +24,13 @@ abstract class BaseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The text color is set here, so the button's disabled foreground color
+    // does not apply to it
+    final isDisabled = onPressed == null && !isLoading;
     final textWidget = Text(
       text,
       style: style.textStyle.copyWith(
-        color: textColor(context),
+        color: isDisabled ? AppColors.makara : textColor(context),
         fontWeight: FontWeight.bold,
       ),
     );

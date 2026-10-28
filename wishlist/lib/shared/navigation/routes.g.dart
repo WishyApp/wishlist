@@ -54,6 +54,10 @@ RouteBase get $homeRoute => GoRouteData.$route(
               factory: $CreateWishRouteExtension._fromState,
             ),
             GoRouteData.$route(
+              path: 'settings',
+              factory: $WishlistSettingsRouteExtension._fromState,
+            ),
+            GoRouteData.$route(
               path: 'wish/:wishId',
               factory: $ConsultWishRouteExtension._fromState,
               routes: [
@@ -272,6 +276,26 @@ extension $CreateWishRouteExtension on CreateWishRoute {
 
   void replace(BuildContext context) =>
       context.replace(location, extra: $extra);
+}
+
+extension $WishlistSettingsRouteExtension on WishlistSettingsRoute {
+  static WishlistSettingsRoute _fromState(GoRouterState state) =>
+      WishlistSettingsRoute(
+        wishlistId: int.parse(state.pathParameters['wishlistId']!),
+      );
+
+  String get location => GoRouteData.$location(
+        '/wishlist/${Uri.encodeComponent(wishlistId.toString())}/settings',
+      );
+
+  void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  void replace(BuildContext context) => context.replace(location);
 }
 
 extension $ConsultWishRouteExtension on ConsultWishRoute {
