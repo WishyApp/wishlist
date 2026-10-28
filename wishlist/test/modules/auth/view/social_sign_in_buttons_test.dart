@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
@@ -117,5 +118,41 @@ void main() {
     await tester.pump();
     verify(() => authService.signInWithGoogle(googleConfig)).called(2);
     await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
+  testWidgets('offers "forgot password" in sign-in mode only', (tester) async {
+    await pump(tester);
+    // First launch: the screen is in sign-up mode.
+    expect(find.text('Mot de passe oublié ?'), findsNothing);
+
+    await tester.tap(find.textContaining('Vous avez déjà un compte'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mot de passe oublié ?'), findsOneWidget);
+  });
+
+  testWidgets('keeps the footer reachable on a small screen with the keyboard',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 480);
+    tester.view.devicePixelRatio = 1;
+    tester.view.viewInsets = const FakeViewPadding(bottom: 200);
+    addTearDown(tester.view.reset);
+
+    await pump(tester, config: googleConfig);
+
+    expect(tester.takeException(), isNull);
+    final footerLink = find.textContaining('Vous avez déjà un compte');
+    await tester.scrollUntilVisible(
+      footerLink,
+      100,
+      // The text fields have their own scrollables.
+      scrollable: find
+          .descendant(
+            of: find.byType(SingleChildScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(footerLink.hitTestable(), findsOneWidget);
   });
 }

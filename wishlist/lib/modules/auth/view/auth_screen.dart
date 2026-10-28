@@ -230,6 +230,42 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     return AuthLayout(
       formKey: _formKey,
+      footer: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _isSigningIn = !_isSigningIn;
+              });
+            },
+            child: Text(
+              _isSigningIn ? l10n.dontHaveAccount : l10n.haveAccount,
+              style: AppTextStyles.smaller.copyWith(
+                fontFamily: FontFamily.plusJakartaSans,
+                color: Colors.black,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          // Meaningless before having an account, and it saves room.
+          if (_isSigningIn) ...[
+            const Gap(8),
+            TextButton(
+              onPressed: () => ForgotPasswordRoute().push(context),
+              child: Text(
+                l10n.forgotPasswordButton,
+                style: AppTextStyles.smaller.copyWith(
+                  decoration: TextDecoration.underline,
+                  color: Colors.black54,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -243,6 +279,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             label: l10n.passwordField,
             textInputAction: TextInputAction.done,
             showStrengthIndicator: !_isSigningIn,
+            deferStrengthIndicator: true,
           ),
           const Gap(32),
           PrimaryButton(
@@ -262,35 +299,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               }
             },
             onApplePressed: () => _signInWith(authService.signInWithApple),
-          ),
-          const Gap(16),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _isSigningIn = !_isSigningIn;
-              });
-            },
-            child: Text(
-              _isSigningIn ? l10n.dontHaveAccount : l10n.haveAccount,
-              style: AppTextStyles.smaller.copyWith(
-                fontFamily: FontFamily.plusJakartaSans,
-                color: Colors.black,
-                fontStyle: FontStyle.italic,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const Gap(8),
-          TextButton(
-            onPressed: () => ForgotPasswordRoute().push(context),
-            child: Text(
-              l10n.forgotPasswordButton,
-              style: AppTextStyles.smaller.copyWith(
-                decoration: TextDecoration.underline,
-                color: Colors.black54,
-              ),
-              textAlign: TextAlign.center,
-            ),
           ),
         ],
       ),

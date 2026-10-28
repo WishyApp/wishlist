@@ -12,6 +12,7 @@ class InputPassword extends StatefulWidget {
     required this.textInputAction,
     this.additionalValidator,
     this.showStrengthIndicator = false,
+    this.deferStrengthIndicator = false,
   });
 
   final String autofillHints;
@@ -21,12 +22,63 @@ class InputPassword extends StatefulWidget {
   final String? Function(String?)? additionalValidator;
   final bool showStrengthIndicator;
 
+  /// Shows the strength indicator only once the field is focused or filled,
+  /// to save room on a screen that has more to show before.
+  final bool deferStrengthIndicator;
+
   @override
   State<InputPassword> createState() => _InputPasswordState();
 }
 
 class _InputPasswordState extends State<InputPassword> {
   bool _obscureText = true;
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _notifiedStrengthIndicatorVisible = _isStrengthIndicatorVisible;
+    _focusNode.addListener(_onFocusOrTextChanged);
+    widget.controller.addListener(_onFocusOrTextChanged);
+  }
+
+  @override
+  void didUpdateWidget(InputPassword oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onFocusOrTextChanged);
+      widget.controller.addListener(_onFocusOrTextChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onFocusOrTextChanged);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  bool get _isStrengthIndicatorVisible =>
+      widget.showStrengthIndicator &&
+      (!widget.deferStrengthIndicator ||
+          _focusNode.hasFocus ||
+          widget.controller.text.isNotEmpty);
+
+  /// Visibility at the last rebuild asked by [_onFocusOrTextChanged].
+  late bool _notifiedStrengthIndicatorVisible;
+
+  /// Rebuilds only when the indicator appears or disappears: the indicator
+  /// follows the text by itself.
+  void _onFocusOrTextChanged() {
+    if (!mounted) {
+      return;
+    }
+    final isVisible = _isStrengthIndicatorVisible;
+    if (isVisible != _notifiedStrengthIndicatorVisible) {
+      _notifiedStrengthIndicatorVisible = isVisible;
+      setState(() {});
+    }
+  }
 
   void _toggleObscureText() {
     setState(() {
@@ -40,6 +92,7 @@ class _InputPasswordState extends State<InputPassword> {
     final l10n = context.l10n;
 
     final textField = TextFormField(
+      focusNode: _focusNode,
       autofillHints: [widget.autofillHints],
       textInputAction: widget.textInputAction,
       validator: (value) {
@@ -96,7 +149,7 @@ class _InputPasswordState extends State<InputPassword> {
               ),
             );
           },
-          child: widget.showStrengthIndicator
+          child: _isStrengthIndicatorVisible
               ? Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: PasswordStrengthIndicator(

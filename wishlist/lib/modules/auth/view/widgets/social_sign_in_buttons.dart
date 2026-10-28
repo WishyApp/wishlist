@@ -134,11 +134,17 @@ class _SocialButton extends StatelessWidget {
           children: [
             logo,
             const Gap(12),
-            Text(
-              label,
-              style: AppTextStyles.small.copyWith(
-                color: foregroundColor,
-                fontWeight: FontWeight.w600,
+            // Shrinks rather than overflows on a narrow phone.
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: AppTextStyles.small.copyWith(
+                    color: foregroundColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],
