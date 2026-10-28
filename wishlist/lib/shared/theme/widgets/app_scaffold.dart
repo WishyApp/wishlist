@@ -52,6 +52,10 @@ class AppScaffold extends ConsumerWidget {
     final navBarBottomPosition = bottomSafeArea + navBarBottomOffset;
     final contentPadding = AppSpacing.navBarHeight + navBarBottomPosition;
 
+    // Le body est réduit de la hauteur du clavier : on décale la nav bar
+    // d'autant pour qu'elle reste en place et passe sous le clavier.
+    final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: NavBarPadding(
@@ -60,7 +64,7 @@ class AppScaffold extends ConsumerWidget {
           children: <Widget>[
             body,
             Positioned(
-              bottom: navBarBottomPosition,
+              bottom: navBarBottomPosition - keyboardHeight,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
