@@ -45,10 +45,12 @@ jobs:
       run:
         working-directory: wishlist
     steps:
+      # The PR commit itself (empty on push: the pushed commit), which
+      # commit-goldens reports as tested
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -131,14 +133,18 @@ jobs:
     if: github.event_name == 'pull_request' && needs.test.outputs.goldens-changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Needed to push the regenerated golden files to the PR branch
+    # Needed to push the regenerated golden files to the PR branch, and to
+    # mark the pushed commit as tested
     permissions:
       contents: write
+      statuses: write
     steps:
+      # The commit the tests ran on, not the tip of the branch: the goldens
+      # and the status must not land on a commit pushed in the meantime.
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Download regenerated goldens
         uses: actions/download-artifact@v4
@@ -147,20 +153,8 @@ jobs:
           path: wishlist/test
 
       - name: Commit and push goldens
-        run: |
-          git add -- "$GOLDENS"
-          if git diff --cached --quiet; then
-            echo "No golden change to commit"
-            exit 0
-          fi
-          changed="$(git diff --cached --name-only)"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # No [skip ci]: a push made with GITHUB_TOKEN triggers no workflow,
-          # and the marker would reach main through a squash merge.
-          git commit -m "test: update golden files"
-          git push
-          {
-            echo "### Golden files updated"
-            while IFS= read -r file; do echo "- $file"; done <<<"$changed"
-          } >> "$GITHUB_STEP_SUMMARY"
+        uses: ./.github/actions/commit-goldens
+        with:
+          branch: ${{ github.head_ref }}
+          tested-sha: ${{ github.event.pull_request.head.sha }}
+          token: ${{ github.token }}
