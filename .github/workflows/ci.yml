@@ -131,9 +131,11 @@ jobs:
     if: github.event_name == 'pull_request' && needs.test.outputs.goldens-changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Needed to push the regenerated golden files to the PR branch
+    # Needed to push the regenerated golden files to the PR branch, and to
+    # mark the pushed commit as tested
     permissions:
       contents: write
+      statuses: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -147,6 +149,9 @@ jobs:
           path: wishlist/test
 
       - name: Commit and push goldens
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TESTED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           git add -- "$GOLDENS"
           if git diff --cached --quiet; then
@@ -156,10 +161,20 @@ jobs:
           changed="$(git diff --cached --name-only)"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # No [skip ci]: a push made with GITHUB_TOKEN triggers no workflow,
-          # and the marker would reach main through a squash merge.
-          git commit -m "test: update golden files"
+          # [skip ci]: GitHub still creates a run for a push made with
+          # GITHUB_TOKEN, then holds it until a human approves it. This one
+          # would only re-test the goldens this run just produced. PRs are
+          # merged with a merge commit, whose own message triggers the CI on
+          # main (a squash merge would copy the marker there).
+          git commit -m "test: update golden files [skip ci]"
           git push
+          # The skipped commit gets no check: report the tests of this run on
+          # it, so that the PR head shows them.
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" \
+            -f state=success \
+            -f context="Analyze & Test" \
+            -f description="Passed before the goldens update, on ${TESTED_SHA::8}" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           {
             echo "### Golden files updated"
             while IFS= read -r file; do echo "- $file"; done <<<"$changed"
