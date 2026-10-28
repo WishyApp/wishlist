@@ -53,7 +53,7 @@ class Config extends Equatable {
   /// Sentry DSN, null when crash reporting is not configured.
   final String? sentryDsn;
 
-  /// Google sign-in client IDs, null when Google sign-in is not configured.
+  /// The Google Web client, null when Google sign-in is not configured.
   final GoogleSignInConfig? googleSignInConfig;
 
   // Load all environment variables from .env.{environment} file
