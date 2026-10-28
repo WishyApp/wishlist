@@ -56,6 +56,8 @@ class SettingsScreen extends ConsumerWidget {
       explanation: l10n.settingsScreenDeleteAccountDialogExplanation,
       onConfirm: () async {
         try {
+          // Returns without deleting when the user closes the Apple sheet:
+          // the dialog is already closed, the screen stays as it is.
           await ref.read(authServiceProvider).deleteAccount();
         } catch (e) {
           if (context.mounted) {

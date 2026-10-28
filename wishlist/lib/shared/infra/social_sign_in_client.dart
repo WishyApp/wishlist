@@ -87,17 +87,12 @@ class SocialSignInClient {
   Future<SocialIdToken?> appleIdToken() async {
     final rawNonce = _generateRawNonce();
 
-    final AuthorizationCredentialAppleID credential;
-    try {
-      credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [AppleIDAuthorizationScopes.email],
-        nonce: _sha256(rawNonce),
-      );
-    } on SignInWithAppleAuthorizationException catch (e) {
-      if (e.code == AuthorizationErrorCode.canceled) {
-        return null;
-      }
-      rethrow;
+    final credential = await _appleCredential(
+      scopes: [AppleIDAuthorizationScopes.email],
+      nonce: _sha256(rawNonce),
+    );
+    if (credential == null) {
+      return null;
     }
 
     final idToken = credential.identityToken;
@@ -106,6 +101,31 @@ class SocialSignInClient {
     }
 
     return SocialIdToken(idToken: idToken, rawNonce: rawNonce);
+  }
+
+  /// A fresh authorization code from the Apple sheet, for the server to
+  /// revoke the account's Apple tokens when it is deleted.
+  Future<String?> appleAuthorizationCode() async {
+    final credential = await _appleCredential(scopes: const []);
+    return credential?.authorizationCode;
+  }
+
+  /// The Apple sheet; null when the user closes it.
+  Future<AuthorizationCredentialAppleID?> _appleCredential({
+    required List<AppleIDAuthorizationScopes> scopes,
+    String? nonce,
+  }) async {
+    try {
+      return await SignInWithApple.getAppleIDCredential(
+        scopes: scopes,
+        nonce: nonce,
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   /// Signs out of Google so that the next sign-in shows the account picker.

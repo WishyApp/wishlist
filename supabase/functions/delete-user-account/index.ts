@@ -1,9 +1,42 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.0';
+import { appleConfigFromEnv, appleUserIdOf, authorizationCodeOf, revokeAppleTokens } from './apple_revocation.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
 console.info('Delete user account function started');
+
+async function revokeAppleAuthorization(authorizationCode: string | null, appleUserId: string | null) {
+  if (!authorizationCode) {
+    if (appleUserId) {
+      console.warn('Apple revocation skipped: Apple account deleted without an authorization code');
+    }
+    return;
+  }
+  if (!appleUserId) {
+    console.warn('Apple revocation skipped: authorization code sent for an account without an Apple identity');
+    return;
+  }
+  const appleConfig = appleConfigFromEnv((name)=>Deno.env.get(name));
+  if (!appleConfig) {
+    console.error('Apple revocation skipped: APPLE_* secrets are missing');
+    return;
+  }
+  try {
+    const { belongsToAccount } = await revokeAppleTokens({
+      config: appleConfig,
+      authorizationCode,
+      appleUserId
+    });
+    if (belongsToAccount) {
+      console.info('Apple tokens revoked');
+    } else {
+      console.warn('Apple code from another Apple ID: that authorization is revoked, the deleted account\'s is not');
+    }
+  } catch (error) {
+    console.error('Error revoking Apple tokens:', error);
+  }
+}
 Deno.serve(async (req)=>{
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -30,6 +63,11 @@ Deno.serve(async (req)=>{
       throw new Error('Unauthorized');
     }
     const userId = user.id;
+    // Code d'autorisation Apple frais, envoyé par l'app pour un compte Apple :
+    // la révocation a lieu une fois le compte supprimé (étape 6).
+    const body = await req.json().catch(() => ({}));
+    const appleAuthorizationCode = authorizationCodeOf(body);
+    const appleUserId = appleUserIdOf(user.identities);
     // Lancer toutes les opérations en parallèle pour accélérer le processus
     // 1. Récupérer tous les wishes et l'avatar en parallèle
     const [wishesResult, profileResult] = await Promise.all([
@@ -80,6 +118,11 @@ Deno.serve(async (req)=>{
     if (deleteError) {
       throw deleteError;
     }
+    // 6. Révoquer les jetons Sign in with Apple (guideline App Store 5.1.1(v)).
+    // Après la suppression : un échec de celle-ci laisse le compte et son
+    // autorisation Apple cohérents. Un échec de la révocation ne bloque rien,
+    // l'utilisateur est parti, et chaque cas sauté laisse une trace.
+    await revokeAppleAuthorization(appleAuthorizationCode, appleUserId);
     return new Response(JSON.stringify({
       message: 'Account deleted successfully'
     }), {

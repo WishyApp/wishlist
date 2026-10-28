@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/app/config/config_provider.dart';
@@ -16,19 +20,24 @@ import 'package:wishlist/shared/navigation/routes.dart';
 class AuthService {
   AuthService({
     GoTrueClient? auth,
+    FunctionsClient? functions,
     SocialSignInClient? socialSignIn,
     GoogleSignInConfig? googleSignInConfig,
   })  : _authOverride = auth,
+        _functionsOverride = functions,
         _socialSignIn = socialSignIn ?? SocialSignInClient(),
         _googleSignInConfig = googleSignInConfig;
 
   final GoTrueClient? _authOverride;
+  final FunctionsClient? _functionsOverride;
   final SocialSignInClient _socialSignIn;
 
   /// Null when Google sign-in is not configured.
   final GoogleSignInConfig? _googleSignInConfig;
 
   GoTrueClient get _auth => _authOverride ?? supabase.auth;
+
+  FunctionsClient get _functions => _functionsOverride ?? supabase.functions;
 
   Future<void> signOut(BuildContext context, WidgetRef ref) async {
     // Read before the sign-out, which clears the current user.
@@ -246,15 +255,53 @@ class AuthService {
     }
   }
 
+  /// An Apple account first goes through the Apple sheet again: its fresh
+  /// authorization code lets the server revoke the account's Apple tokens,
+  /// as the App Store requires. Closing the sheet cancels the deletion;
+  /// an Apple failure (no Apple ID on the device…) deletes the account
+  /// without revoking, reported to Sentry.
+  ///
+  /// Only where Apple sign-in is offered: an Apple account deleted from
+  /// Android (it also has a password or Google) is not revoked, which the
+  /// server logs.
   Future<void> deleteAccount() async {
+    // Read before the deletion, which signs the user out.
+    final user = _auth.currentUser;
+    final hasGoogleSignIn = user?.hasGoogleSignIn ?? false;
     try {
+      String? appleAuthorizationCode;
+      if (SocialSignInClient.isAppleAvailable &&
+          (user?.hasAppleSignIn ?? false)) {
+        try {
+          appleAuthorizationCode = await _socialSignIn.appleAuthorizationCode();
+          if (appleAuthorizationCode == null) {
+            return;
+          }
+        } on SignInWithAppleException catch (e, stackTrace) {
+          // The user must still be able to leave, as when the server fails
+          // to revoke. Any other error is a bug and fails the deletion. No
+          // Apple ID on the device is expected: not worth a Sentry event.
+          if (!SocialSignInClient.isUserSideFailure(e)) {
+            unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+          }
+        }
+      }
+
       // Appeler une Edge Function qui gère toute la suppression côté serveur
       // (fichiers du storage + suppression de l'utilisateur)
-      await supabase.functions.invoke('delete-user-account');
+      await _functions.invoke(
+        'delete-user-account',
+        body: {
+          if (appleAuthorizationCode != null)
+            'appleAuthorizationCode': appleAuthorizationCode,
+        },
+      );
 
       // Déconnecter l'utilisateur après la suppression
       await _auth.signOut();
-      await _signOutOfGoogle();
+      if (hasGoogleSignIn) {
+        await _signOutOfGoogle();
+      }
     } catch (e) {
       if (e is AuthException) {
         final statusCode = e.statusCode;

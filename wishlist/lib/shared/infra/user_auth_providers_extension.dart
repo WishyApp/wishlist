@@ -19,4 +19,8 @@ extension UserAuthProvidersExtension on User {
 
   /// True when the account can sign in with Google.
   bool get hasGoogleSignIn => _providers?.contains('google') ?? false;
+
+  /// True when the account can sign in with Apple: its Apple tokens must be
+  /// revoked when it is deleted.
+  bool get hasAppleSignIn => _providers?.contains('apple') ?? false;
 }

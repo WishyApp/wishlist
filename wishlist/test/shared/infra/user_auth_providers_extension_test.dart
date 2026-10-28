@@ -49,4 +49,25 @@ void main() {
       expect(userWith(const {}).hasPassword, isTrue);
     });
   });
+
+  group('UserAuthProvidersExtension.hasAppleSignIn', () {
+    test('is true when Apple is among the providers', () {
+      expect(
+        userWith({
+          'providers': ['email', 'apple'],
+        }).hasAppleSignIn,
+        isTrue,
+      );
+    });
+
+    test('is false otherwise', () {
+      expect(
+        userWith({
+          'providers': ['google'],
+        }).hasAppleSignIn,
+        isFalse,
+      );
+      expect(userWith(const {}).hasAppleSignIn, isFalse);
+    });
+  });
 }
