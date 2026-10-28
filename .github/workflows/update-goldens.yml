@@ -3,10 +3,11 @@ name: Update Goldens
 on:
   workflow_dispatch:
     inputs:
+      # No default: the commit carries the skip marker, which must never
+      # reach main (main gets its goldens through the PRs).
       branch:
-        description: 'Branch to update goldens on'
+        description: 'PR branch to update goldens on (not main)'
         required: true
-        default: 'main'
 
 jobs:
   update-goldens:
@@ -21,6 +22,12 @@ jobs:
       run:
         working-directory: wishlist
     steps:
+      - name: Refuse main
+        if: github.event.inputs.branch == 'main'
+        run: |
+          echo "::error::Run this workflow on a PR branch: main gets its goldens through the PRs"
+          exit 1
+
       - name: Checkout repository
         id: checkout
         uses: actions/checkout@v4
@@ -44,11 +51,13 @@ jobs:
       - name: Update golden files
         run: flutter test --update-goldens
 
-      # flutter test --update-goldens runs the whole suite: this run is the
-      # test of the checked out commit, with the goldens it produces.
+      # flutter test --update-goldens runs the whole test suite: this run is
+      # the test of the checked out commit, with the goldens it produces.
       - name: Commit and push goldens
         uses: ./.github/actions/commit-goldens
         with:
           branch: ${{ github.event.inputs.branch }}
           tested-sha: ${{ steps.checkout.outputs.commit }}
           token: ${{ github.token }}
+          # Only the tests run here, not the analysis of ci.yml
+          status-context: Tests (goldens)
