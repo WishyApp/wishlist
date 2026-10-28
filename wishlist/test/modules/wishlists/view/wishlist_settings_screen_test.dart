@@ -254,6 +254,36 @@ void main() {
     verifyNever(() => service.deleteWishlist(any()));
   });
 
+  group('dialogs take the wishlist color', () {
+    Color dialogButtonColor(WidgetTester tester) {
+      final button = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(PrimaryButton),
+      );
+      return Theme.of(tester.element(button)).primaryColor;
+    }
+
+    final wishlistColor = AppColors.getColorFromHexValue(wishlist.color);
+
+    testWidgets('when leaving without saving', (tester) async {
+      await pumpScreen(tester);
+      await tester.enterText(nameField(), 'Noël 2026');
+      await tester.pump();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(dialogButtonColor(tester), wishlistColor);
+    });
+
+    testWidgets('when deleting', (tester) async {
+      await pumpScreen(tester);
+      await tester.tap(deleteButton());
+      await tester.pumpAndSettle();
+
+      expect(dialogButtonColor(tester), wishlistColor);
+    });
+  });
+
   testWidgets('deletes the wishlist once confirmed, then goes home',
       (tester) async {
     // The stream says the wishlist is gone as soon as it is deleted

@@ -254,12 +254,14 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
     }
   }
 
-  Future<void> _confirmLeave() async {
+  /// [themedContext] : sous le thème de la wishlist, dont le dialog prend la
+  /// couleur.
+  Future<void> _confirmLeave(BuildContext themedContext) async {
     final l10n = context.l10n;
     var shouldLeave = false;
 
     await showAppDialog(
-      context,
+      themedContext,
       title: l10n.unsavedChangesTitle,
       content: Text(
         l10n.unsavedChangesMessage,
@@ -278,11 +280,12 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
     }
   }
 
-  Future<void> _confirmDelete() async {
+  /// [themedContext] : voir [_confirmLeave].
+  Future<void> _confirmDelete(BuildContext themedContext) async {
     final l10n = context.l10n;
 
     await showAppDialog(
-      context,
+      themedContext,
       title: l10n.deleteWishlist,
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -338,145 +341,152 @@ class _WishlistSettingsFormState extends ConsumerState<_WishlistSettingsForm> {
       widget.wishlist.copyWith(color: AppColors.getHexValue(_color)),
     );
 
-    return PopScope(
-      canPop: !hasChanges && !_isSaving,
-      onPopInvokedWithResult: (didPop, _) {
-        // Pendant l'enregistrement, la page se fermera d'elle-même
-        if (!didPop && !_isSaving) {
-          _confirmLeave();
-        }
-      },
-      child: Theme(
-        data: theme,
-        child: Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: WishlistSettingsAppBar(
-            wishlistName: _trimmedName,
-            backgroundColor: theme.primaryColor,
-          ),
-          body: SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: AbsorbPointer(
-                    absorbing: _isSaving,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: Form(
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            AppTextField(
-                              controller: _nameController,
-                              label: l10n.wishlistNameLabel,
-                              icon: Icons.sell_outlined,
-                              validator: _validateName,
-                              textCapitalization: TextCapitalization.sentences,
-                              maxLength: wishlistNameMaxLength,
-                            ),
-                            if (!_isNameValid)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 6,
-                                  left: 16,
-                                  right: 16,
+    return Theme(
+      data: theme,
+      // Contexte sous le thème de la wishlist : les dialogs en prennent la
+      // couleur, comme sur l'écran d'édition d'un wish
+      child: Builder(
+        builder: (themedContext) => PopScope(
+          canPop: !hasChanges && !_isSaving,
+          onPopInvokedWithResult: (didPop, _) {
+            // Pendant l'enregistrement, la page se fermera d'elle-même
+            if (!didPop && !_isSaving) {
+              _confirmLeave(themedContext);
+            }
+          },
+          child: Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: WishlistSettingsAppBar(
+              wishlistName: _trimmedName,
+              backgroundColor: theme.primaryColor,
+            ),
+            body: SafeArea(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: AbsorbPointer(
+                      absorbing: _isSaving,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Form(
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              AppTextField(
+                                controller: _nameController,
+                                label: l10n.wishlistNameLabel,
+                                icon: Icons.sell_outlined,
+                                validator: _validateName,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                maxLength: wishlistNameMaxLength,
+                              ),
+                              if (!_isNameValid)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 6,
+                                    left: 16,
+                                    right: 16,
+                                  ),
+                                  child: Text(
+                                    l10n.wishlistNameRequired,
+                                    style: AppTextStyles.smaller.copyWith(
+                                      color: AppColors.danger,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                                child: Text(
-                                  l10n.wishlistNameRequired,
-                                  style: AppTextStyles.smaller.copyWith(
-                                    color: AppColors.danger,
-                                    fontWeight: FontWeight.bold,
+                              const Gap(16),
+                              WishlistSettingsCard(
+                                icon: Icons.palette_outlined,
+                                title: l10n.wishlistColorLabel,
+                                // Sous le titre, comme la visibilité : à côté,
+                                // les pastilles ne laissent presque rien au
+                                // titre sur un écran étroit
+                                child: Align(
+                                  alignment: AlignmentDirectional.centerStart,
+                                  child: WishlistColorSelector(
+                                    selected: _color,
+                                    onSelected: (color) =>
+                                        setState(() => _color = color),
                                   ),
                                 ),
                               ),
-                            const Gap(16),
-                            WishlistSettingsCard(
-                              icon: Icons.palette_outlined,
-                              title: l10n.wishlistColorLabel,
-                              // Sous le titre, comme la visibilité : à côté,
-                              // les pastilles ne laissent presque rien au
-                              // titre sur un écran étroit
-                              child: Align(
-                                alignment: AlignmentDirectional.centerStart,
-                                child: WishlistColorSelector(
-                                  selected: _color,
-                                  onSelected: (color) =>
-                                      setState(() => _color = color),
-                                ),
-                              ),
-                            ),
-                            const Gap(16),
-                            MergeSemantics(
-                              child: WishlistSettingsCard(
-                                icon: _isPublic
-                                    ? Icons.lock_open_outlined
-                                    : Icons.lock_outline,
-                                title: l10n.publicWishlistLabel,
-                                description: _isPublic
-                                    ? l10n.wishlistPublicDescription
-                                    : l10n.wishlistPrivateDescription,
-                                onTap: () => _setPublic(isPublic: !_isPublic),
-                                trailing: AppSwitch(
-                                  value: _isPublic,
-                                  activeIcon: Icons.lock_open_outlined,
-                                  inactiveIcon: Icons.lock_outline,
-                                  onChanged: (value) =>
-                                      _setPublic(isPublic: value),
-                                ),
-                              ),
-                            ),
-                            const Gap(16),
-                            MergeSemantics(
-                              child: WishlistSettingsCard(
-                                icon: Icons.card_giftcard,
-                                title: l10n.seeBookedWishesLabel,
-                                description: _canOwnerSeeTakenWish
-                                    ? l10n.seeBookedWishesOnDescription
-                                    : l10n.seeBookedWishesOffDescription,
-                                onTap: () => setState(
-                                  () => _canOwnerSeeTakenWish =
-                                      !_canOwnerSeeTakenWish,
-                                ),
-                                trailing: AppSwitch(
-                                  value: _canOwnerSeeTakenWish,
-                                  activeIcon: Icons.visibility_rounded,
-                                  inactiveIcon: Icons.visibility_off_rounded,
-                                  onChanged: (value) => setState(
-                                    () => _canOwnerSeeTakenWish = value,
+                              const Gap(16),
+                              MergeSemantics(
+                                child: WishlistSettingsCard(
+                                  icon: _isPublic
+                                      ? Icons.lock_open_outlined
+                                      : Icons.lock_outline,
+                                  title: l10n.publicWishlistLabel,
+                                  description: _isPublic
+                                      ? l10n.wishlistPublicDescription
+                                      : l10n.wishlistPrivateDescription,
+                                  onTap: () => _setPublic(isPublic: !_isPublic),
+                                  trailing: AppSwitch(
+                                    value: _isPublic,
+                                    activeIcon: Icons.lock_open_outlined,
+                                    inactiveIcon: Icons.lock_outline,
+                                    onChanged: (value) =>
+                                        _setPublic(isPublic: value),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                              const Gap(16),
+                              MergeSemantics(
+                                child: WishlistSettingsCard(
+                                  icon: Icons.card_giftcard,
+                                  title: l10n.seeBookedWishesLabel,
+                                  description: _canOwnerSeeTakenWish
+                                      ? l10n.seeBookedWishesOnDescription
+                                      : l10n.seeBookedWishesOffDescription,
+                                  onTap: () => setState(
+                                    () => _canOwnerSeeTakenWish =
+                                        !_canOwnerSeeTakenWish,
+                                  ),
+                                  trailing: AppSwitch(
+                                    value: _canOwnerSeeTakenWish,
+                                    activeIcon: Icons.visibility_rounded,
+                                    inactiveIcon: Icons.visibility_off_rounded,
+                                    onChanged: (value) => setState(
+                                      () => _canOwnerSeeTakenWish = value,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20).copyWith(top: 8),
-                  // Comme sur l'écran d'édition d'un wish
-                  child: Column(
-                    spacing: 12,
-                    children: [
-                      SecondaryButton(
-                        text: l10n.deleteWishlist,
-                        onPressed: _isSaving ? null : _confirmDelete,
-                        style: BaseButtonStyle.large,
-                        isStretched: true,
-                      ),
-                      PrimaryButton(
-                        text: l10n.save,
-                        onPressed: hasChanges && _isNameValid ? _save : null,
-                        style: BaseButtonStyle.large,
-                        isStretched: true,
-                        isLoading: _isSaving,
-                      ),
-                    ],
+                  Padding(
+                    padding: const EdgeInsets.all(20).copyWith(top: 8),
+                    // Comme sur l'écran d'édition d'un wish
+                    child: Column(
+                      spacing: 12,
+                      children: [
+                        SecondaryButton(
+                          text: l10n.deleteWishlist,
+                          onPressed: _isSaving
+                              ? null
+                              : () => _confirmDelete(themedContext),
+                          style: BaseButtonStyle.large,
+                          isStretched: true,
+                        ),
+                        PrimaryButton(
+                          text: l10n.save,
+                          onPressed: hasChanges && _isNameValid ? _save : null,
+                          style: BaseButtonStyle.large,
+                          isStretched: true,
+                          isLoading: _isSaving,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
