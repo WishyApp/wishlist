@@ -28,6 +28,8 @@ class BookedWishesTabSwitch extends StatelessWidget {
   final int givenCount;
   final ValueChanged<BookedWishesTab> onChanged;
 
+  static const _gap = 4.0;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -38,26 +40,79 @@ class BookedWishesTabSwitch extends StatelessWidget {
         color: AppColors.pastelGray,
         borderRadius: BorderRadius.all(Radius.circular(18)),
       ),
-      child: Row(
+      child: Stack(
         children: [
-          Expanded(
-            child: _Tab(
-              label: l10n.bookedWishesTabToGive,
-              count: toGiveCount,
-              isSelected: current == BookedWishesTab.toGive,
-              onTap: () => onChanged(BookedWishesTab.toGive),
+          // The white pill slides under the selected tab
+          Positioned.fill(
+            child: _SlidingPill(
+              isAtStart: current == BookedWishesTab.toGive,
+              gap: _gap,
             ),
           ),
-          const Gap(4),
-          Expanded(
-            child: _Tab(
-              label: l10n.bookedWishesTabGiven,
-              count: givenCount,
-              isSelected: current == BookedWishesTab.given,
-              onTap: () => onChanged(BookedWishesTab.given),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _Tab(
+                  label: l10n.bookedWishesTabToGive,
+                  count: toGiveCount,
+                  isSelected: current == BookedWishesTab.toGive,
+                  onTap: () => onChanged(BookedWishesTab.toGive),
+                ),
+              ),
+              const Gap(_gap),
+              Expanded(
+                child: _Tab(
+                  label: l10n.bookedWishesTabGiven,
+                  count: givenCount,
+                  isSelected: current == BookedWishesTab.given,
+                  onTap: () => onChanged(BookedWishesTab.given),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+const _tabBorderRadius = BorderRadius.all(Radius.circular(14));
+
+/// Background of the selected tab, sliding from one tab to the other
+class _SlidingPill extends StatelessWidget {
+  const _SlidingPill({required this.isAtStart, required this.gap});
+
+  final bool isAtStart;
+
+  /// Space between the two tabs
+  final double gap;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => AnimatedAlign(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOutCubic,
+        alignment: isAtStart
+            ? AlignmentDirectional.centerStart
+            : AlignmentDirectional.centerEnd,
+        child: SizedBox(
+          width: (constraints.maxWidth - gap) / 2,
+          height: constraints.maxHeight,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: _tabBorderRadius,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -78,8 +133,6 @@ class _Tab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const borderRadius = BorderRadius.all(Radius.circular(14));
-
     return Semantics(
       button: true,
       selected: isSelected,
@@ -87,24 +140,11 @@ class _Tab extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: borderRadius,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+          borderRadius: _tabBorderRadius,
+          child: Container(
             // Grows with the text scale
             constraints: const BoxConstraints(minHeight: 40),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.background : Colors.transparent,
-              borderRadius: borderRadius,
-              boxShadow: [
-                if (isSelected)
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 3,
-                    offset: const Offset(0, 1),
-                  ),
-              ],
-            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
