@@ -52,6 +52,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get haveAccount => 'Already have an account ?\nSign in !';
 
   @override
+  String get socialSignInSeparator => 'or';
+
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+
+  @override
+  String get continueWithApple => 'Continue with Apple';
+
+  @override
   String get invalidLoginCredentials => 'Invalid login credentials';
 
   @override

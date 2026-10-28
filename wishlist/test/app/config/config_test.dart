@@ -51,5 +51,22 @@ void main() {
 
       expect(withDsn, isNot(configFrom(baseEnv)));
     });
+
+    group('googleSignInConfig', () {
+      test('is null without GOOGLE_WEB_CLIENT_ID', () {
+        expect(configFrom(baseEnv).googleSignInConfig, isNull);
+        expect(
+          configFrom('${baseEnv}GOOGLE_WEB_CLIENT_ID= ').googleSignInConfig,
+          isNull,
+        );
+      });
+
+      test('reads the Web client ID', () {
+        expect(
+          configFrom('${baseEnv}GOOGLE_WEB_CLIENT_ID=web').googleSignInConfig,
+          const GoogleSignInConfig(webClientId: 'web'),
+        );
+      });
+    });
   });
 }

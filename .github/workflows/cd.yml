@@ -199,11 +199,14 @@ jobs:
           EOF
 
       - name: Create .env.prod
+        # GOOGLE_WEB_CLIENT_ID is a repository variable, not a secret: the
+        # client ID ships in the app anyway. The iOS client is in Info.plist.
         run: |
           cat > env/.env.prod << EOF
           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}
           EOF
 
       - name: Build App Bundle
@@ -264,11 +267,14 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Create .env.prod
+        # GOOGLE_WEB_CLIENT_ID is a repository variable, not a secret: the
+        # client ID ships in the app anyway. The iOS client is in Info.plist.
         run: |
           cat > env/.env.prod << EOF
           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}
           EOF
 
       - name: Install Apple Certificate

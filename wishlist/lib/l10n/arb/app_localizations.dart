@@ -182,6 +182,24 @@ abstract class AppLocalizations {
   /// **'Vous avez déjà un compte ?\nConnectez-vous !'**
   String get haveAccount;
 
+  /// No description provided for @socialSignInSeparator.
+  ///
+  /// In fr, this message translates to:
+  /// **'ou'**
+  String get socialSignInSeparator;
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer avec Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @continueWithApple.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer avec Apple'**
+  String get continueWithApple;
+
   /// No description provided for @invalidLoginCredentials.
   ///
   /// In fr, this message translates to:

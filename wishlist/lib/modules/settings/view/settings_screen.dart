@@ -10,6 +10,7 @@ import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/current_user_email_provider.dart';
+import 'package:wishlist/shared/infra/current_user_has_password_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
@@ -76,6 +77,7 @@ class SettingsScreen extends ConsumerWidget {
     final currentUserProfile = ref.watch(watchCurrentUserProfileProvider);
     final appInfo = ref.watch(appInfoProvider);
     final birthday = ref.watch(currentUserBirthdayProvider);
+    final hasPassword = ref.watch(currentUserHasPasswordProvider);
     final locale = Localizations.localeOf(context).toString();
 
     return PageLayout(
@@ -126,12 +128,13 @@ class SettingsScreen extends ConsumerWidget {
                       ChangePseudoRoute().push(context);
                     },
                   ),
-                  SettingsLine(
-                    title: l10n.settingsScreenPasswordModify,
-                    onTap: () {
-                      ChangePasswordRoute().push(context);
-                    },
-                  ),
+                  if (hasPassword)
+                    SettingsLine(
+                      title: l10n.settingsScreenPasswordModify,
+                      onTap: () {
+                        ChangePasswordRoute().push(context);
+                      },
+                    ),
                   SettingsLine(
                     title: l10n.settingsScreenBirthday,
                     // Nothing while loading, a dash on error: the screen behind

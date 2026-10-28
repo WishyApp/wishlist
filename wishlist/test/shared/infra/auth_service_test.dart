@@ -1,23 +1,40 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
+import 'package:wishlist/shared/infra/social_sign_in_client.dart';
 
 import '../../fixtures/mock_supabase.dart';
 
+class MockSocialSignInClient extends Mock implements SocialSignInClient {}
+
 void main() {
-  setUpAll(() => registerFallbackValue(UserAttributes()));
+  setUpAll(() {
+    registerFallbackValue(UserAttributes());
+    registerFallbackValue(OAuthProvider.google);
+    registerFallbackValue(const GoogleSignInConfig(webClientId: 'web'));
+  });
 
   late MockGoTrueClient auth;
+  late MockSocialSignInClient socialSignIn;
+  late MockUser user;
   late AuthService service;
 
   setUp(() {
     auth = MockGoTrueClient();
-    final user = MockUser();
+    user = MockUser();
     when(() => user.email).thenReturn('me@example.com');
     when(() => auth.currentUser).thenReturn(user);
-    service = AuthService(auth: auth);
+    socialSignIn = MockSocialSignInClient();
+    service = AuthService(
+      auth: auth,
+      socialSignIn: socialSignIn,
+      googleSignInConfig: const GoogleSignInConfig(webClientId: 'web'),
+    );
   });
 
   void stubSignIn(Object error) {
@@ -192,4 +209,143 @@ void main() {
       );
     });
   });
+
+  group('social sign-in', () {
+    const googleConfig = GoogleSignInConfig(webClientId: 'web');
+    const token = SocialIdToken(idToken: 'id-token', rawNonce: 'raw-nonce');
+
+    void stubSignInWithIdToken() {
+      when(
+        () => auth.signInWithIdToken(
+          provider: any(named: 'provider'),
+          idToken: any(named: 'idToken'),
+          nonce: any(named: 'nonce'),
+        ),
+      ).thenAnswer((_) async => AuthResponse());
+    }
+
+    test('Google: signs in to Supabase with the ID token and raw nonce',
+        () async {
+      when(() => socialSignIn.googleIdToken(googleConfig))
+          .thenAnswer((_) async => token);
+      stubSignInWithIdToken();
+
+      expect(await service.signInWithGoogle(), isTrue);
+
+      verify(
+        () => auth.signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: 'id-token',
+          nonce: 'raw-nonce',
+        ),
+      ).called(1);
+    });
+
+    test('Google: does nothing when the user dismisses the sheet', () async {
+      when(() => socialSignIn.googleIdToken(any()))
+          .thenAnswer((_) async => null);
+
+      expect(await service.signInWithGoogle(), isFalse);
+
+      verifyNever(
+        () => auth.signInWithIdToken(
+          provider: any(named: 'provider'),
+          idToken: any(named: 'idToken'),
+          nonce: any(named: 'nonce'),
+        ),
+      );
+    });
+
+    test('Apple: signs in to Supabase with the ID token and raw nonce',
+        () async {
+      when(() => socialSignIn.appleIdToken()).thenAnswer((_) async => token);
+      stubSignInWithIdToken();
+
+      expect(await service.signInWithApple(), isTrue);
+
+      verify(
+        () => auth.signInWithIdToken(
+          provider: OAuthProvider.apple,
+          idToken: 'id-token',
+          nonce: 'raw-nonce',
+        ),
+      ).called(1);
+    });
+
+    test('Apple: does nothing when the user dismisses the sheet', () async {
+      when(() => socialSignIn.appleIdToken()).thenAnswer((_) async => null);
+
+      expect(await service.signInWithApple(), isFalse);
+
+      verifyNever(
+        () => auth.signInWithIdToken(
+          provider: any(named: 'provider'),
+          idToken: any(named: 'idToken'),
+          nonce: any(named: 'nonce'),
+        ),
+      );
+    });
+
+    test('propagates a Supabase rejection of the token', () async {
+      when(() => socialSignIn.appleIdToken()).thenAnswer((_) async => token);
+      when(
+        () => auth.signInWithIdToken(
+          provider: any(named: 'provider'),
+          idToken: any(named: 'idToken'),
+          nonce: any(named: 'nonce'),
+        ),
+      ).thenThrow(const AuthApiException('Bad ID token', statusCode: '400'));
+
+      await expectLater(
+        service.signInWithApple(),
+        throwsA(isA<AuthApiException>()),
+      );
+    });
+  });
+
+  group('AuthService.signOut', () {
+    const config = GoogleSignInConfig(webClientId: 'web');
+
+    setUp(() {
+      when(() => auth.signOut()).thenAnswer((_) async {});
+      when(() => socialSignIn.signOutOfGoogle(config)).thenAnswer((_) async {});
+    });
+
+    test('signs out of Google too for a Google account', () async {
+      when(() => user.appMetadata).thenReturn({
+        'providers': ['google'],
+      });
+
+      await service.signOut(_FakeContext(), _FakeRef());
+
+      verify(() => auth.signOut()).called(1);
+      verify(() => socialSignIn.signOutOfGoogle(config)).called(1);
+    });
+
+    test('leaves Google alone for an email account', () async {
+      when(() => user.appMetadata).thenReturn({
+        'providers': ['email'],
+      });
+
+      await service.signOut(_FakeContext(), _FakeRef());
+
+      verifyNever(() => socialSignIn.signOutOfGoogle(any()));
+    });
+
+    test('still signs out when Google fails', () async {
+      when(() => user.appMetadata).thenReturn({
+        'providers': ['google'],
+      });
+      when(() => socialSignIn.signOutOfGoogle(config))
+          .thenThrow(Exception('Play services missing'));
+
+      await service.signOut(_FakeContext(), _FakeRef());
+
+      verify(() => auth.signOut()).called(1);
+    });
+  });
 }
+
+class _FakeContext extends Fake implements BuildContext {}
+
+class _FakeRef extends Fake implements WidgetRef {}

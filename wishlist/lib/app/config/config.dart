@@ -8,11 +8,15 @@ class Config extends Equatable {
   const Config({
     required this.supabaseConfig,
     this.sentryDsn,
+    this.googleSignInConfig,
   });
 
   @visibleForTesting
   factory Config.fromDotEnv(DotEnv dotEnvConfig) {
     final sentryDsn = dotEnvConfig.maybeGet('SENTRY_DSN')?.trim();
+    final googleWebClientId = _nonEmpty(
+      dotEnvConfig.maybeGet('GOOGLE_WEB_CLIENT_ID'),
+    );
 
     return Config(
       supabaseConfig: SupabaseConfig(
@@ -21,7 +25,15 @@ class Config extends Equatable {
       ),
       sentryDsn:
           sentryDsn != null && _isValidSentryDsn(sentryDsn) ? sentryDsn : null,
+      googleSignInConfig: googleWebClientId != null
+          ? GoogleSignInConfig(webClientId: googleWebClientId)
+          : null,
     );
+  }
+
+  static String? _nonEmpty(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 
   /// A malformed DSN must never prevent the app from starting, it just
@@ -40,6 +52,9 @@ class Config extends Equatable {
 
   /// Sentry DSN, null when crash reporting is not configured.
   final String? sentryDsn;
+
+  /// The Google Web client, null when Google sign-in is not configured.
+  final GoogleSignInConfig? googleSignInConfig;
 
   // Load all environment variables from .env.{environment} file
   static Future<void> _loadEnvironment(
@@ -71,6 +86,7 @@ class Config extends Equatable {
   List<Object?> get props => [
         supabaseConfig,
         sentryDsn,
+        googleSignInConfig,
       ];
 }
 
@@ -88,4 +104,20 @@ class SupabaseConfig extends Equatable {
         url,
         anonKey,
       ];
+}
+
+/// The Google OAuth client the native sign-in asks ID tokens for.
+///
+/// The iOS client is not here: the plugin reads it from `GIDClientID` in
+/// `ios/Runner/Info.plist`, next to the URL scheme derived from it.
+class GoogleSignInConfig extends Equatable {
+  const GoogleSignInConfig({required this.webClientId});
+
+  /// The Web client, passed as `serverClientId`. On Android the ID token is
+  /// issued to it; on iOS it is issued to the iOS client. Supabase checks
+  /// this audience, so its Google provider lists both client IDs.
+  final String webClientId;
+
+  @override
+  List<Object?> get props => [webClientId];
 }

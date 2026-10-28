@@ -257,6 +257,10 @@ Les Edge Functions vivent dans `supabase/functions/<nom>/index.ts` et sont dépl
 * `verify_jwt` se règle fonction par fonction dans `supabase/config.toml` (`[functions.<nom>]`), le déploiement ne passe jamais `--no-verify-jwt`. Toute nouvelle fonction y déclare sa section.
 * Une fonction supprimée du dépôt n'est pas supprimée des projets : la retirer à la main avec `supabase functions delete <nom> --project-ref <ref>` (dev et prod).
 
+#### Connexion Google
+
+Un seul jeu de clients OAuth sert dev et prod (même bundle ID). Le client Web est dans `GOOGLE_WEB_CLIENT_ID` : fichiers `env/.env.dev` et `env/.env.prod` en local, variable de repo du même nom pour la CD. Le client iOS est dans `ios/Runner/Info.plist` (`GIDClientID`), avec son ID inversé en URL scheme ; un test vérifie qu'ils correspondent. Le fournisseur Google de Supabase (dev et prod) liste les deux, Web puis iOS : sur iOS, l'ID token est émis pour le client iOS.
+
 #### Secrets GitHub requis
 
 | Secret | Description |
