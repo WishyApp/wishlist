@@ -242,6 +242,30 @@ void main() {
       expect(reports.single.capture, isFalse);
     });
 
+    test('a gateway timeout (504) only leaves a breadcrumb', () async {
+      await service(
+        _FakeRepository(
+          error: AppException(
+            statusCode: 500,
+            cause: const PostgrestException(message: '', code: '504'),
+          ),
+        ),
+      ).check(currentVersion: '0.2.0', platform: 'android');
+
+      expect(reports.single.capture, isFalse);
+      expect(reports.single.message, contains('504'));
+    });
+
+    test('a 4xx from the server is still reported to Sentry', () async {
+      await service(
+        _FakeRepository(
+          error: const PostgrestException(message: 'bad', code: '400'),
+        ),
+      ).check(currentVersion: '0.2.0', platform: 'android');
+
+      expect(reports.single.capture, isTrue);
+    });
+
     test('a success reports nothing', () async {
       await service(_FakeRepository(policy: policy()))
           .check(currentVersion: '0.2.0', platform: 'ios');

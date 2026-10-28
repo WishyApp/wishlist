@@ -138,6 +138,18 @@ void reportAppUpdateIssue(
   return (kind: '${cause.runtimeType}', text: '${cause.runtimeType}');
 }
 
+/// A 5xx from the server or its gateway (502, 503, 504...): passing, like a
+/// missing network, so not worth a Sentry report. PostgREST puts the HTTP
+/// status in [PostgrestException.code] when the body is not its own error.
+bool _isTransientServerError(Object error) {
+  final cause = error is AppException ? error.cause : error;
+  if (cause is! PostgrestException) {
+    return false;
+  }
+  final status = int.tryParse(cause.code ?? '');
+  return status != null && status >= 500 && status < 600;
+}
+
 class AppUpdateService {
   AppUpdateService(
     this._repository, {
@@ -150,7 +162,8 @@ class AppUpdateService {
 
   /// Null when the check failed (network, timeout, missing RPC, bad row...):
   /// the caller lets the user through. The failure is logged and reported to
-  /// Sentry, never shown.
+  /// Sentry, never shown; a passing failure (network, 5xx) only leaves a
+  /// breadcrumb.
   Future<AppUpdateDecision?> check({
     required String currentVersion,
     required String platform,
@@ -171,7 +184,7 @@ class AppUpdateService {
       final failure = _describeFailure(e);
       _report(
         'App version check failed ($platform): ${failure.text}',
-        capture: !isNetworkError(e),
+        capture: !isNetworkError(e) && !_isTransientServerError(e),
         kind: failure.kind,
       );
       return null;
