@@ -2,6 +2,36 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.0.0] - 2026-10-28
+
+### À savoir
+
+- **Première version publique** : cette version part d'abord aux testeurs, puis sur l'App Store et le Google Play Store
+
+### Nouvelles fonctionnalités
+
+- **Connexion avec Google et Apple** : « Continuer avec Google » (iPhone et Android) et « Continuer avec Apple » (iPhone) à côté de l'email et du mot de passe. Un nouveau compte passe par le choix du pseudo, comme après une inscription par email ; avec l'adresse d'un compte Wishy existant, on retrouve ce compte. Supprimer un compte Apple révoque aussi l'autorisation donnée à Wishy chez Apple
+- **Écran de connexion revu** : logo de l'app, boutons Apple et Google, liens « Mot de passe oublié ? » et « Vous avez déjà un compte ? » toujours visibles en bas de l'écran, y compris sur les petits téléphones ; à l'inscription, les critères du mot de passe s'affichent au moment de le saisir
+- **Anniversaires** : chacun peut indiquer son anniversaire (jour et mois, sans l'année) dans les Réglages ou à l'inscription, à une étape facultative après le pseudo. Seuls les amis le voient : un badge dans la liste d'amis quand il approche (30 jours), et la date sur la fiche de l'ami
+- **Inscription illustrée** : les étapes du pseudo et de l'anniversaire ont leur illustration
+- **Réservations en deux onglets** : « À offrir » et « Offerts ». Un cadeau que l'ami a marqué comme reçu passe dans « Offerts » et ne compte plus dans les cadeaux à acheter
+- **Souhaits reçus d'un ami en carrousel** sur sa fiche, avec « Tout voir » : ses wishlists restent visibles sans faire défiler
+- **Sélection de plusieurs souhaits** : une carte affiche le nombre de souhaits sélectionnés, avec « Tout sélectionner » et un bouton pour quitter la sélection ; les actions (valider, déplacer, supprimer) ne cachent plus la liste
+- **Paramètres d'une wishlist sur leur propre page** : un seul bouton « Enregistrer », et plus de modification perdue en fermant
+- **Erreurs de chargement illustrées** : une illustration pour les problèmes de réseau, une autre pour les autres erreurs
+
+### Corrections de bugs
+
+- L'app ne plante plus en revenant au premier plan juste après l'avoir quittée, et les écrans se mettent à jour à ce retour
+- À la déconnexion, plus d'écran d'erreur affiché un court instant
+- **Android** : la barre de navigation n'est plus collée à la barre système sur certains téléphones (Android 10 à 14, navigation à 3 boutons)
+- Dans une wishlist, un souhait déjà reçu ne reste plus dans l'onglet « Réservés »
+- Écran des réservations : « 0 offert » et « 0 à offrir » au lieu de « 1 » quand l'onglet est vide
+- Les liens « Conditions d'utilisation » et « Politique de confidentialité » des Réglages ouvrent les pages à jour sur wishy-app.fr
+- Les écrans vides et les erreurs en pleine page ont une marge sur les côtés
+- Fiche d'un ami : plus de bande vide en bas de l'écran
+- Barre de navigation : plus d'ondulation au toucher des onglets
+
 ## [0.3.1] - 2026-10-22
 
 ### Corrections de bugs
