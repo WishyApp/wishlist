@@ -16,6 +16,7 @@ import 'package:wishlist/app/config/environment_provider.dart';
 import 'package:wishlist/app/config/environment_service.dart';
 import 'package:wishlist/app/dev/store_screenshot_mode.dart';
 import 'package:wishlist/app/navigation/router.dart';
+import 'package:wishlist/app/sentry/sentry_event_filter.dart';
 import 'package:wishlist/shared/infra/deep_link_navigator.dart';
 import 'package:wishlist/shared/infra/sentry_user_sync.dart';
 
@@ -79,7 +80,8 @@ void main() async {
           ..dsn = sentryDsn
           ..environment = environment.name
           ..sendDefaultPii = false
-          ..attachScreenshot = false;
+          ..attachScreenshot = false
+          ..beforeSend = dropExpectedErrors;
       },
       appRunner: startApp,
     );
