@@ -76,8 +76,6 @@ class BookedWishesTabSwitch extends StatelessWidget {
   }
 }
 
-const _tabBorderRadius = BorderRadius.all(Radius.circular(14));
-
 /// Background of the selected tab, sliding from one tab to the other
 class _SlidingPill extends StatelessWidget {
   const _SlidingPill({required this.isAtStart, required this.gap});
@@ -102,7 +100,7 @@ class _SlidingPill extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: AppColors.background,
-              borderRadius: _tabBorderRadius,
+              borderRadius: const BorderRadius.all(Radius.circular(14)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.08),
@@ -136,39 +134,37 @@ class _Tab extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: _tabBorderRadius,
-          child: Container(
-            // Grows with the text scale
-            constraints: const BoxConstraints(minHeight: 40),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    label,
-                    style: AppTextStyles.smaller.copyWith(
-                      color: AppColors.darkGrey,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const Gap(6),
-                Text(
-                  '$count',
+      // No ink ripple: it would stay on the tapped tab while the pill slides
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          // Grows with the text scale
+          constraints: const BoxConstraints(minHeight: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
                   style: AppTextStyles.smaller.copyWith(
                     color: AppColors.darkGrey,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
+              ),
+              const Gap(6),
+              Text(
+                '$count',
+                style: AppTextStyles.smaller.copyWith(
+                  color: AppColors.darkGrey,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ),
