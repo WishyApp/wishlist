@@ -1421,13 +1421,13 @@ abstract class AppLocalizations {
   /// No description provided for @bookedWishesToGiveCount.
   ///
   /// In fr, this message translates to:
-  /// **'{count, plural, =1{1 à offrir} other{{count} à offrir}}'**
+  /// **'{count, plural, =0{0 à offrir} =1{1 à offrir} other{{count} à offrir}}'**
   String bookedWishesToGiveCount(int count);
 
   /// No description provided for @bookedWishesGivenCount.
   ///
   /// In fr, this message translates to:
-  /// **'{count, plural, =1{1 offert} other{{count} offerts}}'**
+  /// **'{count, plural, =0{0 offert} =1{1 offert} other{{count} offerts}}'**
   String bookedWishesGivenCount(int count);
 
   /// No description provided for @bookedWishesNothingToGive.

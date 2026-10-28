@@ -781,6 +781,7 @@ class AppLocalizationsFr extends AppLocalizations {
       locale: localeName,
       other: '$count à offrir',
       one: '1 à offrir',
+      zero: '0 à offrir',
     );
     return '$_temp0';
   }
@@ -792,6 +793,7 @@ class AppLocalizationsFr extends AppLocalizations {
       locale: localeName,
       other: '$count offerts',
       one: '1 offert',
+      zero: '0 offert',
     );
     return '$_temp0';
   }
