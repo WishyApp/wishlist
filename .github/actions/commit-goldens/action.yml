@@ -13,6 +13,10 @@ inputs:
   token:
     description: Token allowed to push and to set commit statuses
     required: true
+  status-context:
+    description: Name of the status set on the pushed commit
+    required: false
+    default: Analyze & Test (goldens)
 
 runs:
   using: composite
@@ -24,6 +28,7 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
         BRANCH: ${{ inputs.branch }}
         TESTED_SHA: ${{ inputs.tested-sha }}
+        STATUS_CONTEXT: ${{ inputs.status-context }}
       run: |
         git add -- ':(glob)wishlist/test/**/preview/*.png'
         if git diff --cached --quiet; then
@@ -54,13 +59,13 @@ runs:
         git push origin "HEAD:refs/heads/$BRANCH"
 
         # The skipped commit gets no check: report this run on it, so that
-        # the head of the PR still shows the tests. A separate context: a
-        # real run on this commit would report under its own name.
+        # the head of the PR still shows the tests. A context of its own: a
+        # real run on this commit would report under its job name.
         new_sha="$(git rev-parse HEAD)"
         for attempt in 1 2 3; do
           if gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$new_sha" \
             -f state=success \
-            -f context="Analyze & Test (goldens)" \
+            -f context="$STATUS_CONTEXT" \
             -f description="Tests passed on ${TESTED_SHA::8}, which produced these goldens" \
             -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             >/dev/null; then
