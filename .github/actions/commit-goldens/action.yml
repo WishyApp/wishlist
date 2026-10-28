@@ -1,0 +1,79 @@
+name: Commit golden files
+description: >-
+  Commits the regenerated golden files with [skip ci], pushes them to the
+  branch and marks that commit with the result of the run that tested them.
+
+inputs:
+  branch:
+    description: Branch to push the goldens to
+    required: true
+  tested-sha:
+    description: Commit whose test run produced the goldens
+    required: true
+  token:
+    description: Token allowed to push and to set commit statuses
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Commit, push and mark as tested
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        BRANCH: ${{ inputs.branch }}
+        TESTED_SHA: ${{ inputs.tested-sha }}
+      run: |
+        git add -- ':(glob)wishlist/test/**/preview/*.png'
+        if git diff --cached --quiet; then
+          echo "No golden change to commit"
+          exit 0
+        fi
+        changed="$(git diff --cached --name-only)"
+
+        # The goldens belong on the commit that produced them: if the branch
+        # moved since, the run of the new commit regenerates them.
+        remote_sha="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
+        if [ "$remote_sha" != "$TESTED_SHA" ]; then
+          echo "::notice::$BRANCH moved since ${TESTED_SHA::8}: goldens left to the run of the new commit"
+          exit 0
+        fi
+
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        # [skip ci]: GitHub still creates runs for a push made with
+        # GITHUB_TOKEN, then holds them until a human approves them, while
+        # they would only re-test what this run just tested. The marker skips
+        # every workflow on this commit, supabase.yml included: its result on
+        # the previous commit stands, the bot only adds PNG files. Only merge
+        # commits are allowed in the repository settings, so the marker never
+        # reaches main (a squash or a rebase would carry it there).
+        git commit -m "test: update golden files [skip ci]"
+        # Refused if the branch moved in the meantime
+        git push origin "HEAD:refs/heads/$BRANCH"
+
+        # The skipped commit gets no check: report this run on it, so that
+        # the head of the PR still shows the tests. A separate context: a
+        # real run on this commit would report under its own name.
+        new_sha="$(git rev-parse HEAD)"
+        for attempt in 1 2 3; do
+          if gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$new_sha" \
+            -f state=success \
+            -f context="Analyze & Test (goldens)" \
+            -f description="Tests passed on ${TESTED_SHA::8}, which produced these goldens" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            >/dev/null; then
+            break
+          fi
+          if [ "$attempt" = 3 ]; then
+            echo "::error::Could not set the status of $new_sha"
+            exit 1
+          fi
+          sleep $((attempt * 5))
+        done
+
+        {
+          echo "### Golden files updated"
+          while IFS= read -r file; do echo "- $file"; done <<<"$changed"
+        } >> "$GITHUB_STEP_SUMMARY"

@@ -12,14 +12,17 @@ jobs:
   update-goldens:
     name: Regenerate Golden Files
     runs-on: ubuntu-latest
-    # Needed to push the regenerated golden files
+    # Needed to push the regenerated golden files and to mark the pushed
+    # commit as tested
     permissions:
       contents: write
+      statuses: write
     defaults:
       run:
         working-directory: wishlist
     steps:
       - name: Checkout repository
+        id: checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch }}
@@ -41,22 +44,11 @@ jobs:
       - name: Update golden files
         run: flutter test --update-goldens
 
-      - name: Check for changes
-        id: changes
-        run: |
-          cd ..
-          if git diff --quiet -- ':(glob)wishlist/test/**/preview/*.png'; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Commit and push updated goldens
-        if: steps.changes.outputs.has_changes == 'true'
-        run: |
-          cd ..
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add 'wishlist/test/**/preview/*.png'
-          git commit -m "test: update golden files from CI (Linux)"
-          git push
+      # flutter test --update-goldens runs the whole suite: this run is the
+      # test of the checked out commit, with the goldens it produces.
+      - name: Commit and push goldens
+        uses: ./.github/actions/commit-goldens
+        with:
+          branch: ${{ github.event.inputs.branch }}
+          tested-sha: ${{ steps.checkout.outputs.commit }}
+          token: ${{ github.token }}

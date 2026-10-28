@@ -45,10 +45,12 @@ jobs:
       run:
         working-directory: wishlist
     steps:
+      # The PR commit itself (empty on push: the pushed commit), which
+      # commit-goldens reports as tested
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -137,10 +139,12 @@ jobs:
       contents: write
       statuses: write
     steps:
+      # The commit the tests ran on, not the tip of the branch: the goldens
+      # and the status must not land on a commit pushed in the meantime.
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Download regenerated goldens
         uses: actions/download-artifact@v4
@@ -149,33 +153,8 @@ jobs:
           path: wishlist/test
 
       - name: Commit and push goldens
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TESTED_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          git add -- "$GOLDENS"
-          if git diff --cached --quiet; then
-            echo "No golden change to commit"
-            exit 0
-          fi
-          changed="$(git diff --cached --name-only)"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # [skip ci]: GitHub still creates a run for a push made with
-          # GITHUB_TOKEN, then holds it until a human approves it. This one
-          # would only re-test the goldens this run just produced. PRs are
-          # merged with a merge commit, whose own message triggers the CI on
-          # main (a squash merge would copy the marker there).
-          git commit -m "test: update golden files [skip ci]"
-          git push
-          # The skipped commit gets no check: report the tests of this run on
-          # it, so that the PR head shows them.
-          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" \
-            -f state=success \
-            -f context="Analyze & Test" \
-            -f description="Passed before the goldens update, on ${TESTED_SHA::8}" \
-            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          {
-            echo "### Golden files updated"
-            while IFS= read -r file; do echo "- $file"; done <<<"$changed"
-          } >> "$GITHUB_STEP_SUMMARY"
+        uses: ./.github/actions/commit-goldens
+        with:
+          branch: ${{ github.head_ref }}
+          tested-sha: ${{ github.event.pull_request.head.sha }}
+          token: ${{ github.token }}
