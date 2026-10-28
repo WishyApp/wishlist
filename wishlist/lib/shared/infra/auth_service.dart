@@ -1,4 +1,5 @@
 import 'package:email_validator/email_validator.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,18 +9,26 @@ import 'package:wishlist/main.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/non_null_extensions/go_true_client_non_null_getter_user_extension.dart';
 import 'package:wishlist/shared/infra/social_sign_in_client.dart';
+import 'package:wishlist/shared/infra/user_auth_providers_extension.dart';
 import 'package:wishlist/shared/infra/utils/auth_user_message_key.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 
 class AuthService {
-  AuthService({GoTrueClient? auth, SocialSignInClient? socialSignIn})
-      : _authOverride = auth,
+  AuthService({
+    GoTrueClient? auth,
+    FunctionsClient? functions,
+    SocialSignInClient? socialSignIn,
+  })  : _authOverride = auth,
+        _functionsOverride = functions,
         _socialSignIn = socialSignIn ?? SocialSignInClient();
 
   final GoTrueClient? _authOverride;
+  final FunctionsClient? _functionsOverride;
   final SocialSignInClient _socialSignIn;
 
   GoTrueClient get _auth => _authOverride ?? supabase.auth;
+
+  FunctionsClient get _functions => _functionsOverride ?? supabase.functions;
 
   static final AuthService _instance = AuthService();
 
@@ -228,15 +237,45 @@ class AuthService {
     }
   }
 
-  Future<void> deleteAccount() async {
+  /// Returns false when the user dismissed the Apple sheet: nothing is
+  /// deleted then.
+  ///
+  /// An Apple account first goes through the Apple sheet again: its fresh
+  /// authorization code lets the server revoke the account's Apple tokens,
+  /// as the App Store requires. Only on iOS, the only platform offering
+  /// Apple sign-in. Closing the sheet cancels the deletion; any other sheet
+  /// failure deletes the account without revoking.
+  Future<bool> deleteAccount() async {
     try {
+      String? appleAuthorizationCode;
+      if (defaultTargetPlatform == TargetPlatform.iOS &&
+          (_auth.currentUser?.hasAppleSignIn ?? false)) {
+        try {
+          appleAuthorizationCode = await _socialSignIn.appleAuthorizationCode();
+          if (appleAuthorizationCode == null) {
+            return false;
+          }
+        } catch (e) {
+          // No iCloud account, Apple ID in a bad state…: the user must still
+          // be able to leave, as when the server fails to revoke.
+          debugPrint('Could not get an Apple code, deleting anyway: $e');
+        }
+      }
+
       // Appeler une Edge Function qui gère toute la suppression côté serveur
       // (fichiers du storage + suppression de l'utilisateur)
-      await supabase.functions.invoke('delete-user-account');
+      await _functions.invoke(
+        'delete-user-account',
+        body: {
+          if (appleAuthorizationCode != null)
+            'appleAuthorizationCode': appleAuthorizationCode,
+        },
+      );
 
       // Déconnecter l'utilisateur après la suppression
       await _auth.signOut();
       await _signOutOfGoogle();
+      return true;
     } catch (e) {
       if (e is AuthException) {
         final statusCode = e.statusCode;

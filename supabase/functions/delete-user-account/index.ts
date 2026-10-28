@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.0';
+import { appleConfigFromEnv, appleUserIdOf, authorizationCodeOf, revokeAppleTokens } from './apple_revocation.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
@@ -30,6 +31,29 @@ Deno.serve(async (req)=>{
       throw new Error('Unauthorized');
     }
     const userId = user.id;
+    // 0. Révoquer les jetons Sign in with Apple (guideline App Store 5.1.1(v)).
+    // L'app envoie un code d'autorisation frais pour un compte Apple. Un échec
+    // ne bloque pas la suppression : l'utilisateur doit pouvoir partir, l'erreur
+    // reste dans les logs de la fonction.
+    const body = await req.json().catch(() => ({}));
+    const appleAuthorizationCode = authorizationCodeOf(body);
+    const appleUserId = appleUserIdOf(user.identities);
+    if (appleAuthorizationCode && appleUserId) {
+      const appleConfig = appleConfigFromEnv((name)=>Deno.env.get(name));
+      if (!appleConfig) {
+        console.error('Apple revocation skipped: APPLE_* secrets are missing');
+      } else {
+        try {
+          await revokeAppleTokens({
+            config: appleConfig,
+            authorizationCode: appleAuthorizationCode,
+            appleUserId
+          });
+        } catch (error) {
+          console.error('Error revoking Apple tokens:', error);
+        }
+      }
+    }
     // Lancer toutes les opérations en parallèle pour accélérer le processus
     // 1. Récupérer tous les wishes et l'avatar en parallèle
     const [wishesResult, profileResult] = await Promise.all([

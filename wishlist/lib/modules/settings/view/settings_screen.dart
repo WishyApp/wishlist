@@ -12,7 +12,7 @@ import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/current_user_email_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 import 'package:wishlist/shared/infra/supabase_client_provider.dart';
-import 'package:wishlist/shared/infra/user_password_extension.dart';
+import 'package:wishlist/shared/infra/user_auth_providers_extension.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -57,6 +57,8 @@ class SettingsScreen extends ConsumerWidget {
       explanation: l10n.settingsScreenDeleteAccountDialogExplanation,
       onConfirm: () async {
         try {
+          // False when the user closed the Apple sheet: they backed out
+          // themselves, the screen stays as it is.
           await ref.read(authServiceProvider).deleteAccount();
         } catch (e) {
           if (context.mounted) {

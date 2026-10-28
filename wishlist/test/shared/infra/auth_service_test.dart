@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
@@ -10,6 +12,8 @@ import '../../fixtures/mock_supabase.dart';
 
 class MockSocialSignInClient extends Mock implements SocialSignInClient {}
 
+class MockFunctionsClient extends Mock implements FunctionsClient {}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(UserAttributes());
@@ -18,16 +22,23 @@ void main() {
   });
 
   late MockGoTrueClient auth;
+  late MockFunctionsClient functions;
   late MockSocialSignInClient socialSignIn;
+  late MockUser user;
   late AuthService service;
 
   setUp(() {
     auth = MockGoTrueClient();
-    final user = MockUser();
+    user = MockUser();
     when(() => user.email).thenReturn('me@example.com');
     when(() => auth.currentUser).thenReturn(user);
     socialSignIn = MockSocialSignInClient();
-    service = AuthService(auth: auth, socialSignIn: socialSignIn);
+    functions = MockFunctionsClient();
+    service = AuthService(
+      auth: auth,
+      functions: functions,
+      socialSignIn: socialSignIn,
+    );
   });
 
   void stubSignIn(Object error) {
@@ -293,6 +304,108 @@ void main() {
         service.signInWithApple(),
         throwsA(isA<AuthApiException>()),
       );
+    });
+  });
+
+  group('AuthService.deleteAccount', () {
+    void stubProviders(List<String> providers) {
+      when(() => user.appMetadata).thenReturn({'providers': providers});
+    }
+
+    void stubInvoke() {
+      when(
+        () => functions.invoke(any(), body: any(named: 'body')),
+      ).thenAnswer((_) async => const FunctionResponse(status: 200));
+    }
+
+    setUp(() {
+      when(() => auth.signOut()).thenAnswer((_) async {});
+      when(() => socialSignIn.signOutOfGoogle()).thenAnswer((_) async {});
+    });
+
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    test('deletes an email account without the Apple sheet', () async {
+      stubProviders(['email']);
+      stubInvoke();
+
+      expect(await service.deleteAccount(), isTrue);
+
+      verify(
+        () => functions.invoke('delete-user-account', body: <String, Object>{}),
+      ).called(1);
+      verifyNever(() => socialSignIn.appleAuthorizationCode());
+      verify(() => auth.signOut()).called(1);
+    });
+
+    test('sends a fresh Apple code for an Apple account on iOS', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      stubProviders(['apple']);
+      stubInvoke();
+      when(() => socialSignIn.appleAuthorizationCode())
+          .thenAnswer((_) async => 'apple-code');
+
+      expect(await service.deleteAccount(), isTrue);
+
+      verify(
+        () => functions.invoke(
+          'delete-user-account',
+          body: {'appleAuthorizationCode': 'apple-code'},
+        ),
+      ).called(1);
+    });
+
+    test('deletes nothing when the Apple sheet is dismissed', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      stubProviders(['apple']);
+      when(() => socialSignIn.appleAuthorizationCode())
+          .thenAnswer((_) async => null);
+
+      expect(await service.deleteAccount(), isFalse);
+
+      verifyNever(() => functions.invoke(any(), body: any(named: 'body')));
+      verifyNever(() => auth.signOut());
+    });
+
+    test('deletes without revoking when the Apple sheet fails', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      stubProviders(['apple']);
+      stubInvoke();
+      when(() => socialSignIn.appleAuthorizationCode()).thenThrow(
+        const SignInWithAppleAuthorizationException(
+          code: AuthorizationErrorCode.failed,
+          message: 'No iCloud account',
+        ),
+      );
+
+      expect(await service.deleteAccount(), isTrue);
+
+      verify(
+        () => functions.invoke('delete-user-account', body: <String, Object>{}),
+      ).called(1);
+    });
+
+    test('skips the Apple sheet outside iOS', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      stubProviders(['apple', 'email']);
+      stubInvoke();
+
+      expect(await service.deleteAccount(), isTrue);
+
+      verifyNever(() => socialSignIn.appleAuthorizationCode());
+      verify(
+        () => functions.invoke('delete-user-account', body: <String, Object>{}),
+      ).called(1);
+    });
+
+    test('wraps a failure of the function', () async {
+      stubProviders(['email']);
+      when(
+        () => functions.invoke(any(), body: any(named: 'body')),
+      ).thenThrow(const FunctionException(status: 500));
+
+      await expectLater(service.deleteAccount(), throwsA(isA<AppException>()));
+      verifyNever(() => auth.signOut());
     });
   });
 }

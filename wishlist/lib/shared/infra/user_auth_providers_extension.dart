@@ -1,6 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-extension UserPasswordExtension on User {
+/// Reads the sign-in methods Supabase lists in `app_metadata.providers`.
+extension UserAuthProvidersExtension on User {
+  List<Object?>? get _providers {
+    final providers = appMetadata['providers'];
+    return providers is List ? providers : null;
+  }
+
   /// False for an account created with Google or Apple only: it has no
   /// password to change.
   ///
@@ -11,10 +17,14 @@ extension UserPasswordExtension on User {
   /// A Google or Apple account that sets a password through "forgot password"
   /// keeps its providers list: it can still change it the same way.
   bool get hasPassword {
-    final providers = appMetadata['providers'];
-    if (providers is! List) {
+    final providers = _providers;
+    if (providers == null) {
       return true;
     }
     return providers.contains('email');
   }
+
+  /// True when the account can sign in with Apple: its Apple tokens must be
+  /// revoked when it is deleted.
+  bool get hasAppleSignIn => _providers?.contains('apple') ?? false;
 }

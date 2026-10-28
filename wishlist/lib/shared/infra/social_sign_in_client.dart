@@ -95,6 +95,22 @@ class SocialSignInClient {
     return SocialIdToken(idToken: idToken, rawNonce: rawNonce);
   }
 
+  /// A fresh authorization code from the Apple sheet, for the server to
+  /// revoke the account's Apple tokens when it is deleted.
+  Future<String?> appleAuthorizationCode() async {
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [],
+      );
+      return credential.authorizationCode;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
   /// Signs out of Google so that the next sign-in shows the account picker.
   Future<void> signOutOfGoogle() async {
     final initialization = _googleRawNonce;
