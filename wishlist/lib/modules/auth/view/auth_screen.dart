@@ -233,6 +233,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       footer: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Meaningless before having an account, and it saves room. Above the
+          // sign-in/sign-up switch, which then stays at the very bottom in
+          // both modes.
+          if (_isSigningIn) ...[
+            TextButton(
+              onPressed: () => ForgotPasswordRoute().push(context),
+              child: Text(
+                l10n.forgotPasswordButton,
+                style: AppTextStyles.smaller.copyWith(
+                  decoration: TextDecoration.underline,
+                  color: Colors.black54,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const Gap(8),
+          ],
           TextButton(
             onPressed: () {
               setState(() {
@@ -249,21 +266,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               textAlign: TextAlign.center,
             ),
           ),
-          // Meaningless before having an account, and it saves room.
-          if (_isSigningIn) ...[
-            const Gap(8),
-            TextButton(
-              onPressed: () => ForgotPasswordRoute().push(context),
-              child: Text(
-                l10n.forgotPasswordButton,
-                style: AppTextStyles.smaller.copyWith(
-                  decoration: TextDecoration.underline,
-                  color: Colors.black54,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
         ],
       ),
       child: Column(
