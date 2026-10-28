@@ -141,6 +141,9 @@ class SocialSignInClient {
   /// interrupted, no UI to show it, no Apple ID signed in on the device), as
   /// opposed to a misconfiguration.
   static bool isUserSideFailure(Object error) {
+    if (isSafariUnavailable(error)) {
+      return true;
+    }
     return switch (error) {
       GoogleSignInException(:final code) => const [
           GoogleSignInExceptionCode.canceled,
@@ -154,6 +157,15 @@ class SocialSignInClient {
       _ => false,
     };
   }
+
+  /// Whether the Google sheet could not open on iOS: it runs in an
+  /// `ASWebAuthenticationSession`, which refuses to start when Safari is
+  /// blocked (Screen Time) or Guided Access is on (WISHY-2, seen on an Apple
+  /// test device). The plugin only reports AppAuth's message.
+  static bool isSafariUnavailable(Object error) =>
+      error is GoogleSignInException &&
+      error.code == GoogleSignInExceptionCode.unknownError &&
+      (error.description?.contains('Unable to open Safari') ?? false);
 
   static String _generateRawNonce() {
     final random = Random.secure();

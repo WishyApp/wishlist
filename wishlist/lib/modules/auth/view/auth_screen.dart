@@ -201,7 +201,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         unawaited(Sentry.captureException(e, stackTrace: stackTrace));
       }
       if (mounted) {
-        showGenericError(context, error: e);
+        if (SocialSignInClient.isSafariUnavailable(e)) {
+          showAppSnackBar(
+            context,
+            context.l10n.googleSignInSafariUnavailable,
+            type: SnackBarType.error,
+          );
+        } else {
+          showGenericError(context, error: e);
+        }
       }
     } finally {
       if (mounted) {

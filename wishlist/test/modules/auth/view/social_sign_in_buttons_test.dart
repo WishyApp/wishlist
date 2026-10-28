@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wishlist/app/config/config.dart';
@@ -101,6 +102,27 @@ void main() {
     await tester.tap(find.text('Continuer avec Google'));
     await tester.pump();
     verify(() => authService.signInWithGoogle()).called(2);
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
+  testWidgets('explains that Google needs Safari when it cannot open',
+      (tester) async {
+    when(() => authService.signInWithGoogle()).thenThrow(
+      const GoogleSignInException(
+        code: GoogleSignInExceptionCode.unknownError,
+        description: 'Unable to open Safari.',
+      ),
+    );
+    await pump(tester, config: googleConfig);
+
+    await tester.ensureVisible(find.text('Continuer avec Google'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuer avec Google'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.textContaining('a besoin de Safari'), findsOneWidget);
+    expect(find.textContaining('Une erreur'), findsNothing);
     await tester.pumpAndSettle(const Duration(seconds: 5));
   });
 
