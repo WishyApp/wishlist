@@ -238,6 +238,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           // both modes.
           if (_isSigningIn) ...[
             TextButton(
+              // Keys keep each button's state (and its ink splash) on it
+              // when "forgot password" appears or disappears above.
+              key: const ValueKey('forgotPassword'),
               onPressed: () => ForgotPasswordRoute().push(context),
               child: Text(
                 l10n.forgotPasswordButton,
@@ -251,6 +254,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             const Gap(8),
           ],
           TextButton(
+            key: const ValueKey('signInSignUpSwitch'),
             onPressed: () {
               setState(() {
                 _isSigningIn = !_isSigningIn;
