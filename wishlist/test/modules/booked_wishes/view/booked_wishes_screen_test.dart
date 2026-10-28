@@ -124,6 +124,8 @@ void main() {
 
     expect(find.text(partlyReceived.wish.name), findsNothing);
     expect(find.text(l10n.bookedWishesNothingGiven), findsOneWidget);
+    // French counts 0 in the singular: not "1 offert"
+    expect(find.textContaining('0 offert', findRichText: true), findsWidgets);
   });
 
   testWidgets('$BookedWishesScreen says when everything was given',
@@ -132,6 +134,10 @@ void main() {
 
     expect(find.text(l10n.bookedWishesNothingToGive), findsOneWidget);
     expect(find.text(fakeBookedWishGiven.wish.name), findsNothing);
+    expect(
+      find.textContaining('0 à offrir', findRichText: true),
+      findsWidgets,
+    );
   });
 
   testWidgets(

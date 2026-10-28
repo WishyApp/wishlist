@@ -286,7 +286,7 @@
   },
   "bookedWishesTabToGive": "À offrir",
   "bookedWishesTabGiven": "Offerts",
-  "bookedWishesToGiveCount": "{count, plural, =1{1 à offrir} other{{count} à offrir}}",
+  "bookedWishesToGiveCount": "{count, plural, =0{0 à offrir} =1{1 à offrir} other{{count} à offrir}}",
   "@bookedWishesToGiveCount": {
     "placeholders": {
       "count": {
@@ -294,7 +294,7 @@
       }
     }
   },
-  "bookedWishesGivenCount": "{count, plural, =1{1 offert} other{{count} offerts}}",
+  "bookedWishesGivenCount": "{count, plural, =0{0 offert} =1{1 offert} other{{count} offerts}}",
   "@bookedWishesGivenCount": {
     "placeholders": {
       "count": {
