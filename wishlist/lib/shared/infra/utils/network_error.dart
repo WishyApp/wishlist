@@ -20,9 +20,10 @@ bool isNetworkError(Object? error) {
   };
 }
 
-/// Statuses of a gateway in front of a server that restarts or is overloaded.
-/// Not 500 or 501: a bug or a misconfiguration returns them on every call.
-const _transientStatuses = {502, 503, 504};
+/// Statuses of a gateway in front of a server that restarts or is overloaded,
+/// Cloudflare's own ones (520-524, origin not answering) included. Not 500 or
+/// 501: a bug or a misconfiguration returns them on every call.
+const _transientStatuses = {502, 503, 504, 520, 521, 522, 523, 524};
 
 /// PostgREST's own 503 (database unreachable) and 504 (pool timeout):
 /// https://docs.postgrest.org/en/stable/references/errors.html
@@ -33,12 +34,13 @@ const _transientPostgrestCodes = {
   'PGRST003',
 };
 
-/// Whether [error] is a 502, 503 or 504 from the server or its gateway:
+/// Whether [error] is a 502, 503, 504 or 52x from the server or its gateway:
 /// passing, like a missing network, so a retry has a chance and a single one
 /// is not worth a Sentry report.
 ///
 /// Looks through [AppException.cause]. Its [AppException.statusCode] is not
-/// used: it is 500 for anything but a numeric PostgREST code.
+/// used: it is 500 for an [AuthRetryableFetchException] or a non-numeric
+/// PostgREST code like `PGRST003`.
 bool isTransientServerError(Object? error) {
   final status = switch (unwrapCause(error)) {
     PostgrestException(:final code)

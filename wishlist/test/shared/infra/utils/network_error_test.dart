@@ -90,6 +90,16 @@ void main() {
       }
     });
 
+    test("recognizes Cloudflare's 520-524", () {
+      for (final status in ['520', '521', '522', '523', '524']) {
+        expect(
+          isTransientServerError(PostgrestException(message: '', code: status)),
+          true,
+          reason: status,
+        );
+      }
+    });
+
     test("recognizes PostgREST's own 503 and 504", () {
       for (final code in ['PGRST000', 'PGRST001', 'PGRST002', 'PGRST003']) {
         expect(
@@ -101,7 +111,16 @@ void main() {
     });
 
     test('rejects other statuses and codes', () {
-      for (final code in ['499', '500', '501', '505', '599', 'PGRST202']) {
+      for (final code in [
+        '499',
+        '500',
+        '501',
+        '505',
+        '519',
+        '525',
+        '599',
+        'PGRST202',
+      ]) {
         expect(
           isTransientServerError(PostgrestException(message: '', code: code)),
           false,

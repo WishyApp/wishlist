@@ -154,11 +154,14 @@ class AppUpdateService {
 
   static const _timeout = Duration(seconds: 10);
 
+  /// The first try and the retry after a passing server error.
+  static const _maxAttempts = 2;
+
   /// Null when the check failed (network, timeout, missing RPC, bad row...):
   /// the caller lets the user through. The failure is logged and reported to
-  /// Sentry, never shown; a passing failure (network, 502/503/504) only leaves
+  /// Sentry, never shown; a passing failure (network, gateway 5xx) only leaves
   /// a breadcrumb. A passing server error is retried once after [retryDelay],
-  /// and reported if the retry fails too.
+  /// and any failure of that retry is reported.
   Future<AppUpdateDecision?> check({
     required String currentVersion,
     required String platform,
@@ -177,16 +180,15 @@ class AppUpdateService {
         return decideAppUpdate(currentVersion, policy);
       } catch (e) {
         debugPrint('[Wishy AppUpdate] check failed: $e');
-        final isTransient = isTransientServerError(e);
+        final willRetry = isTransientServerError(e) && attempt < _maxAttempts;
         final failure = _describeFailure(e);
         _report(
           'App version check failed ($platform): ${failure.text}',
-          // A passing server error still there after the retry may be an
-          // outage: worth a report
-          capture: !isNetworkError(e) && !(isTransient && attempt == 1),
+          // A retry that fails too, even on a timeout, may be an outage
+          capture: !willRetry && (attempt > 1 || !isNetworkError(e)),
           kind: failure.kind,
         );
-        if (!isTransient || attempt > 1) {
+        if (!willRetry) {
           return null;
         }
         await Future<void>.delayed(retryDelay);
