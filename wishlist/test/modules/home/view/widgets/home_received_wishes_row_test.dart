@@ -1,8 +1,10 @@
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/modules/home/view/widgets/home_received_wishes_row.dart';
+import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
@@ -59,6 +61,36 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('does not open the unfiltered stream of the full list',
+      (tester) async {
+    var fullListOpened = false;
+    await tester.pumpRouterApp(
+      '/row',
+      routes: [
+        GoRoute(
+          path: '/row',
+          builder: (context, state) => const Scaffold(
+            body: SafeArea(child: HomeReceivedWishesRow()),
+          ),
+        ),
+      ],
+      overrides: [
+        ...homeScreenOverrides(
+          completedWishes: [_completedWish(1)],
+          now: fakeNow,
+        ),
+        completedWishesRealtimeProvider.overrideWith((ref) {
+          fullListOpened = true;
+          return Stream.value(const IListConst([]));
+        }),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 wish reçu'), findsOneWidget);
+    expect(fullListOpened, isFalse);
+  });
 
   testWidgets('is absent without a received wish', (tester) async {
     await pumpRow(tester);

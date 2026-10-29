@@ -11,6 +11,7 @@ import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/current_user_profile_provider.dart';
 import 'package:wishlist/shared/infra/friend_details_realtime_provider.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
+import 'package:wishlist/shared/infra/received_wishes_summary_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
@@ -24,6 +25,7 @@ import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/friend_details/friend_details.dart';
 import 'package:wishlist/shared/models/profile.dart';
+import 'package:wishlist/shared/models/received_wishes_summary/received_wishes_summary.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
@@ -178,8 +180,18 @@ List<Override> homeScreenOverrides({
   return [
     supabaseClientOverride(userId: currentUserId),
     wishlistsRealtimeOverride(wishlists: wishlists),
+    // The home reads the summary; the screen it opens reads the full list
     completedWishesRealtimeProvider.overrideWith(
       (ref) => Stream.value((completedWishes ?? const []).toIList()),
+    ),
+    receivedWishesSummaryProvider.overrideWith(
+      (ref) => Stream.value(
+        ReceivedWishesSummary(
+          count: completedWishes?.length ?? 0,
+          // The list is sorted last received first
+          latestCompletedAt: completedWishes?.firstOrNull?.completedAt,
+        ),
+      ),
     ),
     watchCurrentUserProfileOverride(profile: currentUserProfile),
     currentUserBirthdayOverride(birthday: currentUserBirthday),

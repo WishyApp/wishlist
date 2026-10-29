@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
-import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/received_wishes_summary_provider.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
@@ -17,10 +17,10 @@ class HomeReceivedWishesRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final completedWishes =
-        ref.watch(completedWishesRealtimeProvider).valueOrNull;
+    final summary = ref.watch(receivedWishesSummaryProvider).valueOrNull;
+    final latest = summary?.latestCompletedAt;
 
-    if (completedWishes == null || completedWishes.isEmpty) {
+    if (summary == null || summary.count == 0 || latest == null) {
       return const SizedBox.shrink();
     }
 
@@ -47,7 +47,7 @@ class HomeReceivedWishesRow extends ConsumerWidget {
                 const Gap(12),
                 Flexible(
                   child: Text(
-                    l10n.homeReceivedWishes(completedWishes.length),
+                    l10n.homeReceivedWishes(summary.count),
                     style: AppTextStyles.smaller.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -58,10 +58,9 @@ class HomeReceivedWishesRow extends ConsumerWidget {
                 const Gap(8),
                 Expanded(
                   child: Text(
-                    // The repository sorts the last received first
                     formatRelativeDate(
                       l10n,
-                      completedWishes.first.completedAt,
+                      latest,
                       now: now,
                       locale: locale,
                     ),
