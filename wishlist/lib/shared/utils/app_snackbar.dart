@@ -259,9 +259,11 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
   bool _isActionDone = false;
 
   /// Ferme le snackbar et lance l'action, une seule fois : le bouton reste
-  /// visible pendant l'animation de sortie
+  /// visible pendant l'animation de sortie, mais il est trop tard une fois la
+  /// fermeture notifiée (l'appelant a déjà agi comme si le bouton n'existait
+  /// pas)
   void _handleAction() {
-    if (_isActionDone) {
+    if (_isActionDone || _isClosedNotified) {
       return;
     }
     // Before closing: the action is not a close without action

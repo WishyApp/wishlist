@@ -300,6 +300,28 @@ void main() {
       expect(closed, 0);
     });
 
+    testWidgets('ignores the action once the delay closed it', (tester) async {
+      var closed = 0;
+      var actions = 0;
+      await pumpTrigger(
+        tester,
+        onClosed: () => closed++,
+        onAction: () => actions++,
+      );
+
+      // The delay is over: the button is still there during the exit
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(closed, 1);
+      expect(find.text('See'), findsOneWidget);
+      // The tap of a finger that came just before the button left
+      tester.widget<TextButton>(find.byType(TextButton)).onPressed?.call();
+      await tester.pumpAndSettle();
+
+      expect(actions, 0);
+      expect(closed, 1);
+    });
+
     testWidgets('does not fire when the caller closes it', (tester) async {
       var closed = 0;
       late VoidCallback close;
