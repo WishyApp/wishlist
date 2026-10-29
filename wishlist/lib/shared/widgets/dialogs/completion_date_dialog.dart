@@ -5,11 +5,12 @@ import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/widgets/dialogs/app_dialog.dart';
 import 'package:wishlist/shared/widgets/past_date_picker.dart';
 
-/// Asks for the day one or more wishes were received, up to today.
+/// Asks for the day one or more wishes were received, up to today, starting on
+/// [initialValue] (today when null).
 ///
-/// [onConfirm] runs with the picked day while the confirm button loads: the
-/// dialog closes once it succeeds, and stays open on an error. Returns the
-/// picked day (local midnight), or null when the dialog was dismissed.
+/// Returns the picked day (local midnight), or null when the dialog was
+/// dismissed. The dialog saves nothing: it can be dismissed at any time, the
+/// caller saves the day once it is closed.
 Future<DateTime?> showCompletionDateDialog(
   BuildContext context, {
   required String title,
@@ -17,11 +18,9 @@ Future<DateTime?> showCompletionDateDialog(
   required String confirmButtonLabel,
   String? wishName,
   DateTime? initialValue,
-  Future<void> Function(DateTime completedAt)? onConfirm,
 }) async {
   final now = DateTime.now();
-  final initial = initialValue ?? now;
-  var selected = DateTime(initial.year, initial.month, initial.day);
+  var selected = PastDatePicker.clampDay(initialValue ?? now, now: now);
   DateTime? confirmed;
 
   await showAppDialog(
@@ -60,10 +59,7 @@ Future<DateTime?> showCompletionDateDialog(
     ),
     confirmButtonLabel: confirmButtonLabel,
     onCancel: () {},
-    onConfirm: () async {
-      await onConfirm?.call(selected);
-      confirmed = selected;
-    },
+    onConfirm: () async => confirmed = selected,
   );
 
   return confirmed;

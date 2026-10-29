@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/utils/network_error.dart';
+import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 
 enum SnackBarType {
@@ -29,10 +30,11 @@ enum SnackBarType {
 /// ```
 ///
 /// Avec [actionLabel] et [onAction], un bouton à droite du message : le
-/// toucher ferme le snackbar puis appelle [onAction]. Le snackbar survit à
-/// l'écran qui l'affiche : [onAction] ne doit pas dépendre de son context. Le
-/// bouton prend la couleur principale du thème de [context] (celle de la
-/// wishlist sur ses écrans) : l'overlay racine n'a que le thème de l'app.
+/// toucher ferme le snackbar puis appelle [onAction], une seule fois. Le
+/// snackbar survit à l'écran qui l'affiche : [onAction] ne doit pas dépendre de
+/// son context. Le bouton prend la couleur principale du thème de [context]
+/// (celle de la wishlist sur ses écrans), foncée si besoin pour rester lisible
+/// sur le fond blanc : l'overlay racine n'a que le thème de l'app.
 void showAppSnackBar(
   BuildContext context,
   String message, {
@@ -54,7 +56,10 @@ void showAppSnackBar(
       : Icons.error_outline;
 
   final overlayState = Overlay.of(context, rootOverlay: true);
-  final actionColor = Theme.of(context).primaryColor;
+  final actionColor = AppColors.darkenForContrast(
+    Theme.of(context).primaryColor,
+    foreground: Colors.white,
+  );
 
   late final OverlayEntry overlayEntry;
 
@@ -209,8 +214,15 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
     _dismiss();
   }
 
-  /// Ferme le snackbar et lance l'action
+  bool _isActionDone = false;
+
+  /// Ferme le snackbar et lance l'action, une seule fois : le bouton reste
+  /// visible pendant l'animation de sortie
   void _handleAction() {
+    if (_isActionDone) {
+      return;
+    }
+    _isActionDone = true;
     _handleTap();
     widget.onAction?.call();
   }

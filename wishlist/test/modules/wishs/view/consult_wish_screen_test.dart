@@ -672,6 +672,32 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('stays on the wish and explains a failed completion',
+        (tester) async {
+      final repository = await pumpOwnWish(tester, wish: fakeWish1);
+      when(
+        () => repository.markAsCompleted(
+          userId: any(named: 'userId'),
+          wishId: any(named: 'wishId'),
+          fromWishlistId: any(named: 'fromWishlistId'),
+          quantity: any(named: 'quantity'),
+          completedAt: any(named: 'completedAt'),
+        ),
+      ).thenThrow(Exception('boom'));
+
+      await tester.tap(find.text(l10n.markWishAsCompleted).first);
+      await tester.pumpAndSettle();
+      await tapDialogConfirm(tester);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text(l10n.genericError), findsOneWidget);
+      expect(find.text(l10n.wishesCompletedSnackBar(1)), findsNothing);
+      expect(find.byType(ConsultWishScreen), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('completes a single wish from the day dialog', (tester) async {
       final repository = await pumpOwnWish(tester, wish: fakeWish1);
 

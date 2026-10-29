@@ -87,8 +87,8 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
           return _sort.order == SortOrder.ascending ? cmp : -cmp;
         });
       case CompletedWishSortType.completedAt:
-        // Received the same day: in the order of the completions, which the
-        // list comes in from the last one
+        // Received the same day: in the order of their first completion,
+        // which the list comes in from the last one
         final completionRank = {
           for (final (index, item) in result.indexed) item.wish.id: index,
         };

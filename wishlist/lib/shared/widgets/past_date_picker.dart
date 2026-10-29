@@ -8,8 +8,9 @@ import 'package:wishlist/shared/theme/text_styles.dart';
 /// is picked.
 ///
 /// The wheels look like those of the BirthdayPicker. [initialValue] is only
-/// read when the picker is created; its time is ignored, and so is the time of
-/// the days given to [onChanged] (local midnight).
+/// read when the picker is created, and brought back within the wheels (see
+/// [clampDay]); its time is ignored, and so is the time of the days given to
+/// [onChanged] (local midnight).
 class PastDatePicker extends StatelessWidget {
   const PastDatePicker({
     super.key,
@@ -30,10 +31,22 @@ class PastDatePicker extends StatelessWidget {
   static DateTime _day(DateTime date) =>
       DateTime(date.year, date.month, date.day);
 
+  /// The day of [date] if the wheels can show it, else the nearest one: from
+  /// January 1 of [minimumYear] to the day of [now]. A day outside would trip
+  /// the picker's assertions, or be shown as another day than the one kept.
+  static DateTime clampDay(DateTime date, {required DateTime now}) {
+    final day = _day(date);
+    final today = _day(now);
+    final first = DateTime(minimumYear);
+    if (day.isAfter(today)) {
+      return today;
+    }
+    return day.isBefore(first) ? first : day;
+  }
+
   @override
   Widget build(BuildContext context) {
     final today = _day(now ?? DateTime.now());
-    final initialDay = _day(initialValue);
 
     // The wheels take their text style from the Cupertino theme, which
     // defaults to the platform font: use the app's instead.
@@ -49,7 +62,7 @@ class PastDatePicker extends StatelessWidget {
         height: 180,
         child: CupertinoDatePicker(
           mode: CupertinoDatePickerMode.date,
-          initialDateTime: initialDay.isAfter(today) ? today : initialDay,
+          initialDateTime: clampDay(initialValue, now: today),
           minimumYear: minimumYear,
           maximumYear: today.year,
           maximumDate: today,
