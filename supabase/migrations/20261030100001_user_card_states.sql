@@ -17,14 +17,15 @@
 -- Rows accumulate (one per card occurrence), so purge_stale_card_states
 -- deletes them once a year (pg_cron, January 2). A row is stale when it was
 -- last shown or dismissed more than a year ago and holds no snooze still to
--- come: the app asks for the keys of the cards it displays, and the keys that
--- carry a year (friend_birthday:<uuid>:2026) are not read again a year later.
+-- come. A permanent mask (dismissed, no snooze) is the exception: it never
+-- gets activity again yet must keep holding, so it is only purged once its
+-- year is over, that is when its key ends with a year older than the current
+-- one (friend_birthday:<uuid>:2020, the card cannot come back for that year).
+-- A permanent mask without a year (stale_wishlist:88, booked_reminder:4512) is
+-- kept for good.
 -- Rows whose key starts with 'onboarding:' are never purged: onboarding:birthday,
 -- onboarding:photo and onboarding:optional_window have no year in their key,
--- deleting them would bring the skipped onboarding steps back. The same goes
--- for any future card type with a permanent hide and no year in its key: it
--- would come back after a year of inactivity, so its keys must either carry a
--- year or be excluded from the purge like 'onboarding:%'.
+-- deleting them would bring the skipped onboarding steps back.
 --
 -- Clients only read their rows. They write through record_card_shown and
 -- dismiss_card, which always write the row of the current user.
@@ -153,7 +154,7 @@ GRANT EXECUTE ON FUNCTION public.record_card_shown(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.dismiss_card(text, timestamptz) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.dismiss_card(text, timestamptz) TO authenticated;
 
--- Deletes the stale rows of every user and returns how many. Internal: run by
+-- Deletes the stale rows of every user (see the header for the rule) and returns how many. Internal: run by
 -- pg_cron as postgres, so no client can call it. The retention is spelled once,
 -- in v_retention.
 CREATE OR REPLACE FUNCTION public.purge_stale_card_states()
@@ -169,7 +170,16 @@ BEGIN
   DELETE FROM public.user_card_states
   WHERE GREATEST(last_shown_at, dismissed_at) < now() - v_retention
     AND (snoozed_until IS NULL OR snoozed_until < now())
-    AND card_key NOT LIKE 'onboarding:%';
+    AND card_key NOT LIKE 'onboarding:%'
+    -- A permanent mask still in force stays, unless its year is over
+    AND (
+      dismissed_at IS NULL
+      OR snoozed_until IS NOT NULL
+      OR (
+        card_key ~ ':[0-9]{4}$'
+        AND right(card_key, 4)::int < extract(year FROM now())
+      )
+    );
   GET DIAGNOSTICS v_deleted = ROW_COUNT;
   RETURN v_deleted;
 END;
