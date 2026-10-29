@@ -189,6 +189,12 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Tu as été gâté ?'), findsOneWidget);
+      expect(
+        find.text(
+          'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.',
+        ),
+        findsNothing,
+      );
       await tapAndExpectPath(tester, "Cocher ce que j'ai reçu", '/wishlist/1');
     });
 
@@ -200,6 +206,12 @@ void main() {
 
       expect(find.text("Noël, c'était hier"), findsOneWidget);
       expect(find.text('Le Père Noël est passé ?'), findsOneWidget);
+      expect(
+        find.text(
+          'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.',
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('after the party without a wishlist has no button',
@@ -386,14 +398,33 @@ void main() {
       await tapAndExpectPath(tester, 'Compléter', '/wishlist/2');
     });
 
-    testWidgets('Christmas day says it is Christmas', (tester) async {
+    testWidgets('Christmas tomorrow is still the countdown, not the day',
+        (tester) async {
+      await pumpCard(tester, card(Christmas(1, fakeWishlist2)));
+
+      expect(find.text('Ta liste « Noël » a 2 wishs'), findsOneWidget);
+      expect(find.text("C'est le grand jour"), findsNothing);
+      await tapAndExpectPath(tester, 'Compléter', '/wishlist/2');
+    });
+
+    testWidgets('Christmas day asks if Santa read the list', (tester) async {
       await pumpCard(tester, card(Christmas(0, fakeWishlist2)));
 
-      expect(find.text("C'est Noël !"), findsOneWidget);
+      expect(find.text("C'est le grand jour"), findsOneWidget);
       expect(find.textContaining('dans 0'), findsNothing);
-      expect(find.text('Joyeux Noël !'), findsOneWidget);
-      expect(find.text('Ta liste « Noël »'), findsOneWidget);
+      expect(find.text('Le Père Noël a lu ta liste ?'), findsOneWidget);
+      expect(find.textContaining('Ta liste'), findsNothing);
       await tapAndExpectPath(tester, 'Voir ma liste', '/wishlist/2');
+    });
+
+    testWidgets('Christmas day without a list has no button', (tester) async {
+      await pumpCard(tester, card(const Christmas(0, null)));
+
+      expect(find.text("C'est le grand jour"), findsOneWidget);
+      expect(find.text('Le Père Noël a lu ta liste ?'), findsOneWidget);
+      expect(find.text('Voir ma liste'), findsNothing);
+      expect(find.text('Créer ma liste de Noël'), findsNothing);
+      expect(find.textContaining('Ta liste'), findsNothing);
     });
 
     testWidgets('Christmas without a list offers to create one',

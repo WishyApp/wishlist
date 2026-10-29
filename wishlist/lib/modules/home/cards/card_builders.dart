@@ -113,8 +113,9 @@ List<HomeCardCandidate> friendBirthdayCards({
 
 /// The day after the user's birthday or after Christmas, up to `days_after`
 /// days. The wishlist of Christmas is found by its name; the one of the
-/// birthday is the only wishlist, if there is just one. Nothing is offered to
-/// a user who has no open wishlist of their own, as there is nothing to tick.
+/// birthday is the only open wishlist of the user, if there is just one.
+/// Nothing is offered to a user who has no open wishlist of their own, as
+/// there is nothing to tick.
 List<HomeCardCandidate> afterPartyCards({
   required Birthday? myBirthday,
   required List<Wishlist> wishlists,
@@ -123,8 +124,13 @@ List<HomeCardCandidate> afterPartyCards({
   required HomeCardDefinition? christmas,
   required DateTime now,
 }) {
-  if (definition == null ||
-      !wishlists.any((w) => w.idOwner == userId && !w.isClosed)) {
+  // Deliberately ignores endDate: a birthday list past its end date is
+  // exactly the one to tick.
+  final openOwn = [
+    for (final w in wishlists)
+      if (w.idOwner == userId && !w.isClosed) w,
+  ];
+  if (definition == null || openOwn.isEmpty) {
     return const [];
   }
   final today = _day(now);
@@ -143,7 +149,7 @@ List<HomeCardCandidate> afterPartyCards({
             content: AfterParty(
               AfterPartyOccasion.birthday,
               ago,
-              wishlists.length == 1 ? wishlists.single : null,
+              openOwn.length == 1 ? openOwn.single : null,
             ),
             eventAt: day,
           ),
@@ -312,8 +318,9 @@ List<HomeCardCandidate> friendAcceptedCards({
 }
 
 /// From the largest `reminder_days` before Christmas to the day itself. On
-/// the day, the card only wishes a merry Christmas to a user who has a
-/// Christmas wishlist: without one there is nothing to create or complete.
+/// the day, the card asks if Santa read the list: it is kept without a
+/// Christmas wishlist as long as the user owns an open one (no button then),
+/// and dropped for a user with nothing to show.
 List<HomeCardCandidate> christmasCards({
   required List<Wishlist> wishlists,
   required String userId,
@@ -331,7 +338,9 @@ List<HomeCardCandidate> christmasCards({
   }
   final wishlist =
       _christmasWishlist(wishlists, userId, definition, christmasDay);
-  if (days == 0 && wishlist == null) {
+  if (days == 0 &&
+      wishlist == null &&
+      !wishlists.any((w) => w.idOwner == userId && !w.isClosed)) {
     return const [];
   }
   return [

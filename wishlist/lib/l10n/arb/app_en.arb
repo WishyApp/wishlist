@@ -482,7 +482,7 @@
       }
     }
   },
-  "homeCardChristmasOverline": "{days, plural, =0{It's Christmas!} =1{Christmas is tomorrow} other{Christmas is in {days} days}}",
+  "homeCardChristmasOverline": "{days, plural, =0{The big day} =1{Christmas is tomorrow} other{Christmas is in {days} days}}",
   "@homeCardChristmasOverline": {
     "placeholders": {
       "days": {
@@ -512,7 +512,7 @@
   "homeCardChristmasListAction": "Complete it",
   "homeCardChristmasNoListTitle": "Christmas is coming",
   "homeCardChristmasNoListAction": "Create my Christmas list",
-  "homeCardChristmasDayTitle": "Merry Christmas!",
+  "homeCardChristmasDayTitle": "Did Santa read your list?",
   "homeCardChristmasDayAction": "See my list",
   "homeCardOnboardingStep": "Step {step} of {total}",
   "@homeCardOnboardingStep": {

@@ -95,7 +95,10 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   // (ids, names, flags), the objects themselves are then read once.
   await ref.watch(
     wishlistsRealtimeProvider.selectAsync(
-      (list) => [for (final w in list) (id: w.id, name: w.name)].toIList(),
+      (list) => [
+        for (final w in list)
+          (id: w.id, name: w.name, owner: w.idOwner, isClosed: w.isClosed),
+      ].toIList(),
     ),
   );
   final wishlists = _valueOf(wishlistsRealtimeProvider, ref) ?? const [];

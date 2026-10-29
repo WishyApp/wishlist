@@ -499,7 +499,7 @@
       }
     }
   },
-  "homeCardChristmasOverline": "{days, plural, =0{C'est Noël !} =1{Noël demain} other{Noël dans {days} jours}}",
+  "homeCardChristmasOverline": "{days, plural, =0{C'est le grand jour} =1{Noël demain} other{Noël dans {days} jours}}",
   "@homeCardChristmasOverline": {
     "placeholders": {
       "days": {
@@ -529,7 +529,7 @@
   "homeCardChristmasListAction": "Compléter",
   "homeCardChristmasNoListTitle": "Noël approche",
   "homeCardChristmasNoListAction": "Créer ma liste de Noël",
-  "homeCardChristmasDayTitle": "Joyeux Noël !",
+  "homeCardChristmasDayTitle": "Le Père Noël a lu ta liste ?",
   "homeCardChristmasDayAction": "Voir ma liste",
   "homeCardOnboardingStep": "Étape {step} sur {total}",
   "@homeCardOnboardingStep": {

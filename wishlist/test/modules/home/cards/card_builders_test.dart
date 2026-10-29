@@ -296,6 +296,21 @@ void main() {
       );
     });
 
+    test('only my open wishlists count for the birthday one', () {
+      final open = wishlist(1, 'Vacances');
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [
+          open,
+          wishlist(2, 'Ancienne', isClosed: true),
+          wishlist(3, 'Autre', owner: 'other'),
+        ],
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, open);
+    });
+
     test('the birthday itself gives nothing', () {
       expect(build(now, mine: const Birthday(month: 10, day: 30)), isEmpty);
     });
@@ -746,12 +761,35 @@ void main() {
       expect(content.wishlist, christmas);
     });
 
-    test('Christmas day without a Christmas wishlist gives nothing', () {
-      expect(build(DateTime(2026, 12, 25, 9)), isEmpty);
+    test(
+        'Christmas day without a Christmas list but an open one still gives it',
+        () {
+      final cards = build(DateTime(2026, 12, 25, 9), [wishlist(1, 'Vacances')]);
+
+      final content = cards.single.content as Christmas;
+      expect(content.days, 0);
+      expect(content.wishlist, isNull);
+    });
+
+    test('Christmas day without an open own wishlist gives nothing', () {
+      final day = DateTime(2026, 12, 25, 9);
+      expect(build(day), isEmpty);
       expect(
-        build(DateTime(2026, 12, 25, 9), [wishlist(1, 'Vacances')]),
+        build(day, [wishlist(1, 'Vacances', isClosed: true)]),
         isEmpty,
       );
+      expect(
+        build(day, [wishlist(1, 'Vacances', owner: 'other')]),
+        isEmpty,
+      );
+    });
+
+    test('December 24 without a Christmas wishlist still gives the card', () {
+      final content =
+          build(DateTime(2026, 12, 24, 9)).single.content as Christmas;
+
+      expect(content.days, 1);
+      expect(content.wishlist, isNull);
     });
 
     test('December 26 gives nothing', () {
