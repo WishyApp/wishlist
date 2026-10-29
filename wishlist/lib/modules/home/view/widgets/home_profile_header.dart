@@ -98,9 +98,11 @@ class _EditProfileButton extends StatelessWidget {
     // as the pill. The ink (ripple and highlight) is clipped to the pill by its
     // own Material, so it matches what is seen. A tap on the pill is taken by
     // the InkWell, a tap on the strip above or below it by the GestureDetector:
-    // never both, so `onTap` runs once.
+    // never both, so `onTap` runs once. Only the InkWell is in the semantics
+    // tree: a screen reader announces one labelled button.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      excludeFromSemantics: true,
       onTap: onTap,
       child: SizedBox(
         height: 44,

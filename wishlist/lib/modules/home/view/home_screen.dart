@@ -24,7 +24,7 @@ class HomeScreen extends ConsumerWidget {
     final wishlists = ref.watch(wishlistsRealtimeProvider);
 
     // The header and the received wishes row hide their errors, so the retry
-    // reloads all three providers (retryFailed only reloads the failed ones)
+    // covers all three providers; retryFailed reloads only those in error
     final retriedProviders = [
       watchCurrentUserProfileProvider,
       receivedWishesSummaryProvider,

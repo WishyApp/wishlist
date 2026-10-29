@@ -40,7 +40,10 @@ void main() {
     await tester.tap(find.byType(AppAvatar));
     await tester.pumpAndSettle();
 
-    expect(find.byType(EditProfileScreen), findsOneWidget);
+    expect(
+      find.byType(EditProfileScreen, skipOffstage: false),
+      findsOneWidget,
+    );
   });
 
   testWidgets('opens the edit profile page from the button', (tester) async {
@@ -49,7 +52,10 @@ void main() {
     await tester.tap(find.text('Modifier le profil'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(EditProfileScreen), findsOneWidget);
+    expect(
+      find.byType(EditProfileScreen, skipOffstage: false),
+      findsOneWidget,
+    );
   });
 
   testWidgets('opens the settings from the cog', (tester) async {
@@ -101,7 +107,10 @@ void main() {
 
     await tester.tapAt(Offset(pill.center.dx, pill.top - 5));
     await tester.pumpAndSettle();
-    expect(find.byType(EditProfileScreen), findsOneWidget);
+    expect(
+      find.byType(EditProfileScreen, skipOffstage: false),
+      findsOneWidget,
+    );
 
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await tester.pumpAndSettle();
@@ -109,6 +118,9 @@ void main() {
 
     await tester.tapAt(Offset(pill.center.dx, pill.bottom + 5));
     await tester.pumpAndSettle();
-    expect(find.byType(EditProfileScreen), findsOneWidget);
+    expect(
+      find.byType(EditProfileScreen, skipOffstage: false),
+      findsOneWidget,
+    );
   });
 }
