@@ -69,8 +69,9 @@ final homeCardDefinitionsProvider =
 /// bookings, alerts, recent friends) loses just those cards.
 final homeCardsProvider =
     FutureProvider.autoDispose<List<HomeCardCandidate>>((ref) async {
-  final now = ref.watch(clockProvider)();
-  _recomputeOnNewDay(ref, now);
+  final clock = ref.watch(clockProvider);
+  final now = clock();
+  _recomputeOnNewDay(ref, clock, now);
   try {
     return await _loadCards(ref, now);
   } catch (e) {
@@ -82,14 +83,14 @@ final homeCardsProvider =
 /// The cards depend on the local day: recompute at the next midnight, and when
 /// the app comes back to the foreground on another day than the one the cards
 /// were computed for (timers do not run while it sleeps).
-void _recomputeOnNewDay(Ref ref, DateTime now) {
+void _recomputeOnNewDay(Ref ref, DateTime Function() clock, DateTime now) {
   final local = now.toLocal();
   final today = DateTime(local.year, local.month, local.day);
   final midnight = DateTime(today.year, today.month, today.day + 1);
   final timer = Timer(midnight.difference(local), ref.invalidateSelf);
   final lifecycle = AppLifecycleListener(
     onResume: () {
-      final current = ref.read(clockProvider)().toLocal();
+      final current = clock().toLocal();
       if (DateTime(current.year, current.month, current.day) != today) {
         ref.invalidateSelf();
       }
@@ -110,6 +111,9 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   if (userId == null) {
     return const [];
   }
+  // Captured here: callbacks run outside the build, where `ref` must not be
+  // used to read.
+  final recordedWindows = ref.watch(_optionalWindowRecordedProvider);
   final cardStateRepository = ref.watch(cardStateRepositoryProvider);
   final friendshipRepository = ref.watch(friendshipRepositoryProvider);
 
@@ -150,7 +154,12 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
         bookedWishesRealtimeProvider.selectAsync(
           (list) => [
             for (final b in list)
-              (wishId: b.wish.id, ownerId: b.ownerId, isGiven: b.isGiven),
+              (
+                wishId: b.wish.id,
+                ownerId: b.ownerId,
+                isGiven: b.isGiven,
+                wishlistName: b.wishlistName,
+              ),
           ].toIList(),
         ),
       );
@@ -309,11 +318,11 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
       (top.step == OnboardingStep.birthday ||
           top.step == OnboardingStep.photo) &&
       !states.containsKey(onboardingOptionalWindowKey) &&
-      ref.read(_optionalWindowRecordedProvider).add(userId)) {
+      recordedWindows.add(userId)) {
     unawaited(
       _recordOptionalWindow(
         cardStateRepository,
-        () => ref.read(_optionalWindowRecordedProvider).remove(userId),
+        () => recordedWindows.remove(userId),
       ),
     );
   }

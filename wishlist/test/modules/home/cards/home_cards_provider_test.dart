@@ -26,6 +26,7 @@ import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
+import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/card_state.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/profile.dart';
@@ -525,6 +526,8 @@ void main() {
       });
     });
 
+    late ProviderSubscription<AsyncValue<List<HomeCardCandidate>>> listener;
+
     ProviderContainer containerWithClock(DateTime Function() clock) {
       final container = ProviderContainer(
         overrides: [
@@ -547,7 +550,7 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      container.listen(homeCardsProvider, (_, __) {});
+      listener = container.listen(homeCardsProvider, (_, __) {});
       return container;
     }
 
@@ -577,9 +580,14 @@ void main() {
     test('a disposed provider no longer recomputes', () {
       fakeAsync((async) {
         final start = DateTime(2026, 10, 28, 23);
-        final container = containerWithClock(() => start.add(async.elapsed));
+        containerWithClock(() => start.add(async.elapsed));
         async.flushMicrotasks();
-        container.dispose();
+        // Only the provider goes away (nobody listens), the container lives.
+        listener.close();
+        async.elapse(Duration.zero);
+        // Invalidating a disposed provider is silent: the midnight timer
+        // itself must be gone.
+        expect(async.nonPeriodicTimerCount, 0);
 
         async.elapse(const Duration(days: 3));
         async.flushMicrotasks();
@@ -613,6 +621,7 @@ void main() {
         // The same day: nothing to do.
         background(binding);
         foreground(binding);
+        async.elapse(Duration.zero);
         async.flushMicrotasks();
         expect(computations(), 1);
 
@@ -624,6 +633,127 @@ void main() {
         expect(computations(), 2);
       });
     });
+  });
+
+  group('the reminder of a booked wish', () {
+    // Wednesday December 16th: Christmas is within the 14 days.
+    final christmasWeek = DateTime(2026, 12, 16, 10);
+
+    BookedWishWithDetails booking(String wishlistName) => BookedWishWithDetails(
+          wish: fakeWish1,
+          bookedQuantity: 1,
+          wishlistName: wishlistName,
+          ownerPseudo: 'Alice',
+          ownerId: fakeFriendUserId1,
+        );
+
+    ProviderContainer containerWith(
+      Stream<IList<BookedWishWithDetails>> stream,
+    ) {
+      final container = ProviderContainer(
+        overrides: [
+          ...homeScreenOverrides(now: christmasWeek),
+          bookedWishesRealtimeProvider.overrideWith((ref) => stream),
+          currentUserBirthdayOverride(
+            birthday: const Birthday(month: 1, day: 1),
+          ),
+          watchCurrentUserProfileOverride(
+            profile: Profile(
+              id: fakeCurrentUserId,
+              pseudo: 'MonPseudo',
+              avatarUrl: 'https://example.com/me.png',
+            ),
+          ),
+          homeCardRepositoryProvider.overrideWithValue(homeCards),
+          cardStateRepositoryProvider.overrideWithValue(cardStates),
+          friendshipRepositoryProvider.overrideWithValue(friendships),
+          bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(homeCardsProvider, (_, __) {});
+      return container;
+    }
+
+    test('renaming the list of a booked wish recomputes the cards', () async {
+      final stream = BehaviorSubject<IList<BookedWishWithDetails>>.seeded(
+        [booking('Anniversaire')].toIList(),
+      );
+      addTearDown(stream.close);
+      final container = containerWith(stream.stream);
+      final before = await container.read(homeCardsProvider.future);
+      expect(before.map((c) => c.type), isNot(contains('booked_reminder')));
+
+      stream.add([booking('Noël 2026')].toIList());
+      await pumpEventQueue();
+      final after = await container.read(homeCardsProvider.future);
+
+      expect(after.map((c) => c.type), contains('booked_reminder'));
+    });
+
+    test('the keywords of the christmas definition decide the occasion',
+        () async {
+      when(() => homeCards.getActiveCards()).thenAnswer(
+        (_) async => [
+          for (final seed in seeds)
+            if (seed.key == 'christmas')
+              def('christmas', 40, {
+                'reminder_days': [30, 7],
+                'highlight_days': 7,
+                'keywords': ['sapin'],
+              })
+            else
+              seed,
+        ],
+      );
+      final container = containerWith(
+        Stream.value([booking('Sapin 2026')].toIList()),
+      );
+
+      final cards = await container.read(homeCardsProvider.future);
+
+      expect(cards.map((c) => c.type), contains('booked_reminder'));
+    });
+  });
+
+  test('a failed record of the onboarding window is tried again', () async {
+    var attempts = 0;
+    when(() => cardStates.recordShown(any())).thenAnswer((_) async {
+      attempts++;
+      if (attempts == 1) {
+        throw Exception('offline');
+      }
+    });
+    final container = ProviderContainer(
+      overrides: [
+        ...homeScreenOverrides(
+          now: now,
+          bookedWishes: fakeBookedWishes.clear(),
+        ),
+        currentUserBirthdayOverride(),
+        watchCurrentUserProfileOverride(
+          profile: Profile(
+            id: fakeCurrentUserId,
+            pseudo: 'MonPseudo',
+            avatarUrl: 'https://example.com/me.png',
+          ),
+        ),
+        homeCardRepositoryProvider.overrideWithValue(homeCards),
+        cardStateRepositoryProvider.overrideWithValue(cardStates),
+        friendshipRepositoryProvider.overrideWithValue(friendships),
+        bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(homeCardsProvider, (_, __) {});
+    await container.read(homeCardsProvider.future);
+    await pumpEventQueue();
+
+    container.invalidate(homeCardsProvider);
+    await container.read(homeCardsProvider.future);
+    await pumpEventQueue();
+
+    expect(attempts, 2);
   });
 
   test('the onboarding window is recorded once across recomputes', () async {
