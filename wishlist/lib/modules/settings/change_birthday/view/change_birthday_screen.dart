@@ -102,7 +102,8 @@ class _ChangeBirthdayFormState extends ConsumerState<_ChangeBirthdayForm> {
 
   void _onSuccess(String message) {
     // The callers checked `mounted`
-    // The container outlives this State: the settings line shows the new value
+    // The container outlives this State: the edit profile line shows the new
+    // value
     final container = ProviderScope.containerOf(context);
     showAppSnackBar(
       context,

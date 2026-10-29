@@ -111,6 +111,20 @@ class SettingsScreen extends ConsumerWidget {
                     SettingsSection(
                       title: l10n.settingsGeneral,
                       children: [
+                        // Temporary: the home header and the received wishes
+                        // row replace these two lines.
+                        SettingsLine(
+                          title: l10n.editProfileScreenTitle,
+                          onTap: () {
+                            EditProfileRoute().push(context);
+                          },
+                        ),
+                        SettingsLine(
+                          title: l10n.settingsCompletedWishes,
+                          onTap: () {
+                            CompletedWishesRoute().push(context);
+                          },
+                        ),
                         if (hasPassword)
                           SettingsLine(
                             title: l10n.settingsScreenPasswordModify,

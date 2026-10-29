@@ -189,9 +189,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsScreenPasswordModify => 'Modifier mon mot de passe';
 
   @override
-  String get settingsScreenPseudoModify => 'Modifier mon pseudo';
-
-  @override
   String get changePasswordScreenTitle => 'Mot de passe';
 
   @override
@@ -235,9 +232,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get changePseudoSuccess => 'Pseudo modifié avec succès !';
-
-  @override
-  String get settingsScreenBirthday => 'Mon anniversaire';
 
   @override
   String get settingsScreenBirthdayNotSet => 'Non renseigné';

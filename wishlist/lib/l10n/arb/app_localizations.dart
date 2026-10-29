@@ -428,12 +428,6 @@ abstract class AppLocalizations {
   /// **'Modifier mon mot de passe'**
   String get settingsScreenPasswordModify;
 
-  /// No description provided for @settingsScreenPseudoModify.
-  ///
-  /// In fr, this message translates to:
-  /// **'Modifier mon pseudo'**
-  String get settingsScreenPseudoModify;
-
   /// No description provided for @changePasswordScreenTitle.
   ///
   /// In fr, this message translates to:
@@ -517,12 +511,6 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Pseudo modifié avec succès !'**
   String get changePseudoSuccess;
-
-  /// No description provided for @settingsScreenBirthday.
-  ///
-  /// In fr, this message translates to:
-  /// **'Mon anniversaire'**
-  String get settingsScreenBirthday;
 
   /// No description provided for @settingsScreenBirthdayNotSet.
   ///
