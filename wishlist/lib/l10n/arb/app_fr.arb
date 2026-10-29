@@ -389,5 +389,161 @@
   "wishlistSettingsOwnerOnly": "Seul le propriétaire de cette wishlist peut modifier ses paramètres",
   "homeMyWishlists": "Mes wishlists",
   "homeNoWishlist": "Pas encore de wishlist",
-  "homeReceivedWishes": "{count, plural, =1 {1 wish reçu} other {{count} wishs reçus}}"
+  "homeReceivedWishes": "{count, plural, =1 {1 wish reçu} other {{count} wishs reçus}}",
+  "homeCardHide": "Masquer",
+  "homeCardLater": "Plus tard",
+  "homeCardHidden": "Carte masquée",
+  "homeCardPostponed": "{days, plural, =1{Reportée à demain} other{Reportée de {days} jours}}",
+  "@homeCardPostponed": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardFriendBirthdayTodayOverline": "C'est aujourd'hui !",
+  "homeCardFriendBirthdayTodayTitle": "Joyeux anniversaire à {pseudo}",
+  "@homeCardFriendBirthdayTodayTitle": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardSeeTheirList": "Voir sa liste",
+  "homeCardFriendBirthdaySoonTitle": "Anniversaire de {pseudo}",
+  "@homeCardFriendBirthdaySoonTitle": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardSeeTheirWishlists": "Voir ses wishlists",
+  "homeCardAfterPartyBirthdayOverline": "{days, plural, =1{Ton anniversaire, c'était hier} other{Ton anniversaire, c'était il y a {days} jours}}",
+  "@homeCardAfterPartyBirthdayOverline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardAfterPartyChristmasOverline": "{days, plural, =1{Noël, c'était hier} other{Noël, c'était il y a {days} jours}}",
+  "@homeCardAfterPartyChristmasOverline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardAfterPartyTitle": "Tu as reçu des choses de ta liste ?",
+  "homeCardAfterPartyAction": "Cocher ce que j'ai reçu",
+  "homeCardAfterPartyNoList": "Ouvre ta liste pour cocher ce que tu as reçu.",
+  "homeCardBookedReminderBirthdayOverline": "Rappel · {pseudo} fête son anniversaire {days, plural, =0{aujourd'hui} =1{demain} other{dans {days} jours}}",
+  "@homeCardBookedReminderBirthdayOverline": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardBookedReminderChristmasOverline": "Rappel · {days, plural, =0{c'est Noël aujourd'hui} =1{Noël demain} other{Noël dans {days} jours}}",
+  "@homeCardBookedReminderChristmasOverline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardBookedReminderTitle": "Tu as réservé {wish}",
+  "@homeCardBookedReminderTitle": {
+    "placeholders": {
+      "wish": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardSeeTheWish": "Voir le wish",
+  "homeCardRemovedOverline": "Changement chez {pseudo}",
+  "@homeCardRemovedOverline": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardRemovedOverlineNoPseudo": "Changement dans une wishlist",
+  "homeCardRemovedTitle": "{pseudo} a retiré {wish} que tu avais réservé",
+  "@homeCardRemovedTitle": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      },
+      "wish": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardRemovedTitleNoPseudo": "Un wish que tu avais réservé a été retiré",
+  "homeCardRemovedBody": "Si tu l'as déjà acheté, tu peux toujours l'offrir. Sinon, sa liste a d'autres idées.",
+  "homeCardAcceptedTitle": "{pseudo} a accepté ta demande",
+  "@homeCardAcceptedTitle": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardChristmasOverline": "{days, plural, =0{C'est Noël !} =1{Noël demain} other{Noël dans {days} jours}}",
+  "@homeCardChristmasOverline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardChristmasListTitle": "{count, plural, =0{Ta liste « {name} » est vide} =1{Ta liste « {name} » a 1 wish} other{Ta liste « {name} » a {count} wishs}}",
+  "@homeCardChristmasListTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardChristmasListTitleNoCount": "Ta liste « {name} »",
+  "@homeCardChristmasListTitleNoCount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardChristmasListAction": "Compléter",
+  "homeCardChristmasNoListTitle": "Noël approche",
+  "homeCardChristmasNoListAction": "Créer ma liste de Noël",
+  "homeCardOnboardingStep": "Étape {step} sur {total}",
+  "@homeCardOnboardingStep": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardOnboardingWishlistTitle": "Crée ta première wishlist",
+  "homeCardOnboardingWishlistAction": "Créer une wishlist",
+  "homeCardOnboardingFriendTitle": "Ajoute un ami",
+  "homeCardOnboardingFriendAction": "Ajouter un ami",
+  "homeCardOnboardingBirthdayTitle": "Ajoute ton anniversaire",
+  "homeCardOnboardingBirthdayAction": "Ajouter",
+  "homeCardOnboardingPhotoTitle": "Mets une photo",
+  "homeCardOnboardingPhotoAction": "Choisir une photo"
 }

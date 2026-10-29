@@ -1705,6 +1705,240 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'{count, plural, =1 {1 wish reçu} other {{count} wishs reçus}}'**
   String homeReceivedWishes(num count);
+
+  /// No description provided for @homeCardHide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Masquer'**
+  String get homeCardHide;
+
+  /// No description provided for @homeCardLater.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus tard'**
+  String get homeCardLater;
+
+  /// No description provided for @homeCardHidden.
+  ///
+  /// In fr, this message translates to:
+  /// **'Carte masquée'**
+  String get homeCardHidden;
+
+  /// No description provided for @homeCardPostponed.
+  ///
+  /// In fr, this message translates to:
+  /// **'{days, plural, =1{Reportée à demain} other{Reportée de {days} jours}}'**
+  String homeCardPostponed(int days);
+
+  /// No description provided for @homeCardFriendBirthdayTodayOverline.
+  ///
+  /// In fr, this message translates to:
+  /// **'C\'est aujourd\'hui !'**
+  String get homeCardFriendBirthdayTodayOverline;
+
+  /// No description provided for @homeCardFriendBirthdayTodayTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Joyeux anniversaire à {pseudo}'**
+  String homeCardFriendBirthdayTodayTitle(String pseudo);
+
+  /// No description provided for @homeCardSeeTheirList.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir sa liste'**
+  String get homeCardSeeTheirList;
+
+  /// No description provided for @homeCardFriendBirthdaySoonTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire de {pseudo}'**
+  String homeCardFriendBirthdaySoonTitle(String pseudo);
+
+  /// No description provided for @homeCardSeeTheirWishlists.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir ses wishlists'**
+  String get homeCardSeeTheirWishlists;
+
+  /// No description provided for @homeCardAfterPartyBirthdayOverline.
+  ///
+  /// In fr, this message translates to:
+  /// **'{days, plural, =1{Ton anniversaire, c\'était hier} other{Ton anniversaire, c\'était il y a {days} jours}}'**
+  String homeCardAfterPartyBirthdayOverline(int days);
+
+  /// No description provided for @homeCardAfterPartyChristmasOverline.
+  ///
+  /// In fr, this message translates to:
+  /// **'{days, plural, =1{Noël, c\'était hier} other{Noël, c\'était il y a {days} jours}}'**
+  String homeCardAfterPartyChristmasOverline(int days);
+
+  /// No description provided for @homeCardAfterPartyTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tu as reçu des choses de ta liste ?'**
+  String get homeCardAfterPartyTitle;
+
+  /// No description provided for @homeCardAfterPartyAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cocher ce que j\'ai reçu'**
+  String get homeCardAfterPartyAction;
+
+  /// No description provided for @homeCardAfterPartyNoList.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvre ta liste pour cocher ce que tu as reçu.'**
+  String get homeCardAfterPartyNoList;
+
+  /// No description provided for @homeCardBookedReminderBirthdayOverline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rappel · {pseudo} fête son anniversaire {days, plural, =0{aujourd\'hui} =1{demain} other{dans {days} jours}}'**
+  String homeCardBookedReminderBirthdayOverline(String pseudo, int days);
+
+  /// No description provided for @homeCardBookedReminderChristmasOverline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rappel · {days, plural, =0{c\'est Noël aujourd\'hui} =1{Noël demain} other{Noël dans {days} jours}}'**
+  String homeCardBookedReminderChristmasOverline(int days);
+
+  /// No description provided for @homeCardBookedReminderTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tu as réservé {wish}'**
+  String homeCardBookedReminderTitle(String wish);
+
+  /// No description provided for @homeCardSeeTheWish.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir le wish'**
+  String get homeCardSeeTheWish;
+
+  /// No description provided for @homeCardRemovedOverline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changement chez {pseudo}'**
+  String homeCardRemovedOverline(String pseudo);
+
+  /// No description provided for @homeCardRemovedOverlineNoPseudo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changement dans une wishlist'**
+  String get homeCardRemovedOverlineNoPseudo;
+
+  /// No description provided for @homeCardRemovedTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'{pseudo} a retiré {wish} que tu avais réservé'**
+  String homeCardRemovedTitle(String pseudo, String wish);
+
+  /// No description provided for @homeCardRemovedTitleNoPseudo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Un wish que tu avais réservé a été retiré'**
+  String get homeCardRemovedTitleNoPseudo;
+
+  /// No description provided for @homeCardRemovedBody.
+  ///
+  /// In fr, this message translates to:
+  /// **'Si tu l\'as déjà acheté, tu peux toujours l\'offrir. Sinon, sa liste a d\'autres idées.'**
+  String get homeCardRemovedBody;
+
+  /// No description provided for @homeCardAcceptedTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'{pseudo} a accepté ta demande'**
+  String homeCardAcceptedTitle(String pseudo);
+
+  /// No description provided for @homeCardChristmasOverline.
+  ///
+  /// In fr, this message translates to:
+  /// **'{days, plural, =0{C\'est Noël !} =1{Noël demain} other{Noël dans {days} jours}}'**
+  String homeCardChristmasOverline(int days);
+
+  /// No description provided for @homeCardChristmasListTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{Ta liste « {name} » est vide} =1{Ta liste « {name} » a 1 wish} other{Ta liste « {name} » a {count} wishs}}'**
+  String homeCardChristmasListTitle(String name, int count);
+
+  /// No description provided for @homeCardChristmasListTitleNoCount.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ta liste « {name} »'**
+  String homeCardChristmasListTitleNoCount(String name);
+
+  /// No description provided for @homeCardChristmasListAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Compléter'**
+  String get homeCardChristmasListAction;
+
+  /// No description provided for @homeCardChristmasNoListTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Noël approche'**
+  String get homeCardChristmasNoListTitle;
+
+  /// No description provided for @homeCardChristmasNoListAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créer ma liste de Noël'**
+  String get homeCardChristmasNoListAction;
+
+  /// No description provided for @homeCardOnboardingStep.
+  ///
+  /// In fr, this message translates to:
+  /// **'Étape {step} sur {total}'**
+  String homeCardOnboardingStep(int step, int total);
+
+  /// No description provided for @homeCardOnboardingWishlistTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Crée ta première wishlist'**
+  String get homeCardOnboardingWishlistTitle;
+
+  /// No description provided for @homeCardOnboardingWishlistAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créer une wishlist'**
+  String get homeCardOnboardingWishlistAction;
+
+  /// No description provided for @homeCardOnboardingFriendTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajoute un ami'**
+  String get homeCardOnboardingFriendTitle;
+
+  /// No description provided for @homeCardOnboardingFriendAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter un ami'**
+  String get homeCardOnboardingFriendAction;
+
+  /// No description provided for @homeCardOnboardingBirthdayTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajoute ton anniversaire'**
+  String get homeCardOnboardingBirthdayTitle;
+
+  /// No description provided for @homeCardOnboardingBirthdayAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter'**
+  String get homeCardOnboardingBirthdayAction;
+
+  /// No description provided for @homeCardOnboardingPhotoTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mets une photo'**
+  String get homeCardOnboardingPhotoTitle;
+
+  /// No description provided for @homeCardOnboardingPhotoAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisir une photo'**
+  String get homeCardOnboardingPhotoAction;
 }
 
 class _AppLocalizationsDelegate

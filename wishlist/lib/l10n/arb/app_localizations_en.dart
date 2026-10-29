@@ -977,4 +977,200 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get homeCardHide => 'Hide';
+
+  @override
+  String get homeCardLater => 'Later';
+
+  @override
+  String get homeCardHidden => 'Card hidden';
+
+  @override
+  String homeCardPostponed(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Postponed for $days days',
+      one: 'Postponed to tomorrow',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get homeCardFriendBirthdayTodayOverline => 'It\'s today!';
+
+  @override
+  String homeCardFriendBirthdayTodayTitle(String pseudo) {
+    return 'Happy birthday to $pseudo';
+  }
+
+  @override
+  String get homeCardSeeTheirList => 'See their list';
+
+  @override
+  String homeCardFriendBirthdaySoonTitle(String pseudo) {
+    return '$pseudo\'s birthday';
+  }
+
+  @override
+  String get homeCardSeeTheirWishlists => 'See their wishlists';
+
+  @override
+  String homeCardAfterPartyBirthdayOverline(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Your birthday was $days days ago',
+      one: 'Your birthday was yesterday',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeCardAfterPartyChristmasOverline(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Christmas was $days days ago',
+      one: 'Christmas was yesterday',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get homeCardAfterPartyTitle => 'Did you get things from your list?';
+
+  @override
+  String get homeCardAfterPartyAction => 'Tick what I received';
+
+  @override
+  String get homeCardAfterPartyNoList =>
+      'Open your list to tick what you received.';
+
+  @override
+  String homeCardBookedReminderBirthdayOverline(String pseudo, int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'in $days days',
+      one: 'tomorrow',
+      zero: 'today',
+    );
+    return 'Reminder · $pseudo\'s birthday is $_temp0';
+  }
+
+  @override
+  String homeCardBookedReminderChristmasOverline(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Christmas is in $days days',
+      one: 'Christmas is tomorrow',
+      zero: 'it\'s Christmas today',
+    );
+    return 'Reminder · $_temp0';
+  }
+
+  @override
+  String homeCardBookedReminderTitle(String wish) {
+    return 'You booked $wish';
+  }
+
+  @override
+  String get homeCardSeeTheWish => 'See the wish';
+
+  @override
+  String homeCardRemovedOverline(String pseudo) {
+    return 'A change at $pseudo\'s';
+  }
+
+  @override
+  String get homeCardRemovedOverlineNoPseudo => 'A change in a wishlist';
+
+  @override
+  String homeCardRemovedTitle(String pseudo, String wish) {
+    return '$pseudo removed $wish, which you had booked';
+  }
+
+  @override
+  String get homeCardRemovedTitleNoPseudo =>
+      'A wish you had booked was removed';
+
+  @override
+  String get homeCardRemovedBody =>
+      'If you already bought it, you can still give it. If not, their list has other ideas.';
+
+  @override
+  String homeCardAcceptedTitle(String pseudo) {
+    return '$pseudo accepted your request';
+  }
+
+  @override
+  String homeCardChristmasOverline(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Christmas is in $days days',
+      one: 'Christmas is tomorrow',
+      zero: 'It\'s Christmas!',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeCardChristmasListTitle(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Your list \"$name\" has $count wishes',
+      one: 'Your list \"$name\" has 1 wish',
+      zero: 'Your list \"$name\" is empty',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeCardChristmasListTitleNoCount(String name) {
+    return 'Your list \"$name\"';
+  }
+
+  @override
+  String get homeCardChristmasListAction => 'Complete it';
+
+  @override
+  String get homeCardChristmasNoListTitle => 'Christmas is coming';
+
+  @override
+  String get homeCardChristmasNoListAction => 'Create my Christmas list';
+
+  @override
+  String homeCardOnboardingStep(int step, int total) {
+    return 'Step $step of $total';
+  }
+
+  @override
+  String get homeCardOnboardingWishlistTitle => 'Create your first wishlist';
+
+  @override
+  String get homeCardOnboardingWishlistAction => 'Create a wishlist';
+
+  @override
+  String get homeCardOnboardingFriendTitle => 'Add a friend';
+
+  @override
+  String get homeCardOnboardingFriendAction => 'Add a friend';
+
+  @override
+  String get homeCardOnboardingBirthdayTitle => 'Add your birthday';
+
+  @override
+  String get homeCardOnboardingBirthdayAction => 'Add';
+
+  @override
+  String get homeCardOnboardingPhotoTitle => 'Add a photo';
+
+  @override
+  String get homeCardOnboardingPhotoAction => 'Choose a photo';
 }
