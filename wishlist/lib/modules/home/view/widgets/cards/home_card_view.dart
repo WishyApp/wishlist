@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/friends/view/widgets/add_friend_bottom_sheet.dart';
+import 'package:wishlist/modules/home/cards/home_card_actions.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
@@ -130,27 +131,43 @@ class HomeCardView extends ConsumerWidget {
                         ],
                         if (spec.actionLabel case final label?) ...[
                           const Gap(12),
-                          ElevatedButton(
-                            onPressed: spec.onAction,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: palette.button,
-                              foregroundColor: palette.buttonText,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              ElevatedButton(
+                                onPressed: spec.onAction,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: palette.button,
+                                  foregroundColor: palette.buttonText,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                child: Text(
+                                  label,
+                                  style: AppTextStyles.smaller.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: palette.buttonText,
+                                  ),
+                                ),
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: Text(
-                              label,
-                              style: AppTextStyles.smaller.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: palette.buttonText,
-                              ),
-                            ),
+                              if (spec.secondaryLabel case final secondary?)
+                                TextButton(
+                                  onPressed: spec.onSecondary,
+                                  child: Text(
+                                    secondary,
+                                    style: AppTextStyles.smaller.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: palette.secondaryText,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ],
@@ -266,9 +283,54 @@ class HomeCardView extends ConsumerWidget {
         );
       case Christmas(:final days, :final wishlist):
         return _christmasSpec(context, ref, days, wishlist);
+      case StaleWishlist(:final wishlist, :final monthsIdle):
+        return _CardSpec(
+          overline: l10n.homeCardStaleOverline(monthsIdle),
+          title: l10n.homeCardStaleTitle(wishlist.name),
+          actionLabel: l10n.homeCardStaleConfirm,
+          // Hides the card for `snooze_days` days, like the cross
+          onAction: onHide,
+          secondaryLabel: l10n.homeCardStaleReview,
+          onSecondary: () => WishlistRoute(wishlistId: wishlist.id).push(
+            context,
+          ),
+          illustration: Assets.svg.noWishFlashlight,
+        );
+      case YearRecap(:final facts):
+        return _yearRecapSpec(context, ref, facts);
       case Onboarding(:final step):
         return _onboardingSpec(context, ref, step);
     }
+  }
+
+  _CardSpec _yearRecapSpec(
+    BuildContext context,
+    WidgetRef ref,
+    YearRecapFacts facts,
+  ) {
+    final l10n = context.l10n;
+    final awaited = facts.longestAwaited;
+    // Only a wish that waited since a previous year is worth a sentence.
+    final waitingSince = awaited?.wish.createdAt.toLocal().year;
+    return _CardSpec(
+      overline: l10n.homeCardYearRecapOverline('${facts.year}'),
+      title: l10n.homeCardYearRecapTitle(
+        l10n.yearRecapReceived(facts.receivedCount),
+        l10n.homeCardYearRecapOffered(facts.offeredCount),
+      ),
+      body: awaited == null ||
+              waitingSince == null ||
+              waitingSince >= facts.year
+          ? null
+          : l10n.homeCardYearRecapAwaited(awaited.wish.name, '$waitingSince'),
+      actionLabel: l10n.homeCardYearRecapAction,
+      onAction: () {
+        YearRecapRoute(year: facts.year).push(context);
+        // Seen: hidden for good, without a snack-bar to undo it
+        ref.read(homeCardActionsProvider.notifier).dismissNow(card);
+      },
+      illustration: Assets.svg.noWishBoxHat,
+    );
   }
 
   _CardSpec _christmasSpec(
@@ -373,6 +435,8 @@ class _CardSpec {
     this.onAction,
     this.badge,
     this.step,
+    this.secondaryLabel,
+    this.onSecondary,
   });
 
   final String overline;
@@ -381,6 +445,10 @@ class _CardSpec {
   final String? body;
   final String? actionLabel;
   final VoidCallback? onAction;
+
+  /// A quieter second action, next to the button.
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
 
   /// Icon pill next to the overline (alerts).
   final _BadgeContent? badge;

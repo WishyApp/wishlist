@@ -116,6 +116,17 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
     state = {...state, key};
   }
 
+  /// Takes [card] off the screen and hides it for good at once: no snack-bar,
+  /// nothing to undo (the card was acted on, "Découvrir" for the recap).
+  void dismissNow(HomeCardCandidate card) {
+    final key = card.stateKey;
+    if (_disposed || state.contains(key)) {
+      return;
+    }
+    state = {...state, key};
+    unawaited(_sendAndReload(_Swipe(card, null)));
+  }
+
   /// Registers how to close the snack-bar of [stateKey]; called when the card
   /// is committed by anything but the snack-bar itself. At once if it already
   /// was.

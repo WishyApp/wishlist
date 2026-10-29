@@ -1186,4 +1186,95 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeCardOnboardingPhotoAction => 'Choose a photo';
+
+  @override
+  String homeCardStaleOverline(int months) {
+    String _temp0 = intl.Intl.pluralLogic(
+      months,
+      locale: localeName,
+      other: '$months months',
+      one: '1 month',
+    );
+    return 'Untouched for $_temp0';
+  }
+
+  @override
+  String homeCardStaleTitle(String name) {
+    return 'Is \"$name\" still up to date?';
+  }
+
+  @override
+  String get homeCardStaleConfirm => 'Yes, it\'s fine';
+
+  @override
+  String get homeCardStaleReview => 'Review it';
+
+  @override
+  String homeCardYearRecapOverline(String year) {
+    return 'Your Wishy year $year';
+  }
+
+  @override
+  String homeCardYearRecapTitle(String received, String offered) {
+    return '$received, $offered';
+  }
+
+  @override
+  String homeCardYearRecapOffered(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count given',
+      one: '1 given',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeCardYearRecapAwaited(String wish, String year) {
+    return 'And $wish, which had been waiting for you since $year';
+  }
+
+  @override
+  String get homeCardYearRecapAction => 'Discover';
+
+  @override
+  String yearRecapScreenTitle(String year) {
+    return 'Your Wishy year $year';
+  }
+
+  @override
+  String yearRecapReceived(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wishes received',
+      one: '1 wish received',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapOffered(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wishes given',
+      one: '1 wish given',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapLongestAwaited(String wish, String date) {
+    return 'Most awaited: $wish, on your list since $date';
+  }
+
+  @override
+  String yearRecapMostGifted(String pseudo) {
+    return 'Your most spoiled friend: $pseudo';
+  }
+
+  @override
+  String get yearRecapBack => 'Back';
 }

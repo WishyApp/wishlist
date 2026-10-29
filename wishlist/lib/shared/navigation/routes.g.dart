@@ -52,6 +52,10 @@ RouteBase get $homeRoute => GoRouteData.$route(
           factory: $CompletedWishesRouteExtension._fromState,
         ),
         GoRouteData.$route(
+          path: 'year-recap/:year',
+          factory: $YearRecapRouteExtension._fromState,
+        ),
+        GoRouteData.$route(
           path: 'wishlist/:wishlistId',
           factory: $WishlistRouteExtension._fromState,
           routes: [
@@ -238,6 +242,25 @@ extension $CompletedWishesRouteExtension on CompletedWishesRoute {
 
   String get location => GoRouteData.$location(
         '/completed-wishes',
+      );
+
+  void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  void replace(BuildContext context) => context.replace(location);
+}
+
+extension $YearRecapRouteExtension on YearRecapRoute {
+  static YearRecapRoute _fromState(GoRouterState state) => YearRecapRoute(
+        year: int.parse(state.pathParameters['year']!),
+      );
+
+  String get location => GoRouteData.$location(
+        '/year-recap/${Uri.encodeComponent(year.toString())}',
       );
 
   void go(BuildContext context) => context.go(location);
