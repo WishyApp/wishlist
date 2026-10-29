@@ -98,19 +98,16 @@ class SettingsScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Gap(8),
-                    // Null in the frame after a sign-out, before the redirect
-                    if (currentUserEmail != null)
-                      Text(
-                        currentUserEmail,
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.smaller.copyWith(
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    const Gap(24),
                     SettingsSection(
                       title: l10n.settingsGeneral,
                       children: [
+                        // Null in the frame after a sign-out, before the
+                        // redirect
+                        if (currentUserEmail != null)
+                          SettingsLine(
+                            title: l10n.settingsSignedInAs,
+                            value: currentUserEmail,
+                          ),
                         // Temporary: the home header and the received wishes
                         // row replace these two lines.
                         SettingsLine(

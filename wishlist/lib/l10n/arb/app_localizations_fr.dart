@@ -718,6 +718,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Le lien de réinitialisation a expiré. Veuillez en demander un nouveau.';
 
   @override
+  String get settingsSignedInAs => 'Connecté avec';
+
+  @override
   String get settingsGeneral => 'Général';
 
   @override

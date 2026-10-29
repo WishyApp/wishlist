@@ -233,6 +233,7 @@
   "resetPasswordConfirm": "Reset",
   "resetPasswordSuccess": "Password reset successfully! Please sign in with your new password.",
   "resetPasswordLinkExpired": "The reset link has expired. Please request a new one.",
+  "settingsSignedInAs": "Signed in as",
   "settingsGeneral": "General",
   "settingsAbout": "About",
   "settingsTermsOfUse": "Terms of use",

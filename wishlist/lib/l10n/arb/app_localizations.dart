@@ -1328,6 +1328,12 @@ abstract class AppLocalizations {
   /// **'Le lien de réinitialisation a expiré. Veuillez en demander un nouveau.'**
   String get resetPasswordLinkExpired;
 
+  /// No description provided for @settingsSignedInAs.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connecté avec'**
+  String get settingsSignedInAs;
+
   /// No description provided for @settingsGeneral.
   ///
   /// In fr, this message translates to:

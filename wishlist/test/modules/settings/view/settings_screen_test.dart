@@ -1,9 +1,10 @@
 import 'package:adaptive_test/adaptive_test.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/modules/profile/view/edit_profile_screen.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
+import 'package:wishlist/modules/settings/widgets/settings_line.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/widgets/avatar/editable_avatar.dart';
@@ -37,16 +38,34 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.text('test@example.com'), findsNothing);
+    expect(find.text('Connecté avec'), findsNothing);
   });
 
-  testWidgets('shows the current user email', (tester) async {
+  testWidgets('shows the current user email as an information line',
+      (tester) async {
     await tester.pumpRouterApp(
       SettingsRoute().location,
       overrides: settingsScreenOverrides(currentUserEmail: 'me@x.fr'),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('me@x.fr'), findsOneWidget);
+    final line = find.ancestor(
+      of: find.text('me@x.fr'),
+      matching: find.byType(SettingsLine),
+    );
+    expect(
+      find.descendant(of: line, matching: find.text('Connecté avec')),
+      findsOneWidget,
+    );
+    // Nothing to open: no arrow, no ripple
+    expect(
+      find.descendant(of: line, matching: find.byIcon(Icons.arrow_forward_ios)),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: line, matching: find.byType(InkWell)),
+      findsNothing,
+    );
   });
 
   testWidgets('offers to change the password of an email account',

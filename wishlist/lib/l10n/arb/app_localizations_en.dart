@@ -716,6 +716,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'The reset link has expired. Please request a new one.';
 
   @override
+  String get settingsSignedInAs => 'Signed in as';
+
+  @override
   String get settingsGeneral => 'General';
 
   @override

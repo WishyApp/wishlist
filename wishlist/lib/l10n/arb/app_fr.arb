@@ -250,6 +250,7 @@
   "resetPasswordConfirm": "Réinitialiser",
   "resetPasswordSuccess": "Mot de passe réinitialisé avec succès ! Reconnectez-vous avec votre nouveau mot de passe.",
   "resetPasswordLinkExpired": "Le lien de réinitialisation a expiré. Veuillez en demander un nouveau.",
+  "settingsSignedInAs": "Connecté avec",
   "settingsGeneral": "Général",
   "settingsAbout": "À propos",
   "settingsTermsOfUse": "Conditions d'utilisation",
