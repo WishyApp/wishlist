@@ -3,6 +3,7 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
+import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/modules/year_recap/view/year_recap_screen.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
@@ -126,6 +127,33 @@ void main() {
       find.text('Le plus attendu : Casque, sur ta liste depuis 2 juin 2024'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('retry also reopens the bookings that failed', (tester) async {
+    var loads = 0;
+    await tester.pumpRouterApp(
+      YearRecapRoute(year: 2026).location,
+      overrides: [
+        ...homeScreenOverrides(now: fakeNow),
+        bookedWishesRealtimeProvider.overrideWith((ref) {
+          loads++;
+          return loads == 1
+              ? Stream.error(Exception('timeout'))
+              : Stream.value(const IListConst([]));
+        }),
+        receivedWishesSnapshotProvider.overrideWith(
+          (ref) async => [completed()].toIList(),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('1 wish reçu'), findsNothing);
+
+    await tester.tap(find.byType(PrimaryButton));
+    await tester.pumpAndSettle();
+
+    expect(loads, 2);
+    expect(find.text('1 wish reçu'), findsOneWidget);
   });
 
   testAdaptiveWidgets('$YearRecapScreen golden test', (tester, variant) async {

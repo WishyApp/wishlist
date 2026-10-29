@@ -8,7 +8,9 @@ import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
+import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -35,8 +37,14 @@ class YearRecapScreen extends ConsumerWidget {
         error: error,
         appBarTitle: l10n.yearRecapScreenTitle('$year'),
         onRetry: () async {
+          // The bookings feed the recap too: a failed stream keeps serving its
+          // error until it is reopened. Failing again shows in the page, it
+          // must not escape here.
+          await ref.retryFailed([bookedWishesRealtimeProvider]).then(
+            (_) {},
+            onError: (_) {},
+          );
           ref.invalidate(receivedWishesSnapshotProvider);
-          // The failure shows again in the page, it must not escape here
           await ref.refresh(yearRecapFactsProvider(year).future).then(
                 (_) {},
                 onError: (_) {},
