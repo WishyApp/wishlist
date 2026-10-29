@@ -23,15 +23,28 @@ class HomeProfileHeader extends ConsumerWidget {
     void openEditProfile() => EditProfileRoute().push(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 8, 20),
+      // 8 on top: the pseudo lines up with the title of the other tabs'
+      // AppAppBar
+      padding: const EdgeInsets.fromLTRB(20, 8, 8, 20),
       child: Row(
         children: [
           // Hidden from semantics: the "Edit profile" button below does the
           // same, a screen reader would announce it twice.
           ExcludeSemantics(
-            child: GestureDetector(
-              onTap: openEditProfile,
-              child: AppAvatar(avatarUrl: profile?.avatarUrl, size: 64),
+            child: Stack(
+              children: [
+                AppAvatar(avatarUrl: profile?.avatarUrl, size: 64),
+                // Above the photo, which is opaque: the ripple shows on it
+                Positioned.fill(
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      onTap: openEditProfile,
+                      customBorder: const CircleBorder(),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const Gap(16),
