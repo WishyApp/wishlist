@@ -128,7 +128,7 @@ void reportAppUpdateIssue(
 /// from a denied permission (42501): kept in the report, which otherwise only
 /// has the type. Looks through [AppException.cause].
 ({String kind, String text}) _describeFailure(Object error) {
-  final cause = error is AppException ? error.cause : error;
+  final cause = unwrapCause(error);
   if (cause is PostgrestException) {
     return (
       kind: 'PostgrestException/${cause.code}',
@@ -142,39 +142,57 @@ class AppUpdateService {
   AppUpdateService(
     this._repository, {
     AppUpdateReporter report = reportAppUpdateIssue,
+    this.retryDelay = const Duration(seconds: 3),
   }) : _report = report;
   final AppVersionRepository _repository;
   final AppUpdateReporter _report;
 
+  /// Wait before the single retry after a passing server error (502, 503,
+  /// 504): otherwise a user below the minimum version could use the app until
+  /// its next return to the foreground.
+  final Duration retryDelay;
+
   static const _timeout = Duration(seconds: 10);
+
+  /// The first try and the retry after a passing server error.
+  static const _maxAttempts = 2;
 
   /// Null when the check failed (network, timeout, missing RPC, bad row...):
   /// the caller lets the user through. The failure is logged and reported to
-  /// Sentry, never shown.
+  /// Sentry, never shown; a passing failure (network, gateway 5xx) only leaves
+  /// a breadcrumb. A passing server error is retried once after [retryDelay],
+  /// and any failure of that retry is reported.
   Future<AppUpdateDecision?> check({
     required String currentVersion,
     required String platform,
   }) async {
-    try {
-      final policy = await _repository.getPolicy(platform).timeout(_timeout);
-      if (policy == null) {
-        debugPrint('[Wishy AppUpdate] no policy for $platform');
+    for (var attempt = 1;; attempt++) {
+      try {
+        final policy = await _repository.getPolicy(platform).timeout(_timeout);
+        if (policy == null) {
+          debugPrint('[Wishy AppUpdate] no policy for $platform');
+          _report(
+            'App version check: no policy row for $platform',
+            kind: 'no_policy_row',
+          );
+          return null;
+        }
+        return decideAppUpdate(currentVersion, policy);
+      } catch (e) {
+        debugPrint('[Wishy AppUpdate] check failed: $e');
+        final willRetry = isTransientServerError(e) && attempt < _maxAttempts;
+        final failure = _describeFailure(e);
         _report(
-          'App version check: no policy row for $platform',
-          kind: 'no_policy_row',
+          'App version check failed ($platform): ${failure.text}',
+          // A retry that fails too, even on a timeout, may be an outage
+          capture: !willRetry && (attempt > 1 || !isNetworkError(e)),
+          kind: failure.kind,
         );
-        return null;
+        if (!willRetry) {
+          return null;
+        }
+        await Future<void>.delayed(retryDelay);
       }
-      return decideAppUpdate(currentVersion, policy);
-    } catch (e) {
-      debugPrint('[Wishy AppUpdate] check failed: $e');
-      final failure = _describeFailure(e);
-      _report(
-        'App version check failed ($platform): ${failure.text}',
-        capture: !isNetworkError(e),
-        kind: failure.kind,
-      );
-      return null;
     }
   }
 }

@@ -34,6 +34,11 @@ enum AppUserMessageKey {
   }
 }
 
+/// The original error of an [AppException] (repositories wrap it), or
+/// [error] itself.
+Object? unwrapCause(Object? error) =>
+    error is AppException ? error.cause : error;
+
 class AppException implements Exception {
   AppException({
     required this.statusCode,

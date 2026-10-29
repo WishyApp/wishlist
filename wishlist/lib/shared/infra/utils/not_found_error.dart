@@ -11,7 +11,7 @@ const _noRowFoundCode = 'PGRST116';
 /// Looks through [AppException.cause], since repositories wrap the original
 /// error.
 bool isNotFoundError(Object? error) {
-  final cause = error is AppException ? error.cause : error;
+  final cause = unwrapCause(error);
 
   return cause is PostgrestException && cause.code == _noRowFoundCode;
 }
