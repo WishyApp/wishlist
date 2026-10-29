@@ -14,8 +14,9 @@ final _yearPattern = RegExp(r'^20[0-9]{2}$');
 /// 3. Years are 4-digit numbers between 2000 and 2099. If the name contains
 ///    some and none equals the year of [occasionDate], the wishlist is
 ///    discarded.
-/// 4. Choice: exactly one wishlist with the right year wins; otherwise exactly
-///    one wishlist without any year wins; otherwise null.
+/// 4. Choice: exactly one wishlist with the right year wins; if none has the
+///    right year, exactly one wishlist without any year wins; otherwise null
+///    (two wishlists with the right year never fall back to one without).
 Wishlist? findOccasionWishlist({
   required List<Wishlist> wishlists,
   required List<String> keywords,
