@@ -1417,6 +1417,18 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String yearRecapStatPatientShare(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days jours d\'attente',
+      one: '1 jour d\'attente',
+      zero: '0 jour d\'attente',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String yearRecapStatOfferedReceived(String offered, String received) {
     return '$offered, $received';
   }

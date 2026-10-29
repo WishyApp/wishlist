@@ -2216,6 +2216,12 @@ abstract class AppLocalizations {
   /// **'{days, plural, =0{0 jour} =1{1 jour} other{{days} jours}} pour {wish}'**
   String yearRecapStatPatient(int days, String wish);
 
+  /// Figure of the patient profile on the share image: it never names the wish
+  ///
+  /// In fr, this message translates to:
+  /// **'{days, plural, =0{0 jour d\'attente} =1{1 jour d\'attente} other{{days} jours d\'attente}}'**
+  String yearRecapStatPatientShare(int days);
+
   /// No description provided for @yearRecapStatOfferedReceived.
   ///
   /// In fr, this message translates to:

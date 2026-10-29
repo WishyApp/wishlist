@@ -709,6 +709,15 @@
       }
     }
   },
+  "yearRecapStatPatientShare": "{days, plural, =0{0 jour d'attente} =1{1 jour d'attente} other{{days} jours d'attente}}",
+  "@yearRecapStatPatientShare": {
+    "description": "Figure of the patient profile on the share image: it never names the wish",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "yearRecapStatOfferedReceived": "{offered}, {received}",
   "@yearRecapStatOfferedReceived": {
     "placeholders": {

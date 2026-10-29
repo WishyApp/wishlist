@@ -112,4 +112,38 @@ void main() {
       expect(fr.yearRecapProfileTagline(key), isNot(contains('·')));
     }
   });
+
+  test('the shared figures of the patient count days without the wish name',
+      () {
+    String text(AppLocalizations l, int days) => l.yearRecapShareStat(
+          fakeYearRecap(
+            profile: YearRecapProfileKey.patient,
+            stats: YearRecapStats(
+              longestAwaited: fakeLongestAwaited(days: days),
+            ),
+          ),
+        );
+
+    expect(text(fr, 0), "0 jour d'attente");
+    expect(text(fr, 1), "1 jour d'attente");
+    expect(text(fr, 185), "185 jours d'attente");
+    expect(text(en, 1), '1 day of waiting');
+    expect(text(en, 185), '185 days of waiting');
+  });
+
+  test('the other profiles share the figures of the page', () {
+    final recap = fakeYearRecap(
+      profile: YearRecapProfileKey.gate,
+      stats: const YearRecapStats(received: 6),
+    );
+
+    expect(fr.yearRecapShareStat(recap), fr.yearRecapProfileStat(recap));
+  });
+
+  test('the English title of the last-minute profile', () {
+    expect(
+      en.yearRecapProfileTitle(YearRecapProfileKey.dernierMoment),
+      'The last-minute one',
+    );
+  });
 }

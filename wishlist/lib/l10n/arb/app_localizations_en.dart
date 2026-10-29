@@ -1343,7 +1343,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get yearRecapProfileAmiFideleTagline => 'They know who they are.';
 
   @override
-  String get yearRecapProfileDernierMomentTitle => 'The last minute';
+  String get yearRecapProfileDernierMomentTitle => 'The last-minute one';
 
   @override
   String get yearRecapProfileDernierMomentTagline =>
@@ -1382,6 +1382,17 @@ class AppLocalizationsEn extends AppLocalizations {
       one: '1 day',
     );
     return '$_temp0 for $wish';
+  }
+
+  @override
+  String yearRecapStatPatientShare(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days of waiting',
+      one: '1 day of waiting',
+    );
+    return '$_temp0';
   }
 
   @override

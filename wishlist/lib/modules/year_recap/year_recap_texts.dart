@@ -33,6 +33,15 @@ extension YearRecapTexts on AppLocalizations {
         YearRecapProfileKey.minimaliste => yearRecapProfileMinimalisteTagline,
       };
 
+  /// The line of figures on the picture that is shared. It never names a wish:
+  /// the patient profile shows its days only.
+  String yearRecapShareStat(YearRecapData recap) {
+    final awaited = recap.stats.longestAwaited;
+    return recap.profile.key == YearRecapProfileKey.patient && awaited != null
+        ? yearRecapStatPatientShare(awaited.days)
+        : yearRecapProfileStat(recap);
+  }
+
   String yearRecapProfileStat(YearRecapData recap) {
     final stats = recap.stats;
     return switch (recap.profile.key) {

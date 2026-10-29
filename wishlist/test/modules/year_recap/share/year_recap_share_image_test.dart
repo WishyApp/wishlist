@@ -58,7 +58,7 @@ void main() {
       find.text("Je l'ai voulu. J'ai attendu. Je l'ai eu."),
       findsOneWidget,
     );
-    expect(find.text('185 jours pour Casque'), findsOneWidget);
+    expect(find.text("185 jours d'attente"), findsOneWidget);
     expect(find.text("Et toi, t'es qui ? wishy-app.fr"), findsOneWidget);
   });
 
@@ -78,22 +78,33 @@ void main() {
     );
   });
 
-  testWidgets('never shows a friend pseudo or a list name', (tester) async {
+  testWidgets('never shows the name of a wish, a pseudo or a price',
+      (tester) async {
     await pumpImage(
       tester,
       await AppLocalizations.delegate.load(const Locale('fr')),
     );
 
-    // The model has no pseudo nor list name: only the user's own wish
-    // name appears, and only on the line of the patient profile
+    // The patient profile counts days: the wish name stays on the page
     final texts = tester
         .widgetList<Text>(find.byType(Text))
         .map((t) => t.data)
         .whereType<String>()
         .join(' ');
-    expect(texts, isNot(contains('Alice')));
-    expect(texts, isNot(contains('Liste')));
+    expect(texts, contains("185 jours d'attente"));
+    expect(texts, isNot(contains('Casque')));
     expect(texts, isNot(contains('€')));
+  });
+
+  testWidgets('the figures wrap on two lines at most', (tester) async {
+    await pumpImage(
+      tester,
+      await AppLocalizations.delegate.load(const Locale('fr')),
+    );
+
+    final stat = tester.widget<Text>(find.text("185 jours d'attente"));
+    expect(stat.maxLines, 2);
+    expect(stat.overflow, TextOverflow.ellipsis);
   });
 
   testWidgets('renders a PNG of 1080x1920 off-screen', (tester) async {

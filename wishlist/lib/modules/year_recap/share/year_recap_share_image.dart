@@ -10,8 +10,8 @@ import 'package:wishlist/shared/theme/colors.dart';
 
 /// The picture the user shares: "Ton année Wishy" as a story (9:16). It is
 /// laid out at [logicalSize] and captured at a pixel ratio of 3, which gives a
-/// 1080x1920 image. It never shows a friend's pseudo, a list name or a price:
-/// only the profile and its figures.
+/// 1080x1920 image. It never shows a friend's pseudo, a list name, a wish name
+/// or a price: only the profile and its figures.
 class YearRecapShareImage extends StatelessWidget {
   const YearRecapShareImage({
     super.key,
@@ -113,7 +113,9 @@ class YearRecapShareImage extends StatelessWidget {
                       vertical: 10,
                     ),
                     child: Text(
-                      l10n.yearRecapProfileStat(recap),
+                      l10n.yearRecapShareStat(recap),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: _style(15, FontWeight.w800, _ink),
                     ),

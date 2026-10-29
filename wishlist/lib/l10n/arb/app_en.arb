@@ -667,7 +667,7 @@
   "yearRecapProfileRassembleurTagline": "The more, the merrier, the more gifts.",
   "yearRecapProfileAmiFideleTitle": "The loyal friend",
   "yearRecapProfileAmiFideleTagline": "They know who they are.",
-  "yearRecapProfileDernierMomentTitle": "The last minute",
+  "yearRecapProfileDernierMomentTitle": "The last-minute one",
   "yearRecapProfileDernierMomentTagline": "I work better under pressure.",
   "yearRecapProfileOrganiseTitle": "The organised one",
   "yearRecapProfileOrganiseTagline": "Wrapping paper barely torn, list already up to date.",
@@ -689,6 +689,15 @@
       },
       "wish": {
         "type": "String"
+      }
+    }
+  },
+  "yearRecapStatPatientShare": "{days, plural, =1{1 day of waiting} other{{days} days of waiting}}",
+  "@yearRecapStatPatientShare": {
+    "description": "Figure of the patient profile on the share image: it never names the wish",
+    "placeholders": {
+      "days": {
+        "type": "int"
       }
     }
   },

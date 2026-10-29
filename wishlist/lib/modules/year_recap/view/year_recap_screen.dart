@@ -213,6 +213,8 @@ class _ProfileBlock extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Text(
                 l10n.yearRecapProfileStat(recap),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: AppTextStyles.smaller.copyWith(
                   fontWeight: FontWeight.w800,
