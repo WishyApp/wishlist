@@ -1,6 +1,7 @@
 import 'dart:async';
+import 'dart:math';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/home/cards/card_builders.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
@@ -15,16 +16,23 @@ import 'package:wishlist/shared/models/home_card_definition.dart';
 /// How a card is swiped away: "Hide" (left) or "Later" (right).
 enum HomeCardSwipe { hide, later }
 
-/// How long the user can undo a swipe: the duration of the snack-bar.
+/// How long the user can undo a swipe: the duration of the snack-bar. The
+/// commit comes from the snack-bar closing (`commit`).
 const homeCardUndoDuration = Duration(seconds: 4);
+
+/// Safety net if the snack-bar never tells it closed: a bit after it should
+/// have.
+const homeCardCommitFallback = Duration(seconds: 5);
 
 const _defaultLaterDays = 1;
 
-/// Days a card swiped with "Later" is postponed, from the `home_stack` row.
+/// Days a card swiped with "Later" is postponed, from the `home_stack` row, at
+/// least one: "later" is never today.
 int laterDaysOf(Map<String, HomeCardDefinition>? definitions) {
-  return definitions?['home_stack']
-          ?.intParam('later_days', _defaultLaterDays) ??
-      _defaultLaterDays;
+  final days =
+      definitions?['home_stack']?.intParam('later_days', _defaultLaterDays) ??
+          _defaultLaterDays;
+  return max(_defaultLaterDays, days);
 }
 
 /// The cards the user swiped away. Its state is the set of card keys to take
@@ -32,9 +40,11 @@ int laterDaysOf(Map<String, HomeCardDefinition>? definitions) {
 /// life of the notifier (the stack of cards does not reload at once).
 ///
 /// A swipe is optimistic and sent late: the card goes at once, and the request
-/// is made when [homeCardUndoDuration] is over, unless `undo` came first. What
-/// is still waiting when the notifier is disposed (the user left the screen)
-/// is sent then.
+/// is made when the snack-bar closes (`commit`), unless `undo` came first. What
+/// is still waiting is sent at once when the app goes to the background or the
+/// notifier is disposed (the user left the screen); a timer sends it if the
+/// snack-bar never reports. Whatever the cause, the snack-bar is then closed
+/// so that no "Undo" is offered for what was sent.
 final homeCardActionsProvider =
     NotifierProvider.autoDispose<HomeCardActions, Set<String>>(
   HomeCardActions.new,
@@ -44,6 +54,7 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
   late CardStateRepository _cardStates;
   late BookedWishRemovalRepository _removals;
   final _waiting = <String, _Swipe>{};
+  final _closers = <String, VoidCallback>{};
   final _shown = <String>{};
   var _disposed = false;
 
@@ -52,14 +63,17 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
     _cardStates = ref.watch(cardStateRepositoryProvider);
     _removals = ref.watch(bookedWishRemovalRepositoryProvider);
     _disposed = false;
+    // A process killed in the background never gets to the timer: send as soon
+    // as the app stops being in front.
+    final lifecycle = AppLifecycleListener(
+      onInactive: _flush,
+      onHide: _flush,
+      onPause: _flush,
+    );
     ref.onDispose(() {
       _disposed = true;
-      final waiting = _waiting.values.toList();
-      _waiting.clear();
-      for (final swipe in waiting) {
-        swipe.timer.cancel();
-        unawaited(_send(swipe));
-      }
+      lifecycle.dispose();
+      _flush();
     });
     return const {};
   }
@@ -69,9 +83,18 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
       laterDaysOf(ref.read(homeCardDefinitionsProvider).valueOrNull);
 
   /// Takes [card] off the screen and sends it later, see the class comment.
-  void swipe(HomeCardCandidate card, HomeCardSwipe swipe) {
+  ///
+  /// With [autoCommit] false (screen reader users, whose snack-bar does not
+  /// close by itself) no timer is started: only `commit`, the lifecycle or
+  /// the end of the screen send it.
+  void swipe(
+    HomeCardCandidate card,
+    HomeCardSwipe swipe, {
+    bool autoCommit = true,
+  }) {
     final key = card.stateKey;
-    if (_disposed || _waiting.containsKey(key)) {
+    // Already off the screen, waiting or sent: a second swipe changes nothing
+    if (_disposed || state.contains(key)) {
       return;
     }
     final now = ref.read(clockProvider)();
@@ -86,12 +109,45 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
         ),
     };
     final pending = _Swipe(card, until);
-    pending.timer = Timer(homeCardUndoDuration, () {
-      _waiting.remove(key);
-      unawaited(_sendAndReload(pending));
-    });
+    if (autoCommit) {
+      pending.timer = Timer(homeCardCommitFallback, () => _commit(key));
+    }
     _waiting[key] = pending;
     state = {...state, key};
+  }
+
+  /// Registers how to close the snack-bar of [stateKey]; called when the card
+  /// is committed by anything but the snack-bar itself. At once if it already
+  /// was.
+  void attachCloser(String stateKey, VoidCallback close) {
+    if (_disposed) {
+      close();
+    } else if (_waiting.containsKey(stateKey)) {
+      _closers[stateKey] = close;
+    } else if (state.contains(stateKey)) {
+      close();
+    }
+  }
+
+  /// The snack-bar of [stateKey] closed without "Undo": sends the card.
+  void commit(String stateKey) {
+    _closers.remove(stateKey);
+    _commit(stateKey);
+  }
+
+  void _commit(String stateKey) {
+    final swipe = _waiting.remove(stateKey);
+    if (swipe == null) {
+      return;
+    }
+    swipe.timer?.cancel();
+    _closers.remove(stateKey)?.call();
+    unawaited(_sendAndReload(swipe));
+  }
+
+  /// Sends everything that is waiting, the cards stay hidden.
+  void _flush() {
+    _waiting.keys.toList().forEach(_commit);
   }
 
   /// Brings the card back and sends nothing, if it was not sent yet.
@@ -103,7 +159,8 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
     if (swipe == null) {
       return;
     }
-    swipe.timer.cancel();
+    _closers.remove(stateKey);
+    swipe.timer?.cancel();
     state = {...state}..remove(stateKey);
   }
 
@@ -159,5 +216,5 @@ class _Swipe {
 
   final HomeCardCandidate card;
   final DateTime? until;
-  late final Timer timer;
+  Timer? timer;
 }

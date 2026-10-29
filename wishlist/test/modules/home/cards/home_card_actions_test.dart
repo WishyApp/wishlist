@@ -1,4 +1,5 @@
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -61,6 +62,8 @@ HomeCardCandidate removalCard() {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  var homeCardsLoads = 0;
   late MockCardStateRepository cardStates;
   late MockBookedWishRemovalRepository removals;
   // 10:00 on the 29th: "later" is the 30th at midnight, not 10:00.
@@ -68,7 +71,15 @@ void main() {
 
   setUpAll(() => registerFallbackValue(DateTime(2026)));
 
+  tearDown(() {
+    // Leaves the shared binding as it was found
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
+  });
+
   setUp(() {
+    homeCardsLoads = 0;
     cardStates = MockCardStateRepository();
     removals = MockBookedWishRemovalRepository();
     when(
@@ -93,7 +104,10 @@ void main() {
           clockOverride(now),
           cardStateRepositoryProvider.overrideWithValue(cardStates),
           bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
-          homeCardsProvider.overrideWith((ref) async => const []),
+          homeCardsProvider.overrideWith((ref) async {
+            homeCardsLoads++;
+            return const [];
+          }),
           homeCardDefinitionsProvider.overrideWith(
             (ref) async => {
               for (final d in definitions ??
@@ -118,12 +132,13 @@ void main() {
     });
   }
 
-  test('hide is sent for good once the snack-bar is over', () {
+  test('hide is sent for good by the fallback timer', () {
     run((async, actions, container) {
       actions.swipe(photoCard(), HomeCardSwipe.hide);
 
       expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
-      async.elapse(const Duration(seconds: 3));
+      // The snack-bar ends at 4 s and commits; the timer is only a fallback
+      async.elapse(homeCardUndoDuration);
       verifyNever(
         () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
       );
@@ -147,7 +162,7 @@ void main() {
       );
 
       actions.swipe(card, HomeCardSwipe.hide);
-      async.elapse(homeCardUndoDuration);
+      async.elapse(homeCardCommitFallback);
 
       // The J-7 step is this morning, already past: the next one is the day.
       verify(
@@ -162,7 +177,7 @@ void main() {
   test('later is postponed to the start of the next local day', () {
     run((async, actions, container) {
       actions.swipe(photoCard(), HomeCardSwipe.later);
-      async.elapse(homeCardUndoDuration);
+      async.elapse(homeCardCommitFallback);
 
       verify(
         () => cardStates.dismiss(
@@ -178,7 +193,7 @@ void main() {
       (async, actions, container) {
         expect(actions.laterDays, 3);
         actions.swipe(photoCard(), HomeCardSwipe.later);
-        async.elapse(homeCardUndoDuration);
+        async.elapse(homeCardCommitFallback);
 
         verify(
           () => cardStates.dismiss(
@@ -247,7 +262,7 @@ void main() {
   test('a removal alert is closed on its own table, not as a card state', () {
     run((async, actions, container) {
       actions.swipe(removalCard(), HomeCardSwipe.hide);
-      async.elapse(homeCardUndoDuration);
+      async.elapse(homeCardCommitFallback);
 
       verify(() => removals.dismiss(7)).called(1);
       verifyNever(
@@ -279,8 +294,198 @@ void main() {
 
     run((async, actions, container) {
       actions.swipe(photoCard(), HomeCardSwipe.hide);
-      async.elapse(homeCardUndoDuration);
+      async.elapse(homeCardCommitFallback);
       async.flushMicrotasks();
+    });
+  });
+
+  test('commit sends at once, and the fallback timer sends nothing more', () {
+    run((async, actions, container) {
+      actions.swipe(photoCard(), HomeCardSwipe.hide);
+      async.elapse(const Duration(seconds: 4));
+      actions.commit('onboarding:photo');
+      async.flushMicrotasks();
+
+      verify(() => cardStates.dismiss('onboarding:photo')).called(1);
+      async.elapse(const Duration(seconds: 10));
+      verifyNoMoreInteractions(cardStates);
+    });
+  });
+
+  test('without autoCommit nothing is sent until commit, leaving or lifecycle',
+      () {
+    run((async, actions, container) {
+      actions.swipe(photoCard(), HomeCardSwipe.hide, autoCommit: false);
+      async.elapse(const Duration(minutes: 5));
+      verifyNever(
+        () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+      );
+    });
+    // Disposed by run: sent then
+    verify(() => cardStates.dismiss('onboarding:photo')).called(1);
+  });
+
+  test('a second swipe of the same card changes nothing', () {
+    run((async, actions, container) {
+      actions.swipe(photoCard(), HomeCardSwipe.hide);
+      async.elapse(const Duration(seconds: 2));
+      actions.swipe(photoCard(), HomeCardSwipe.later);
+      async.elapse(homeCardCommitFallback);
+      // Even after the send
+      actions.swipe(photoCard(), HomeCardSwipe.later);
+      async.elapse(homeCardCommitFallback);
+
+      // Only the first swipe (hide) was sent, once
+      verify(() => cardStates.dismiss('onboarding:photo')).called(1);
+      verifyNoMoreInteractions(cardStates);
+    });
+  });
+
+  test('a send reloads the cards', () {
+    run((async, actions, container) {
+      container.listen(homeCardsProvider, (_, __) {});
+      async.flushMicrotasks();
+      expect(homeCardsLoads, 1);
+
+      actions.swipe(photoCard(), HomeCardSwipe.hide);
+      async.elapse(homeCardCommitFallback);
+
+      expect(homeCardsLoads, 2);
+    });
+  });
+
+  test('later_days is at least one day', () {
+    run(
+      (async, actions, container) {
+        expect(actions.laterDays, 1);
+        actions.swipe(photoCard(), HomeCardSwipe.later);
+        async.elapse(homeCardCommitFallback);
+
+        verify(
+          () => cardStates.dismiss(
+            'onboarding:photo',
+            snoozeUntil: DateTime(2026, 10, 30),
+          ),
+        ).called(1);
+      },
+      definitions: [
+        def('home_stack', 0, {'later_days': 0}),
+      ],
+    );
+  });
+
+  group('app lifecycle', () {
+    void changeTo(FakeAsync async, AppLifecycleState state) {
+      WidgetsBinding.instance.handleAppLifecycleStateChanged(state);
+      async.flushMicrotasks();
+    }
+
+    test('inactive sends what is waiting and keeps the cards hidden', () {
+      run((async, actions, container) {
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+        async.elapse(const Duration(seconds: 1));
+
+        changeTo(async, AppLifecycleState.inactive);
+
+        verify(() => cardStates.dismiss('onboarding:photo')).called(1);
+        expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
+        // No second send from the timer
+        async.elapse(const Duration(seconds: 10));
+        verifyNoMoreInteractions(cardStates);
+      });
+    });
+
+    test('hidden and paused send too', () {
+      run((async, actions, container) {
+        changeTo(async, AppLifecycleState.inactive);
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+        changeTo(async, AppLifecycleState.hidden);
+        verify(() => cardStates.dismiss('onboarding:photo')).called(1);
+
+        actions.swipe(removalCard(), HomeCardSwipe.hide);
+        changeTo(async, AppLifecycleState.paused);
+        verify(() => removals.dismiss(7)).called(1);
+      });
+    });
+
+    test('a swipe after coming back is sent again as usual', () {
+      run((async, actions, container) {
+        changeTo(async, AppLifecycleState.inactive);
+        changeTo(async, AppLifecycleState.resumed);
+
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+        async.elapse(homeCardCommitFallback);
+
+        verify(() => cardStates.dismiss('onboarding:photo')).called(1);
+      });
+    });
+  });
+
+  group('snack-bar closer', () {
+    test('is called when the commit does not come from the snack-bar', () {
+      run((async, actions, container) {
+        var closed = 0;
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+        actions.attachCloser('onboarding:photo', () => closed++);
+
+        async.elapse(homeCardCommitFallback);
+
+        expect(closed, 1);
+      });
+    });
+
+    test('is called on lifecycle and on leaving, not on commit or undo', () {
+      var closedByLifecycle = 0;
+      var closedByCommit = 0;
+      var closedByUndo = 0;
+      var closedOnLeave = 0;
+      run((async, actions, container) {
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+        actions.attachCloser('onboarding:photo', () => closedByCommit++);
+        actions.commit('onboarding:photo');
+
+        actions.swipe(removalCard(), HomeCardSwipe.hide);
+        actions.attachCloser(
+          'booked_wish_removed:7',
+          () => closedByUndo++,
+        );
+        actions.undo('booked_wish_removed:7');
+
+        const other = HomeCardCandidate(
+          type: 'onboarding',
+          stateKey: 'onboarding:birthday',
+          content: Onboarding(OnboardingStep.birthday),
+        );
+        actions.swipe(other, HomeCardSwipe.hide);
+        actions.attachCloser('onboarding:birthday', () => closedByLifecycle++);
+        WidgetsBinding.instance.handleAppLifecycleStateChanged(
+          AppLifecycleState.inactive,
+        );
+        async.flushMicrotasks();
+
+        actions.swipe(removalCard(), HomeCardSwipe.hide);
+        actions.attachCloser(
+          'booked_wish_removed:7',
+          () => closedOnLeave++,
+        );
+      });
+
+      expect(closedByCommit, 0);
+      expect(closedByUndo, 0);
+      expect(closedByLifecycle, 1);
+      expect(closedOnLeave, 1);
+    });
+
+    test('a closer attached after the commit is called at once', () {
+      run((async, actions, container) {
+        var closed = 0;
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+        async.elapse(homeCardCommitFallback);
+
+        actions.attachCloser('onboarding:photo', () => closed++);
+
+        expect(closed, 1);
+      });
     });
   });
 }
