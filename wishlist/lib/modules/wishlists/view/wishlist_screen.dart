@@ -17,6 +17,7 @@ import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
+import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/colors.dart';
@@ -129,15 +130,18 @@ class WishlistScreen extends ConsumerWidget {
   ) async {
     final notifier =
         ref.read(wishlistScreenNotifierProvider(wishlistId).notifier);
-    final selectedIds =
-        ref.read(wishlistScreenNotifierProvider(wishlistId)).selectedWishIds;
-    final wishs = ref
+    // Lu avant et après le dialog de la date : les wishs ont pu changer
+    // pendant qu'il était ouvert
+    IList<Wish> readWishs() =>
+        ref
             .read(wishlistScreenDataRealtimeProvider(wishlistId))
             .valueOrNull
             ?.wishs ??
         const IListConst([]);
+    final selectedIds =
+        ref.read(wishlistScreenNotifierProvider(wishlistId)).selectedWishIds;
     final selectedWishs =
-        wishs.where((w) => selectedIds.contains(w.id)).toList();
+        readWishs().where((w) => selectedIds.contains(w.id)).toList();
     // La sélection a pu se vider entre-temps (wishs supprimés ailleurs)
     if (selectedWishs.isEmpty) {
       return;
@@ -159,6 +163,7 @@ class WishlistScreen extends ConsumerWidget {
       return;
     }
 
+    final wishs = readWishs();
     final completedWishs =
         ref.read(completedWishesRealtimeProvider).valueOrNull;
 

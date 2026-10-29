@@ -130,18 +130,12 @@ class ConsultWishInfoContainer extends ConsumerWidget {
     final l10n = context.l10n;
     final needsQuantity = wish.quantity > 1;
 
-    // Sans quantité à choisir, le dialog de la date complète le wish
     final completedAt = await showCompletionDateDialog(
       context,
       title: l10n.completionDateDialogTitle(1),
       explanation: l10n.completionDateDialogExplanation(1),
       confirmButtonLabel:
           needsQuantity ? l10n.continueButton : l10n.completeButton,
-      onConfirm: needsQuantity
-          ? null
-          : (completedAt) => ref
-              .read(completedWishMutationsProvider.notifier)
-              .markAsCompleted(wish, completedAt: completedAt),
     );
     if (completedAt == null || !context.mounted) {
       return;
@@ -156,6 +150,20 @@ class ConsultWishInfoContainer extends ConsumerWidget {
         completedAt: completedAt,
       );
       if (!confirmed || !context.mounted) {
+        return;
+      }
+    } else {
+      try {
+        await ref
+            .read(completedWishMutationsProvider.notifier)
+            .markAsCompleted(wish, completedAt: completedAt);
+      } catch (e) {
+        if (context.mounted) {
+          showGenericError(context, error: e);
+        }
+        return;
+      }
+      if (!context.mounted) {
         return;
       }
     }

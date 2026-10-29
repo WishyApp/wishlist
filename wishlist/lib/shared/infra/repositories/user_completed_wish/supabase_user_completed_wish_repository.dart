@@ -161,7 +161,9 @@ class SupabaseUserCompletedWishRepository
                )
             ''')
             .eq('user_id', userId)
-            // Several wishes received the same day: the last completed first
+            // Several wishes received the same day: the last one first
+            // completed first (completing more of a wish later does not
+            // change created_at)
             .order('completed_at', ascending: false)
             .order('created_at', ascending: false);
 
