@@ -20,6 +20,9 @@ const _optionalWindowKey = 'onboarding:optional_window';
 const _birthdayStepKey = 'onboarding:birthday';
 const _photoStepKey = 'onboarding:photo';
 
+/// Used when the `birthday_keywords` param of `after_party` is absent.
+const _defaultBirthdayKeywords = ['anniv', 'anniversaire', 'birthday', 'bday'];
+
 DateTime _day(DateTime now) {
   final local = now.toLocal();
   return DateTime(local.year, local.month, local.day);
@@ -111,8 +114,10 @@ List<HomeCardCandidate> friendBirthdayCards({
 }
 
 /// The day after the user's birthday or after Christmas, up to `days_after`
-/// days. The wishlist of Christmas is found by its name; the one of the
-/// birthday is the only open wishlist of the user, if there is just one.
+/// days. The wishlists of Christmas and of the birthday are found by their
+/// name (`keywords` of [christmas], `birthday_keywords` of [definition]); when
+/// no birthday list matches, the birthday one is the only open wishlist of the
+/// user, if there is just one.
 /// Nothing is offered to a user who has no open wishlist of their own, as
 /// there is nothing to tick.
 List<HomeCardCandidate> afterPartyCards({
@@ -134,6 +139,9 @@ List<HomeCardCandidate> afterPartyCards({
   }
   final today = _day(now);
   final daysAfter = definition.intParam('days_after', 7);
+  final birthdayKeywords = definition.params.containsKey('birthday_keywords')
+      ? definition.stringListParam('birthday_keywords')
+      : _defaultBirthdayKeywords;
   final cards = <HomeCardCandidate>[];
 
   if (myBirthday != null) {
@@ -148,7 +156,13 @@ List<HomeCardCandidate> afterPartyCards({
             content: AfterParty(
               AfterPartyOccasion.birthday,
               ago,
-              openOwn.length == 1 ? openOwn.single : null,
+              findOccasionWishlist(
+                    wishlists: wishlists,
+                    userId: userId,
+                    keywords: birthdayKeywords,
+                    occasionDate: day,
+                  ) ??
+                  (openOwn.length == 1 ? openOwn.single : null),
             ),
             eventAt: day,
           ),

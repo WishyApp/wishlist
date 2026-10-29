@@ -48,7 +48,8 @@ CREATE TEMP TABLE expected_seeds (key text, kind text, priority int, params json
 INSERT INTO pg_temp.expected_seeds VALUES
   ('home_stack', 'settings', 0, '{"max_cards": 3, "later_days": 1}'),
   ('friend_birthday_today', 'computed', 10, '{}'),
-  ('after_party', 'computed', 15, '{"days_after": 7}'),
+  ('after_party', 'computed', 15,
+   '{"days_after": 7, "birthday_keywords": ["anniv", "anniversaire", "birthday", "bday"]}'),
   ('onboarding', 'computed', 18, '{"optional_steps_hours": 48}'),
   ('booked_reminder', 'computed', 20, '{"days_before": 14}'),
   ('booked_wish_removed', 'computed', 25, '{}'),
@@ -84,6 +85,10 @@ BEGIN
   IF (SELECT params->'reminder_days' FROM public.home_cards WHERE key = 'christmas')
      IS DISTINCT FROM '[30, 7]'::jsonb THEN
     RAISE EXCEPTION 'FAIL christmas reminder_days';
+  END IF;
+  IF (SELECT params->'birthday_keywords' FROM public.home_cards WHERE key = 'after_party')
+     IS DISTINCT FROM '["anniv", "anniversaire", "birthday", "bday"]'::jsonb THEN
+    RAISE EXCEPTION 'FAIL after_party birthday_keywords';
   END IF;
   IF (SELECT params->'keywords' FROM public.home_cards WHERE key = 'christmas')
      IS DISTINCT FROM '["noel", "christmas", "xmas"]'::jsonb THEN

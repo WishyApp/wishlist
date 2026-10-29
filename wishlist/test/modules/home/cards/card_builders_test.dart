@@ -278,6 +278,62 @@ void main() {
       expect((cards.single.content as AfterParty).wishlist, isNull);
     });
 
+    test('the birthday wishlist is found by its name among several', () {
+      final anniv = wishlist(3, 'Anniv 2026');
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [wishlist(1, 'Vacances'), wishlist(2, 'Maison'), anniv],
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, anniv);
+    });
+
+    test('a birthday wishlist of another year is discarded', () {
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [wishlist(1, 'Anniv 2025'), wishlist(2, 'Anniv 26')],
+      );
+
+      expect((cards.single.content as AfterParty).wishlist?.id, 2);
+
+      final wrong = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [wishlist(1, 'Anniv 2025'), wishlist(2, 'Maison')],
+      );
+      expect((wrong.single.content as AfterParty).wishlist, isNull);
+    });
+
+    test('the birthday keywords come from the params', () {
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [wishlist(1, 'Fête'), wishlist(2, 'Anniv')],
+        definition: def(
+          'after_party',
+          params: {
+            'days_after': 7,
+            'birthday_keywords': ['fete'],
+          },
+        ),
+      );
+
+      expect((cards.single.content as AfterParty).wishlist?.id, 1);
+    });
+
+    test('no name matching a single wishlist falls back to it', () {
+      final single = wishlist(1, 'Vacances');
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [single, wishlist(2, 'Anniv 2024', isClosed: true)],
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, single);
+    });
+
     test('a birthday in December still counts in January, with its year', () {
       final cards = build(
         DateTime(2027, 1, 2, 9),
