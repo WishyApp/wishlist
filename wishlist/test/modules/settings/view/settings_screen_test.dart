@@ -2,10 +2,10 @@ import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
-import 'package:wishlist/modules/settings/widgets/settings_line.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/widgets/avatar/editable_avatar.dart';
+import 'package:wishlist/shared/widgets/settings_line.dart';
 
 import '../../../fixtures/fake_providers.dart';
 import '../../../pump_app.dart';
