@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -81,12 +82,14 @@ void main() {
 
   Future<void> pump(
     WidgetTester tester,
-    Future<List<HomeCardCandidate>> Function() load,
-  ) async {
+    Future<List<HomeCardCandidate>> Function() load, {
+    WindowConfigData? windowConfig,
+  }) async {
     await tester.pumpApp(
       const Scaffold(
         body: SafeArea(child: SingleChildScrollView(child: HomeCardsSlot())),
       ),
+      windowConfig: windowConfig,
       overrides: overrides(load),
     );
     await tester.pumpAndSettle();
@@ -289,5 +292,90 @@ void main() {
 
     verify(() => cardStates.dismiss('friend_accepted:a')).called(1);
     await tester.pump(const Duration(seconds: 5));
+  });
+
+  group('swipe slot', () {
+    testWidgets('the swiped card and its backgrounds are clipped to the slot',
+        (tester) async {
+      await pump(tester, () async => cards);
+
+      final clip = find.ancestor(
+        of: find.byType(Dismissible),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is ClipRRect &&
+              widget.borderRadius == BorderRadius.circular(22),
+        ),
+      );
+      expect(clip, findsOneWidget);
+      // The card is flat inside the slot: its own corners would show the
+      // background as a block next to it
+      expect(tester.widget<HomeCardView>(find.byType(HomeCardView)).flat, true);
+    });
+
+    testWidgets('the slot draws the outline over the card and the background',
+        (tester) async {
+      await pump(tester, () async => cards);
+
+      final outline = tester.widget<DecoratedBox>(
+        find
+            .ancestor(
+              of: find.byType(ClipRRect),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      expect(outline.position, DecorationPosition.foreground);
+      final decoration = outline.decoration as BoxDecoration;
+      expect(decoration.borderRadius, BorderRadius.circular(22));
+      expect(decoration.border, isNotNull);
+    });
+
+    testWidgets('the edges stay outside of the clip', (tester) async {
+      await pump(tester, () async => cards);
+
+      expect(
+        find.descendant(
+          of: find.byType(ClipRRect),
+          matching: find.byType(HomeCardEdge),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a card that cannot be hidden keeps its own shape',
+        (tester) async {
+      await pump(
+        tester,
+        () async => [
+          const HomeCardCandidate(
+            type: 'onboarding',
+            stateKey: 'onboarding:firstWishlist',
+            content: Onboarding(OnboardingStep.firstWishlist),
+            dismissable: false,
+          ),
+        ],
+      );
+
+      expect(
+        tester.widget<HomeCardView>(find.byType(HomeCardView)).flat,
+        false,
+      );
+    });
+
+    testAdaptiveWidgets('$HomeCardStack mid-swipe golden test',
+        (tester, variant) async {
+      await pump(tester, () async => cards, windowConfig: variant);
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text(_firstTitle)),
+      );
+      await gesture.moveBy(const Offset(120, 0));
+      await tester.pump();
+
+      await tester.expectGolden<HomeCardStack>(variant, suffix: 'mid_swipe');
+      await gesture.up();
+      await finish(tester);
+    });
   });
 }

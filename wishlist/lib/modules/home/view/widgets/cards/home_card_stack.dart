@@ -10,8 +10,6 @@ import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 
-const _radius = 22.0;
-
 /// The cards of the moment of the home screen, between the header and the
 /// rest. Shows nothing while the cards load for the first time and when they
 /// cannot be loaded; while they reload it keeps the previous ones, so that the
@@ -106,36 +104,49 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
 
     final view = HomeCardView(
       card: top,
+      flat: top.dismissable,
       onHide: () => _swipe(top, HomeCardSwipe.hide),
     );
 
     return Column(
       children: [
         if (top.dismissable)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(_radius),
-            child: Dismissible(
-              // One element per card: the next card never inherits the drag
-              key: ValueKey(top.stateKey),
-              onDismissed: (direction) => _swipe(
-                top,
-                direction == DismissDirection.startToEnd
-                    ? HomeCardSwipe.later
-                    : HomeCardSwipe.hide,
+          // One rounded slot: the card slides in it, the background is
+          // revealed in it, and the outline is drawn over both so that it
+          // stays continuous (the flat card has none of its own).
+          DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(homeCardRadius),
+              border: homeCardBorderColor(top.tone) == null
+                  ? null
+                  : Border.all(color: homeCardBorderColor(top.tone)!),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(homeCardRadius),
+              child: Dismissible(
+                // One element per card: the next card never inherits the drag
+                key: ValueKey(top.stateKey),
+                onDismissed: (direction) => _swipe(
+                  top,
+                  direction == DismissDirection.startToEnd
+                      ? HomeCardSwipe.later
+                      : HomeCardSwipe.hide,
+                ),
+                background: _SwipeBackground(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  icon: Icons.schedule,
+                  label: context.l10n.homeCardLater,
+                  alignment: Alignment.centerLeft,
+                ),
+                secondaryBackground: _SwipeBackground(
+                  color: AppColors.gainsboro,
+                  icon: Icons.close,
+                  label: context.l10n.homeCardHide,
+                  alignment: Alignment.centerRight,
+                ),
+                child: view,
               ),
-              background: _SwipeBackground(
-                color: AppColors.primary.withValues(alpha: 0.2),
-                icon: Icons.schedule,
-                label: context.l10n.homeCardLater,
-                alignment: Alignment.centerLeft,
-              ),
-              secondaryBackground: _SwipeBackground(
-                color: AppColors.gainsboro,
-                icon: Icons.close,
-                label: context.l10n.homeCardHide,
-                alignment: Alignment.centerRight,
-              ),
-              child: view,
             ),
           )
         else

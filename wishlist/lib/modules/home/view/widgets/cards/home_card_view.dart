@@ -15,19 +15,32 @@ import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/utils/relative_date_utils.dart';
 import 'package:wishlist/shared/widgets/dialogs/create_dialog.dart';
 
-const _radius = 22.0;
+/// Corner radius of a card.
+const homeCardRadius = 22.0;
+
+/// The outline of a card of this [tone], if it has one.
+Color? homeCardBorderColor(HomeCardTone tone) => _Palette.of(tone).border;
 const _onboardingSteps = 4;
 
 /// One card of the home stack: an illustration, an overline, a title, a text,
 /// one action button and a cross to hide it. The look follows
 /// [HomeCardCandidate.tone].
 class HomeCardView extends ConsumerWidget {
-  const HomeCardView({super.key, required this.card, required this.onHide});
+  const HomeCardView({
+    super.key,
+    required this.card,
+    required this.onHide,
+    this.flat = false,
+  });
 
   final HomeCardCandidate card;
 
   /// Called by the cross (shown only on a dismissable card).
   final VoidCallback onHide;
+
+  /// No radius and no border: the card slides in a slot that gives its shape
+  /// (see `HomeCardStack`), so that nothing shows at its own corners.
+  final bool flat;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,9 +51,10 @@ class HomeCardView extends ConsumerWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.background,
-        borderRadius: BorderRadius.circular(_radius),
-        border:
-            palette.border == null ? null : Border.all(color: palette.border!),
+        borderRadius: flat ? null : BorderRadius.circular(homeCardRadius),
+        border: flat || palette.border == null
+            ? null
+            : Border.all(color: palette.border!),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 8, 16),
