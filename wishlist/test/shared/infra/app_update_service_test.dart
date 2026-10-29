@@ -21,6 +21,8 @@ class _FakeRepository implements AppVersionRepository {
 
   /// Calls that throw [error] before [policy] is returned. Null: all of them.
   final int? failures;
+
+  /// Never answers, once the [failures] are thrown.
   final bool hangs;
   String? requestedPlatform;
   int calls = 0;
@@ -29,13 +31,13 @@ class _FakeRepository implements AppVersionRepository {
   Future<AppVersionPolicy?> getPolicy(String platform) async {
     requestedPlatform = platform;
     calls++;
-    if (hangs) {
-      return Completer<AppVersionPolicy?>().future;
-    }
     final error = this.error;
     final failures = this.failures;
     if (error != null && (failures == null || calls <= failures)) {
       throw error;
+    }
+    if (hangs) {
+      return Completer<AppVersionPolicy?>().future;
     }
     return policy;
   }
@@ -324,6 +326,26 @@ void main() {
 
       expect(repository.calls, 1);
       expect(reports.single.capture, isTrue);
+    });
+
+    testWidgets('a timeout on the retry is reported', (tester) async {
+      final repository = _FakeRepository(
+        error: const PostgrestException(message: '', code: '503'),
+        failures: 1,
+        hangs: true,
+      );
+      var done = false;
+      unawaited(
+        service(repository)
+            .check(currentVersion: '0.2.0', platform: 'android')
+            .then((_) => done = true),
+      );
+
+      await tester.pump(const Duration(seconds: 11));
+
+      expect(done, isTrue);
+      expect(repository.calls, 2);
+      expect(reports.map((r) => r.capture), [false, true]);
     });
 
     test('a network failure is not retried', () async {
