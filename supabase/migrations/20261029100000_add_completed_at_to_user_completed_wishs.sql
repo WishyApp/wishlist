@@ -14,12 +14,22 @@
 
 -- 1. Column. Rows inserted before this migration get the day of their insert,
 -- in the time zone of the app's users: the day they saw in the app.
+--
+-- The trigger of updated_at is off during the backfill: the rows keep the time
+-- of their last change by a user. The backfill still sends one realtime UPDATE
+-- per row, once, to the clients connected at that time.
 ALTER TABLE public.user_completed_wishs
   ADD COLUMN IF NOT EXISTS completed_at date;
+
+ALTER TABLE public.user_completed_wishs
+  DISABLE TRIGGER set_user_completed_wishs_updated_at;
 
 UPDATE public.user_completed_wishs
   SET completed_at = (created_at AT TIME ZONE 'Europe/Paris')::date
   WHERE completed_at IS NULL;
+
+ALTER TABLE public.user_completed_wishs
+  ENABLE TRIGGER set_user_completed_wishs_updated_at;
 
 ALTER TABLE public.user_completed_wishs
   ALTER COLUMN completed_at SET DEFAULT (now() AT TIME ZONE 'Europe/Paris')::date,
