@@ -173,12 +173,12 @@ void main() {
   });
 
   test('recordShown calls record_card_shown', () async {
-    await repository.recordShown('christmas:2026');
+    await repository.recordShown('christmas@2026');
 
     verify(
       () => client.rpc<void>(
         'record_card_shown',
-        params: {'p_card_key': 'christmas:2026'},
+        params: {'p_card_key': 'christmas@2026'},
       ),
     ).called(1);
   });

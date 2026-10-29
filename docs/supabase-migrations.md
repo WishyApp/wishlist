@@ -116,7 +116,7 @@ Toujours vérifier avec le `SELECT` : une coquille (`3.0.0` pour `0.3.0`) bloque
 
 ## Purge annuelle des états de cartes
 
-La migration `20261030100001_user_card_states` crée le job pg_cron `purge-user-card-states` (le 2 janvier à 03:17 UTC), qui supprime les lignes de `user_card_states` inactives depuis plus d'un an. Désactiver pg_cron depuis le dashboard supprime ce job : il ne reviendrait qu'en rejouant la migration.
+La migration `20261030100001_user_card_states` crée le job pg_cron `purge-user-card-states` (le 2 janvier à 03:17 UTC), qui supprime les lignes de `user_card_states` inactives depuis plus d'un an. Exception : un masque définitif (carte masquée sans report) est conservé, sauf si sa clé finit par une année `@AAAA` déjà passée. Désactiver pg_cron depuis le dashboard supprime ce job : il ne reviendrait qu'en rejouant la migration.
 
 ## Tester en local
 

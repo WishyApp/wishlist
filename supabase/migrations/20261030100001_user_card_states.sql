@@ -23,11 +23,13 @@
 -- gets activity again yet must keep holding, so it is only purged once its
 -- year is over, that is when its key ends with a year older than the current
 -- one (friend_birthday:<uuid>@2020, the card cannot come back for that year).
--- A permanent mask without a year (stale_wishlist:88) is
--- kept for good.
--- Rows whose key starts with 'onboarding:' are never purged: onboarding:birthday,
--- onboarding:photo and onboarding:optional_window have no year in their key,
--- deleting them would bring the skipped onboarding steps back.
+-- A permanent mask without a year (booked_wish_removed:<id>,
+-- friend_accepted:<uuid>) is kept for good: a small volume, the price of never
+-- bringing a hidden card back.
+-- Rows whose key starts with 'onboarding:' are never purged either, because
+-- of onboarding:optional_window, a shown-only row with no year in its key:
+-- deleting it would restart the optional onboarding steps (onboarding:birthday
+-- and onboarding:photo are permanent masks, kept anyway).
 --
 -- Clients only read their rows. They write through record_card_shown and
 -- dismiss_card, which always write the row of the current user.
@@ -116,8 +118,8 @@ $$;
 
 -- The current user dismissed the card. With p_snooze_until it comes back
 -- after that date, without it never. A mask is never shortened (see the
--- header): the later of the two dates wins. A date in the past is accepted, and does
--- not shorten a mask still running; a non-finite one is refused.
+-- header): the later of the two dates wins. A date in the past is accepted,
+-- and does not shorten a mask still running; a non-finite one is refused.
 CREATE OR REPLACE FUNCTION public.dismiss_card(
   p_card_key text,
   p_snooze_until timestamptz DEFAULT NULL
@@ -156,9 +158,9 @@ GRANT EXECUTE ON FUNCTION public.record_card_shown(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.dismiss_card(text, timestamptz) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.dismiss_card(text, timestamptz) TO authenticated;
 
--- Deletes the stale rows of every user (see the header for the rule) and returns how many. Internal: run by
--- pg_cron as postgres, so no client can call it. The retention is spelled once,
--- in v_retention.
+-- Deletes the stale rows of every user (see the header for the rule) and
+-- returns how many. Internal: run by pg_cron as postgres, so no client can
+-- call it. The retention is spelled once, in v_retention.
 CREATE OR REPLACE FUNCTION public.purge_stale_card_states()
 RETURNS integer
 LANGUAGE plpgsql
@@ -177,10 +179,8 @@ BEGIN
     AND (
       dismissed_at IS NULL
       OR snoozed_until IS NOT NULL
-      OR (
-        card_key ~ '@[0-9]{4}$'
-        AND right(card_key, 4)::int < extract(year FROM now())
-      )
+      -- substring is NULL without a year, so the comparison is not true
+      OR substring(card_key FROM '@([0-9]{4})$')::int < extract(year FROM now())
     );
   GET DIAGNOSTICS v_deleted = ROW_COUNT;
   RETURN v_deleted;
