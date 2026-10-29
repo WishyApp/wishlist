@@ -1063,7 +1063,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeCardAfterPartyChristmasTitle => 'Le Père Noël est passé ?';
 
   @override
-  String get homeCardAfterPartyBirthdayTitle => 'Tu as été gâté ?';
+  String get homeCardAfterPartyBirthdayTitle => 'Tu as été gâté·e ?';
 
   @override
   String get homeCardAfterPartyAction => 'Cocher ce que j\'ai reçu';
@@ -1190,10 +1190,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeCardOnboardingWishlistAction => 'Créer une wishlist';
 
   @override
-  String get homeCardOnboardingFriendTitle => 'Ajoute un ami';
+  String get homeCardOnboardingFriendTitle => 'Ajoute un·e ami·e';
 
   @override
-  String get homeCardOnboardingFriendAction => 'Ajouter un ami';
+  String get homeCardOnboardingFriendAction => 'Ajouter un·e ami·e';
 
   @override
   String get homeCardOnboardingBirthdayTitle => 'Ajoute ton anniversaire';

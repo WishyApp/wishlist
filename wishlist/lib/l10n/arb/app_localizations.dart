@@ -1781,7 +1781,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeCardAfterPartyBirthdayTitle.
   ///
   /// In fr, this message translates to:
-  /// **'Tu as été gâté ?'**
+  /// **'Tu as été gâté·e ?'**
   String get homeCardAfterPartyBirthdayTitle;
 
   /// No description provided for @homeCardAfterPartyAction.
@@ -1931,13 +1931,13 @@ abstract class AppLocalizations {
   /// No description provided for @homeCardOnboardingFriendTitle.
   ///
   /// In fr, this message translates to:
-  /// **'Ajoute un ami'**
+  /// **'Ajoute un·e ami·e'**
   String get homeCardOnboardingFriendTitle;
 
   /// No description provided for @homeCardOnboardingFriendAction.
   ///
   /// In fr, this message translates to:
-  /// **'Ajouter un ami'**
+  /// **'Ajouter un·e ami·e'**
   String get homeCardOnboardingFriendAction;
 
   /// No description provided for @homeCardOnboardingBirthdayTitle.

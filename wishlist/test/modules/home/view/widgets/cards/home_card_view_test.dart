@@ -149,7 +149,7 @@ void main() {
         find.text("Ton anniversaire, c'était il y a 3 jours"),
         findsOneWidget,
       );
-      expect(find.text('Tu as été gâté ?'), findsOneWidget);
+      expect(find.text('Tu as été gâté·e ?'), findsOneWidget);
       expect(
         find.text(
           'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.',
@@ -183,7 +183,7 @@ void main() {
       );
 
       expect(find.byType(ElevatedButton), findsNothing);
-      expect(find.text('Tu as été gâté ?'), findsOneWidget);
+      expect(find.text('Tu as été gâté·e ?'), findsOneWidget);
       expect(
         find.text(
           'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.',
@@ -423,8 +423,8 @@ void main() {
         ),
       );
 
-      expect(find.text('Ajoute un ami'), findsOneWidget);
-      await tester.tap(find.text('Ajouter un ami'));
+      expect(find.text('Ajoute un·e ami·e'), findsOneWidget);
+      await tester.tap(find.text('Ajouter un·e ami·e'));
       await tester.pumpAndSettle();
       expect(find.byType(BottomSheet), findsOneWidget);
     });
