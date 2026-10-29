@@ -1,5 +1,6 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/models/received_wishes_summary/received_wishes_summary.dart';
 
 abstract class UserCompletedWishRepository {
   /// Marque un wish comme complété pour l'utilisateur courant, reçu le jour
@@ -43,4 +44,8 @@ abstract class UserCompletedWishRepository {
   Future<IList<CompletedWishWithDetails>> getCompletedWishesByUser(
     String userId,
   );
+
+  /// Count and latest day of the wishes a user received, without their
+  /// details. Counts the same rows as [getCompletedWishesByUser].
+  Future<ReceivedWishesSummary> getReceivedWishesSummary(String userId);
 }

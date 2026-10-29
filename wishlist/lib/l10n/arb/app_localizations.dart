@@ -1388,12 +1388,6 @@ abstract class AppLocalizations {
   /// **'Retirer des complétés'**
   String get unmarkWishAsCompleted;
 
-  /// No description provided for @settingsCompletedWishes.
-  ///
-  /// In fr, this message translates to:
-  /// **'Mes wishs complétés'**
-  String get settingsCompletedWishes;
-
   /// No description provided for @unmarkWishConfirmTitle.
   ///
   /// In fr, this message translates to:
@@ -1693,6 +1687,24 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Seul le propriétaire de cette wishlist peut modifier ses paramètres'**
   String get wishlistSettingsOwnerOnly;
+
+  /// No description provided for @homeMyWishlists.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mes wishlists'**
+  String get homeMyWishlists;
+
+  /// No description provided for @homeNoWishlist.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas encore de wishlist'**
+  String get homeNoWishlist;
+
+  /// No description provided for @homeReceivedWishes.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =1 {1 wish reçu} other {{count} wishs reçus}}'**
+  String homeReceivedWishes(num count);
 }
 
 class _AppLocalizationsDelegate

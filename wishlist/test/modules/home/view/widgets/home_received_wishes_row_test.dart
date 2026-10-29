@@ -1,0 +1,157 @@
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
+import 'package:wishlist/modules/home/view/widgets/home_received_wishes_row.dart';
+import 'package:wishlist/shared/infra/clock_provider.dart';
+import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/models/wish/wish.dart';
+import 'package:wishlist/shared/navigation/routes.dart';
+
+import '../../../../fixtures/fake_data.dart';
+import '../../../../fixtures/fake_providers.dart';
+import '../../../../pump_app.dart';
+
+/// A wish received [daysAgo] days before [fakeNow]
+CompletedWishWithDetails _completedWish(int id, {int daysAgo = 0}) {
+  return CompletedWishWithDetails(
+    wish: Wish(
+      id: id,
+      createdAt: fakeCreatedAt,
+      name: 'Wish $id',
+      description: '',
+      quantity: 1,
+      wishlistId: fakeWishlist1.id,
+      updatedBy: fakeFriendUserId1,
+      updatedAt: fakeUpdatedAt,
+    ),
+    fromWishlistId: fakeWishlist1.id,
+    fromWishlistName: fakeWishlist1.name,
+    ownerPseudo: fakeFriendProfile1.pseudo,
+    ownerId: fakeFriendUserId1,
+    completedAt: DateTime(
+      fakeNow.year,
+      fakeNow.month,
+      fakeNow.day - daysAgo,
+      12,
+    ),
+    quantity: 1,
+  );
+}
+
+void main() {
+  Future<void> pumpRow(
+    WidgetTester tester, {
+    List<CompletedWishWithDetails> completedWishes = const [],
+  }) async {
+    await tester.pumpRouterApp(
+      '/row',
+      routes: [
+        GoRoute(
+          path: '/row',
+          builder: (context, state) =>
+              const Scaffold(body: SafeArea(child: HomeReceivedWishesRow())),
+        ),
+        ...$appRoutes,
+      ],
+      overrides: [
+        ...homeScreenOverrides(completedWishes: completedWishes, now: fakeNow),
+      ],
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('does not open the unfiltered stream of the full list',
+      (tester) async {
+    var fullListOpened = false;
+    await tester.pumpRouterApp(
+      '/row',
+      routes: [
+        GoRoute(
+          path: '/row',
+          builder: (context, state) => const Scaffold(
+            body: SafeArea(child: HomeReceivedWishesRow()),
+          ),
+        ),
+      ],
+      overrides: [
+        ...homeScreenOverrides(
+          completedWishes: [_completedWish(1)],
+          now: fakeNow,
+        ),
+        completedWishesRealtimeProvider.overrideWith((ref) {
+          fullListOpened = true;
+          return Stream.value(const IListConst([]));
+        }),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 wish reçu'), findsOneWidget);
+    expect(fullListOpened, isFalse);
+  });
+
+  testWidgets('recomputes the relative date when the app resumes',
+      (tester) async {
+    var now = fakeNow;
+    await tester.pumpApp(
+      const Scaffold(body: SafeArea(child: HomeReceivedWishesRow())),
+      overrides: [
+        ...homeScreenOverrides(completedWishes: [_completedWish(1)]),
+        clockProvider.overrideWithValue(() => now),
+      ],
+    );
+    await tester.pumpAndSettle();
+    expect(find.text("Aujourd'hui"), findsOneWidget);
+
+    // Midnight passes while the app is in the background
+    now = fakeNow.add(const Duration(days: 1));
+    [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ].forEach(tester.binding.handleAppLifecycleStateChanged);
+    await tester.pump();
+
+    expect(find.text('Hier'), findsOneWidget);
+  });
+
+  testWidgets('is absent without a received wish', (tester) async {
+    await pumpRow(tester);
+
+    expect(find.byType(InkWell), findsNothing);
+    expect(find.textContaining('reçu'), findsNothing);
+  });
+
+  testWidgets('shows the count and the date of the latest one', (tester) async {
+    await pumpRow(
+      tester,
+      completedWishes: [
+        _completedWish(1, daysAgo: 2),
+        _completedWish(2, daysAgo: 10),
+        _completedWish(3, daysAgo: 30),
+      ],
+    );
+
+    expect(find.text('3 wishs reçus'), findsOneWidget);
+    expect(find.text('Il y a 2 jours'), findsOneWidget);
+  });
+
+  testWidgets('opens the completed wishes', (tester) async {
+    await pumpRow(tester, completedWishes: [_completedWish(1)]);
+
+    expect(find.text('1 wish reçu'), findsOneWidget);
+
+    await tester.tap(find.text('1 wish reçu'));
+    await tester.pumpAndSettle();
+    // Lets the initial load of the list finish
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.byType(CompletedWishesScreen), findsOneWidget);
+  });
+}

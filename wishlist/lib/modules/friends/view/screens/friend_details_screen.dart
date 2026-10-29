@@ -386,7 +386,6 @@ class _WishlistsSection extends StatelessWidget {
 
     return WishlistsGrid(
       wishlists: friendDetails.publicWishlists.toList(),
-      isReorderable: false,
     );
   }
 }

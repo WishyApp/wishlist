@@ -6,6 +6,7 @@ import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/supabase_user_completed_wish_repository.dart';
+import 'package:wishlist/shared/models/received_wishes_summary/received_wishes_summary.dart';
 
 void main() {
   /// A client whose fake PostgREST answers a GET with [existing] (the rows of
@@ -200,6 +201,57 @@ void main() {
         requests.single.url.queryParameters['order'],
         'completed_at.desc.nullslast,created_at.desc.nullslast',
       );
+    });
+  });
+
+  group('SupabaseUserCompletedWishRepository.getReceivedWishesSummary', () {
+    Future<(ReceivedWishesSummary, List<http.Request>)> summary(
+      List<Map<String, dynamic>> rows,
+    ) async {
+      final requests = <http.Request>[];
+      final client = SupabaseClient(
+        'https://example.supabase.co',
+        'anon-key',
+        httpClient: MockClient((req) async {
+          requests.add(req);
+          return http.Response(
+            jsonEncode(rows),
+            200,
+            headers: {'content-type': 'application/json'},
+            request: req,
+          );
+        }),
+      );
+      addTearDown(client.dispose);
+
+      final result = await SupabaseUserCompletedWishRepository(client)
+          .getReceivedWishesSummary('me');
+      return (result, requests);
+    }
+
+    test('counts the rows of the user and gives the latest day', () async {
+      final (result, requests) = await summary([
+        {'completed_at': '2026-03-05', 'wishs': <String, dynamic>{}},
+        {'completed_at': '2026-03-01', 'wishs': <String, dynamic>{}},
+        {'completed_at': '2026-02-10', 'wishs': <String, dynamic>{}},
+      ]);
+
+      expect(result.count, 3);
+      expect(result.latestCompletedAt, DateTime(2026, 3, 5));
+      final query = requests.single.url.queryParameters;
+      expect(query['user_id'], 'eq.me');
+      expect(query['order'], 'completed_at.desc.nullslast');
+      // The same inner joins as the full list, so the same rows are counted
+      expect(query['select'], contains('wishs!inner'));
+      expect(query['select'], contains('wishlists!inner'));
+      expect(query['select'], contains('profiles!inner'));
+    });
+
+    test('is empty without any row', () async {
+      final (result, _) = await summary([]);
+
+      expect(result, const ReceivedWishesSummary.empty());
+      expect(result.latestCompletedAt, isNull);
     });
   });
 }

@@ -747,9 +747,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unmarkWishAsCompleted => 'Remove from completed';
 
   @override
-  String get settingsCompletedWishes => 'My completed wishes';
-
-  @override
   String get unmarkWishConfirmTitle => 'Remove from completed';
 
   @override
@@ -963,4 +960,21 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get wishlistSettingsOwnerOnly =>
       'Only the owner of this wishlist can change its settings';
+
+  @override
+  String get homeMyWishlists => 'My wishlists';
+
+  @override
+  String get homeNoWishlist => 'No wishlist yet';
+
+  @override
+  String homeReceivedWishes(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wishes received',
+      one: '1 wish received',
+    );
+    return '$_temp0';
+  }
 }
