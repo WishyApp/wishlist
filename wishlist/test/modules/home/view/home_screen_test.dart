@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
 import 'package:wishlist/modules/home/view/home_screen.dart';
 import 'package:wishlist/modules/home/view/widgets/cards/home_card_view.dart';
 import 'package:wishlist/modules/home/view/widgets/home_profile_header.dart';
@@ -233,6 +234,54 @@ void main() {
     expect(find.text(fakeWishlists.first.name), findsWidgets);
   });
 
+  testWidgets(
+      '$HomeScreen retry reloads the profile, the received wishes and the '
+      'wishlists', (tester) async {
+    var profileLoads = 0;
+    var summaryLoads = 0;
+    var wishlistsLoads = 0;
+    final error = AppException(
+      statusCode: 500,
+      cause: const SocketException('Failed host lookup'),
+    );
+
+    await tester.pumpApp(
+      const FloatingNavBarNavigator(
+        // ignore: avoid_redundant_argument_values
+        currentTab: FloatingNavBarTab.home,
+      ),
+      overrides: [
+        ...homeScreenOverrides(),
+        watchCurrentUserProfileProvider.overrideWith((ref) {
+          profileLoads++;
+          return profileLoads == 1
+              ? Stream.error(error)
+              : Stream.value(fakeCurrentUserProfile);
+        }),
+        receivedWishesSummaryProvider.overrideWith((ref) {
+          summaryLoads++;
+          return summaryLoads == 1
+              ? Stream.error(error)
+              : Stream.value(const ReceivedWishesSummary.empty());
+        }),
+        wishlistsRealtimeProvider.overrideWith((ref) {
+          wishlistsLoads++;
+          return wishlistsLoads == 1
+              ? Stream.error(error)
+              : Stream.value(fakeWishlists);
+        }),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(PrimaryButton));
+    await tester.pumpAndSettle();
+
+    expect(profileLoads, 2);
+    expect(summaryLoads, 2);
+    expect(wishlistsLoads, 2);
+  });
+
   group('header and received wishes row stay in every state', () {
     final summaryOverride = receivedWishesSummaryProvider.overrideWith(
       (ref) => Stream.value(
@@ -250,7 +299,10 @@ void main() {
           currentTab: FloatingNavBarTab.home,
         ),
         overrides: [
-          ...homeScreenOverrides(now: fakeNow),
+          ...homeScreenOverrides(
+            now: fakeNow,
+            homeCards: [_friendAcceptedCard],
+          ),
           summaryOverride,
           wishlistsRealtimeProvider.overrideWith((ref) => wishlists),
         ],
@@ -260,11 +312,14 @@ void main() {
     testWidgets('while the wishlists load', (tester) async {
       await pumpHome(tester, const Stream.empty());
       await tester.pump(const Duration(milliseconds: 500));
+      // The cards resolve after the first frame
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       expect(find.byType(HomeProfileHeader), findsOneWidget);
       expect(find.text('MonPseudo'), findsOneWidget);
       expect(find.text('2 wishs reçus'), findsOneWidget);
+      expect(find.byType(HomeCardView), findsOneWidget);
     });
 
     testWidgets('when the wishlists fail to load', (tester) async {
@@ -284,6 +339,7 @@ void main() {
       expect(find.byType(HomeProfileHeader), findsOneWidget);
       expect(find.text('MonPseudo'), findsOneWidget);
       expect(find.text('2 wishs reçus'), findsOneWidget);
+      expect(find.byType(HomeCardView), findsOneWidget);
     });
   });
 
@@ -322,6 +378,35 @@ void main() {
 
     expect(profileLoads, 2);
     expect(summaryLoads, 2);
+  });
+
+  testWidgets('$HomeScreen pull to refresh reloads the cards', (tester) async {
+    var cardsLoads = 0;
+    await tester.pumpApp(
+      const FloatingNavBarNavigator(
+        // ignore: avoid_redundant_argument_values
+        currentTab: FloatingNavBarTab.home,
+      ),
+      overrides: [
+        ...homeScreenOverrides(now: fakeNow),
+        homeCardsProvider.overrideWith((ref) async {
+          cardsLoads++;
+          return [_friendAcceptedCard];
+        }),
+      ],
+    );
+    await tester.pumpAndSettle();
+    expect(cardsLoads, 1);
+
+    await tester.fling(
+      find.byType(CustomScrollView).first,
+      const Offset(0, 400),
+      1000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(cardsLoads, 2);
+    expect(find.byType(HomeCardView), findsOneWidget);
   });
 
   testWidgets(
