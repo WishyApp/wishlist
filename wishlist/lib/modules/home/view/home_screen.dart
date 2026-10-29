@@ -42,7 +42,7 @@ class HomeScreen extends ConsumerWidget {
         ..invalidate(receivedWishesSummaryProvider)
         ..invalidate(wishlistsRealtimeProvider)
         // Read again even if the summary did not change
-        ..invalidate(receivedWishesSnapshotProvider)
+        ..invalidate(yearRecapFactsProvider)
         // Not awaited: the pile keeps its cards while it reloads
         ..invalidate(homeCardsProvider);
 

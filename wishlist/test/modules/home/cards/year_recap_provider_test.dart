@@ -1,106 +1,151 @@
 import 'dart:async';
 
-import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
 import 'package:wishlist/shared/infra/received_wishes_summary_provider.dart';
-import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
-import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository_provider.dart';
-import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/infra/repositories/year_recap/year_recap_repository_provider.dart';
 import 'package:wishlist/shared/models/received_wishes_summary/received_wishes_summary.dart';
-import 'package:wishlist/shared/models/wish/wish.dart';
+import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 
-import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
-
-class MockUserCompletedWishRepository extends Mock
-    implements UserCompletedWishRepository {}
-
-CompletedWishWithDetails received(int id, DateTime completedAt) {
-  return CompletedWishWithDetails(
-    wish: Wish(
-      id: id,
-      createdAt: DateTime(2025, 6, 2),
-      name: 'Casque',
-      description: '',
-      quantity: 1,
-      wishlistId: 1,
-      updatedBy: fakeFriendUserId1,
-      updatedAt: fakeUpdatedAt,
-    ),
-    fromWishlistId: 1,
-    fromWishlistName: 'Liste',
-    ownerPseudo: 'Alice',
-    ownerId: fakeFriendUserId1,
-    completedAt: completedAt,
-    quantity: 1,
-  );
-}
+import '../../../fixtures/fake_year_recap.dart';
 
 void main() {
-  test('a new received wish updates the recap facts', () async {
-    final repository = MockUserCompletedWishRepository();
-    final wishes = [received(1, DateTime(2026, 3, 4))];
-    when(() => repository.getCompletedWishesByUser(any()))
-        .thenAnswer((_) async => wishes.toIList());
+  late MockYearRecapRepository repository;
+
+  setUp(() {
+    repository = MockYearRecapRepository();
+  });
+
+  ProviderContainer containerWith(
+    Stream<ReceivedWishesSummary> summaries,
+  ) {
+    final container = ProviderContainer(
+      overrides: [
+        supabaseClientOverride(),
+        yearRecapRepositoryProvider.overrideWithValue(repository),
+        receivedWishesSummaryProvider.overrideWith((ref) => summaries),
+      ],
+    );
+    addTearDown(container.dispose);
+    return container;
+  }
+
+  test('loads the recap of the year asked for from the server', () async {
+    when(() => repository.getMyYearRecap(2026)).thenAnswer(
+      (_) async => fakeYearRecap(
+        stats: const YearRecapStats(received: 4),
+        profile: YearRecapProfileKey.gate,
+      ),
+    );
+    final container = containerWith(const Stream.empty());
+    final subscription = container.listen(
+      yearRecapFactsProvider(2026),
+      (_, __) {},
+    );
+
+    final recap = await container.read(yearRecapFactsProvider(2026).future);
+
+    expect(recap.stats.received, 4);
+    expect(recap.profile.key, YearRecapProfileKey.gate);
+    verify(() => repository.getMyYearRecap(2026)).called(1);
+    subscription.close();
+  });
+
+  test('a new received wish loads the recap again', () async {
+    var received = 1;
+    when(() => repository.getMyYearRecap(any())).thenAnswer(
+      (_) async => fakeYearRecap(stats: YearRecapStats(received: received)),
+    );
     final summaries = StreamController<ReceivedWishesSummary>();
     addTearDown(summaries.close);
     summaries.add(
       ReceivedWishesSummary(count: 1, latestCompletedAt: DateTime(2026, 3, 4)),
     );
-    final container = ProviderContainer(
-      overrides: [
-        supabaseClientOverride(),
-        bookedWishesRealtimeOverride(),
-        userCompletedWishRepositoryProvider.overrideWithValue(repository),
-        receivedWishesSummaryProvider.overrideWith((ref) => summaries.stream),
-      ],
-    );
-    addTearDown(container.dispose);
-    final facts = container.listen(
+    final container = containerWith(summaries.stream);
+    final subscription = container.listen(
       yearRecapFactsProvider(2026),
       (_, __) {},
     );
     final first = await container.read(yearRecapFactsProvider(2026).future);
-    expect(first.receivedCount, 1);
+    expect(first.stats.received, 1);
 
-    wishes.add(received(2, DateTime(2026, 5, 6)));
+    received = 2;
     summaries.add(
       ReceivedWishesSummary(count: 2, latestCompletedAt: DateTime(2026, 5, 6)),
     );
     await Future<void>.delayed(Duration.zero);
 
     final second = await container.read(yearRecapFactsProvider(2026).future);
-    expect(second.receivedCount, 2);
-    facts.close();
+    expect(second.stats.received, 2);
+    subscription.close();
+  });
+
+  test('a summary that did not change does not load the recap again', () async {
+    when(() => repository.getMyYearRecap(any()))
+        .thenAnswer((_) async => fakeYearRecap());
+    final summaries = StreamController<ReceivedWishesSummary>();
+    addTearDown(summaries.close);
+    final summary = ReceivedWishesSummary(
+      count: 1,
+      latestCompletedAt: DateTime(2026, 3, 4),
+    );
+    summaries.add(summary);
+    final container = containerWith(summaries.stream);
+    // The first value is there before the recap loads
+    final summarySubscription = container.listen(
+      receivedWishesSummaryProvider,
+      (_, __) {},
+    );
+    await container.read(receivedWishesSummaryProvider.future);
+    final subscription = container.listen(
+      yearRecapFactsProvider(2026),
+      (_, __) {},
+    );
+    await container.read(yearRecapFactsProvider(2026).future);
+
+    summaries.add(summary);
+    await Future<void>.delayed(Duration.zero);
+    await container.read(yearRecapFactsProvider(2026).future);
+
+    verify(() => repository.getMyYearRecap(2026)).called(1);
+    subscription.close();
+    summarySubscription.close();
   });
 
   test('a summary that cannot be read does not fail the recap', () async {
-    final repository = MockUserCompletedWishRepository();
-    when(() => repository.getCompletedWishesByUser(any())).thenAnswer(
-      (_) async => [received(1, DateTime(2026, 3, 4))].toIList(),
+    when(() => repository.getMyYearRecap(any())).thenAnswer(
+      (_) async => fakeYearRecap(stats: const YearRecapStats(received: 1)),
     );
-    final container = ProviderContainer(
-      overrides: [
-        supabaseClientOverride(),
-        bookedWishesRealtimeOverride(),
-        userCompletedWishRepositoryProvider.overrideWithValue(repository),
-        receivedWishesSummaryProvider.overrideWith(
-          (ref) => Stream<ReceivedWishesSummary>.error(Exception('down')),
-        ),
-      ],
+    final container = containerWith(
+      Stream<ReceivedWishesSummary>.error(Exception('down')),
     );
-    addTearDown(container.dispose);
-    final facts = container.listen(
+    final subscription = container.listen(
       yearRecapFactsProvider(2026),
       (_, __) {},
     );
     await Future<void>.delayed(Duration.zero);
 
     final result = await container.read(yearRecapFactsProvider(2026).future);
-    expect(result.receivedCount, 1);
-    facts.close();
+    expect(result.stats.received, 1);
+    subscription.close();
+  });
+
+  test('a server failure is an error of the provider only', () async {
+    when(() => repository.getMyYearRecap(any()))
+        .thenThrow(Exception('offline'));
+    final container = containerWith(const Stream.empty());
+    final subscription = container.listen(
+      yearRecapFactsProvider(2026),
+      (_, __) {},
+    );
+
+    await expectLater(
+      container.read(yearRecapFactsProvider(2026).future),
+      throwsException,
+    );
+    subscription.close();
   });
 }

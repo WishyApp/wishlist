@@ -27,6 +27,7 @@ import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
+import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 
 const _stackKey = 'home_stack';
 const _defaultMaxCards = 3;
@@ -207,11 +208,11 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   );
 
   final lastActivity = await lastActivityFuture;
-  // The recap reads the received wishes once, and only in its month: nothing
-  // heavy is kept alive the rest of the year.
+  // The recap is only loaded in its month: nothing is kept alive the rest of
+  // the year.
   final yearRecap = !isYearRecapMonth(definitions['year_recap'], now)
       ? null
-      : await _orElse<YearRecapFacts?>(
+      : await _orElse<YearRecapData?>(
           'year recap',
           () => ref.watch(yearRecapFactsProvider(now.toLocal().year).future),
           null,
@@ -257,7 +258,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     ),
     if (yearRecap != null)
       ...yearRecapCards(
-        facts: yearRecap,
+        recap: yearRecap,
         definition: definitions['year_recap'],
         now: now,
       ),

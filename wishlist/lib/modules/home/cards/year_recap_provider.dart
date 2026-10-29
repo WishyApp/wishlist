@@ -1,26 +1,19 @@
-import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wishlist/modules/home/cards/card_builders.dart';
-import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
-import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/received_wishes_summary_provider.dart';
-import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository_provider.dart';
-import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/infra/repositories/year_recap/year_recap_repository_provider.dart';
+import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 
-/// The wishes the user received, read again when their count or latest day
-/// changes (`receivedWishesSummaryProvider`, already live on the home screen).
-/// Not the live stream
-/// (completedWishesRealtimeProvider): it listens to four tables without a
-/// filter and the home screen must not keep it all year for a card shown in
-/// December. Only read in the month of the recap (see `homeCardsProvider`)
-/// and by the recap page.
-final receivedWishesSnapshotProvider =
-    FutureProvider.autoDispose<IList<CompletedWishWithDetails>>((ref) async {
-  final userId = ref.watch(currentUserIdProvider);
-  if (userId == null) {
-    return const IListConst([]);
-  }
+/// The figures and the profile of the user for `year`, computed by the server
+/// (`get_my_year_recap`), for the card "Ton année Wishy", its page and the
+/// share image. Only read in the month of the recap (see `homeCardsProvider`)
+/// and by the recap page. It is read again when the count or the latest day of
+/// the received wishes changes (`receivedWishesSummaryProvider`, already live
+/// on the home screen).
+final yearRecapFactsProvider =
+    FutureProvider.autoDispose.family<YearRecapData, int>((ref, year) async {
+  // Only to start again for another user
+  ref.watch(currentUserIdProvider);
   // Only a trigger: a summary that cannot be read must not fail the recap.
   ref.watch(
     receivedWishesSummaryProvider.select(
@@ -30,30 +23,5 @@ final receivedWishesSnapshotProvider =
       ),
     ),
   );
-  return ref
-      .watch(userCompletedWishRepositoryProvider)
-      .getCompletedWishesByUser(userId);
-});
-
-/// What the user received and gave during `year`, for the card "Ton année
-/// Wishy" and its page. The bookings come from the live provider the home
-/// already listens to; only a change of what the recap reads reloads it.
-final yearRecapFactsProvider =
-    FutureProvider.autoDispose.family<YearRecapFacts, int>((ref, year) async {
-  final received = await ref.watch(receivedWishesSnapshotProvider.future);
-  await ref.watch(
-    bookedWishesRealtimeProvider.selectAsync(
-      (list) => [
-        for (final b in list)
-          if (b.receivedAt != null)
-            (wishId: b.wish.id, ownerId: b.ownerId, receivedAt: b.receivedAt),
-      ].toIList(),
-    ),
-  );
-  final bookings = ref.read(bookedWishesRealtimeProvider).valueOrNull;
-  return yearRecapFacts(
-    received: received.toList(),
-    bookings: bookings?.toList() ?? const [],
-    year: year,
-  );
+  return ref.watch(yearRecapRepositoryProvider).getMyYearRecap(year);
 });

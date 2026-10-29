@@ -6,9 +6,9 @@ import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/card_state.dart';
-import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
+import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 import 'package:wishlist/shared/utils/occasion_wishlist_utils.dart';
 
 // Pure functions: they build the cards that could be shown at [now] (local
@@ -470,51 +470,6 @@ List<HomeCardCandidate> staleWishlistCards({
   return const [];
 }
 
-/// What was received (`completedAt`) and given during [year]. A booking counts
-/// as given once the owner marked at least the booked quantity as received
-/// (`receivedAt` in [year]), even if other bookings of the wish are not.
-YearRecapFacts yearRecapFacts({
-  required List<CompletedWishWithDetails> received,
-  required List<BookedWishWithDetails> bookings,
-  required int year,
-}) {
-  final receivedInYear = [
-    for (final wish in received)
-      if (wish.completedAt.toLocal().year == year) wish,
-  ];
-  final offeredInYear = [
-    for (final booking in bookings)
-      if (booking.receivedAt?.toLocal().year == year &&
-          booking.receivedQuantity >= booking.bookedQuantity)
-        booking,
-  ];
-  CompletedWishWithDetails? longestAwaited;
-  for (final wish in receivedInYear) {
-    if (longestAwaited == null ||
-        wish.wish.createdAt.isBefore(longestAwaited.wish.createdAt)) {
-      longestAwaited = wish;
-    }
-  }
-  final givenByOwner = <String, int>{};
-  final pseudos = <String, String>{};
-  for (final booking in offeredInYear) {
-    givenByOwner.update(booking.ownerId, (n) => n + 1, ifAbsent: () => 1);
-    pseudos[booking.ownerId] = booking.ownerPseudo;
-  }
-  final most = givenByOwner.values.fold(0, max);
-  final top = [
-    for (final entry in givenByOwner.entries)
-      if (entry.value == most) entry.key,
-  ];
-  return YearRecapFacts(
-    year: year,
-    receivedCount: receivedInYear.length,
-    offeredCount: offeredInYear.length,
-    longestAwaited: longestAwaited,
-    mostGiftedFriendPseudo: top.length == 1 ? pseudos[top.single] : null,
-  );
-}
-
 /// Whether [now] is in the `month` of the definition of the recap (December):
 /// the only time its facts are worth loading.
 bool isYearRecapMonth(HomeCardDefinition? definition, DateTime now) {
@@ -525,20 +480,20 @@ bool isYearRecapMonth(HomeCardDefinition? definition, DateTime now) {
 /// "Ton année Wishy": only in the `month` of the definition (December), and
 /// only when the user received or gave at least one wish that year.
 List<HomeCardCandidate> yearRecapCards({
-  required YearRecapFacts facts,
+  required YearRecapData recap,
   required HomeCardDefinition? definition,
   required DateTime now,
 }) {
   if (definition == null ||
       !isYearRecapMonth(definition, now) ||
-      facts.receivedCount + facts.offeredCount == 0) {
+      recap.stats.received + recap.stats.offered == 0) {
     return const [];
   }
   return [
     HomeCardCandidate(
       type: definition.key,
-      stateKey: cardKey(definition.key, year: facts.year),
-      content: YearRecap(facts),
+      stateKey: cardKey(definition.key, year: recap.year),
+      content: YearRecap(recap),
       tone: HomeCardTone.dark,
     ),
   ];
