@@ -1439,7 +1439,7 @@ abstract class AppLocalizations {
   /// No description provided for @wishesCompletedSnackBar.
   ///
   /// In fr, this message translates to:
-  /// **'{count, plural, =1{Ajouté à tes wishs complétés} other{Ajoutés à tes wishs complétés}}'**
+  /// **'{count, plural, =1{Ajouté à tes wishs complétés !} other{Ajoutés à tes wishs complétés !}}'**
   String wishesCompletedSnackBar(int count);
 
   /// No description provided for @snackBarSeeAction.
