@@ -169,4 +169,17 @@ void main() {
       ['b1'],
     );
   });
+
+  test('a tie puts the closest event first, past or future', () {
+    expect(
+      select(
+        [
+          candidate('a', 'a-old', eventAt: DateTime.utc(2026, 10, 20)),
+          candidate('a', 'a-future', eventAt: DateTime.utc(2026, 11, 5)),
+          candidate('a', 'a-yesterday', eventAt: DateTime.utc(2026, 10, 29)),
+        ],
+      ),
+      ['a-yesterday', 'a-future', 'a-old'],
+    );
+  });
 }

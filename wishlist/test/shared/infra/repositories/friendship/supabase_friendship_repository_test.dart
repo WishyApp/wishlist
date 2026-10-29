@@ -174,6 +174,19 @@ void main() {
       expect(query.minimums['updated_at'], '2026-10-23T08:00:00.000Z');
     });
 
+    test('sends a local date as UTC', () async {
+      // Only meaningful under a non-UTC zone, e.g. TZ=Europe/Paris.
+      final local = DateTime(2026, 10, 23, 10);
+      final query = FakeQuery()..complete(const []);
+      when(() => table.select(any())).thenAnswer((_) => query);
+      final repository = SupabaseFriendshipRepository(client);
+
+      await repository.getRecentlyAcceptedRequests(local);
+
+      expect(query.minimums['updated_at'], local.toUtc().toIso8601String());
+      expect(query.minimums['updated_at'], endsWith('Z'));
+    });
+
     test('keeps the user it started with when the session changes', () async {
       final query = FakeQuery();
       when(() => table.select(any())).thenAnswer((_) => query);

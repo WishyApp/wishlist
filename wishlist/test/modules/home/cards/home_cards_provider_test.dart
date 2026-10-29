@@ -1,9 +1,13 @@
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
+import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository.dart';
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository.dart';
@@ -11,8 +15,10 @@ import 'package:wishlist/shared/infra/repositories/card_state/card_state_reposit
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository.dart';
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository_provider.dart';
+import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
+import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/card_state.dart';
@@ -325,6 +331,145 @@ void main() {
       final cards = await load(myBirthday: null);
 
       expect(cards.single.stateKey, 'onboarding:birthday');
+    });
+  });
+
+  group('a failing source keeps the other cards', () {
+    test('booked wish removals', () async {
+      final cards = await load(
+        birthdays: {fakeFriendUserId1: tomorrow()},
+        extra: [
+          pendingBookedWishRemovalsProvider.overrideWith(
+            (ref) => Stream.error(Exception('offline')),
+          ),
+        ],
+      );
+
+      expect(cards.map((c) => c.type), ['friend_birthday']);
+    });
+
+    test('booked wishes', () async {
+      final cards = await load(
+        birthdays: {fakeFriendUserId1: tomorrow()},
+        extra: [
+          bookedWishesRealtimeProvider.overrideWith(
+            (ref) => Stream.error(Exception('offline')),
+          ),
+        ],
+      );
+
+      expect(cards.map((c) => c.type), ['friend_birthday']);
+    });
+
+    test('the profile, taken as having a photo', () async {
+      final cards = await load(
+        birthdays: {fakeFriendUserId1: tomorrow()},
+        hasAvatar: false,
+        extra: [
+          watchCurrentUserProfileProvider.overrideWith(
+            (ref) => Stream.error(Exception('offline')),
+          ),
+        ],
+      );
+
+      expect(cards.map((c) => c.type), ['friend_birthday']);
+    });
+  });
+
+  test('without friends, accepted requests are not even asked', () async {
+    await load(
+      extra: [
+        friendshipsRealtimeOverride(friendsData: fakeEmptyFriendsData),
+      ],
+    );
+
+    verifyNever(() => friendships.getRecentlyAcceptedRequests(any()));
+  });
+
+  test('the window is not recorded when the optional step is not on top',
+      () async {
+    final cards = await load(
+      myBirthday: null,
+      birthdays: {
+        fakeFriendUserId1: Birthday(month: now.month, day: now.day),
+      },
+    );
+
+    expect(cards.first.type, 'friend_birthday_today');
+    expect(cards.map((c) => c.stateKey), contains('onboarding:birthday'));
+    verifyNever(() => cardStates.recordShown(any()));
+  });
+
+  group('reloads', () {
+    late BehaviorSubject<FriendsData> friendsStream;
+    late ProviderContainer container;
+
+    FriendsData friendsWith(String avatar, {bool second = true}) {
+      final first = AppUser(
+        profile: Profile(
+          id: fakeFriendUserId1,
+          pseudo: 'Alice',
+          avatarUrl: avatar,
+        ),
+        user: fakeFriendAppUser1.user,
+      );
+      return FriendsData(
+        friends: [first, if (second) fakeFriendAppUser2].toIList(),
+        pendingFriends: const IListConst([]),
+        requestedFriends: const IListConst([]),
+      );
+    }
+
+    setUp(() async {
+      // Replays its last value: the provider may resubscribe.
+      friendsStream = BehaviorSubject<FriendsData>();
+      addTearDown(friendsStream.close);
+      container = ProviderContainer(
+        overrides: [
+          ...homeScreenOverrides(
+            now: now,
+            bookedWishes: fakeBookedWishes.clear(),
+          ),
+          friendshipsRealtimeProvider
+              .overrideWith((ref) => friendsStream.stream),
+          currentUserBirthdayOverride(
+            birthday: const Birthday(month: 1, day: 1),
+          ),
+          watchCurrentUserProfileOverride(
+            profile: Profile(
+              id: fakeCurrentUserId,
+              pseudo: 'MonPseudo',
+              avatarUrl: 'https://example.com/me.png',
+            ),
+          ),
+          homeCardRepositoryProvider.overrideWithValue(homeCards),
+          cardStateRepositoryProvider.overrideWithValue(cardStates),
+          friendshipRepositoryProvider.overrideWithValue(friendships),
+          bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(homeCardsProvider, (_, __) {});
+      friendsStream.add(friendsWith('a.png'));
+      await container.read(homeCardsProvider.future);
+    });
+
+    test('a change outside the watched slices loads nothing again', () async {
+      friendsStream.add(friendsWith('b.png'));
+      await pumpEventQueue();
+      await container.read(homeCardsProvider.future);
+
+      verify(() => homeCards.getActiveCards()).called(1);
+      verify(() => cardStates.getStates(any())).called(1);
+    });
+
+    test('a new friend reloads the cards but not the definitions', () async {
+      friendsStream.add(friendsWith('a.png', second: false));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await container.read(homeCardsProvider.future);
+
+      verify(() => homeCards.getActiveCards()).called(1);
+      verify(() => cardStates.getStates(any())).called(2);
     });
   });
 }

@@ -266,6 +266,40 @@ void main() {
       expect(build(DateTime(2026, 12, 25, 9)), isEmpty);
     });
 
+    test('February 29 is celebrated on February 28 in a common year', () {
+      final cards = build(
+        DateTime(2027, 3, 1, 9),
+        mine: const Birthday(month: 2, day: 29),
+      );
+
+      expect((cards.single.content as AfterParty).daysAgo, 1);
+      expect(cards.single.stateKey, 'after_party:birthday@2027');
+      expect(
+        build(
+          DateTime(2027, 2, 28, 9),
+          mine: const Birthday(month: 2, day: 29),
+        ),
+        isEmpty,
+      );
+    });
+
+    test('February 29 is celebrated on February 29 in a leap year', () {
+      final cards = build(
+        DateTime(2028, 3, 1, 9),
+        mine: const Birthday(month: 2, day: 29),
+      );
+
+      expect((cards.single.content as AfterParty).daysAgo, 1);
+      expect(cards.single.stateKey, 'after_party:birthday@2028');
+      expect(
+        build(
+          DateTime(2028, 2, 29, 9),
+          mine: const Birthday(month: 2, day: 29),
+        ),
+        isEmpty,
+      );
+    });
+
     test('a disabled type gives no card', () {
       final cards = afterPartyCards(
         myBirthday: const Birthday(month: 10, day: 29),
@@ -360,6 +394,55 @@ void main() {
       final content = cards.single.content as BookedReminder;
       expect(content.occasion, ReminderOccasion.ownerBirthday);
       expect(content.days, 5);
+    });
+
+    test('the birthday wins a tie with Christmas', () {
+      final cards = build(
+        DateTime(2026, 12, 20, 9),
+        [fakeBookedWish1],
+        {fakeBookedWish1.ownerId: const Birthday(month: 12, day: 25)},
+      );
+
+      final content = cards.single.content as BookedReminder;
+      expect(content.occasion, ReminderOccasion.ownerBirthday);
+      expect(content.days, 5);
+    });
+
+    test('an owner born on January 3 seen on December 26 has the key of 2027',
+        () {
+      final cards = build(
+        DateTime(2026, 12, 26, 9),
+        [fakeBookedWish1],
+        {fakeBookedWish1.ownerId: const Birthday(month: 1, day: 3)},
+      );
+
+      expect(
+        cards.single.stateKey,
+        'booked_reminder:${fakeBookedWish1.wish.id}@2027',
+      );
+      expect(cards.single.eventAt, DateTime(2027, 1, 3));
+    });
+
+    test('counts whole days across a daylight saving change', () {
+      // days_before is wide enough to reach Christmas from far away. Run the
+      // file under TZ=Europe/Paris (change on March 29) and
+      // TZ=America/Santiago (change on September 6) to exercise it.
+      for (final start in [
+        DateTime(2026, 3, 20, 12),
+        DateTime(2026, 8, 31, 12),
+      ]) {
+        final expected = DateTime.utc(2026, 12, 25)
+            .difference(DateTime.utc(start.year, start.month, start.day))
+            .inDays;
+        final cards = bookedReminderCards(
+          bookings: [fakeBookedWish1],
+          birthdays: const {},
+          definition: def('booked_reminder', params: {'days_before': 400}),
+          now: start,
+        );
+
+        expect((cards.single.content as BookedReminder).days, expected);
+      }
     });
 
     test('a disabled type gives no card', () {
@@ -619,6 +702,17 @@ void main() {
       );
 
       expect(step(cards), OnboardingStep.firstWishlist);
+    });
+
+    test('a dismissed photo step is not shown', () {
+      final cards = build(
+        hasBirthday: true,
+        states: {
+          'onboarding:photo': state('onboarding:photo', dismissedAt: now),
+        },
+      );
+
+      expect(cards, isEmpty);
     });
 
     test('everything filled in gives nothing', () {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/home/cards/card_builders.dart';
@@ -43,7 +44,24 @@ final pendingBookedWishRemovalsProvider =
   return ref.watch(bookedWishRemovalRepositoryProvider).watchPending();
 });
 
+/// The `home_cards` rows by key. Its own provider so that the live data the
+/// cards depend on never refetches the table.
+final homeCardDefinitionsProvider =
+    FutureProvider.autoDispose<Map<String, HomeCardDefinition>>((ref) async {
+  if (ref.watch(currentUserIdProvider) == null) {
+    return const {};
+  }
+  final rows = await ref.watch(homeCardRepositoryProvider).getActiveCards();
+  return {for (final definition in rows) definition.key: definition};
+});
+
 /// The cards of the moment to show on the home screen, most urgent first.
+///
+/// The slot that shows it must render the previous value while it reloads
+/// (`valueOrNull`, or `skipLoadingOnReload`), so that the pile never blinks.
+/// It only reloads when a slice the cards are built from changes (ids, names,
+/// counts, flags), not on every live event: the full objects are read without
+/// watching them.
 ///
 /// Cards are a bonus: the stack is empty, and the home screen still renders,
 /// when what decides them cannot be loaded (`home_cards`, card states,
@@ -64,16 +82,25 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     return const [];
   }
   final now = ref.watch(clockProvider)();
-  final cardRepository = ref.watch(homeCardRepositoryProvider);
   final cardStateRepository = ref.watch(cardStateRepositoryProvider);
   final friendshipRepository = ref.watch(friendshipRepositoryProvider);
 
-  final definitions = {
-    for (final definition in await cardRepository.getActiveCards())
-      definition.key: definition,
-  };
-  final wishlists = await ref.watch(wishlistsRealtimeProvider.future);
-  final friends = (await ref.watch(friendshipsRealtimeProvider.future)).friends;
+  final definitions = await ref.watch(homeCardDefinitionsProvider.future);
+  // The providers below are live streams: only a slice of each is watched
+  // (ids, names, flags), the objects themselves are then read once.
+  await ref.watch(
+    wishlistsRealtimeProvider.selectAsync(
+      (list) => [for (final w in list) (id: w.id, name: w.name)].toIList(),
+    ),
+  );
+  final wishlists = _valueOf(wishlistsRealtimeProvider, ref) ?? const [];
+  await ref.watch(
+    friendshipsRealtimeProvider.selectAsync(
+      (data) => [for (final f in data.friends) f.user.id].toIList(),
+    ),
+  );
+  final friends = _valueOf(friendshipsRealtimeProvider, ref)?.friends ??
+      const IListConst<AppUser>([]);
 
   // Each of these only feeds some cards: a failure loses just those.
   final birthdays = await _orElse<Map<String, Birthday>>(
@@ -83,24 +110,43 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   );
   final bookings = await _orElse<List<BookedWishWithDetails>>(
     'booked wishes',
-    () async => (await ref.watch(bookedWishesRealtimeProvider.future)).toList(),
+    () async {
+      await ref.watch(
+        bookedWishesRealtimeProvider.selectAsync(
+          (list) => [
+            for (final b in list)
+              (wishId: b.wish.id, ownerId: b.ownerId, isGiven: b.isGiven),
+          ].toIList(),
+        ),
+      );
+      return _valueOf(bookedWishesRealtimeProvider, ref)?.toList() ?? const [];
+    },
     const <BookedWishWithDetails>[],
   );
   final removals = await _orElse<List<BookedWishRemoval>>(
     'booked wish removals',
-    () => ref.watch(pendingBookedWishRemovalsProvider.future),
+    () async {
+      await ref.watch(
+        pendingBookedWishRemovalsProvider.selectAsync(
+          (list) => [for (final r in list) r.id].toIList(),
+        ),
+      );
+      return _valueOf(pendingBookedWishRemovalsProvider, ref) ?? const [];
+    },
     const <BookedWishRemoval>[],
   );
-  final accepted = await _orElse<List<({AppUser friend, DateTime acceptedAt})>>(
-    'accepted requests',
-    () => _loadAccepted(
-      friendshipRepository.getRecentlyAcceptedRequests,
-      friends,
-      definitions['friend_accepted'],
-      now,
-    ),
-    const <({AppUser friend, DateTime acceptedAt})>[],
-  );
+  final accepted = friends.isEmpty
+      ? const <({AppUser friend, DateTime acceptedAt})>[]
+      : await _orElse<List<({AppUser friend, DateTime acceptedAt})>>(
+          'accepted requests',
+          () => _loadAccepted(
+            friendshipRepository.getRecentlyAcceptedRequests,
+            friends,
+            definitions['friend_accepted'],
+            now,
+          ),
+          const <({AppUser friend, DateTime acceptedAt})>[],
+        );
 
   // When the birthday or the photo cannot be read, it is taken as set: better
   // no card than asking for something the user may have done.
@@ -116,10 +162,11 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   );
   final hasAvatar = await _orElse<bool>(
     'my photo',
-    () async {
-      final profile = await ref.watch(watchCurrentUserProfileProvider.future);
-      return profile?.avatarUrl?.isNotEmpty ?? false;
-    },
+    () => ref.watch(
+      watchCurrentUserProfileProvider.selectAsync(
+        (profile) => profile?.avatarUrl?.isNotEmpty ?? false,
+      ),
+    ),
     true,
   );
 
@@ -187,15 +234,15 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     now: now,
   );
 
-  // The optional onboarding steps stop 48 hours after they were first
-  // offered: note that moment once.
-  final offersOptionalStep = cards.any((card) {
-    final content = card.content;
-    return content is Onboarding &&
-        (content.step == OnboardingStep.birthday ||
-            content.step == OnboardingStep.photo);
-  });
-  if (offersOptionalStep && !states.containsKey(_optionalWindowKey)) {
+  // The optional onboarding steps stop 48 hours after they were first shown.
+  // Only the top card is really in front of the user: record the start of the
+  // window then, once. Nothing else may ever record this key, its
+  // `lastShownAt` is the start of the window.
+  final top = cards.firstOrNull?.content;
+  if (top is Onboarding &&
+      (top.step == OnboardingStep.birthday ||
+          top.step == OnboardingStep.photo) &&
+      !states.containsKey(_optionalWindowKey)) {
     unawaited(_recordOptionalWindow(cardStateRepository));
   }
   return cards;
@@ -242,4 +289,8 @@ Future<void> _recordOptionalWindow(CardStateRepository repository) async {
   } catch (e) {
     debugPrint('[Wishy home cards] could not record the window: $e');
   }
+}
+
+T? _valueOf<T>(ProviderListenable<AsyncValue<T>> provider, Ref ref) {
+  return ref.read(provider).valueOrNull;
 }
