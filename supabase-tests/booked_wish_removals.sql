@@ -427,15 +427,19 @@ INSERT INTO public.wishs (id, name, description, quantity, wishlist_id, updated_
   (981030, 'W30 booked after the party', '', 3, 980007, '00000000-0000-4000-d000-0000000000f5'),
   (981031, 'W31 booked without date', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5'),
   (981032, 'W32 booked 23:30 UTC the day before', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5'),
-  (981033, 'W33 booked on the party day', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5');
+  (981033, 'W33 booked on the party day', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5'),
+  (981034, 'W34 booked 23:30 UTC on the party day', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5');
 INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity, created_at) VALUES
   (981030, '00000000-0000-4000-d000-0000000000f6', 1, '2027-01-05 10:00+01'),
   (981030, '00000000-0000-4000-d000-0000000000f7', 1, '2026-12-20 10:00+01'),
   (981031, '00000000-0000-4000-d000-0000000000f6', 1, NULL),
   -- 23:30 UTC on Dec 24 is already Dec 25 in Paris: made on the party day.
+  -- (a plain ::date would give Dec 24: before the party as well)
   (981032, '00000000-0000-4000-d000-0000000000f6', 1, '2026-12-24 23:30+00'),
-  (981033, '00000000-0000-4000-d000-0000000000f6', 1, '2026-12-25 10:00+01');
-DELETE FROM public.wishs WHERE id IN (981030, 981031, 981032, 981033);
+  (981033, '00000000-0000-4000-d000-0000000000f6', 1, '2026-12-25 10:00+01'),
+  -- 23:30 UTC on Dec 25 is Dec 26 in Paris: made the day after the party.
+  (981034, '00000000-0000-4000-d000-0000000000f6', 1, '2026-12-25 23:30+00');
+DELETE FROM public.wishs WHERE id IN (981030, 981031, 981032, 981033, 981034);
 SELECT pg_temp.expect_count('booking of Jan 5 deleted Jan 10: alerted',
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981030 AND booker_id = '00000000-0000-4000-d000-0000000000f6'$q$, 1);
 SELECT pg_temp.expect_count('booking of Dec 20 deleted Jan 10: not alerted',
@@ -443,10 +447,12 @@ SELECT pg_temp.expect_count('booking of Dec 20 deleted Jan 10: not alerted',
 SELECT pg_temp.expect_count('booking without date counts as before the party: not alerted',
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981031$q$, 0);
 
-SELECT pg_temp.expect_count('booking made 23:30 UTC the day before the party (Paris: the party day): alerted',
-  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981032$q$, 1);
-SELECT pg_temp.expect_count('booking made on the party day: alerted',
-  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981033$q$, 1);
+SELECT pg_temp.expect_count('booking made 23:30 UTC on Dec 24 (Paris: the party day): before the party, not alerted',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981032$q$, 0);
+SELECT pg_temp.expect_count('booking made on the party day: before the party, not alerted',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981033$q$, 0);
+SELECT pg_temp.expect_count('booking made 23:30 UTC on the party day (Paris: the day after): alerted',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981034$q$, 1);
 
 -- 9g. Lists whose event is over: archived, closed, end date passed (Paris day).
 CREATE OR REPLACE FUNCTION public.paris_today()

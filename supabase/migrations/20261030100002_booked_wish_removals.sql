@@ -43,9 +43,9 @@
 --     Christmas (see after_party_date), for the bookings made BEFORE that party:
 --     owners tidy their lists after the party without marking the gifts as
 --     received, and every booker who gave would get a false "removed" alert. A
---     booking made after the party (or on its day) cannot be a gift already
---     given and is alerted; a booking without date counts as before. Days are
---     Paris days. When two parties cover the day (a Dec 20 birthday and
+--     booking made after the party day cannot be a gift already given and is
+--     alerted; a booking made on the party day itself, or without date, counts
+--     as before the party. Days are Paris days. When two parties cover the day (a Dec 20 birthday and
 --     Christmas) the later one counts, so more bookings count as "before";
 --   - a wish of a list whose event is over: archived (deleted_at), closed
 --     (is_closed) or whose end_date is before today (Paris day), same reasoning
@@ -300,11 +300,12 @@ BEGIN
   WHERE w.id = ANY (p_wish_ids)
     AND t.user_id <> v_wishlist.id_owner
     -- Within the after-the-party window only the bookings made before the party
-    -- are dropped. A booking without date counts as before.
+    -- are dropped: up to and including the party day (Paris day). A booking
+    -- without date counts as before.
     AND (
       v_party IS NULL
       OR t.created_at IS NOT NULL
-         AND (t.created_at AT TIME ZONE 'Europe/Paris')::date >= v_party
+         AND (t.created_at AT TIME ZONE 'Europe/Paris')::date > v_party
     )
     -- The owner received less than the total booked: the bookers are alerted.
     AND (
