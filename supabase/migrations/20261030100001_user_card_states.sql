@@ -1,6 +1,7 @@
 -- Remember, per user and per precise card, what was shown and what was
 -- dismissed on the home screen. The cards themselves are computed by the app
--- (see home_cards); this table only keeps the state shared by all the user's devices.
+-- (see home_cards); this table only keeps the state shared by all the user's
+-- devices.
 --
 -- Card keys: <home_cards.key>:<id>[:<year>], one per occurrence of a card.
 -- Examples: booked_reminder:4512, friend_birthday:<uuid>:2026,
@@ -10,8 +11,8 @@
 -- the future. A card dismissed without a snooze never comes back. A mask is
 -- never shortened: a permanent mask stays permanent, and a snooze only moves
 -- later (a late "later" from a stale device must not bring a hidden card back);
--- "later" then "hide" does end permanent. The app
--- applies this rule, the table does not.
+-- "later" then "hide" does end permanent. dismiss_card applies this rule; the
+-- app applies the visibility rule above.
 --
 -- Rows accumulate (one per card occurrence), so purge_stale_card_states
 -- deletes them once a year (pg_cron, January 2). A row is stale when it was
@@ -20,7 +21,10 @@
 -- carry a year (friend_birthday:<uuid>:2026) are not read again a year later.
 -- Rows whose key starts with 'onboarding:' are never purged: onboarding:birthday,
 -- onboarding:photo and onboarding:optional_window have no year in their key,
--- deleting them would bring the skipped onboarding steps back.
+-- deleting them would bring the skipped onboarding steps back. The same goes
+-- for any future card type with a permanent hide and no year in its key: it
+-- would come back after a year of inactivity, so its keys must either carry a
+-- year or be excluded from the purge like 'onboarding:%'.
 --
 -- Clients only read their rows. They write through record_card_shown and
 -- dismiss_card, which always write the row of the current user.
@@ -109,8 +113,8 @@ $$;
 
 -- The current user dismissed the card. With p_snooze_until it comes back
 -- after that date, without it never. A mask is never shortened (see the
--- header): the later of the two dates wins. A date in the past is accepted (the card
--- simply comes back); a non-finite one is refused.
+-- header): the later of the two dates wins. A date in the past is accepted, and does
+-- not shorten a mask still running; a non-finite one is refused.
 CREATE OR REPLACE FUNCTION public.dismiss_card(
   p_card_key text,
   p_snooze_until timestamptz DEFAULT NULL
@@ -171,12 +175,12 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.purge_stale_card_states() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.purge_stale_card_states() FROM PUBLIC, anon, authenticated, service_role;
 
 -- Once a year, January 2 at 03:17 UTC. Scheduling by name replaces an existing
 -- job, so this stays idempotent.
--- No grant on the cron schema: enabling the extension already gives postgres
--- what it needs on Supabase, and granting again breaks its re-creation hook.
+-- No grant on the cron schema: Supabase's after-create hook of the extension
+-- already gives postgres USAGE on it.
 CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
 
 SELECT cron.schedule(
@@ -186,3 +190,7 @@ SELECT cron.schedule(
 );
 
 -- Tests: supabase-tests/user_card_states.sql.
+--
+-- Verification:
+--   SELECT jobname, schedule, username FROM cron.job
+--   WHERE jobname = 'purge-user-card-states'; -- one row, 17 3 2 1 *, postgres

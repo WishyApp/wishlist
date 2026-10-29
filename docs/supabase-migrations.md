@@ -114,6 +114,10 @@ SELECT * FROM public.get_app_version_policy('ios');
 
 Toujours vérifier avec le `SELECT` : une coquille (`3.0.0` pour `0.3.0`) bloque tout le monde. Les formats invalides (`^[0-9]+(\.[0-9]+){0,2}$`) sont refusés par la base. Les builds antérieurs à 0.3.0 n'ont pas ce garde-fou : le premier relèvement utile est vers une version ≥ 0.3.0.
 
+## Purge annuelle des états de cartes
+
+La migration `20261030100001_user_card_states` crée le job pg_cron `purge-user-card-states` (le 2 janvier à 03:17 UTC), qui supprime les lignes de `user_card_states` inactives depuis plus d'un an. Désactiver pg_cron depuis le dashboard supprime ce job : il ne reviendrait qu'en rejouant la migration.
+
 ## Tester en local
 
 Docker doit tourner.

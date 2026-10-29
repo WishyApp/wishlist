@@ -223,6 +223,9 @@ SELECT pg_temp.expect_denied('authenticated executes purge_stale_card_states',
 SELECT pg_temp.act_as_anon();
 SELECT pg_temp.expect_denied('anon executes purge_stale_card_states',
   $q$SELECT public.purge_stale_card_states()$q$);
+SELECT set_config('role', 'service_role', true);
+SELECT pg_temp.expect_denied('service_role executes purge_stale_card_states',
+  $q$SELECT public.purge_stale_card_states()$q$);
 RESET ROLE;
 
 SELECT pg_temp.expect_true('purge returns the number of rows deleted',
