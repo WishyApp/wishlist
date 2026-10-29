@@ -200,6 +200,12 @@ abstract class AppLocalizations {
   /// **'Continuer avec Apple'**
   String get continueWithApple;
 
+  /// No description provided for @googleSignInSafariUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'La connexion avec Google a besoin de Safari, qui n\'est pas disponible sur cet appareil. Connectez-vous avec votre email ou avec Apple.'**
+  String get googleSignInSafariUnavailable;
+
   /// No description provided for @invalidLoginCredentials.
   ///
   /// In fr, this message translates to:

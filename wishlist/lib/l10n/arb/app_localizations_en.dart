@@ -61,6 +61,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueWithApple => 'Continue with Apple';
 
   @override
+  String get googleSignInSafariUnavailable =>
+      'Google sign-in needs Safari, which isn\'t available on this device. Sign in with your email or with Apple.';
+
+  @override
   String get invalidLoginCredentials => 'Invalid login credentials';
 
   @override
