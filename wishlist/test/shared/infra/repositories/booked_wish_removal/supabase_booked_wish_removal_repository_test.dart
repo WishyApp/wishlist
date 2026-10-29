@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/supabase_booked_wish_removal_repository.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 
@@ -250,6 +251,29 @@ void main() {
       await repository.dismiss(42);
 
       expect(params, {'p_id': 42});
+    });
+
+    test('a failed call rethrows and does not reload', () async {
+      final query = FakePendingQuery([
+        [_row(1, '2026-10-29T10:00:00Z')],
+      ]);
+      when(table.select).thenAnswer((_) => query);
+      when(
+        () => client.rpc<dynamic>(
+          'dismiss_booked_wish_removal',
+          params: any(named: 'params'),
+        ),
+      ).thenThrow(const PostgrestException(message: 'boom'));
+
+      final sub = repository.watchPending().listen((_) {});
+      await pumpEventQueue();
+      expect(query.calls, 1);
+
+      await expectLater(repository.dismiss(1), throwsA(isA<AppException>()));
+      await pumpEventQueue();
+
+      expect(query.calls, 1);
+      await sub.cancel();
     });
 
     test('the stream drops the row without a realtime event', () async {

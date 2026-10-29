@@ -425,18 +425,28 @@ CREATE OR REPLACE FUNCTION public.paris_today()
 RETURNS date LANGUAGE sql STABLE AS $$ SELECT DATE '2027-01-10' $$;
 INSERT INTO public.wishs (id, name, description, quantity, wishlist_id, updated_by) VALUES
   (981030, 'W30 booked after the party', '', 3, 980007, '00000000-0000-4000-d000-0000000000f5'),
-  (981031, 'W31 booked without date', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5');
+  (981031, 'W31 booked without date', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5'),
+  (981032, 'W32 booked 23:30 UTC the day before', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5'),
+  (981033, 'W33 booked on the party day', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5');
 INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity, created_at) VALUES
   (981030, '00000000-0000-4000-d000-0000000000f6', 1, '2027-01-05 10:00+01'),
   (981030, '00000000-0000-4000-d000-0000000000f7', 1, '2026-12-20 10:00+01'),
-  (981031, '00000000-0000-4000-d000-0000000000f6', 1, NULL);
-DELETE FROM public.wishs WHERE id IN (981030, 981031);
+  (981031, '00000000-0000-4000-d000-0000000000f6', 1, NULL),
+  -- 23:30 UTC on Dec 24 is already Dec 25 in Paris: made on the party day.
+  (981032, '00000000-0000-4000-d000-0000000000f6', 1, '2026-12-24 23:30+00'),
+  (981033, '00000000-0000-4000-d000-0000000000f6', 1, '2026-12-25 10:00+01');
+DELETE FROM public.wishs WHERE id IN (981030, 981031, 981032, 981033);
 SELECT pg_temp.expect_count('booking of Jan 5 deleted Jan 10: alerted',
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981030 AND booker_id = '00000000-0000-4000-d000-0000000000f6'$q$, 1);
 SELECT pg_temp.expect_count('booking of Dec 20 deleted Jan 10: not alerted',
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981030 AND booker_id = '00000000-0000-4000-d000-0000000000f7'$q$, 0);
 SELECT pg_temp.expect_count('booking without date counts as before the party: not alerted',
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981031$q$, 0);
+
+SELECT pg_temp.expect_count('booking made 23:30 UTC the day before the party (Paris: the party day): alerted',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981032$q$, 1);
+SELECT pg_temp.expect_count('booking made on the party day: alerted',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981033$q$, 1);
 
 -- 9g. Lists whose event is over: archived, closed, end date passed (Paris day).
 CREATE OR REPLACE FUNCTION public.paris_today()
@@ -445,24 +455,28 @@ INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility,
   (980010, 'Archived',   '00000000-0000-4000-d000-0000000000f5', '#FFFFFF', '00000000-0000-4000-d000-0000000000f5', 'public', NULL, false, NULL),
   (980011, 'Closed',     '00000000-0000-4000-d000-0000000000f5', '#FFFFFF', '00000000-0000-4000-d000-0000000000f5', 'public', NULL, false, NULL),
   (980012, 'Ended',      '00000000-0000-4000-d000-0000000000f5', '#FFFFFF', '00000000-0000-4000-d000-0000000000f5', 'public', NULL, false, '2026-05-31 12:00+02'),
-  (980013, 'Ends today', '00000000-0000-4000-d000-0000000000f5', '#FFFFFF', '00000000-0000-4000-d000-0000000000f5', 'public', NULL, false, '2026-06-01 12:00+02');
+  (980013, 'Ends today', '00000000-0000-4000-d000-0000000000f5', '#FFFFFF', '00000000-0000-4000-d000-0000000000f5', 'public', NULL, false, '2026-06-01 12:00+02'),
+  -- 23:30 UTC on May 31 is Jun 1 in Paris: the list ends today.
+  (980015, 'Ends today late UTC', '00000000-0000-4000-d000-0000000000f5', '#FFFFFF', '00000000-0000-4000-d000-0000000000f5', 'public', NULL, false, '2026-05-31 23:30+00');
 INSERT INTO public.wishs (id, name, description, quantity, wishlist_id, updated_by) VALUES
   (981040, 'W40 archived', '', 1, 980010, '00000000-0000-4000-d000-0000000000f5'),
   (981041, 'W41 closed',   '', 1, 980011, '00000000-0000-4000-d000-0000000000f5'),
   (981042, 'W42 ended',    '', 1, 980012, '00000000-0000-4000-d000-0000000000f5'),
   (981043, 'W43 ends today', '', 1, 980013, '00000000-0000-4000-d000-0000000000f5'),
-  (981044, 'W44 in a deleted ended list', '', 1, 980012, '00000000-0000-4000-d000-0000000000f5');
+  (981044, 'W44 in a deleted ended list', '', 1, 980012, '00000000-0000-4000-d000-0000000000f5'),
+  (981045, 'W45 ends today late UTC', '', 1, 980015, '00000000-0000-4000-d000-0000000000f5');
 INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES
   (981040, '00000000-0000-4000-d000-0000000000f6', 1),
   (981041, '00000000-0000-4000-d000-0000000000f6', 1),
   (981042, '00000000-0000-4000-d000-0000000000f6', 1),
   (981043, '00000000-0000-4000-d000-0000000000f6', 1),
-  (981044, '00000000-0000-4000-d000-0000000000f6', 1);
+  (981044, '00000000-0000-4000-d000-0000000000f6', 1),
+  (981045, '00000000-0000-4000-d000-0000000000f6', 1);
 -- A booking in an archived or closed list is refused: archive and close the
 -- lists after the bookings.
 UPDATE public.wishlists SET deleted_at = now() WHERE id = 980010;
 UPDATE public.wishlists SET is_closed = true WHERE id = 980011;
-DELETE FROM public.wishs WHERE id IN (981040, 981041, 981042, 981043);
+DELETE FROM public.wishs WHERE id IN (981040, 981041, 981042, 981043, 981045);
 DELETE FROM public.wishlists WHERE id = 980012;
 SELECT pg_temp.expect_count('no removal from an archived list',
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981040$q$, 0);
@@ -474,6 +488,9 @@ SELECT pg_temp.expect_count('no removal when an ended list is deleted (wishlists
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981044$q$, 0);
 SELECT pg_temp.expect_count('a list ending today is still active',
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981043$q$, 1);
+
+SELECT pg_temp.expect_count('a list ending 23:30 UTC the day before (Paris: today) is still active',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981045$q$, 1);
 
 -- 9h. The owner name is copied at deletion time (a rename later does not
 -- change it); a profile without pseudo gives an empty name.

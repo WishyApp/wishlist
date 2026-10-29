@@ -64,10 +64,12 @@
 -- do not catch errors, like the other triggers of the repo: a deletion they
 -- break fails loudly (and shows in Sentry) instead of losing an alert silently.
 -- They are written not to fail: every copied column is NOT NULL at its source
--- and both foreign keys of the table are guarded.
+-- (a missing pseudo is coalesced) and both foreign keys of the table are
+-- guarded.
 --
 -- Access: the booker reads their rows and closes an alert through
--- dismiss_booked_wish_removal (server time, own row only; no UPDATE privilege). When the owner or the booker deletes their account, the rows
+-- dismiss_booked_wish_removal (server time, own row only; no UPDATE
+-- privilege). When the owner or the booker deletes their account, the rows
 -- disappear (ON DELETE CASCADE on both profiles). Realtime: the table is
 -- published with REPLICA IDENTITY FULL so that the alert shows up without a
 -- refresh; the app filters its channel on booker_id and Realtime applies the
