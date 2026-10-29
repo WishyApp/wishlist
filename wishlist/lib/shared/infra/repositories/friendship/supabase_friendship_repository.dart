@@ -123,6 +123,31 @@ class SupabaseFriendshipRepository implements FriendshipRepository {
   }
 
   @override
+  Future<List<({String friendId, DateTime acceptedAt})>>
+      getRecentlyAcceptedRequests(DateTime since) async {
+    final currentUserId = this.currentUserId;
+    return executeSafely(
+      () async {
+        final response = await _client
+            .from(_friendshipsTableName)
+            .select('receiver_id, updated_at')
+            .eq('requester_id', currentUserId)
+            .eq('status', FriendshipStatus.accepted.toString())
+            .gte('updated_at', since.toUtc().toIso8601String());
+
+        return [
+          for (final row in response)
+            (
+              friendId: row['receiver_id'] as String,
+              acceptedAt: DateTime.parse(row['updated_at'] as String).toUtc(),
+            ),
+        ];
+      },
+      errorMessage: 'Failed to get the recently accepted friend requests',
+    );
+  }
+
+  @override
   Future<void> askFriendshipTo(String userId) async {
     final currentUserId = this.currentUserId;
     return executeSafely(
