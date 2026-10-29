@@ -358,6 +358,52 @@ void main() {
 
       expect(await canOpenList(), isFalse);
     });
+
+    test('is only lost by the owner whose wishlists cannot be loaded',
+        () async {
+      BookedWishRemoval removalOf(int id, String ownerId) => BookedWishRemoval(
+            id: id,
+            ownerId: ownerId,
+            ownerPseudo: 'Ami $id',
+            wishId: id,
+            wishName: 'Casque',
+            quantity: 1,
+            wishlistName: 'Noël',
+            removedAt: now,
+          );
+      when(() => removals.watchPending()).thenAnswer(
+        (_) => Stream.value([
+          removalOf(1, fakeFriendUserId1),
+          removalOf(2, fakeFriendUserId2),
+        ]),
+      );
+      when(
+        () => wishlistRepository.getPublicWishlistsByUser(fakeFriendUserId1),
+      ).thenThrow(Exception('boom'));
+      when(
+        () => wishlistRepository.getPublicWishlistsByUser(fakeFriendUserId2),
+      ).thenAnswer(
+        (_) async => [
+          fakeWishlist1.copyWith(
+            name: 'Noël',
+            endDate: DateTime(2026, 12, 31),
+          ),
+        ].lock,
+      );
+
+      final cards = await load(
+        extra: [
+          wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+        ],
+      );
+
+      final canOpen = {
+        for (final card in cards)
+          (card.content as BookedWishRemoved).removal.ownerId:
+              (card.content as BookedWishRemoved).canOpenList,
+      };
+      expect(canOpen, {fakeFriendUserId1: false, fakeFriendUserId2: true});
+    });
   });
 
   group('onboarding window', () {

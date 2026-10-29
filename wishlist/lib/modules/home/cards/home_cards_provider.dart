@@ -87,6 +87,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   final now = ref.watch(clockProvider)();
   final cardStateRepository = ref.watch(cardStateRepositoryProvider);
   final friendshipRepository = ref.watch(friendshipRepositoryProvider);
+  final wishlistRepository = ref.watch(wishlistRepositoryProvider);
 
   final definitions = await ref.watch(homeCardDefinitionsProvider.future);
   // The providers below are live streams: only a slice of each is watched
@@ -144,13 +145,13 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   );
   // The owner's list is only offered while the user is still their friend and
   // the wishlist is open: their public wishlists are fetched for that, a
-  // failure leaves the alerts without the button.
+  // failure leaves only the alerts of that owner without the button.
   final removalsWithList = removals.isEmpty
       ? const <int>{}
       : await _orElse<Set<int>>(
           'removed wishes lists',
           () => _loadRemovalsWithOpenList(
-            ref.watch(wishlistRepositoryProvider).getPublicWishlistsByUser,
+            wishlistRepository.getPublicWishlistsByUser,
             removals,
             {for (final friend in friends) friend.user.id},
             now,
@@ -284,8 +285,22 @@ Future<Set<int>> _loadRemovalsWithOpenList(
     for (final removal in removals)
       if (friendIds.contains(removal.ownerId)) removal.ownerId,
   };
+  // In parallel, and an owner whose wishlists cannot be loaded is simply
+  // missing: their alerts lose the button, the others keep it.
+  final loaded = await Future.wait([
+    for (final owner in owners)
+      () async {
+        try {
+          return MapEntry(owner, (await load(owner)).toList());
+        } catch (e) {
+          debugPrint('[Wishy home cards] wishlists of $owner failed: $e');
+          return null;
+        }
+      }(),
+  ]);
   final wishlists = {
-    for (final owner in owners) owner: (await load(owner)).toList(),
+    for (final entry in loaded)
+      if (entry != null) entry.key: entry.value,
   };
   return removalsWithOpenList(
     removals: removals,
