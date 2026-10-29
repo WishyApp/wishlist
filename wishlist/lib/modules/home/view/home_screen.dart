@@ -11,7 +11,7 @@ import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/app_refresh_indicator.dart';
 import 'package:wishlist/shared/theme/widgets/app_scaffold.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
-import 'package:wishlist/shared/widgets/wishlists_grid.dart';
+import 'package:wishlist/shared/widgets/sliver_wishlists_grid.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -44,15 +44,16 @@ class HomeScreen extends ConsumerWidget {
           bottom: false,
           child: AppRefreshIndicator(
             onRefresh: refreshWishlists,
-            child: SingleChildScrollView(
+            // The page is the nearest scrollable of the grid, so the drag
+            // autoscroll of a wishlist scrolls it.
+            child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const HomeProfileHeader(),
-                  const HomeReceivedWishesRow(),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              slivers: [
+                const SliverToBoxAdapter(child: HomeProfileHeader()),
+                const SliverToBoxAdapter(child: HomeReceivedWishesRow()),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
                       l10n.homeMyWishlists,
                       style: AppTextStyles.small.copyWith(
@@ -61,18 +62,18 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (data.isEmpty)
-                    const HomeEmptyWishlists()
-                  else
-                    WishlistsGrid(
-                      wishlists: data,
-                      isReorderable: true,
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.all(20),
-                    ),
-                  SizedBox(height: NavBarPadding.of(context)),
-                ],
-              ),
+                ),
+                if (data.isEmpty)
+                  const SliverToBoxAdapter(child: HomeEmptyWishlists())
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.all(20),
+                    sliver: SliverWishlistsGrid(wishlists: data),
+                  ),
+                SliverToBoxAdapter(
+                  child: SizedBox(height: NavBarPadding.of(context)),
+                ),
+              ],
             ),
           ),
         ),
