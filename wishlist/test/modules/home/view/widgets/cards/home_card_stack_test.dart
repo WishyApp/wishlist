@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:adaptive_test/adaptive_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +21,7 @@ import 'package:wishlist/shared/models/home_card_definition.dart';
 
 import '../../../../../fixtures/fake_data.dart';
 import '../../../../../fixtures/fake_providers.dart';
+import '../../../../../fixtures/lifecycle.dart';
 import '../../../../../pump_app.dart';
 
 class MockCardStateRepository extends Mock implements CardStateRepository {}
@@ -338,13 +340,155 @@ void main() {
 
     await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
     await letItLeave(tester);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    walkLifecycleTo(AppLifecycleState.hidden);
     await tester.pump();
 
     verify(() => cardStates.dismiss('friend_accepted:a')).called(1);
     expect(find.text('Annuler'), findsNothing);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    walkLifecycleTo(AppLifecycleState.resumed);
     await finish(tester);
+  });
+
+  testWidgets('a control center pull (inactive) keeps the Undo',
+      (tester) async {
+    await pump(tester, () async => cards);
+
+    await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+    await letItLeave(tester);
+    walkLifecycleTo(AppLifecycleState.inactive);
+    await tester.pump();
+
+    expect(find.text('Annuler'), findsOneWidget);
+    verifyNever(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    );
+    walkLifecycleTo(AppLifecycleState.resumed);
+    await finish(tester);
+  });
+
+  testWidgets('two taps on the cross before the rebuild give one snack-bar',
+      (tester) async {
+    await pump(tester, () async => cards);
+
+    // No frame between the two taps: the card is still in the tree
+    await tester.tap(find.byTooltip('Masquer'));
+    await tester.tap(find.byTooltip('Masquer'));
+    await letItLeave(tester);
+
+    expect(find.text('Carte masquée'), findsOneWidget);
+    expect(find.text('Annuler'), findsOneWidget);
+    await finish(tester);
+    verify(() => cardStates.dismiss('friend_accepted:a')).called(1);
+  });
+
+  testWidgets('a failed send brings the card back and shows the error',
+      (tester) async {
+    when(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    ).thenThrow(Exception('offline'));
+    await pump(tester, () async => cards);
+
+    await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+    await letItLeave(tester);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text(_firstTitle), findsOneWidget);
+    expect(
+      find.text('Une erreur est survenue, veuillez réessayer.'),
+      findsOneWidget,
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
+  testWidgets('several failed sends at once show a single error',
+      (tester) async {
+    when(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    ).thenThrow(Exception('offline'));
+    await pump(tester, () async => cards);
+
+    // Two swipes, the second card is on top once the first one is gone
+    await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+    await letItLeave(tester);
+    await tester.drag(find.byType(HomeCardView), const Offset(-500, 0));
+    await letItLeave(tester);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    verify(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    ).called(2);
+    expect(
+      find.text('Une erreur est survenue, veuillez réessayer.'),
+      findsOneWidget,
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+
+    // Once it is gone, a new failure tells the user again
+    await tester.drag(find.byType(HomeCardView), const Offset(-500, 0));
+    await letItLeave(tester);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.text('Une erreur est survenue, veuillez réessayer.'),
+      findsOneWidget,
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
+  testWidgets('the stack lets go of the app lifecycle when it leaves',
+      (tester) async {
+    var alive = 0;
+    void track(ObjectEvent event) {
+      if (event.object is! AppLifecycleListener) {
+        return;
+      }
+      if (event is ObjectCreated) {
+        alive++;
+      } else if (event is ObjectDisposed) {
+        alive--;
+      }
+    }
+
+    FlutterMemoryAllocations.instance.addListener(track);
+    addTearDown(() => FlutterMemoryAllocations.instance.removeListener(track));
+
+    await pump(tester, () async => cards);
+    expect(alive, greaterThan(0));
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+
+    expect(alive, 0);
+  });
+
+  testWidgets('a postponed card shows again once it comes back after a reload',
+      (tester) async {
+    var loads = 0;
+    // The first load has the card, the second (after the send) not, the third
+    // (the next day) has it again
+    await pump(tester, () async {
+      loads++;
+      return loads == 2 ? cards.skip(1).toList() : cards;
+    });
+    expect(find.text(_firstTitle), findsOneWidget);
+
+    await tester.drag(find.text(_firstTitle), const Offset(500, 0));
+    await letItLeave(tester);
+    await finish(tester);
+    expect(loads, 2);
+    expect(find.text(_firstTitle), findsNothing);
+
+    ProviderScope.containerOf(tester.element(find.byType(HomeCardsSlot)))
+        .invalidate(homeCardsProvider);
+    await tester.pumpAndSettle();
+
+    expect(loads, 3);
+    expect(find.text(_firstTitle), findsOneWidget);
   });
 
   group('cards closed for good', () {
@@ -392,6 +536,60 @@ void main() {
         await finish(tester);
       });
     }
+
+    final today = DateTime(fakeNow.year, fakeNow.month, fakeNow.day);
+    HomeCardCandidate endingOn(DateTime lastDay) => HomeCardCandidate(
+          type: 'friend_accepted',
+          stateKey: 'friend_accepted:a',
+          content: FriendAccepted(fakeFriendAppUser1, fakeNow),
+          lastDay: lastDay,
+        );
+
+    testWidgets('a card that is gone tomorrow cannot be postponed',
+        (tester) async {
+      await pump(tester, () async => [endingOn(today)]);
+
+      await tester.drag(find.byType(HomeCardView), const Offset(500, 0));
+      await letItLeave(tester);
+
+      expect(find.byType(HomeCardView), findsOneWidget);
+      expect(find.textContaining('Reportée'), findsNothing);
+    });
+
+    testWidgets('a card still there tomorrow can be postponed', (tester) async {
+      await pump(
+        tester,
+        () async =>
+            [endingOn(DateTime(today.year, today.month, today.day + 1))],
+      );
+
+      await tester.drag(find.byType(HomeCardView), const Offset(500, 0));
+      await letItLeave(tester);
+
+      expect(find.text('Reportée à demain'), findsOneWidget);
+      await finish(tester);
+    });
+
+    testWidgets('a card that is gone tomorrow offers no Later action',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await pump(tester, () async => [endingOn(today)]);
+
+      final semantics = tester.widget<Semantics>(
+        find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.customSemanticsActions != null,
+        ),
+      );
+      expect(
+        [
+          for (final action
+              in semantics.properties.customSemanticsActions!.keys)
+            action.label,
+        ],
+        ['Masquer'],
+      );
+      handle.dispose();
+    });
 
     testWidgets('a card that comes back can be postponed', (tester) async {
       await pump(tester, () async => cards);
@@ -492,6 +690,64 @@ void main() {
 
     verify(() => cardStates.recordShown('onboarding:birthday')).called(1);
     await finish(tester);
+  });
+
+  group('records only what is in front', () {
+    // The first load shows `cards`, the next ones another top
+    Future<List<HomeCardCandidate>> Function() reloadsWith(
+      List<HomeCardCandidate> next,
+    ) {
+      var loads = 0;
+      return () async => ++loads == 1 ? cards : next;
+    }
+
+    void reload(WidgetTester tester) {
+      // Offstage under the other screen
+      ProviderScope.containerOf(
+        tester.element(find.byType(HomeCardsSlot, skipOffstage: false)),
+      ).invalidate(homeCardsProvider);
+    }
+
+    testWidgets('not under another screen, then when it is back',
+        (tester) async {
+      await pump(tester, reloadsWith(cards.skip(1).toList()));
+      verify(() => cardStates.recordShown('friend_accepted:a')).called(1);
+
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      unawaited(
+        navigator.push(
+          MaterialPageRoute<void>(builder: (_) => const Scaffold()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      reload(tester);
+      await tester.pumpAndSettle();
+
+      verifyNever(() => cardStates.recordShown('onboarding:birthday'));
+
+      navigator.pop();
+      await tester.pumpAndSettle();
+
+      verify(() => cardStates.recordShown('onboarding:birthday')).called(1);
+    });
+
+    testWidgets('not while the app is not in front, then on resume',
+        (tester) async {
+      await pump(tester, reloadsWith(cards.skip(1).toList()));
+      verify(() => cardStates.recordShown('friend_accepted:a')).called(1);
+
+      // Inactive still draws frames (hidden and paused do not)
+      walkLifecycleTo(AppLifecycleState.inactive);
+      reload(tester);
+      await tester.pumpAndSettle();
+
+      verifyNever(() => cardStates.recordShown('onboarding:birthday'));
+
+      walkLifecycleTo(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+
+      verify(() => cardStates.recordShown('onboarding:birthday')).called(1);
+    });
   });
 
   testWidgets('leaving the screen right after a swipe still sends it',

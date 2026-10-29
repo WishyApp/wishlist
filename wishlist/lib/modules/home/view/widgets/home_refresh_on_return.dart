@@ -6,7 +6,8 @@ import 'package:wishlist/shared/navigation/app_route_observer.dart';
 
 /// Reads the data that does not follow the live streams again when the user
 /// comes back to the home: from any screen pushed over it (a wishlist where
-/// wishes were added, say) and from the background (a new day may have come).
+/// wishes were added, say) and from the background (the last activity only,
+/// a new day is handled by `homeCardsProvider`).
 class HomeRefreshOnReturn extends ConsumerStatefulWidget {
   const HomeRefreshOnReturn({super.key, required this.child});
 
@@ -26,12 +27,11 @@ class _HomeRefreshOnReturnState extends ConsumerState<HomeRefreshOnReturn>
   void initState() {
     super.initState();
     _lifecycleListener = AppLifecycleListener(
-      onResume: () {
-        // The cards are computed against the clock: they are built again too
-        ref
-          ..invalidate(wishlistsLastActivityProvider)
-          ..invalidate(homeCardsProvider);
-      },
+      // A new day is handled by the cards themselves (`homeCardsProvider`
+      // recomputes on resume when the day changed): only the last activity,
+      // which no live stream follows, is read again. The cards reload with
+      // it when they depend on it.
+      onResume: () => ref.invalidate(wishlistsLastActivityProvider),
     );
   }
 
@@ -50,8 +50,11 @@ class _HomeRefreshOnReturnState extends ConsumerState<HomeRefreshOnReturn>
 
   @override
   void didPopNext() {
-    // The cards reload with it, when they depend on it
-    ref.invalidate(wishlistsLastActivityProvider);
+    // The screen pushed over the home may have changed what no live stream
+    // follows (wishes of a list, card states): both are read again.
+    ref
+      ..invalidate(wishlistsLastActivityProvider)
+      ..invalidate(homeCardsProvider);
   }
 
   @override
