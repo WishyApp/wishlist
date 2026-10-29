@@ -43,3 +43,6 @@ app.*.map.json
 
 # Test coverage
 /coverage/
+
+# Golden test failure output (rendered locally)
+**/failures/

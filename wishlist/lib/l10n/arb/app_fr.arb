@@ -56,7 +56,6 @@
   "settingsScreenDisconnectDialogTitle": "Se déconnecter",
   "settingsScreenDisconnectDialogExplanation": "Es-tu sûr de vouloir te déconnecter ?",
   "settingsScreenPasswordModify": "Modifier mon mot de passe",
-  "settingsScreenPseudoModify": "Modifier mon pseudo",
   "changePasswordScreenTitle": "Mot de passe",
   "oldPasswordField": "Ancien mot de passe",
   "newPasswordField": "Nouveau mot de passe",
@@ -71,8 +70,11 @@
   "newPseudoField": "Nouveau pseudo",
   "changePseudoConfirm": "Modifier",
   "changePseudoSuccess": "Pseudo modifié avec succès !",
-  "settingsScreenBirthday": "Mon anniversaire",
   "settingsScreenBirthdayNotSet": "Non renseigné",
+  "editProfileScreenTitle": "Modifier le profil",
+  "editProfilePseudo": "Pseudo",
+  "editProfileBirthday": "Anniversaire",
+  "editProfilePrivacy": "Seuls tes amis voient ta photo, ton pseudo et ton anniversaire.",
   "changeBirthdayScreenTitle": "Anniversaire",
   "changeBirthdayExplanation": "Seuls tes amis le verront.",
   "changeBirthdayConfirm": "Enregistrer",
@@ -249,6 +251,7 @@
   "resetPasswordConfirm": "Réinitialiser",
   "resetPasswordSuccess": "Mot de passe réinitialisé avec succès ! Reconnectez-vous avec votre nouveau mot de passe.",
   "resetPasswordLinkExpired": "Le lien de réinitialisation a expiré. Veuillez en demander un nouveau.",
+  "settingsSignedInAs": "Connecté avec",
   "settingsGeneral": "Général",
   "settingsAbout": "À propos",
   "settingsTermsOfUse": "Conditions d'utilisation",
@@ -257,7 +260,6 @@
   "completedWishesEmptyTitle": "Aucun wish complété",
   "markWishAsCompleted": "Marquer comme complété",
   "unmarkWishAsCompleted": "Retirer des complétés",
-  "settingsCompletedWishes": "Mes wishs complétés",
   "unmarkWishConfirmTitle": "Retirer des wishs complétés",
   "unmarkWishConfirmMessage": "Ce wish redeviendra visible dans la wishlist \"{wishlistName}\".",
   "@unmarkWishConfirmMessage": {
@@ -384,5 +386,8 @@
   "unsavedChangesMessage": "Tes modifications seront perdues.",
   "unsavedChangesLeave": "Quitter sans enregistrer",
   "unsavedChangesKeepEditing": "Continuer à modifier",
-  "wishlistSettingsOwnerOnly": "Seul le propriétaire de cette wishlist peut modifier ses paramètres"
+  "wishlistSettingsOwnerOnly": "Seul le propriétaire de cette wishlist peut modifier ses paramètres",
+  "homeMyWishlists": "Mes wishlists",
+  "homeNoWishlist": "Pas encore de wishlist",
+  "homeReceivedWishes": "{count, plural, =1 {1 wish reçu} other {{count} wishs reçus}}"
 }

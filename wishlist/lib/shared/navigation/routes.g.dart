@@ -24,6 +24,10 @@ RouteBase get $homeRoute => GoRouteData.$route(
           factory: $BirthdayStepRouteExtension._fromState,
         ),
         GoRouteData.$route(
+          path: 'profile',
+          factory: $EditProfileRouteExtension._fromState,
+        ),
+        GoRouteData.$route(
           path: 'settings',
           factory: $SettingsRouteExtension._fromState,
           routes: [
@@ -39,11 +43,11 @@ RouteBase get $homeRoute => GoRouteData.$route(
               path: 'change-birthday',
               factory: $ChangeBirthdayRouteExtension._fromState,
             ),
-            GoRouteData.$route(
-              path: 'completed-wishes',
-              factory: $CompletedWishesRouteExtension._fromState,
-            ),
           ],
+        ),
+        GoRouteData.$route(
+          path: 'completed-wishes',
+          factory: $CompletedWishesRouteExtension._fromState,
         ),
         GoRouteData.$route(
           path: 'wishlist/:wishlistId',
@@ -138,6 +142,23 @@ extension $BirthdayStepRouteExtension on BirthdayStepRoute {
   void replace(BuildContext context) => context.replace(location);
 }
 
+extension $EditProfileRouteExtension on EditProfileRoute {
+  static EditProfileRoute _fromState(GoRouterState state) => EditProfileRoute();
+
+  String get location => GoRouteData.$location(
+        '/profile',
+      );
+
+  void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  void replace(BuildContext context) => context.replace(location);
+}
+
 extension $SettingsRouteExtension on SettingsRoute {
   static SettingsRoute _fromState(GoRouterState state) => SettingsRoute();
 
@@ -214,7 +235,7 @@ extension $CompletedWishesRouteExtension on CompletedWishesRoute {
       CompletedWishesRoute();
 
   String get location => GoRouteData.$location(
-        '/settings/completed-wishes',
+        '/completed-wishes',
       );
 
   void go(BuildContext context) => context.go(location);

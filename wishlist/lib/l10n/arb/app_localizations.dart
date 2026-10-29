@@ -434,12 +434,6 @@ abstract class AppLocalizations {
   /// **'Modifier mon mot de passe'**
   String get settingsScreenPasswordModify;
 
-  /// No description provided for @settingsScreenPseudoModify.
-  ///
-  /// In fr, this message translates to:
-  /// **'Modifier mon pseudo'**
-  String get settingsScreenPseudoModify;
-
   /// No description provided for @changePasswordScreenTitle.
   ///
   /// In fr, this message translates to:
@@ -524,17 +518,35 @@ abstract class AppLocalizations {
   /// **'Pseudo modifié avec succès !'**
   String get changePseudoSuccess;
 
-  /// No description provided for @settingsScreenBirthday.
-  ///
-  /// In fr, this message translates to:
-  /// **'Mon anniversaire'**
-  String get settingsScreenBirthday;
-
   /// No description provided for @settingsScreenBirthdayNotSet.
   ///
   /// In fr, this message translates to:
   /// **'Non renseigné'**
   String get settingsScreenBirthdayNotSet;
+
+  /// No description provided for @editProfileScreenTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier le profil'**
+  String get editProfileScreenTitle;
+
+  /// No description provided for @editProfilePseudo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pseudo'**
+  String get editProfilePseudo;
+
+  /// No description provided for @editProfileBirthday.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire'**
+  String get editProfileBirthday;
+
+  /// No description provided for @editProfilePrivacy.
+  ///
+  /// In fr, this message translates to:
+  /// **'Seuls tes amis voient ta photo, ton pseudo et ton anniversaire.'**
+  String get editProfilePrivacy;
 
   /// No description provided for @changeBirthdayScreenTitle.
   ///
@@ -1322,6 +1334,12 @@ abstract class AppLocalizations {
   /// **'Le lien de réinitialisation a expiré. Veuillez en demander un nouveau.'**
   String get resetPasswordLinkExpired;
 
+  /// No description provided for @settingsSignedInAs.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connecté avec'**
+  String get settingsSignedInAs;
+
   /// No description provided for @settingsGeneral.
   ///
   /// In fr, this message translates to:
@@ -1369,12 +1387,6 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Retirer des complétés'**
   String get unmarkWishAsCompleted;
-
-  /// No description provided for @settingsCompletedWishes.
-  ///
-  /// In fr, this message translates to:
-  /// **'Mes wishs complétés'**
-  String get settingsCompletedWishes;
 
   /// No description provided for @unmarkWishConfirmTitle.
   ///
@@ -1675,6 +1687,24 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Seul le propriétaire de cette wishlist peut modifier ses paramètres'**
   String get wishlistSettingsOwnerOnly;
+
+  /// No description provided for @homeMyWishlists.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mes wishlists'**
+  String get homeMyWishlists;
+
+  /// No description provided for @homeNoWishlist.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas encore de wishlist'**
+  String get homeNoWishlist;
+
+  /// No description provided for @homeReceivedWishes.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =1 {1 wish reçu} other {{count} wishs reçus}}'**
+  String homeReceivedWishes(num count);
 }
 
 class _AppLocalizationsDelegate

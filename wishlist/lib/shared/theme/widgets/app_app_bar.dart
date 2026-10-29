@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
@@ -20,15 +21,7 @@ class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
         : AppTextStyles.title.fontSize! - 4;
 
     final actions = [
-      if (isFirstRoute)
-        IconButton(
-          icon: const Icon(
-            Icons.settings,
-            color: AppColors.darkGrey,
-            size: 32,
-          ),
-          onPressed: () => SettingsRoute().push(context),
-        ),
+      if (isFirstRoute) const SettingsButton(),
     ];
 
     return AppBar(
@@ -59,4 +52,23 @@ class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+
+/// The settings cog of the first screens. Shared with the home header, which
+/// has no [AppAppBar] but must show it at the same size and place.
+class SettingsButton extends StatelessWidget {
+  const SettingsButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: context.l10n.settingsScreenTitle,
+      icon: const Icon(
+        Icons.settings,
+        color: AppColors.darkGrey,
+        size: 32,
+      ),
+      onPressed: () => SettingsRoute().push(context),
+    );
+  }
 }

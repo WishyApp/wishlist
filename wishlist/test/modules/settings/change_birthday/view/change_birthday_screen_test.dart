@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
+import 'package:wishlist/modules/profile/view/edit_profile_screen.dart';
 import 'package:wishlist/modules/settings/change_birthday/view/change_birthday_screen.dart';
-import 'package:wishlist/modules/settings/view/settings_screen.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/user_service.dart';
 import 'package:wishlist/shared/models/birthday.dart';
@@ -28,18 +28,18 @@ void main() {
         .thenAnswer((_) async {});
   });
 
-  /// Opens the screen from the settings, like in the app, so that it can pop
-  /// back to them.
+  /// Opens the screen from the edit profile page, like in the app, so that it
+  /// can pop back to it.
   Future<void> pumpScreen(WidgetTester tester, {Birthday? birthday}) async {
     await tester.pumpRouterApp(
-      SettingsRoute().location,
+      EditProfileRoute().location,
       overrides: [
         ...settingsScreenOverrides(currentUserBirthday: birthday),
         userServiceProvider.overrideWithValue(userService),
       ],
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text(AppLocalizationsFr().settingsScreenBirthday));
+    await tester.tap(find.text(AppLocalizationsFr().editProfileBirthday));
     await tester.pumpAndSettle();
   }
 
@@ -71,7 +71,7 @@ void main() {
     ).called(1);
     // Back on the previous route, with the success snackbar
     expect(find.byType(ChangeBirthdayScreen), findsNothing);
-    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byType(EditProfileScreen), findsOneWidget);
     expect(find.text(l10n.changeBirthdaySuccess), findsOneWidget);
     await flushSnackBar(tester);
   });
@@ -139,7 +139,7 @@ void main() {
     verify(() => userService.deleteCurrentUserBirthday()).called(1);
     verifyNever(() => userService.upsertCurrentUserBirthday(any()));
     expect(find.byType(ChangeBirthdayScreen), findsNothing);
-    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byType(EditProfileScreen), findsOneWidget);
     expect(find.text(l10n.changeBirthdayRemoved), findsOneWidget);
     await flushSnackBar(tester);
   });
@@ -170,14 +170,14 @@ void main() {
       return const Birthday(month: 3, day: 12);
     });
     await tester.pumpRouterApp(
-      SettingsRoute().location,
+      EditProfileRoute().location,
       overrides: [
         ...settingsScreenOverrides(overrideBirthday: false),
         userServiceProvider.overrideWithValue(userService),
       ],
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text(l10n.settingsScreenBirthday));
+    await tester.tap(find.text(l10n.editProfileBirthday));
     await tester.pumpAndSettle();
     await flushSnackBar(tester);
 
@@ -191,7 +191,7 @@ void main() {
     expect(find.text(l10n.changeBirthdayRemove), findsWidgets);
   });
 
-  group('settings line, with the real provider on top of the service', () {
+  group('profile line, with the real provider on top of the service', () {
     late Birthday? stored;
 
     setUp(() {
@@ -209,7 +209,7 @@ void main() {
 
     Future<void> openScreen(WidgetTester tester) async {
       await tester.pumpRouterApp(
-        SettingsRoute().location,
+        EditProfileRoute().location,
         overrides: [
           ...settingsScreenOverrides(overrideBirthday: false),
           userServiceProvider.overrideWithValue(userService),
@@ -223,7 +223,7 @@ void main() {
       await openScreen(tester);
       expect(find.text('12 mars'), findsOneWidget);
 
-      await tester.tap(find.text(l10n.settingsScreenBirthday));
+      await tester.tap(find.text(l10n.editProfileBirthday));
       await tester.pumpAndSettle();
       await tester.drag(
         find.byKey(const ValueKey('birthday-day-picker')),
@@ -237,7 +237,7 @@ void main() {
       expect(find.text('12 mars'), findsNothing);
       expect(find.text('14 mars'), findsOneWidget);
 
-      await tester.tap(find.text(l10n.settingsScreenBirthday));
+      await tester.tap(find.text(l10n.editProfileBirthday));
       await tester.pumpAndSettle();
       await tester.tap(find.text(l10n.changeBirthdayRemove).first);
       await pumpAction(tester);
@@ -252,7 +252,7 @@ void main() {
         'save', (tester) async {
       stored = null;
       await openScreen(tester);
-      await tester.tap(find.text(l10n.settingsScreenBirthday));
+      await tester.tap(find.text(l10n.editProfileBirthday));
       await tester.pumpAndSettle();
       await tester.drag(
         find.byKey(const ValueKey('birthday-day-picker')),

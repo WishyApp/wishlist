@@ -167,6 +167,9 @@ List<Override> homeScreenOverrides({
   IList<BookedWishWithDetails>? bookedWishes,
   String? currentUserId,
   Map<String, Birthday>? birthdays,
+  List<CompletedWishWithDetails>? completedWishes,
+  Profile? currentUserProfile,
+  Birthday? currentUserBirthday,
   DateTime? now,
 
   /// `false` : visibleBirthdaysProvider reste le vrai, au-dessus du service.
@@ -175,6 +178,11 @@ List<Override> homeScreenOverrides({
   return [
     supabaseClientOverride(userId: currentUserId),
     wishlistsRealtimeOverride(wishlists: wishlists),
+    completedWishesRealtimeProvider.overrideWith(
+      (ref) => Stream.value((completedWishes ?? const []).toIList()),
+    ),
+    watchCurrentUserProfileOverride(profile: currentUserProfile),
+    currentUserBirthdayOverride(birthday: currentUserBirthday),
     friendshipsRealtimeOverride(friendsData: friendsData),
     bookedWishesRealtimeOverride(bookedWishes: bookedWishes),
     if (overrideBirthdays) visibleBirthdaysOverride(birthdays: birthdays),
