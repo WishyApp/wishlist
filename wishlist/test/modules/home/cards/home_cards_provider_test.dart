@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -674,6 +676,31 @@ void main() {
 
       expect(cards.single.type, 'stale_wishlist');
       expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist2.id}');
+    });
+
+    test('the last activity is fetched while the other sources load',
+        () async {
+      // The accepted requests only answer once the activity was asked for:
+      // loaded one after the other, the stack would never come.
+      final activityAsked = Completer<void>();
+      when(() => friendships.getRecentlyAcceptedRequests(any())).thenAnswer(
+        (_) async {
+          await activityAsked.future;
+          return const [];
+        },
+      );
+      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+        (_) async {
+          activityAsked.complete();
+          return {fakeWishlist1.id: DateTime(2026, 5, 2)};
+        },
+      );
+
+      final cards = await loadWithActivity().timeout(
+        const Duration(seconds: 2),
+      );
+
+      expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist1.id}');
     });
 
     test('a snoozed list makes room for the next oldest one', () async {

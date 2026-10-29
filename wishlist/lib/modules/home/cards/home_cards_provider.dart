@@ -102,6 +102,15 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     ),
   );
   final wishlists = _valueOf(wishlistsRealtimeProvider, ref) ?? const [];
+  // Started now and awaited with the stale card: it runs in parallel with the
+  // sources below. Its failure is caught here, it only loses that card.
+  final lastActivityFuture = _orElse<Map<int, DateTime>>(
+    'wishlists last activity',
+    () => definitions['stale_wishlist'] == null || wishlists.isEmpty
+        ? Future.value(const <int, DateTime>{})
+        : wishlistRepository.getLastActivityByWishlist(),
+    const <int, DateTime>{},
+  );
   await ref.watch(
     friendshipsRealtimeProvider.selectAsync(
       (data) => (
@@ -197,13 +206,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     true,
   );
 
-  final lastActivity = await _orElse<Map<int, DateTime>>(
-    'wishlists last activity',
-    () => definitions['stale_wishlist'] == null || wishlists.isEmpty
-        ? Future.value(const <int, DateTime>{})
-        : wishlistRepository.getLastActivityByWishlist(),
-    const <int, DateTime>{},
-  );
+  final lastActivity = await lastActivityFuture;
   // The recap reads the received wishes once, and only in its month: nothing
   // heavy is kept alive the rest of the year.
   final yearRecap = !isYearRecapMonth(definitions['year_recap'], now)
