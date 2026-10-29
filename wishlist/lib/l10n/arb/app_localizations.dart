@@ -1388,12 +1388,6 @@ abstract class AppLocalizations {
   /// **'Wishs complétés'**
   String get friendCompletedWishesTitle;
 
-  /// No description provided for @completeSelectedWishes.
-  ///
-  /// In fr, this message translates to:
-  /// **'Compléter'**
-  String get completeSelectedWishes;
-
   /// No description provided for @seeAllCompletedWishes.
   ///
   /// In fr, this message translates to:
@@ -1493,7 +1487,7 @@ abstract class AppLocalizations {
   /// No description provided for @wishlistSelectionComplete.
   ///
   /// In fr, this message translates to:
-  /// **'Valider'**
+  /// **'Compléter'**
   String get wishlistSelectionComplete;
 
   /// No description provided for @wishlistSelectionMove.

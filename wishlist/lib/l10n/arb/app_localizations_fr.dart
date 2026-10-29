@@ -750,9 +750,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get friendCompletedWishesTitle => 'Wishs complétés';
 
   @override
-  String get completeSelectedWishes => 'Compléter';
-
-  @override
   String get seeAllCompletedWishes => 'Tout voir';
 
   @override
@@ -851,7 +848,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get wishlistExitSelection => 'Quitter la sélection';
 
   @override
-  String get wishlistSelectionComplete => 'Valider';
+  String get wishlistSelectionComplete => 'Compléter';
 
   @override
   String get wishlistSelectionMove => 'Déplacer';
