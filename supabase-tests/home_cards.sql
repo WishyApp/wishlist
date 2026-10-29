@@ -44,6 +44,19 @@ BEGIN
 END $$;
 
 -- Seeds and catalog
+CREATE TEMP TABLE expected_seeds (key text, kind text, priority int, params jsonb);
+INSERT INTO pg_temp.expected_seeds VALUES
+  ('home_stack', 'settings', 0, '{"max_cards": 3, "later_days": 1}'),
+  ('friend_birthday_today', 'computed', 10, '{}'),
+  ('after_party', 'computed', 15, '{"days_after": 7}'),
+  ('onboarding', 'computed', 18, '{"optional_steps_hours": 48}'),
+  ('booked_reminder', 'computed', 20, '{"days_before": 14}'),
+  ('booked_wish_removed', 'computed', 25, '{}'),
+  ('friend_birthday', 'computed', 30, '{"reminder_days": [30, 7], "highlight_days": 7}'),
+  ('friend_accepted', 'computed', 35, '{"days": 7}'),
+  ('christmas', 'computed', 40,
+   '{"reminder_days": [30, 7], "highlight_days": 7, "keywords": ["noel", "christmas", "xmas"]}'),
+  ('stale_wishlist', 'computed', 60, '{"stale_days": 90, "snooze_days": 60}');
 DO $$
 DECLARE
   k text;
@@ -58,8 +71,16 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.home_cards WHERE key = 'home_stack' AND kind = 'settings') THEN
     RAISE EXCEPTION 'FAIL home_stack is not seeded as settings';
   END IF;
-  IF (SELECT count(*) FROM public.home_cards) <> 10 THEN
-    RAISE EXCEPTION 'FAIL expected 10 seeded rows, got %', (SELECT count(*) FROM public.home_cards);
+  IF EXISTS (
+    (SELECT key, kind, priority, params FROM public.home_cards
+     EXCEPT
+     SELECT * FROM pg_temp.expected_seeds)
+    UNION ALL
+    (SELECT * FROM pg_temp.expected_seeds
+     EXCEPT
+     SELECT key, kind, priority::int, params FROM public.home_cards)
+  ) THEN
+    RAISE EXCEPTION 'FAIL seeded rows differ from the expected ones';
   END IF;
   IF (SELECT params->'reminder_days' FROM public.home_cards WHERE key = 'christmas')
      IS DISTINCT FROM '[30, 7]'::jsonb THEN
@@ -117,6 +138,27 @@ SELECT pg_temp.expect_check_violation('editorial without a window',
      VALUES ('t_no_window', 'editorial', 45, now(), '{"fr": "a", "en": "a"}')$q$);
 SELECT pg_temp.expect_check_violation('key with spaces and capitals',
   $q$INSERT INTO public.home_cards (key, kind, priority) VALUES ('Noël 2026', 'computed', 45)$q$);
+SELECT pg_temp.expect_check_violation('key ascii with a space',
+  $q$INSERT INTO public.home_cards (key, kind, priority) VALUES ('Noel 2026', 'computed', 45)$q$);
+SELECT pg_temp.expect_check_violation('key with a capital',
+  $q$INSERT INTO public.home_cards (key, kind, priority) VALUES ('Christmas', 'computed', 45)$q$);
+SELECT pg_temp.expect_check_violation('editorial with title as an array',
+  $q$INSERT INTO public.home_cards (key, kind, priority, event_at, starts_at, ends_at, title)
+     VALUES ('t_arr', 'editorial', 45, now(), now() - interval '1 day',
+             now() + interval '1 day', '["fr", "en"]')$q$);
+SELECT pg_temp.expect_check_violation('editorial with a null french title',
+  $q$INSERT INTO public.home_cards (key, kind, priority, event_at, starts_at, ends_at, title)
+     VALUES ('t_nullfr', 'editorial', 45, now(), now() - interval '1 day',
+             now() + interval '1 day', '{"fr": null, "en": "x"}')$q$);
+SELECT pg_temp.expect_check_violation('params as an array',
+  $q$INSERT INTO public.home_cards (key, kind, priority, params)
+     VALUES ('t_params', 'computed', 45, '[]')$q$);
+SELECT pg_temp.expect_check_violation('cta_label as a string',
+  $q$INSERT INTO public.home_cards (key, kind, priority, cta_label)
+     VALUES ('t_cta', 'computed', 45, '"Voir"')$q$);
+SELECT pg_temp.expect_check_violation('body as an array',
+  $q$INSERT INTO public.home_cards (key, kind, priority, body)
+     VALUES ('t_body', 'computed', 45, '["x"]')$q$);
 SELECT pg_temp.expect_check_violation('unknown kind',
   $q$INSERT INTO public.home_cards (key, kind, priority) VALUES ('t_kind', 'banner', 45)$q$);
 

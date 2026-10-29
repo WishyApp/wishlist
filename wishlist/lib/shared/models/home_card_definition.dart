@@ -23,11 +23,13 @@ class HomeCardDefinition {
     this.illustration,
   });
 
-  /// Throws if a column is missing or has the wrong type.
+  /// Only `key`, `kind` and `priority` are required. Throws if a column is
+  /// missing, has the wrong type or holds an unknown kind: the repository
+  /// skips a row that throws, so one bad hand-written row loses only itself.
   factory HomeCardDefinition.fromRow(Map<String, dynamic> row) {
     return HomeCardDefinition(
       key: row['key'] as String,
-      kind: HomeCardKind.values.byName(row['kind'] as String),
+      kind: _parseKind(row['kind'] as String),
       priority: row['priority'] as int,
       params: Map<String, dynamic>.from(row['params'] as Map? ?? const {}),
       eventAt: _parseDate(row['event_at']),
@@ -69,12 +71,12 @@ class HomeCardDefinition {
   /// Name of an SVG of `assets/svg/`, without extension.
   final String? illustration;
 
-  /// The text in [languageCode], else in french, else null.
+  /// The text in [languageCode], else in english, else in french, else null.
   String? localized(Map<String, String>? texts, String languageCode) {
     if (texts == null) {
       return null;
     }
-    return texts[languageCode] ?? texts['fr'];
+    return texts[languageCode] ?? texts['en'] ?? texts['fr'];
   }
 
   int intParam(String name, int fallback) {
@@ -101,16 +103,18 @@ class HomeCardDefinition {
   }
 
   /// Start of the first reminder step after [dismissedAt]: `reminder_days`
-  /// days before [eventAt], then the day itself. Null once none is left.
-  /// Used as the snooze date of "Hide".
+  /// days before [eventAt], then the day itself. Steps fall on local calendar
+  /// days, as the user sees them. Null once none is left. Used as the snooze
+  /// date of "Hide".
   DateTime? nextReminderAfter({
     required DateTime eventAt,
     required DateTime dismissedAt,
   }) {
+    final day = eventAt.toLocal();
     final steps = [
       for (final days in intListParam('reminder_days'))
-        _dayStart(eventAt, -days),
-      _dayStart(eventAt, 0),
+        DateTime(day.year, day.month, day.day - days),
+      DateTime(day.year, day.month, day.day),
     ]..sort();
     for (final step in steps) {
       if (step.isAfter(dismissedAt)) {
@@ -120,18 +124,22 @@ class HomeCardDefinition {
     return null;
   }
 
-  /// Whether [eventAt] is at most `highlight_days` days away (default 7) and
-  /// not past. Computed cards (birthday, Christmas) work out their own date.
+  /// Whether the local day of [eventAt] is today or at most `highlight_days`
+  /// days (default 7) ahead. Computed cards (birthday, Christmas) work out
+  /// their own date.
   bool isHighlighted({required DateTime eventAt, required DateTime now}) {
-    final remaining = eventAt.difference(now);
-    return !remaining.isNegative &&
-        remaining <= Duration(days: intParam('highlight_days', 7));
+    final today = now.toLocal();
+    final eventDay = eventAt.toLocal();
+    // UTC constructors: whole days, immune to DST changes.
+    final daysAway = DateTime.utc(eventDay.year, eventDay.month, eventDay.day)
+        .difference(DateTime.utc(today.year, today.month, today.day))
+        .inDays;
+    return daysAway >= 0 && daysAway <= intParam('highlight_days', 7);
   }
 
-  static DateTime _dayStart(DateTime date, int dayOffset) {
-    return date.isUtc
-        ? DateTime.utc(date.year, date.month, date.day + dayOffset)
-        : DateTime(date.year, date.month, date.day + dayOffset);
+  static HomeCardKind _parseKind(String name) {
+    return HomeCardKind.values.asNameMap()[name] ??
+        (throw FormatException('Unknown home card kind', name));
   }
 
   static DateTime? _parseDate(Object? value) {

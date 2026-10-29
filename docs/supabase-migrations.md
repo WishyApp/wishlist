@@ -116,11 +116,11 @@ Toujours vérifier avec le `SELECT` : une coquille (`3.0.0` pour `0.3.0`) bloque
 
 ## Cartes de l'accueil
 
-La table `home_cards` pilote les cartes de l'écran d'accueil. L'app la lit à l'ouverture et au tirer-pour-rafraîchir (policy : lignes actives seulement, une carte éditoriale seulement dans sa fenêtre `starts_at` / `ends_at`). Comme `app_versions`, elle se modifie à la main dans le SQL editor : aucun privilège d'écriture pour les clients.
+La table `home_cards` pilote les cartes de l'écran d'accueil. L'écran d'accueil (plan suivant) la lira à l'ouverture et au tirer-pour-rafraîchir (policy : lignes actives seulement, une carte éditoriale seulement dans sa fenêtre `starts_at` / `ends_at`). Comme `app_versions`, elle se modifie à la main dans le SQL editor : aucun privilège d'écriture pour les clients.
 
 Les lignes `computed` règlent des cartes dont la logique reste dans l'app (`enabled`, `priority`, `params`). La ligne `home_stack` (`settings`) règle la pile, ce n'est pas une carte. Les seeds sont posés avec `ON CONFLICT DO NOTHING` : une migration ne réécrit jamais un réglage, une modification se fait à la main.
 
-Une carte éditoriale ponctuelle (occasion, annonce) se crée avec un `INSERT`, sans publier l'app. La contrainte `home_cards_editorial_complete` refuse une carte sans dates, sans titre fr et en, ou dont `ends_at` précède `starts_at`.
+Une carte éditoriale ponctuelle (occasion, annonce) se crée avec un `INSERT`, sans publier l'app. La contrainte `home_cards_editorial_complete` refuse une carte sans dates, sans titre fr et en, ou dont `ends_at` précède `starts_at`, ainsi qu'une `key` qui ne respecte pas `^[a-z0-9_]+$` (minuscules, chiffres, `_`) ou des `params`, `title`, `body`, `cta_label` qui ne sont pas des objets JSON.
 
 ```sql
 INSERT INTO public.home_cards
@@ -136,7 +136,12 @@ VALUES (
 SELECT key, enabled, starts_at, ends_at FROM public.home_cards WHERE key = 'new_feature_2026_12';
 ```
 
-Dev d'abord, puis prod, et toujours vérifier avec le `SELECT`. Pour retirer une carte avant la fin, `UPDATE public.home_cards SET enabled = false WHERE key = '...'`.
+Dev d'abord, puis prod, et toujours vérifier avec le `SELECT`. Il tourne en `postgres` et contourne la RLS : il prouve que la ligne est enregistrée avec les bonnes dates, pas que les utilisateurs la voient (il faut `now()` dans la fenêtre et `enabled`). Pour retirer une carte avant la fin ou régler une carte calculée, passer par un `UPDATE`, sans oublier `updated_at` :
+
+```sql
+UPDATE public.home_cards SET enabled = false, updated_at = now() WHERE key = 'new_feature_2026_12';
+UPDATE public.home_cards SET params = jsonb_set(params, '{highlight_days}', '3'), updated_at = now() WHERE key = 'christmas';
+```
 
 ## Tester en local
 

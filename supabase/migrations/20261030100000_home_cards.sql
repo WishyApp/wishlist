@@ -16,8 +16,8 @@
 -- home_cards_editorial_complete refuses it. The procedure for an editorial
 -- card is in docs/supabase-migrations.md, "Cartes de l'accueil".
 --
--- keywords (christmas): lower case, without accents, matched by the app
--- against wishlist names.
+-- keywords (christmas): lower case, without accents. The home screen (next
+-- change) will match them against wishlist names.
 --
 -- Seeds use ON CONFLICT DO NOTHING: a setting changed by hand is never
 -- overwritten by a migration.
@@ -58,6 +58,27 @@ BEGIN
       ADD CONSTRAINT home_cards_kind_check
       CHECK (kind IN ('computed', 'editorial', 'settings'));
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'home_cards_params_object'
+      AND conrelid = 'public.home_cards'::regclass
+  ) THEN
+    ALTER TABLE public.home_cards
+      ADD CONSTRAINT home_cards_params_object CHECK (jsonb_typeof(params) = 'object');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'home_cards_texts_objects'
+      AND conrelid = 'public.home_cards'::regclass
+  ) THEN
+    ALTER TABLE public.home_cards
+      ADD CONSTRAINT home_cards_texts_objects
+      CHECK (
+        (title IS NULL OR jsonb_typeof(title) = 'object')
+        AND (body IS NULL OR jsonb_typeof(body) = 'object')
+        AND (cta_label IS NULL OR jsonb_typeof(cta_label) = 'object')
+      );
+  END IF;
   -- COALESCE: a NULL operand would make the CHECK pass instead of failing.
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
@@ -73,8 +94,8 @@ BEGIN
           AND starts_at IS NOT NULL
           AND ends_at IS NOT NULL
           AND ends_at > starts_at
-          AND title ? 'fr'
-          AND title ? 'en',
+          AND jsonb_typeof(title->'fr') = 'string'
+          AND jsonb_typeof(title->'en') = 'string',
           false
         )
       );

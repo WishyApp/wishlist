@@ -95,6 +95,34 @@ void main() {
       expect(card.intParam('max_cards', 0), 3);
     });
 
+    test('throws on an unknown kind', () {
+      expect(
+        () => HomeCardDefinition.fromRow(_row('x', kind: 'banner')),
+        throwsFormatException,
+      );
+    });
+
+    test('throws on malformed texts and params', () {
+      expect(
+        () => HomeCardDefinition.fromRow({
+          ..._row('x'),
+          'title': const <String>[],
+        }),
+        throwsA(isA<TypeError>()),
+      );
+      expect(
+        () => HomeCardDefinition.fromRow({
+          ..._row('x'),
+          'cta_label': const {'fr': null},
+        }),
+        throwsA(isA<TypeError>()),
+      );
+      expect(
+        () => HomeCardDefinition.fromRow({..._row('x'), 'params': '[]'}),
+        throwsA(isA<TypeError>()),
+      );
+    });
+
     test('a malformed list param gives an empty list', () {
       final card = _christmas(params: {'reminder_days': 'soon'});
 
@@ -110,8 +138,12 @@ void main() {
       expect(card.localized(texts, 'en'), 'Christmas');
     });
 
-    test('falls back to french', () {
-      expect(card.localized(texts, 'de'), 'Noël');
+    test('falls back to english', () {
+      expect(card.localized(texts, 'de'), 'Christmas');
+    });
+
+    test('falls back to french without english', () {
+      expect(card.localized(const {'fr': 'Noël'}, 'de'), 'Noël');
     });
 
     test('returns null without texts', () {
@@ -154,6 +186,46 @@ void main() {
     });
   });
 
+  group('nextReminderAfter on a UTC eventAt', () {
+    // Steps are built from the local day of the event, so the expectations
+    // use local constructors and hold on any machine timezone (run with
+    // TZ=Europe/Paris, this event is on 10 December).
+    final eventAt = DateTime.utc(2026, 12, 9, 23);
+    final local = eventAt.toLocal();
+    DateTime step(int daysBefore) =>
+        DateTime(local.year, local.month, local.day - daysBefore);
+
+    test('steps fall on local days', () {
+      final card = _christmas(
+        params: {
+          'reminder_days': [30, 7],
+        },
+      );
+
+      expect(
+        card.nextReminderAfter(
+          eventAt: eventAt,
+          dismissedAt: step(30).subtract(const Duration(days: 1)),
+        ),
+        step(30),
+      );
+      expect(
+        card.nextReminderAfter(
+          eventAt: eventAt,
+          dismissedAt: step(30).add(const Duration(hours: 1)),
+        ),
+        step(7),
+      );
+      expect(
+        card.nextReminderAfter(
+          eventAt: eventAt,
+          dismissedAt: step(7).add(const Duration(hours: 1)),
+        ),
+        step(0),
+      );
+    });
+  });
+
   group('isHighlighted', () {
     final now = DateTime(2026, 12, 1, 12);
 
@@ -171,6 +243,37 @@ void main() {
       expect(
         _christmas().isHighlighted(
           eventAt: now.add(const Duration(days: 8)),
+          now: now,
+        ),
+        isFalse,
+      );
+    });
+
+    test('true on the event day itself, later that day', () {
+      expect(
+        _christmas().isHighlighted(
+          eventAt: DateTime(2026, 12, 1, 20),
+          now: now,
+        ),
+        isTrue,
+      );
+    });
+
+    test('true 7 days ahead, false 8 days ahead', () {
+      expect(
+        _christmas().isHighlighted(eventAt: DateTime(2026, 12, 8), now: now),
+        isTrue,
+      );
+      expect(
+        _christmas().isHighlighted(eventAt: DateTime(2026, 12, 9), now: now),
+        isFalse,
+      );
+    });
+
+    test('false the day after the event', () {
+      expect(
+        _christmas().isHighlighted(
+          eventAt: DateTime(2026, 11, 30, 23),
           now: now,
         ),
         isFalse,
