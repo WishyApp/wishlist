@@ -23,7 +23,7 @@ class HomeProfileHeader extends ConsumerWidget {
     void openEditProfile() => EditProfileRoute().push(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 8, 20),
+      padding: const EdgeInsets.fromLTRB(20, 24, 8, 20),
       child: Row(
         children: [
           GestureDetector(

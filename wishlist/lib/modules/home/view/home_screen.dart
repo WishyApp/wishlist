@@ -67,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(child: HomeEmptyWishlists())
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     sliver: SliverWishlistsGrid(wishlists: data),
                   ),
                 SliverToBoxAdapter(
