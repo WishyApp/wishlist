@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/modules/auth/view/auth_screen.dart';
@@ -19,13 +20,20 @@ void main() {
   const googleConfig = GoogleSignInConfig(webClientId: 'web');
 
   late _MockAuthService authService;
+  final captured = <(Object, SentryLevel)>[];
+  final defaultCapture = captureSocialSignInFailure;
 
   setUp(() {
+    captured.clear();
+    captureSocialSignInFailure =
+        (error, stackTrace, level) async => captured.add((error, level));
     SharedPreferences.setMockInitialValues({});
     authService = _MockAuthService();
     when(() => authService.signInWithGoogle()).thenAnswer((_) async => true);
     when(() => authService.signInWithApple()).thenAnswer((_) async => true);
   });
+
+  tearDown(() => captureSocialSignInFailure = defaultCapture);
 
   Future<void> pump(
     WidgetTester tester, {
@@ -42,6 +50,16 @@ void main() {
       ],
     );
     await tester.pumpAndSettle();
+  }
+
+  Future<void> tapGoogleAfterError(WidgetTester tester, Object error) async {
+    when(() => authService.signInWithGoogle()).thenThrow(error);
+    await pump(tester, config: googleConfig);
+    await tester.ensureVisible(find.text('Continuer avec Google'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuer avec Google'));
+    await tester.pump();
+    await tester.pump();
   }
 
   testWidgets('shows no social button on Android without Google config',
@@ -124,6 +142,37 @@ void main() {
     expect(find.textContaining('a besoin de Safari'), findsOneWidget);
     expect(find.textContaining('Une erreur'), findsNothing);
     await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
+  group('Sentry report of a failed sign-in', () {
+    testWidgets('a misconfiguration is sent as an error', (tester) async {
+      final error = Exception('misconfigured');
+      await tapGoogleAfterError(tester, error);
+
+      expect(captured, [(error, SentryLevel.error)]);
+      await tester.pumpAndSettle(const Duration(seconds: 5));
+    });
+
+    testWidgets('Safari unavailable is sent as a warning', (tester) async {
+      const error = GoogleSignInException(
+        code: GoogleSignInExceptionCode.unknownError,
+        description: 'Unable to open Safari.',
+      );
+      await tapGoogleAfterError(tester, error);
+
+      expect(captured, [(error, SentryLevel.warning)]);
+      await tester.pumpAndSettle(const Duration(seconds: 5));
+    });
+
+    testWidgets('a closed sheet is not sent', (tester) async {
+      await tapGoogleAfterError(
+        tester,
+        const GoogleSignInException(code: GoogleSignInExceptionCode.canceled),
+      );
+
+      expect(captured, isEmpty);
+      await tester.pumpAndSettle(const Duration(seconds: 5));
+    });
   });
 
   testWidgets('shows the same footer in both modes', (tester) async {

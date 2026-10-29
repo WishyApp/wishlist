@@ -252,26 +252,6 @@ void main() {
     });
   });
 
-  group('SocialSignInClient.isSafariUnavailable', () {
-    test('is true when the Google sheet cannot open Safari', () {
-      const error = GoogleSignInException(
-        code: GoogleSignInExceptionCode.unknownError,
-        description: 'Unable to open Safari.',
-      );
-
-      expect(SocialSignInClient.isSafariUnavailable(error), isTrue);
-    });
-
-    test('is false for another unknown Google error', () {
-      const error = GoogleSignInException(
-        code: GoogleSignInExceptionCode.unknownError,
-        description: 'Something else',
-      );
-
-      expect(SocialSignInClient.isSafariUnavailable(error), isFalse);
-    });
-  });
-
   group('SocialSignInClient.isUserSideFailure', () {
     test('is true for a dismissed or interrupted sheet', () {
       for (final code in [

@@ -9,6 +9,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/shared/infra/utils/network_error.dart';
+import 'package:wishlist/shared/infra/utils/social_sign_in_error.dart';
 
 /// An ID token from a native sign-in, with the raw nonce whose SHA-256 the
 /// provider embedded in it: Supabase hashes [rawNonce] to check the token.
@@ -171,21 +172,6 @@ class SocialSignInClient {
     }
     return SentryLevel.error;
   }
-
-  /// Whether the Google sheet could not open on iOS: it runs in an
-  /// `ASWebAuthenticationSession`, which refuses to start when Safari is
-  /// blocked (Screen Time) or Guided Access is on (WISHY-2, seen on an Apple
-  /// test device).
-  ///
-  /// Only the text tells this case apart: AppAuth's
-  /// `OIDErrorCodeSafariOpenError` reaches Dart as `unknownError`, with nothing
-  /// but `NSLocalizedDescription` in the details (google_sign_in_ios 6.3.8).
-  /// If a plugin update rewords it, the generic error is back and the Sentry
-  /// level goes back to error.
-  static bool isSafariUnavailable(Object? error) =>
-      error is GoogleSignInException &&
-      error.code == GoogleSignInExceptionCode.unknownError &&
-      (error.description?.contains('Unable to open Safari') ?? false);
 
   static String _generateRawNonce() {
     final random = Random.secure();

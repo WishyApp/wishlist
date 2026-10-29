@@ -22,6 +22,17 @@ import 'package:wishlist/shared/widgets/text_form_fields/input_email.dart';
 import 'package:wishlist/shared/widgets/text_form_fields/input_password.dart';
 import 'package:wishlist/shared/widgets/text_form_fields/input_pseudo_or_email.dart';
 
+/// Sends a failed social sign-in to Sentry at the given level. Replaced in
+/// tests.
+@visibleForTesting
+Future<void> Function(Object error, StackTrace stackTrace, SentryLevel level)
+    captureSocialSignInFailure =
+    (error, stackTrace, level) => Sentry.captureException(
+          error,
+          stackTrace: stackTrace,
+          withScope: (scope) => scope.level = level,
+        ).then<void>((_) {});
+
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({
     super.key,
@@ -196,13 +207,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } catch (e, stackTrace) {
       final level = SocialSignInClient.sentryLevelOf(e);
       if (level != null) {
-        unawaited(
-          Sentry.captureException(
-            e,
-            stackTrace: stackTrace,
-            withScope: (scope) => scope.level = level,
-          ),
-        );
+        unawaited(captureSocialSignInFailure(e, stackTrace, level));
       }
       if (mounted) {
         showGenericError(context, error: e);

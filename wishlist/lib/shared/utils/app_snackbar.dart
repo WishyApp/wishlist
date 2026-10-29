@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
-import 'package:wishlist/shared/infra/social_sign_in_client.dart';
 import 'package:wishlist/shared/infra/utils/network_error.dart';
+import 'package:wishlist/shared/infra/utils/social_sign_in_error.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 
 enum SnackBarType {
@@ -75,7 +75,7 @@ void showGenericError(
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final userMessageKey = error is AppException ? error.userMessageKey : null;
     final message = userMessageKey?.toLocalizedString(context.l10n) ??
-        (SocialSignInClient.isSafariUnavailable(error)
+        (isSafariUnavailable(error)
             ? context.l10n.googleSignInSafariUnavailable
             : isNetworkError(error)
                 ? context.l10n.networkError
