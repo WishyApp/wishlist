@@ -4,21 +4,18 @@ import 'package:gap/gap.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wishlist/l10n/l10n.dart';
-import 'package:wishlist/modules/settings/widgets/settings_line.dart';
-import 'package:wishlist/modules/settings/widgets/settings_section.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
-import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/current_user_email_provider.dart';
 import 'package:wishlist/shared/infra/current_user_has_password_provider.dart';
-import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
-import 'package:wishlist/shared/widgets/avatar/editable_avatar.dart';
 import 'package:wishlist/shared/widgets/dialogs/confirm_dialog.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
+import 'package:wishlist/shared/widgets/settings_line.dart';
+import 'package:wishlist/shared/widgets/settings_section.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -76,120 +73,63 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final currentUserEmail = ref.watch(currentUserEmailProvider);
-    final currentUserProfile = ref.watch(watchCurrentUserProfileProvider);
     final appInfo = ref.watch(appInfoProvider);
-    final birthday = ref.watch(currentUserBirthdayProvider);
     final hasPassword = ref.watch(currentUserHasPasswordProvider);
-    final locale = Localizations.localeOf(context).toString();
 
-    return PageLayout(
+    return PageLayout.scrolling(
       title: l10n.settingsScreenTitle,
-      child: SafeArea(
-        child: SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Gap(8),
+          SettingsSection(
+            title: l10n.settingsGeneral,
             children: [
-              const Gap(8),
-              Column(
-                children: [
-                  const EditableAvatar(),
-                  const Gap(16),
-                  currentUserProfile.when(
-                    loading: CircularProgressIndicator.new,
-                    data: (profile) {
-                      if (profile == null) {
-                        return const SizedBox.shrink();
-                      }
-                      return Text(
-                        profile.pseudo,
-                        style: AppTextStyles.small.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    },
-                    error: (error, stackTrace) => const SizedBox.shrink(),
-                  ),
-                  // Null in the frame after a sign-out, before the redirect
-                  if (currentUserEmail != null)
-                    Text(
-                      currentUserEmail,
-                      style: AppTextStyles.smaller.copyWith(
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
+              // Null in the frame after a sign-out, before the
+              // redirect
+              if (currentUserEmail != null)
+                SettingsLine(
+                  title: l10n.settingsSignedInAs,
+                  value: currentUserEmail,
+                ),
+              if (hasPassword)
+                SettingsLine(
+                  title: l10n.settingsScreenPasswordModify,
+                  onTap: () {
+                    ChangePasswordRoute().push(context);
+                  },
+                ),
+              SettingsLine(
+                title: l10n.settingsScreenDeleteAccount,
+                onTap: () {
+                  _onDeleteAccountTap(context, ref);
+                },
               ),
-              const Gap(24),
-              SettingsSection(
-                title: l10n.settingsGeneral,
-                children: [
-                  SettingsLine(
-                    title: l10n.settingsScreenPseudoModify,
-                    onTap: () {
-                      ChangePseudoRoute().push(context);
-                    },
-                  ),
-                  if (hasPassword)
-                    SettingsLine(
-                      title: l10n.settingsScreenPasswordModify,
-                      onTap: () {
-                        ChangePasswordRoute().push(context);
-                      },
-                    ),
-                  SettingsLine(
-                    title: l10n.settingsScreenBirthday,
-                    // Nothing while loading, a dash on error: the screen behind
-                    // the line handles the failure itself.
-                    value: birthday.whenOrNull(
-                      data: (birthday) =>
-                          birthday?.format(locale) ??
-                          l10n.settingsScreenBirthdayNotSet,
-                      error: (error, stackTrace) => '—',
-                    ),
-                    onTap: () {
-                      ChangeBirthdayRoute().push(context);
-                    },
-                  ),
-                  SettingsLine(
-                    title: l10n.settingsCompletedWishes,
-                    onTap: () {
-                      CompletedWishesRoute().push(context);
-                    },
-                  ),
-                  SettingsLine(
-                    title: l10n.settingsScreenDeleteAccount,
-                    onTap: () {
-                      _onDeleteAccountTap(context, ref);
-                    },
-                  ),
-                ],
-              ),
-              const Gap(16),
-              SettingsSection(
-                title: l10n.settingsAbout,
-                children: [
-                  SettingsLine(
-                    title: l10n.settingsTermsOfUse,
-                    onTap: () => _onTermsOfUseTap(context),
-                  ),
-                  SettingsLine(
-                    title: l10n.settingsPrivacyPolicy,
-                    onTap: () => _onPrivacyPolicyTap(context),
-                  ),
-                ],
-              ),
-              const Gap(24),
-              PrimaryButton(
-                text: l10n.settingsScreenDisconnect,
-                onPressed: () => _onSignOutTap(context, ref),
-                style: BaseButtonStyle.medium,
-              ),
-              const Gap(24),
-              _AppVersionInfo(appInfo: appInfo),
             ],
           ),
-        ),
+          const Gap(16),
+          SettingsSection(
+            title: l10n.settingsAbout,
+            children: [
+              SettingsLine(
+                title: l10n.settingsTermsOfUse,
+                onTap: () => _onTermsOfUseTap(context),
+              ),
+              SettingsLine(
+                title: l10n.settingsPrivacyPolicy,
+                onTap: () => _onPrivacyPolicyTap(context),
+              ),
+            ],
+          ),
+          const Gap(24),
+          PrimaryButton(
+            text: l10n.settingsScreenDisconnect,
+            onPressed: () => _onSignOutTap(context, ref),
+            style: BaseButtonStyle.medium,
+          ),
+          const Gap(24),
+          _AppVersionInfo(appInfo: appInfo),
+        ],
       ),
     );
   }

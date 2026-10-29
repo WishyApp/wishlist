@@ -56,7 +56,6 @@
   "settingsScreenDisconnectDialogTitle": "Disconnect",
   "settingsScreenDisconnectDialogExplanation": "Are you sure you want to disconnect ?",
   "settingsScreenPasswordModify": "Change my password",
-  "settingsScreenPseudoModify": "Change my pseudo",
   "changePasswordScreenTitle": "Password",
   "oldPasswordField": "Old password",
   "newPasswordField": "New password",
@@ -71,8 +70,11 @@
   "newPseudoField": "New pseudo",
   "changePseudoConfirm": "Change",
   "changePseudoSuccess": "Pseudo changed successfully!",
-  "settingsScreenBirthday": "My birthday",
-  "settingsScreenBirthdayNotSet": "Not set",
+  "editProfileScreenTitle": "Edit profile",
+  "editProfilePseudo": "Pseudo",
+  "editProfileBirthday": "Birthday",
+  "editProfileBirthdayNotSet": "Not set",
+  "editProfilePrivacy": "Only your friends see your birthday. Your pseudo and photo are visible to everyone.",
   "changeBirthdayScreenTitle": "Birthday",
   "changeBirthdayExplanation": "Only your friends will see it.",
   "changeBirthdayConfirm": "Save",
@@ -232,6 +234,7 @@
   "resetPasswordConfirm": "Reset",
   "resetPasswordSuccess": "Password reset successfully! Please sign in with your new password.",
   "resetPasswordLinkExpired": "The reset link has expired. Please request a new one.",
+  "settingsSignedInAs": "Signed in as",
   "settingsGeneral": "General",
   "settingsAbout": "About",
   "settingsTermsOfUse": "Terms of use",
@@ -240,7 +243,6 @@
   "completedWishesEmptyTitle": "No completed wishes",
   "markWishAsCompleted": "Mark as completed",
   "unmarkWishAsCompleted": "Remove from completed",
-  "settingsCompletedWishes": "My completed wishes",
   "unmarkWishConfirmTitle": "Remove from completed",
   "unmarkWishConfirmMessage": "This wish will become visible again in the wishlist \"{wishlistName}\".",
   "@unmarkWishConfirmMessage": {
@@ -367,5 +369,8 @@
   "unsavedChangesMessage": "Your changes will be lost.",
   "unsavedChangesLeave": "Leave without saving",
   "unsavedChangesKeepEditing": "Keep editing",
-  "wishlistSettingsOwnerOnly": "Only the owner of this wishlist can change its settings"
+  "wishlistSettingsOwnerOnly": "Only the owner of this wishlist can change its settings",
+  "homeMyWishlists": "My wishlists",
+  "homeNoWishlist": "No wishlist yet",
+  "homeReceivedWishes": "{count, plural, =1 {1 wish received} other {{count} wishes received}}"
 }

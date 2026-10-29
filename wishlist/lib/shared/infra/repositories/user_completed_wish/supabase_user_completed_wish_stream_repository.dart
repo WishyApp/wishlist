@@ -6,6 +6,7 @@ import 'package:wishlist/shared/infra/keyed_realtime_streams.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_stream_repository.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/models/received_wishes_summary/received_wishes_summary.dart';
 import 'package:wishlist/shared/utils/first_event_timeout.dart';
 
 class SupabaseUserCompletedWishStreamRepository
@@ -74,6 +75,32 @@ class SupabaseUserCompletedWishStreamRepository
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'profiles',
+            callback: (payload) => reload(),
+          ),
+    );
+  }
+
+  @override
+  Stream<ReceivedWishesSummary> watchReceivedWishesSummary(String userId) {
+    final key = 'received_wishes_summary_$userId';
+
+    return _streams.watch<ReceivedWishesSummary>(
+      key,
+      // Timeout on the shared load, for the same reason as above
+      load: () => _repository
+          .getReceivedWishesSummary(userId)
+          .timeout(firstEventTimeLimit),
+      // Only the rows of the user: a change of anybody's wish, wishlist or
+      // profile does not matter to a count and a date
+      channelBuilder: (reload) => _client.channel(key).onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: _tableName,
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
             callback: (payload) => reload(),
           ),
     );

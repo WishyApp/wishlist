@@ -193,9 +193,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsScreenPasswordModify => 'Modifier mon mot de passe';
 
   @override
-  String get settingsScreenPseudoModify => 'Modifier mon pseudo';
-
-  @override
   String get changePasswordScreenTitle => 'Mot de passe';
 
   @override
@@ -241,10 +238,20 @@ class AppLocalizationsFr extends AppLocalizations {
   String get changePseudoSuccess => 'Pseudo modifié avec succès !';
 
   @override
-  String get settingsScreenBirthday => 'Mon anniversaire';
+  String get editProfileScreenTitle => 'Modifier le profil';
 
   @override
-  String get settingsScreenBirthdayNotSet => 'Non renseigné';
+  String get editProfilePseudo => 'Pseudo';
+
+  @override
+  String get editProfileBirthday => 'Anniversaire';
+
+  @override
+  String get editProfileBirthdayNotSet => 'Non renseigné';
+
+  @override
+  String get editProfilePrivacy =>
+      'Seuls tes amis voient ton anniversaire. Ton pseudo et ta photo sont visibles par tous.';
 
   @override
   String get changeBirthdayScreenTitle => 'Anniversaire';
@@ -715,6 +722,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Le lien de réinitialisation a expiré. Veuillez en demander un nouveau.';
 
   @override
+  String get settingsSignedInAs => 'Connecté en tant que';
+
+  @override
   String get settingsGeneral => 'Général';
 
   @override
@@ -737,9 +747,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get unmarkWishAsCompleted => 'Retirer des complétés';
-
-  @override
-  String get settingsCompletedWishes => 'Mes wishs complétés';
 
   @override
   String get unmarkWishConfirmTitle => 'Retirer des wishs complétés';
@@ -973,4 +980,21 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get wishlistSettingsOwnerOnly =>
       'Seul le propriétaire de cette wishlist peut modifier ses paramètres';
+
+  @override
+  String get homeMyWishlists => 'Mes wishlists';
+
+  @override
+  String get homeNoWishlist => 'Pas encore de wishlist';
+
+  @override
+  String homeReceivedWishes(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wishs reçus',
+      one: '1 wish reçu',
+    );
+    return '$_temp0';
+  }
 }
