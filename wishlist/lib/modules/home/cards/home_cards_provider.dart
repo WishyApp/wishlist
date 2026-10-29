@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/home/cards/card_builders.dart';
 import 'package:wishlist/modules/home/cards/card_selection.dart';
@@ -24,6 +24,7 @@ import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
+import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
 const _stackKey = 'home_stack';
 const _defaultMaxCards = 3;
@@ -68,51 +69,81 @@ final homeCardDefinitionsProvider =
 /// bookings, alerts, recent friends) loses just those cards.
 final homeCardsProvider =
     FutureProvider.autoDispose<List<HomeCardCandidate>>((ref) async {
+  final now = ref.watch(clockProvider)();
+  _recomputeOnNewDay(ref, now);
   try {
-    return await _loadCards(ref);
+    return await _loadCards(ref, now);
   } catch (e) {
     debugPrint('[Wishy home cards] load failed, showing none: $e');
     return const [];
   }
 });
 
-Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
+/// The cards depend on the local day: recompute at the next midnight, and when
+/// the app comes back to the foreground on another day than the one the cards
+/// were computed for (timers do not run while it sleeps).
+void _recomputeOnNewDay(Ref ref, DateTime now) {
+  final local = now.toLocal();
+  final today = DateTime(local.year, local.month, local.day);
+  final midnight = DateTime(today.year, today.month, today.day + 1);
+  final timer = Timer(midnight.difference(local), ref.invalidateSelf);
+  final lifecycle = AppLifecycleListener(
+    onResume: () {
+      final current = ref.read(clockProvider)().toLocal();
+      if (DateTime(current.year, current.month, current.day) != today) {
+        ref.invalidateSelf();
+      }
+    },
+  );
+  ref.onDispose(() {
+    timer.cancel();
+    lifecycle.dispose();
+  });
+}
+
+/// The users whose start of the onboarding window was recorded since the app
+/// started: recomputes close to each other all see no state yet.
+final _optionalWindowRecordedProvider = Provider<Set<String>>((ref) => {});
+
+Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) {
     return const [];
   }
-  final now = ref.watch(clockProvider)();
   final cardStateRepository = ref.watch(cardStateRepositoryProvider);
   final friendshipRepository = ref.watch(friendshipRepositoryProvider);
 
-  final definitions = await ref.watch(homeCardDefinitionsProvider.future);
+  // Everything is loaded at once: the cards wait for the slowest source, not
+  // for the sum of them. The loads of the sources that only feed some cards
+  // cannot fail (`_orElse`): a failure loses just those cards.
+  final definitionsFuture = ref.watch(homeCardDefinitionsProvider.future);
   // The providers below are live streams: only a slice of each is watched
   // (ids, names, flags), the objects themselves are then read once.
-  await ref.watch(
-    wishlistsRealtimeProvider.selectAsync(
-      (list) => [for (final w in list) (id: w.id, name: w.name)].toIList(),
-    ),
-  );
-  final wishlists = _valueOf(wishlistsRealtimeProvider, ref) ?? const [];
-  await ref.watch(
-    friendshipsRealtimeProvider.selectAsync(
-      (data) => (
-        [for (final f in data.friends) f.user.id].toIList(),
-        [for (final f in data.pendingFriends) f.user.id].toIList(),
+  final wishlistsFuture = () async {
+    await ref.watch(
+      wishlistsRealtimeProvider.selectAsync(
+        (list) => [for (final w in list) (id: w.id, name: w.name)].toIList(),
       ),
-    ),
-  );
-  final friendsData = _valueOf(friendshipsRealtimeProvider, ref);
-  final friends = friendsData?.friends ?? const IListConst<AppUser>([]);
-  final sentRequests = friendsData?.pendingFriends.length ?? 0;
-
-  // Each of these only feeds some cards: a failure loses just those.
-  final birthdays = await _orElse<Map<String, Birthday>>(
+    );
+    return _valueOf(wishlistsRealtimeProvider, ref) ?? const <Wishlist>[];
+  }();
+  final friendsDataFuture = () async {
+    await ref.watch(
+      friendshipsRealtimeProvider.selectAsync(
+        (data) => (
+          [for (final f in data.friends) f.user.id].toIList(),
+          [for (final f in data.pendingFriends) f.user.id].toIList(),
+        ),
+      ),
+    );
+    return _valueOf(friendshipsRealtimeProvider, ref);
+  }();
+  final birthdaysFuture = _orElse<Map<String, Birthday>>(
     'friends birthdays',
     () async => (await ref.watch(visibleBirthdaysProvider.future)).birthdays,
     const <String, Birthday>{},
   );
-  final bookings = await _orElse<List<BookedWishWithDetails>>(
+  final bookingsFuture = _orElse<List<BookedWishWithDetails>>(
     'booked wishes',
     () async {
       await ref.watch(
@@ -127,7 +158,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     },
     const <BookedWishWithDetails>[],
   );
-  final removals = await _orElse<List<BookedWishRemoval>>(
+  final removalsFuture = _orElse<List<BookedWishRemoval>>(
     'booked wish removals',
     () async {
       await ref.watch(
@@ -139,32 +170,33 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     },
     const <BookedWishRemoval>[],
   );
-  final accepted = friends.isEmpty
-      ? const <({AppUser friend, DateTime acceptedAt})>[]
-      : await _orElse<List<({AppUser friend, DateTime acceptedAt})>>(
-          'accepted requests',
-          () => _loadAccepted(
-            friendshipRepository.getRecentlyAcceptedRequests,
-            friends,
-            definitions['friend_accepted'],
-            now,
-          ),
-          const <({AppUser friend, DateTime acceptedAt})>[],
-        );
-
+  final acceptedFuture = _orElse<List<({AppUser friend, DateTime acceptedAt})>>(
+    'accepted requests',
+    () async {
+      final friends = (await friendsDataFuture)?.friends;
+      if (friends == null || friends.isEmpty) {
+        return const [];
+      }
+      return _loadAccepted(
+        friendshipRepository.getRecentlyAcceptedRequests,
+        friends,
+        (await definitionsFuture)['friend_accepted'],
+        now,
+      );
+    },
+    const <({AppUser friend, DateTime acceptedAt})>[],
+  );
   // When the birthday or the photo cannot be read, it is taken as set: better
   // no card than asking for something the user may have done.
-  var hasBirthday = true;
-  final myBirthday = await _orElse<Birthday?>(
+  final myBirthdayFuture = _orElse<({bool known, Birthday? birthday})>(
     'my birthday',
-    () async {
-      final birthday = await ref.watch(currentUserBirthdayProvider.future);
-      hasBirthday = birthday != null;
-      return birthday;
-    },
-    null,
+    () async => (
+      known: true,
+      birthday: await ref.watch(currentUserBirthdayProvider.future),
+    ),
+    (known: false, birthday: null),
   );
-  final hasAvatar = await _orElse<bool>(
+  final hasAvatarFuture = _orElse<bool>(
     'my photo',
     () => ref.watch(
       watchCurrentUserProfileProvider.selectAsync(
@@ -173,6 +205,32 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     ),
     true,
   );
+
+  final (
+    definitions,
+    wishlists,
+    friendsData,
+    birthdays,
+    bookings,
+    removals,
+    accepted,
+    myBirthdayState,
+    hasAvatar,
+  ) = await (
+    definitionsFuture,
+    wishlistsFuture,
+    friendsDataFuture,
+    birthdaysFuture,
+    bookingsFuture,
+    removalsFuture,
+    acceptedFuture,
+    myBirthdayFuture,
+    hasAvatarFuture,
+  ).wait;
+  final friends = friendsData?.friends ?? const IListConst<AppUser>([]);
+  final sentRequests = friendsData?.pendingFriends.length ?? 0;
+  final myBirthday = myBirthdayState.birthday;
+  final hasBirthday = !myBirthdayState.known || myBirthday != null;
 
   final candidates = [
     ...friendBirthdayCards(
@@ -249,8 +307,14 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   if (top is Onboarding &&
       (top.step == OnboardingStep.birthday ||
           top.step == OnboardingStep.photo) &&
-      !states.containsKey(onboardingOptionalWindowKey)) {
-    unawaited(_recordOptionalWindow(cardStateRepository));
+      !states.containsKey(onboardingOptionalWindowKey) &&
+      ref.read(_optionalWindowRecordedProvider).add(userId)) {
+    unawaited(
+      _recordOptionalWindow(
+        cardStateRepository,
+        () => ref.read(_optionalWindowRecordedProvider).remove(userId),
+      ),
+    );
   }
   return cards;
 }
@@ -290,10 +354,15 @@ Future<T> _orElse<T>(
 
 /// Fire and forget: the window is a nicety, its failure must not touch the
 /// stack.
-Future<void> _recordOptionalWindow(CardStateRepository repository) async {
+Future<void> _recordOptionalWindow(
+  CardStateRepository repository,
+  void Function() onFailure,
+) async {
   try {
     await repository.recordShown(onboardingOptionalWindowKey);
   } catch (e) {
+    // A later recompute may try again.
+    onFailure();
     debugPrint('[Wishy home cards] could not record the window: $e');
   }
 }

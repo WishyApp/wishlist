@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -6,6 +10,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
+import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository.dart';
@@ -70,6 +75,7 @@ final seeds = [
 ];
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late MockHomeCardRepository homeCards;
   late MockCardStateRepository cardStates;
   late MockFriendshipRepository friendships;
@@ -504,5 +510,182 @@ void main() {
 
       expect(cards.single.stateKey, 'onboarding:firstFriend');
     });
+  });
+
+  group('the day changes', () {
+    // Recomputes are counted by the states they ask.
+    var stateCalls = 0;
+    int computations() => stateCalls;
+
+    setUp(() {
+      stateCalls = 0;
+      when(() => cardStates.getStates(any())).thenAnswer((_) async {
+        stateCalls++;
+        return const {};
+      });
+    });
+
+    ProviderContainer containerWithClock(DateTime Function() clock) {
+      final container = ProviderContainer(
+        overrides: [
+          ...homeScreenOverrides(bookedWishes: fakeBookedWishes.clear()),
+          clockProvider.overrideWithValue(clock),
+          currentUserBirthdayOverride(
+            birthday: const Birthday(month: 1, day: 1),
+          ),
+          watchCurrentUserProfileOverride(
+            profile: Profile(
+              id: fakeCurrentUserId,
+              pseudo: 'MonPseudo',
+              avatarUrl: 'https://example.com/me.png',
+            ),
+          ),
+          homeCardRepositoryProvider.overrideWithValue(homeCards),
+          cardStateRepositoryProvider.overrideWithValue(cardStates),
+          friendshipRepositoryProvider.overrideWithValue(friendships),
+          bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(homeCardsProvider, (_, __) {});
+      return container;
+    }
+
+    test('the cards are recomputed at the next local midnight', () {
+      fakeAsync((async) {
+        final start = DateTime(2026, 10, 28, 23);
+        final container = containerWithClock(() => start.add(async.elapsed));
+        async.flushMicrotasks();
+        expect(computations(), 1);
+
+        async.elapse(const Duration(minutes: 59));
+        async.flushMicrotasks();
+        expect(computations(), 1);
+
+        async.elapse(const Duration(minutes: 2));
+        async.flushMicrotasks();
+        expect(computations(), 2);
+
+        // Then at the next one.
+        async.elapse(const Duration(days: 1));
+        async.flushMicrotasks();
+        expect(computations(), 3);
+        container.dispose();
+      });
+    });
+
+    test('a disposed provider no longer recomputes', () {
+      fakeAsync((async) {
+        final start = DateTime(2026, 10, 28, 23);
+        final container = containerWithClock(() => start.add(async.elapsed));
+        async.flushMicrotasks();
+        container.dispose();
+
+        async.elapse(const Duration(days: 3));
+        async.flushMicrotasks();
+        expect(computations(), 1);
+      });
+    });
+
+    void background(TestWidgetsFlutterBinding binding) {
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ]) {
+        binding.handleAppLifecycleStateChanged(state);
+      }
+    }
+
+    void foreground(TestWidgetsFlutterBinding binding) {
+      for (final state in [
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        binding.handleAppLifecycleStateChanged(state);
+      }
+    }
+
+    test('coming back to the foreground on another day recomputes', () {
+      fakeAsync((async) {
+        var current = DateTime(2026, 10, 28, 10);
+        containerWithClock(() => current);
+        async.flushMicrotasks();
+        final binding = TestWidgetsFlutterBinding.instance;
+
+        // The same day: nothing to do.
+        background(binding);
+        foreground(binding);
+        async.flushMicrotasks();
+        expect(computations(), 1);
+
+        background(binding);
+        current = DateTime(2026, 10, 29, 8);
+        foreground(binding);
+        async.elapse(Duration.zero);
+        async.flushMicrotasks();
+        expect(computations(), 2);
+      });
+    });
+  });
+
+  test('the onboarding window is recorded once across recomputes', () async {
+    final container = ProviderContainer(
+      overrides: [
+        ...homeScreenOverrides(
+          now: now,
+          bookedWishes: fakeBookedWishes.clear(),
+        ),
+        currentUserBirthdayOverride(birthday: null),
+        watchCurrentUserProfileOverride(
+          profile: Profile(
+            id: fakeCurrentUserId,
+            pseudo: 'MonPseudo',
+            avatarUrl: 'https://example.com/me.png',
+          ),
+        ),
+        homeCardRepositoryProvider.overrideWithValue(homeCards),
+        cardStateRepositoryProvider.overrideWithValue(cardStates),
+        friendshipRepositoryProvider.overrideWithValue(friendships),
+        bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(homeCardsProvider, (_, __) {});
+    await container.read(homeCardsProvider.future);
+
+    // The recorded state has not come back yet: the states read are empty.
+    container.invalidate(homeCardsProvider);
+    await container.read(homeCardsProvider.future);
+    container.invalidate(homeCardsProvider);
+    await container.read(homeCardsProvider.future);
+
+    verify(() => cardStates.recordShown('onboarding:optional_window'))
+        .called(1);
+  });
+
+  test('a slow source does not delay the loading of the others', () async {
+    final slow = StreamController<List<BookedWishRemoval>>();
+    addTearDown(slow.close);
+    when(() => removals.watchPending()).thenAnswer((_) => slow.stream);
+    when(() => friendships.getRecentlyAcceptedRequests(any())).thenAnswer(
+      (_) async => [
+        (
+          friendId: fakeFriendUserId1,
+          acceptedAt: now.subtract(const Duration(days: 1)),
+        ),
+      ],
+    );
+
+    final future = load();
+    await pumpEventQueue();
+
+    // Still waiting for the removals, the other sources were already asked.
+    verify(() => friendships.getRecentlyAcceptedRequests(any())).called(1);
+
+    slow.add(const []);
+    final cards = await future;
+    expect(cards.map((c) => c.type), ['friend_accepted']);
   });
 }
