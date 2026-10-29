@@ -61,14 +61,23 @@ INSERT INTO public.wishlists
   (931007, 'received', '00000000-0000-4000-d000-0000000000a1', '#112233', '00000000-0000-4000-d000-0000000000a1', '2026-01-07T10:00:00Z', '2026-01-07T10:00:00Z', NULL, false, NULL, 'private'),
   (931008, 'closed',   '00000000-0000-4000-d000-0000000000a1', '#112233', '00000000-0000-4000-d000-0000000000a1', '2026-01-08T10:00:00Z', '2026-01-08T10:00:00Z', NULL, true,  NULL, 'private'),
   (931009, 'ended',    '00000000-0000-4000-d000-0000000000a1', '#112233', '00000000-0000-4000-d000-0000000000a1', '2026-01-09T10:00:00Z', '2026-01-09T10:00:00Z', NULL, false, '2000-01-01T10:00:00Z', 'private'),
-  (931010, 'running',  '00000000-0000-4000-d000-0000000000a1', '#112233', '00000000-0000-4000-d000-0000000000a1', '2026-01-10T10:00:00Z', '2026-01-10T10:00:00Z', NULL, false, '2100-01-01T10:00:00Z', 'private');
+  (931010, 'running',  '00000000-0000-4000-d000-0000000000a1', '#112233', '00000000-0000-4000-d000-0000000000a1', '2026-01-10T10:00:00Z', '2026-01-10T10:00:00Z', NULL, false, '2100-01-01T10:00:00Z', 'private'),
+  -- Paris day boundary: 931011 ends today in Paris (00:30 or 01:30 there, but
+  -- yesterday 23:30 in UTC: dropping the Paris conversion excludes it),
+  -- 931012 ended yesterday in Paris.
+  (931011, 'ends today', '00000000-0000-4000-d000-0000000000a1', '#112233', '00000000-0000-4000-d000-0000000000a1', '2026-01-11T10:00:00Z', '2026-01-11T10:00:00Z', NULL, false,
+    (((now() AT TIME ZONE 'Europe/Paris')::date - 1)::text || ' 23:30:00')::timestamp AT TIME ZONE 'UTC', 'private'),
+  (931012, 'ended yesterday', '00000000-0000-4000-d000-0000000000a1', '#112233', '00000000-0000-4000-d000-0000000000a1', '2026-01-12T10:00:00Z', '2026-01-12T10:00:00Z', NULL, false,
+    (((now() AT TIME ZONE 'Europe/Paris')::date - 1)::text || ' 12:00:00')::timestamp AT TIME ZONE 'UTC', 'private');
 
 INSERT INTO public.wishs (id, name, description, wishlist_id, updated_by, created_at, updated_at) VALUES
   (931101, 'created later',  '', 931002, '00000000-0000-4000-d000-0000000000a1', '2026-03-01T10:00:00Z', '2026-03-01T10:00:00Z'),
   (931102, 'modified later', '', 931003, '00000000-0000-4000-d000-0000000000a1', '2026-02-01T10:00:00Z', '2026-05-01T10:00:00Z'),
   (931103, 'in archive',     '', 931004, '00000000-0000-4000-d000-0000000000a1', '2026-07-01T10:00:00Z', '2026-07-01T10:00:00Z'),
   (931104, 'of B',           '', 931005, '00000000-0000-4000-d000-0000000000b1', '2026-08-01T10:00:00Z', '2026-08-01T10:00:00Z'),
-  (931105, 'received gift',  '', 931007, '00000000-0000-4000-d000-0000000000a1', '2026-01-08T10:00:00Z', '2026-01-08T10:00:00Z');
+  (931105, 'received gift',  '', 931007, '00000000-0000-4000-d000-0000000000a1', '2026-01-08T10:00:00Z', '2026-01-08T10:00:00Z'),
+  -- written by a device whose clock is in the future: capped at now()
+  (931106, 'from the future', '', 931010, '00000000-0000-4000-d000-0000000000a1', '2026-01-10T11:00:00Z', '2100-01-01T00:00:00Z');
 INSERT INTO public.user_completed_wishs (user_id, wish_id, from_wishlist_id, created_at, updated_at) VALUES
   ('00000000-0000-4000-d000-0000000000a1', 931105, 931007, '2026-04-01T10:00:00Z', '2026-04-02T10:00:00Z');
 
@@ -78,13 +87,16 @@ DO $$
 DECLARE
   got text;
 BEGIN
-  SELECT string_agg(wishlist_id || '=' || (last_activity_at AT TIME ZONE 'UTC')::date, ',' ORDER BY wishlist_id)
+  SELECT string_agg(wishlist_id || '=' ||
+           CASE WHEN last_activity_at = now() THEN 'now'
+                ELSE (last_activity_at AT TIME ZONE 'UTC')::date::text END,
+           ',' ORDER BY wishlist_id)
     INTO got FROM public.get_my_wishlists_last_activity();
   IF got IS DISTINCT FROM
-     '931001=2026-01-01,931002=2026-03-01,931003=2026-05-01,931006=2026-06-06,931007=2026-04-02,931010=2026-01-10' THEN
+     '931001=2026-01-01,931002=2026-03-01,931003=2026-05-01,931006=2026-06-06,931007=2026-04-02,931010=now,931011=2026-01-11' THEN
     RAISE EXCEPTION 'FAIL last activity of A: %', got;
   END IF;
-  RAISE NOTICE 'ok   last activity: creation, wish created or modified, list edited, gift received; archived, closed, ended and foreign lists absent';
+  RAISE NOTICE 'ok   last activity: creation, wish created or modified, list edited, gift received; a future device clock capped at now(); archived, closed, ended (Paris day) and foreign lists absent';
 END $$;
 
 -- As B: only B's list

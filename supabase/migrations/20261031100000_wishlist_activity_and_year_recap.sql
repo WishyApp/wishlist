@@ -7,8 +7,11 @@
 --   - the creation and modification dates of its wishes,
 --   - the creation and update dates of the wishes received from it
 --     (user_completed_wishs.from_wishlist_id).
--- An empty wishlist is as old as its creation. Deleting a wish leaves no trace
--- in the database, so it does not count as activity.
+-- An empty wishlist is as old as its creation, and the result never goes past
+-- now(): a date written by a device clock in the future must not keep a list
+-- "active". Deleting a wish leaves no trace in the database, so it does not
+-- count as activity; moving a wish out of a list is the same for the source
+-- list (the destination list sees an update).
 --
 -- Not returned: archived wishlists (deleted_at), closed ones (is_closed) and
 -- those whose end_date is before today in Paris. They are inactive on purpose,
@@ -24,6 +27,11 @@
 --    updated_at, keeps the old value: reordering is not activity.
 --    Rows reordered before this migration may still carry an updated_at coming
 --    from an old reorder: for them the date can be too recent, never too old.
+-- Both triggers make a bulk UPDATE look like activity: a later backfill on
+-- wishs, or on a counted wishlists column, must DISABLE TRIGGER around it, as
+-- 20261029100000 did for user_completed_wishs, otherwise every list looks
+-- active. And a server-maintained wishlists column added in the future must be
+-- added to the exclusion list of set_wishlists_updated_at.
 --
 -- SECURITY DEFINER with an explicit id_owner = auth.uid() filter: the read
 -- policies also let public and booked lists through, and under INVOKER the
@@ -72,6 +80,9 @@ CREATE TRIGGER set_wishlists_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.set_wishlists_updated_at();
 
+REVOKE ALL ON FUNCTION public.set_wishs_updated_at(), public.set_wishlists_updated_at()
+  FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.get_my_wishlists_last_activity()
 RETURNS TABLE (wishlist_id bigint, last_activity_at timestamptz)
 LANGUAGE sql
@@ -81,13 +92,16 @@ SET search_path = ''
 AS $$
   SELECT
     wl.id,
-    GREATEST(
-      wl.created_at,
-      wl.updated_at,
-      (SELECT max(GREATEST(w.created_at, w.updated_at))
-         FROM public.wishs w WHERE w.wishlist_id = wl.id),
-      (SELECT max(GREATEST(c.created_at, c.updated_at))
-         FROM public.user_completed_wishs c WHERE c.from_wishlist_id = wl.id)
+    LEAST(
+      GREATEST(
+        wl.created_at,
+        wl.updated_at,
+        (SELECT max(GREATEST(w.created_at, w.updated_at))
+           FROM public.wishs w WHERE w.wishlist_id = wl.id),
+        (SELECT max(GREATEST(c.created_at, c.updated_at))
+           FROM public.user_completed_wishs c WHERE c.from_wishlist_id = wl.id)
+      ),
+      now()
     )
   FROM public.wishlists wl
   WHERE wl.id_owner = (SELECT auth.uid())
