@@ -2053,6 +2053,204 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Retour'**
   String get yearRecapBack;
+
+  /// No description provided for @yearRecapProfileIntro.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette année, j\'étais'**
+  String get yearRecapProfileIntro;
+
+  /// No description provided for @yearRecapShareButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Partager mon année'**
+  String get yearRecapShareButton;
+
+  /// No description provided for @yearRecapShareImageHeader.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mon année {year}'**
+  String yearRecapShareImageHeader(String year);
+
+  /// No description provided for @yearRecapShareFooter.
+  ///
+  /// In fr, this message translates to:
+  /// **'Et toi, t\'es qui ?'**
+  String get yearRecapShareFooter;
+
+  /// No description provided for @yearRecapShareText.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mon année Wishy {year} · wishy-app.fr'**
+  String yearRecapShareText(String year);
+
+  /// No description provided for @yearRecapProfilePatientTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le marathonien / La marathonienne'**
+  String get yearRecapProfilePatientTitle;
+
+  /// No description provided for @yearRecapProfilePatientTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Je l\'ai voulu. J\'ai attendu. Je l\'ai eu.'**
+  String get yearRecapProfilePatientTagline;
+
+  /// No description provided for @yearRecapProfilePereNoelDiscretTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le Père Noël / La Mère Noël'**
+  String get yearRecapProfilePereNoelDiscretTitle;
+
+  /// No description provided for @yearRecapProfilePereNoelDiscretTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Personne ne sait que c\'était moi.'**
+  String get yearRecapProfilePereNoelDiscretTagline;
+
+  /// No description provided for @yearRecapProfileGateTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le gâté / La gâtée'**
+  String get yearRecapProfileGateTitle;
+
+  /// No description provided for @yearRecapProfileGateTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'J\'ai été très sage. Enfin, je crois.'**
+  String get yearRecapProfileGateTagline;
+
+  /// No description provided for @yearRecapProfileEquilibristeTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'équilibriste'**
+  String get yearRecapProfileEquilibristeTitle;
+
+  /// No description provided for @yearRecapProfileEquilibristeTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Donnant, donnant.'**
+  String get yearRecapProfileEquilibristeTagline;
+
+  /// No description provided for @yearRecapProfileReveurTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le rêveur / La rêveuse'**
+  String get yearRecapProfileReveurTitle;
+
+  /// No description provided for @yearRecapProfileReveurTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rêver, c\'est gratuit.'**
+  String get yearRecapProfileReveurTagline;
+
+  /// No description provided for @yearRecapProfileRassembleurTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le rassembleur / La rassembleuse'**
+  String get yearRecapProfileRassembleurTitle;
+
+  /// No description provided for @yearRecapProfileRassembleurTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus on est de fous, plus on offre.'**
+  String get yearRecapProfileRassembleurTagline;
+
+  /// No description provided for @yearRecapProfileAmiFideleTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'ami fidèle / L\'amie fidèle'**
+  String get yearRecapProfileAmiFideleTitle;
+
+  /// No description provided for @yearRecapProfileAmiFideleTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Elle se reconnaîtra.'**
+  String get yearRecapProfileAmiFideleTagline;
+
+  /// No description provided for @yearRecapProfileDernierMomentTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le roi / La reine du dernier moment'**
+  String get yearRecapProfileDernierMomentTitle;
+
+  /// No description provided for @yearRecapProfileDernierMomentTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Je travaille mieux sous pression.'**
+  String get yearRecapProfileDernierMomentTagline;
+
+  /// No description provided for @yearRecapProfileOrganiseTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'organisé / L\'organisée'**
+  String get yearRecapProfileOrganiseTitle;
+
+  /// No description provided for @yearRecapProfileOrganiseTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Papier cadeau à peine déchiré, liste déjà à jour.'**
+  String get yearRecapProfileOrganiseTagline;
+
+  /// No description provided for @yearRecapProfileMinimalisteTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le minimaliste / La minimaliste'**
+  String get yearRecapProfileMinimalisteTitle;
+
+  /// No description provided for @yearRecapProfileMinimalisteTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Peu, mais bien.'**
+  String get yearRecapProfileMinimalisteTagline;
+
+  /// No description provided for @yearRecapReceivedShort.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 reçu} =1{1 reçu} other{{count} reçus}}'**
+  String yearRecapReceivedShort(int count);
+
+  /// No description provided for @yearRecapStatPatient.
+  ///
+  /// In fr, this message translates to:
+  /// **'{days, plural, =0{0 jour} =1{1 jour} other{{days} jours}} pour {wish}'**
+  String yearRecapStatPatient(int days, String wish);
+
+  /// No description provided for @yearRecapStatOfferedReceived.
+  ///
+  /// In fr, this message translates to:
+  /// **'{offered}, {received}'**
+  String yearRecapStatOfferedReceived(String offered, String received);
+
+  /// No description provided for @yearRecapStatReveur.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 wish ajouté} =1{1 wish ajouté} other{{count} wishs ajoutés}}'**
+  String yearRecapStatReveur(int count);
+
+  /// No description provided for @yearRecapStatRassembleur.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 nouvel ami} =1{1 nouvel ami} other{{count} nouveaux amis}}'**
+  String yearRecapStatRassembleur(int count);
+
+  /// No description provided for @yearRecapStatAmiFidele.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 cadeau pour la même personne} =1{1 cadeau pour la même personne} other{{count} cadeaux pour la même personne}}'**
+  String yearRecapStatAmiFidele(int count);
+
+  /// No description provided for @yearRecapStatDernierMoment.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 cadeau réservé au dernier moment} =1{1 cadeau réservé au dernier moment} other{{count} cadeaux réservés au dernier moment}}'**
+  String yearRecapStatDernierMoment(int count);
+
+  /// No description provided for @yearRecapStatOrganise.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 wish coché le jour J} =1{1 wish coché le jour J} other{{count} wishs cochés le jour J}}'**
+  String yearRecapStatOrganise(int count);
 }
 
 class _AppLocalizationsDelegate
