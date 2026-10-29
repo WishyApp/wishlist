@@ -260,13 +260,28 @@ BEGIN
   PERFORM pg_temp.expect_eq('bookings of the year', pg_temp.st(13) ->> 'bookings_total', '3');
 END $$;
 
--- a booking on an archived wishlist is not counted (same as the app)
+-- a friend archiving their wishlist after the gifts does not drop them
 DO $$
 BEGIN
   PERFORM pg_temp.offer(26, 96);
   UPDATE public.wishlists SET deleted_at = '2026-08-01T10:00:00Z' WHERE id = 970096;
-  PERFORM pg_temp.expect_eq('archived wishlist: not offered', pg_temp.st(26) ->> 'offered', '0');
-  PERFORM pg_temp.expect_eq('archived wishlist: not a booking', pg_temp.st(26) ->> 'bookings_total', '0');
+  PERFORM pg_temp.expect_eq('archived wishlist: still offered', pg_temp.st(26) ->> 'offered', '1');
+  PERFORM pg_temp.expect_eq('archived wishlist: still a booking', pg_temp.st(26) ->> 'bookings_total', '1');
+  PERFORM pg_temp.expect_eq('archived wishlist: still counts for ami fidele', pg_temp.st(26) ->> 'max_offered_same_friend', '1');
+  -- a wishlist that no longer exists is gone with its wishes and bookings
+  PERFORM pg_temp.offer(26, 99);
+  DELETE FROM public.wishlists WHERE id = 970099;
+  PERFORM pg_temp.expect_eq('deleted wishlist: not offered', pg_temp.st(26) ->> 'offered', '1');
+  PERFORM pg_temp.expect_eq('deleted wishlist: not a booking', pg_temp.st(26) ->> 'bookings_total', '1');
+END $$;
+
+-- a booking on an archived wishlist still counts as last minute (Christmas)
+DO $$
+BEGIN
+  PERFORM pg_temp.book(30, pg_temp.mk_wish(86), '2026-12-24T12:00:00Z');
+  PERFORM pg_temp.book(30, pg_temp.mk_wish(86), '2026-12-23T12:00:00Z');
+  UPDATE public.wishlists SET deleted_at = '2026-12-30T10:00:00Z' WHERE id = 970086;
+  PERFORM pg_temp.expect_eq('archived wishlist: last minute bookings', pg_temp.st(30) ->> 'last_minute_bookings', '2');
 END $$;
 
 -- a receipt row of someone else than the owner does not make a booking offered
@@ -286,6 +301,19 @@ BEGIN
   PERFORM pg_temp.offer(5, 91);
   PERFORM pg_temp.receive_many(5, 2, '2026-07-01');
   PERFORM pg_temp.expect_eq('equilibriste', pg_temp.pk(5), 'equilibriste');
+END $$;
+
+-- longest awaited is the longest wait, not the oldest wish:
+-- A created 2025-01-01 received 2026-01-02 (366 days), B created 2025-01-02
+-- received 2026-12-30 (727 days): B
+DO $$
+DECLARE
+  b bigint := pg_temp.mk_wish(31, '2025-01-02T10:00:00Z');
+BEGIN
+  PERFORM pg_temp.receive(31, pg_temp.mk_wish(31, '2025-01-01T10:00:00Z'), '2026-01-02');
+  PERFORM pg_temp.receive(31, b, '2026-12-30');
+  PERFORM pg_temp.expect_eq('longest awaited: wish', pg_temp.st(31) #>> '{longest_awaited,wish_id}', b::text);
+  PERFORM pg_temp.expect_eq('longest awaited: days', pg_temp.st(31) #>> '{longest_awaited,days}', '727');
 END $$;
 
 -- offered 3 received 1: pere noel (gap 2, not an equilibriste)
@@ -369,7 +397,7 @@ END $$;
 -- dernier moment, birthday of the owner (Mar 10): Mar 8 and Mar 7 count, Mar 6 does not
 DO $$
 BEGIN
-  PERFORM pg_temp.u(93);
+  PERFORM pg_temp.friend(18, 93, 'accepted', '2026-01-05T10:00:00Z');
   INSERT INTO public.profile_birthdays (profile_id, month, day) VALUES (pg_temp.u(93), 3, 10);
   PERFORM pg_temp.book(18, pg_temp.mk_wish(93), '2026-03-08T12:00:00Z');
   PERFORM pg_temp.book(18, pg_temp.mk_wish(93), '2026-03-07T12:00:00Z');
@@ -381,6 +409,7 @@ END $$;
 -- birthday on Jan 2: bookings of Dec 30 and 31 are within 3 days of the next birthday
 DO $$
 BEGIN
+  PERFORM pg_temp.friend(19, 94, 'accepted', '2026-01-05T10:00:00Z');
   INSERT INTO public.profile_birthdays (profile_id, month, day) VALUES (pg_temp.u(94), 1, 2);
   PERFORM pg_temp.book(19, pg_temp.mk_wish(94), '2026-12-30T12:00:00Z');
   PERFORM pg_temp.book(19, pg_temp.mk_wish(94), '2026-12-31T12:00:00Z');
@@ -390,11 +419,30 @@ END $$;
 -- Feb 29 birthday is Feb 28 in 2026: Feb 27 and 26 count, Mar 1 does not
 DO $$
 BEGIN
+  PERFORM pg_temp.friend(20, 95, 'accepted', '2026-01-05T10:00:00Z');
   INSERT INTO public.profile_birthdays (profile_id, month, day) VALUES (pg_temp.u(95), 2, 29);
   PERFORM pg_temp.book(20, pg_temp.mk_wish(95), '2026-02-27T12:00:00Z');
   PERFORM pg_temp.book(20, pg_temp.mk_wish(95), '2026-02-26T12:00:00Z');
   PERFORM pg_temp.book(20, pg_temp.mk_wish(95), '2026-03-01T12:00:00Z');
   PERFORM pg_temp.expect_eq('Feb 29 birthday in a common year', pg_temp.st(20) ->> 'last_minute_bookings', '2');
+END $$;
+
+-- the birthday of a non-friend is not used (it would leak through the stat:
+-- book, move created_at, bisect). Pending and blocked do not count either.
+-- Owners 84 (stranger), 83 (pending), 82 (blocked) have a birthday on Mar 10;
+-- Christmas still counts for everybody.
+DO $$
+BEGIN
+  INSERT INTO public.profile_birthdays (profile_id, month, day)
+  VALUES (pg_temp.u(84), 3, 10), (pg_temp.u(83), 3, 10), (pg_temp.u(82), 3, 10);
+  PERFORM pg_temp.friend(28, 83, 'pending', '2026-01-05T10:00:00Z');
+  PERFORM pg_temp.friend(28, 82, 'blocked', '2026-01-05T10:00:00Z');
+  PERFORM pg_temp.book(28, pg_temp.mk_wish(84), '2026-03-08T12:00:00Z');
+  PERFORM pg_temp.book(28, pg_temp.mk_wish(83), '2026-03-09T12:00:00Z');
+  PERFORM pg_temp.book(28, pg_temp.mk_wish(82), '2026-03-10T12:00:00Z');
+  PERFORM pg_temp.expect_eq('non-friend birthday is ignored', pg_temp.st(28) ->> 'last_minute_bookings', '0');
+  PERFORM pg_temp.book(28, pg_temp.mk_wish(84), '2026-12-24T12:00:00Z');
+  PERFORM pg_temp.expect_eq('non-friend: Christmas still counts', pg_temp.st(28) ->> 'last_minute_bookings', '1');
 END $$;
 
 -- booking boundaries: Dec 31 2025 23:30 UTC is Jan 1 2026 (counts), Dec 31 2026 23:30 UTC is 2027
@@ -458,7 +506,7 @@ BEGIN
   UPDATE public.year_recap_profiles SET sort = 60 WHERE key = 'rassembleur';
   UPDATE public.year_recap_profiles SET weight = 2 WHERE key = 'rassembleur';
   PERFORM pg_temp.expect_eq('weight 2 beats the tie', pg_temp.pk(25), 'rassembleur');
-  PERFORM pg_temp.expect_eq('score = stat / threshold * weight',
+  PERFORM pg_temp.expect_eq('score = stat * weight / threshold',
     public.year_recap_pick_profile(pg_temp.st(25)) ->> 'score', '2.0000');
   UPDATE public.year_recap_profiles SET weight = 1, enabled = false WHERE key = 'rassembleur';
   PERFORM pg_temp.expect_eq('a disabled profile is never chosen', pg_temp.pk(25), 'reveur');
@@ -469,6 +517,11 @@ BEGIN
   UPDATE public.year_recap_profiles SET enabled = false;
   PERFORM pg_temp.expect_eq('every profile disabled: minimaliste', pg_temp.pk(25), 'minimaliste');
   UPDATE public.year_recap_profiles SET enabled = true;
+  -- stat * weight / threshold: 1 * 3 / 3 is exactly 1 (1 / 3 * 3 would give 0.999...)
+  UPDATE public.year_recap_profiles SET threshold = 3, weight = 3 WHERE key = 'reveur';
+  PERFORM pg_temp.expect_eq('score rounding: stat 1, threshold 3, weight 3',
+    pg_temp.pick('{"wishes_added":1}'), 'reveur');
+  UPDATE public.year_recap_profiles SET threshold = 15, weight = 1 WHERE key = 'reveur';
 END $$;
 
 -- 5. Illustration column and bucket

@@ -25,8 +25,8 @@
 --   organise           wishes received on Dec 25 or own birthday      always
 --   minimaliste        none: default, chosen when no other profile reaches a score of 1
 --
--- score = stat / threshold * weight. The best score wins, a tie goes to the
--- smaller sort. Under 1, minimaliste.
+-- score = stat * weight / threshold (multiplied first: 1 * 3 / 3 is exactly 1).
+-- The best score wins, a tie goes to the smaller sort. Under 1, minimaliste.
 --
 -- "Year" = calendar year in Europe/Paris. Definitions (they mirror
 -- yearRecapFacts and the booked wishes query of the app):
@@ -34,16 +34,29 @@
 --             Paris day) is in the year, on a wish whose wishlist exists
 --             (archived ones included: a received wish archives its list).
 --             One row = one wish, whatever its received quantity.
---   offered   bookings of the user, on wishes of non-archived wishlists,
---             whose owner's receipt (user_completed_wishs of the owner of the
---             wishlist) has a quantity >= the booked quantity and an
---             updated_at in the year, as a Paris day. A partial receipt does
---             not count.
+--   offered   bookings of the user, on wishes of wishlists that exist
+--             (archived ones included: a friend who deletes their list after
+--             Christmas archives it, the gifts stay offered), whose owner's
+--             receipt (user_completed_wishs of the owner of the wishlist) has
+--             a quantity >= the booked quantity and an updated_at in the year,
+--             as a Paris day. A partial receipt does not count.
+--             bookings_total and last_minute_bookings follow the same rule
+--             on wishlists.
+--   longest awaited  the received wish with the longest wait, completed day
+--             minus creation day (Paris days), in the year.
 -- Differences with the app, on purpose: the year is cut in Paris time, not in
 -- the device time zone; the database sees every receipt, the app only the
 -- ones its row level security lets through (they could differ for a booking
 -- on a private wishlist, which the owner marks as received and the booker
 -- cannot read: the app does not count it, the database does).
+--
+-- last_minute_bookings uses the birthday of the wish owner only when the
+-- owner and the user are friends (accepted), the rule of can_read_birthday,
+-- evaluated for p_user and not auth.uid(). Without it a user could book a
+-- stranger's public wish, move wish_taken_by_user.created_at (client
+-- writable) and bisect the birthday through the stat. A non-friend's booking
+-- counts for Christmas only. created_at being client writable, the stat can
+-- be gamed by its own user (dernier_moment): acceptable, it is a game.
 --
 -- new_friends uses friendships.updated_at of accepted friendships: the table
 -- has no acceptance date, and updated_at is only set by the trigger
@@ -184,14 +197,13 @@ BEGIN
            (w.created_at AT TIME ZONE 'Europe/Paris')::date AS created_on
     FROM public.user_completed_wishs c
     JOIN public.wishs w ON w.id = c.wish_id
-    JOIN public.wishlists wl ON wl.id = w.wishlist_id
-    JOIN public.profiles pr ON pr.id = wl.id_owner
+    JOIN public.wishlists wl ON wl.id = w.wishlist_id AND wl.id_owner = p_user
     WHERE c.user_id = p_user
       AND c.completed_at BETWEEN v_start AND v_end
   ), longest AS (
     SELECT r.*
     FROM received r
-    ORDER BY r.created_on, r.completed_at, r.wish_id
+    ORDER BY (r.completed_at - r.created_on) DESC, r.completed_at, r.wish_id
     LIMIT 1
   )
   SELECT
@@ -217,10 +229,10 @@ BEGIN
            ob.day AS owner_day
     FROM public.wish_taken_by_user t
     JOIN public.wishs w ON w.id = t.wish_id
-    JOIN public.wishlists wl ON wl.id = w.wishlist_id AND wl.deleted_at IS NULL
-    JOIN public.profiles pr ON pr.id = wl.id_owner
+    JOIN public.wishlists wl ON wl.id = w.wishlist_id
     LEFT JOIN public.user_completed_wishs r ON r.wish_id = t.wish_id AND r.user_id = wl.id_owner
     LEFT JOIN public.profile_birthdays ob ON ob.profile_id = wl.id_owner
+      AND public.friendship_status_between(p_user, wl.id_owner) = 'accepted'
     WHERE t.user_id = p_user
   ), offered AS (
     SELECT b.id_owner
@@ -281,7 +293,7 @@ CREATE OR REPLACE FUNCTION public.year_recap_pick_profile(p_stats jsonb)
 RETURNS jsonb
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = ''
 AS $$
   WITH s AS (
@@ -310,7 +322,7 @@ AS $$
         WHEN 'ami_fidele' THEN s.same_friend
         WHEN 'dernier_moment' THEN CASE WHEN s.last_minute >= 2 THEN s.last_minute_share END
         WHEN 'organise' THEN s.party_received
-      END / p.threshold * p.weight AS score
+      END * p.weight / p.threshold AS score
     FROM public.year_recap_profiles p
     CROSS JOIN s
     WHERE p.enabled
