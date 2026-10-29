@@ -76,4 +76,31 @@ void main() {
     expect(second.receivedCount, 2);
     facts.close();
   });
+
+  test('a summary that cannot be read does not fail the recap', () async {
+    final repository = MockUserCompletedWishRepository();
+    when(() => repository.getCompletedWishesByUser(any())).thenAnswer(
+      (_) async => [received(1, DateTime(2026, 3, 4))].toIList(),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        supabaseClientOverride(),
+        bookedWishesRealtimeOverride(),
+        userCompletedWishRepositoryProvider.overrideWithValue(repository),
+        receivedWishesSummaryProvider.overrideWith(
+          (ref) => Stream<ReceivedWishesSummary>.error(Exception('down')),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final facts = container.listen(
+      yearRecapFactsProvider(2026),
+      (_, __) {},
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final result = await container.read(yearRecapFactsProvider(2026).future);
+    expect(result.receivedCount, 1);
+    facts.close();
+  });
 }
