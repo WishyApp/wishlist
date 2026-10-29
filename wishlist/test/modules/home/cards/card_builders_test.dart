@@ -308,6 +308,39 @@ void main() {
       expect(content.wishlist, christmas);
     });
 
+    test('without the Christmas definition, the default keywords apply', () {
+      final christmas = wishlist(2, 'Noël 2026');
+      final cards = afterPartyCards(
+        myBirthday: null,
+        wishlists: [wishlist(1, 'Vacances'), christmas],
+        userId: fakeCurrentUserId,
+        definition: afterPartyDef,
+        christmas: null,
+        now: DateTime(2026, 12, 27, 9),
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, christmas);
+    });
+
+    test('a Christmas definition without keywords uses the default ones', () {
+      final christmas = wishlist(2, 'Noël 2026');
+      final cards = afterPartyCards(
+        myBirthday: null,
+        wishlists: [wishlist(1, 'Vacances'), christmas],
+        userId: fakeCurrentUserId,
+        definition: afterPartyDef,
+        christmas: def(
+          'christmas',
+          params: {
+            'reminder_days': [7],
+          },
+        ),
+        now: DateTime(2026, 12, 27, 9),
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, christmas);
+    });
+
     test('two wishlists without a Christmas name leave the list null', () {
       final cards = build(
         DateTime(2026, 12, 27, 9),
@@ -378,8 +411,13 @@ void main() {
         bookings: bookings,
         birthdays: birthdays,
         definition: bookedReminderDef,
+        christmas: christmasDef,
         now: at,
       );
+    }
+
+    BookedWishWithDetails onList(BookedWishWithDetails booking, String name) {
+      return booking.copyWith(wishlistName: name);
     }
 
     test('an owner born in 10 days gives a card', () {
@@ -431,24 +469,36 @@ void main() {
       );
     });
 
-    test('on December 15 without a close birthday the occasion is Christmas',
-        () {
-      final cards = build(DateTime(2026, 12, 15, 9), [fakeBookedWish1], {});
+    test('a wish on a Christmas list gives the Christmas reminder', () {
+      final wish = onList(fakeBookedWish1, 'Noël 2026');
+      final cards = build(
+        DateTime(2026, 12, 15, 9),
+        [wish],
+        // Born in 5 days: the list, not the closest date, decides.
+        {wish.ownerId: const Birthday(month: 12, day: 20)},
+      );
 
       final content = cards.single.content as BookedReminder;
       expect(content.occasion, ReminderOccasion.christmas);
       expect(content.days, 10);
       expect(
         cards.single.stateKey,
-        'booked_reminder:${fakeBookedWish1.wish.id}-christmas@2026',
+        'booked_reminder:${wish.wish.id}-christmas@2026',
       );
     });
 
-    test('the closest occasion wins', () {
+    test('a wish on a Christmas list far from Christmas gives nothing', () {
+      final wish = onList(fakeBookedWish1, 'Noël');
+
+      expect(build(now, [wish], const {}), isEmpty);
+    });
+
+    test('a wish on another list gives the birthday reminder only', () {
+      final wish = onList(fakeBookedWish1, 'Anniv');
       final cards = build(
         DateTime(2026, 12, 15, 9),
-        [fakeBookedWish1],
-        {fakeBookedWish1.ownerId: const Birthday(month: 12, day: 20)},
+        [wish],
+        {wish.ownerId: const Birthday(month: 12, day: 20)},
       );
 
       final content = cards.single.content as BookedReminder;
@@ -456,16 +506,25 @@ void main() {
       expect(content.days, 5);
     });
 
-    test('the birthday wins a tie with Christmas', () {
-      final cards = build(
-        DateTime(2026, 12, 20, 9),
-        [fakeBookedWish1],
-        {fakeBookedWish1.ownerId: const Birthday(month: 12, day: 25)},
+    test('a wish on another list without a known birthday gives nothing', () {
+      final wish = onList(fakeBookedWish1, 'Mariage');
+
+      expect(build(DateTime(2026, 12, 15, 9), [wish], const {}), isEmpty);
+    });
+
+    test('without the Christmas definition the default keywords apply', () {
+      final cards = bookedReminderCards(
+        bookings: [onList(fakeBookedWish1, 'Xmas')],
+        birthdays: const {},
+        definition: bookedReminderDef,
+        christmas: null,
+        now: DateTime(2026, 12, 15, 9),
       );
 
-      final content = cards.single.content as BookedReminder;
-      expect(content.occasion, ReminderOccasion.ownerBirthday);
-      expect(content.days, 5);
+      expect(
+        (cards.single.content as BookedReminder).occasion,
+        ReminderOccasion.christmas,
+      );
     });
 
     test('an owner born on January 3 seen on December 26 has the key of 2027',
@@ -489,7 +548,11 @@ void main() {
         fakeBookedWish1.ownerId: const Birthday(month: 3, day: 10),
       };
       final march = build(DateTime(2026, 3, 1, 9), [fakeBookedWish1], owner);
-      final december = build(DateTime(2026, 12, 20, 9), [fakeBookedWish1], {});
+      final december = build(
+        DateTime(2026, 12, 20, 9),
+        [onList(fakeBookedWish1, 'Noël')],
+        const {},
+      );
 
       expect(march.single.stateKey, 'booked_reminder:$wishId-birthday@2026');
       expect(
@@ -525,9 +588,10 @@ void main() {
             .difference(DateTime.utc(start.year, start.month, start.day))
             .inDays;
         final cards = bookedReminderCards(
-          bookings: [fakeBookedWish1],
+          bookings: [onList(fakeBookedWish1, 'Noël')],
           birthdays: const {},
           definition: def('booked_reminder', params: {'days_before': 400}),
+          christmas: christmasDef,
           now: start,
         );
 
@@ -541,6 +605,7 @@ void main() {
           bookings: [fakeBookedWish1],
           birthdays: const {},
           definition: null,
+          christmas: christmasDef,
           now: DateTime(2026, 12, 15),
         ),
         isEmpty,
@@ -646,9 +711,19 @@ void main() {
       final cards = build(const Duration(days: 2));
 
       expect(cards.single.type, 'friend_accepted');
-      expect(cards.single.stateKey, 'friend_accepted:$friendId');
+      expect(cards.single.stateKey, 'friend_accepted:$friendId@2026');
       final content = cards.single.content as FriendAccepted;
       expect(content.friend, friend);
+    });
+
+    test('a new acceptance the next year is another card', () {
+      final cards = friendAcceptedCards(
+        accepted: [(friend: friend, acceptedAt: DateTime(2027, 1, 2))],
+        definition: acceptedDef,
+        now: DateTime(2027, 1, 3),
+      );
+
+      expect(cards.single.stateKey, 'friend_accepted:$friendId@2027');
     });
 
     test('accepted 8 days ago with days = 7 gives nothing', () {
@@ -973,11 +1048,39 @@ void main() {
       expect(hideUntil(cards.single, definitions, at), DateTime(2026, 12, 18));
     });
 
+    test('any type whose definition has reminder_days comes back', () {
+      final eventAt = DateTime(2026, 12, 25);
+      final card = HomeCardCandidate(
+        type: 'some_event',
+        stateKey: 'some_event@2026',
+        content: const Christmas(20, null),
+        eventAt: eventAt,
+      );
+      final at = DateTime(2026, 12, 5, 9);
+
+      expect(
+        hideUntil(
+          card,
+          {
+            'some_event': def(
+              'some_event',
+              params: {
+                'reminder_days': [30, 7],
+              },
+            ),
+          },
+          at,
+        ),
+        DateTime(2026, 12, 18),
+      );
+    });
+
     test('a booked reminder is hidden for good', () {
       final cards = bookedReminderCards(
-        bookings: [fakeBookedWish1],
+        bookings: [fakeBookedWish2],
         birthdays: const {},
         definition: bookedReminderDef,
+        christmas: christmasDef,
         now: DateTime(2026, 12, 15),
       );
 
