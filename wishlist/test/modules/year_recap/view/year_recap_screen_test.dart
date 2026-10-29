@@ -70,7 +70,7 @@ void main() {
       find.text('Le plus attendu : Casque, sur ta liste depuis 2 juin 2024'),
       findsOneWidget,
     );
-    expect(find.text('Ton ami le plus gâté : Alice'), findsOneWidget);
+    expect(find.text('Ton ami·e le·a plus gâté·e : Alice'), findsOneWidget);
     expect(find.byType(PrimaryButton), findsOneWidget);
     expect(find.text('Retour'), findsWidgets);
   });
