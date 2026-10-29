@@ -108,6 +108,8 @@ BookedWishWithDetails offered(
   required DateTime? receivedAt,
   String ownerId = fakeFriendUserId1,
   String ownerPseudo = 'Alice',
+  int bookedQuantity = 1,
+  int? receivedQuantity,
 }) {
   return BookedWishWithDetails(
     wish: Wish(
@@ -120,7 +122,8 @@ BookedWishWithDetails offered(
       updatedBy: fakeFriendUserId1,
       updatedAt: fakeUpdatedAt,
     ),
-    bookedQuantity: 1,
+    bookedQuantity: bookedQuantity,
+    receivedQuantity: receivedQuantity ?? (receivedAt == null ? 0 : 1),
     wishlistName: 'Liste',
     ownerPseudo: ownerPseudo,
     ownerId: ownerId,
@@ -1088,6 +1091,30 @@ void main() {
   });
 
   group('yearRecapFacts', () {
+    test('a booking counts as offered once its booked quantity is received',
+        () {
+      final facts = yearRecapFacts(
+        received: const [],
+        bookings: [
+          // 1 of the 2 booked received: not offered yet
+          offered(
+            10,
+            receivedAt: on(2026, 5, 1),
+            bookedQuantity: 2,
+            receivedQuantity: 1,
+          ),
+          // Booked 1, the owner received 1 (others may still wait): offered
+          offered(
+            11,
+            receivedAt: on(2026, 5, 1),
+            receivedQuantity: 1,
+          ),
+        ],
+        year: 2026,
+      );
+      expect(facts.offeredCount, 1);
+    });
+
     test('counts what was received and offered in the year only', () {
       final facts = yearRecapFacts(
         received: [

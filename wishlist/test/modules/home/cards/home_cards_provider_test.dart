@@ -833,6 +833,7 @@ void main() {
         wishlistName: 'Liste',
         ownerPseudo: 'Alice',
         ownerId: fakeFriendUserId1,
+        receivedQuantity: 1,
         receivedAt: DateTime(2026, 5, 2),
       );
       final container = ProviderContainer(

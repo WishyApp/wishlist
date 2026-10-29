@@ -470,8 +470,9 @@ List<HomeCardCandidate> staleWishlistCards({
   return const [];
 }
 
-/// What was received (`completedAt`) and given (a booking marked received,
-/// `receivedAt`) during [year].
+/// What was received (`completedAt`) and given during [year]. A booking counts
+/// as given once the owner marked at least the booked quantity as received
+/// (`receivedAt` in [year]), even if other bookings of the wish are not.
 YearRecapFacts yearRecapFacts({
   required List<CompletedWishWithDetails> received,
   required List<BookedWishWithDetails> bookings,
@@ -483,7 +484,9 @@ YearRecapFacts yearRecapFacts({
   ];
   final offeredInYear = [
     for (final booking in bookings)
-      if (booking.receivedAt?.toLocal().year == year) booking,
+      if (booking.receivedAt?.toLocal().year == year &&
+          booking.receivedQuantity >= booking.bookedQuantity)
+        booking,
   ];
   CompletedWishWithDetails? longestAwaited;
   for (final wish in receivedInYear) {

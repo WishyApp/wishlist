@@ -107,7 +107,10 @@ void main() {
         ...homeScreenOverrides(
           now: fakeNow,
           bookedWishes: [
-            fakeBookedWish1.copyWith(receivedAt: DateTime(2026, 5)),
+            fakeBookedWish1.copyWith(
+              receivedAt: DateTime(2026, 5),
+              receivedQuantity: fakeBookedWish1.bookedQuantity,
+            ),
           ].toIList(),
         ),
         receivedWishesSnapshotProvider.overrideWith(
