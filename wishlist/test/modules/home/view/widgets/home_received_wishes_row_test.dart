@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/modules/home/view/widgets/home_received_wishes_row.dart';
+import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
@@ -90,6 +91,34 @@ void main() {
 
     expect(find.text('1 wish reçu'), findsOneWidget);
     expect(fullListOpened, isFalse);
+  });
+
+  testWidgets('recomputes the relative date when the app resumes',
+      (tester) async {
+    var now = fakeNow;
+    await tester.pumpApp(
+      const Scaffold(body: SafeArea(child: HomeReceivedWishesRow())),
+      overrides: [
+        ...homeScreenOverrides(completedWishes: [_completedWish(1)]),
+        clockProvider.overrideWithValue(() => now),
+      ],
+    );
+    await tester.pumpAndSettle();
+    expect(find.text("Aujourd'hui"), findsOneWidget);
+
+    // Midnight passes while the app is in the background
+    now = fakeNow.add(const Duration(days: 1));
+    [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ].forEach(tester.binding.handleAppLifecycleStateChanged);
+    await tester.pump();
+
+    expect(find.text('Hier'), findsOneWidget);
   });
 
   testWidgets('is absent without a received wish', (tester) async {

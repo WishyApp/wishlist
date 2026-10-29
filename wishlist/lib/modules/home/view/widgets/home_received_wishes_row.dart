@@ -11,11 +11,35 @@ import 'package:wishlist/shared/utils/relative_date_utils.dart';
 
 /// Shortcut to the wishes the user received, with the date of the latest one.
 /// Shows nothing without a received wish, or when they cannot be loaded.
-class HomeReceivedWishesRow extends ConsumerWidget {
+class HomeReceivedWishesRow extends ConsumerStatefulWidget {
   const HomeReceivedWishesRow({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeReceivedWishesRow> createState() =>
+      _HomeReceivedWishesRowState();
+}
+
+class _HomeReceivedWishesRowState extends ConsumerState<HomeReceivedWishesRow> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    // The relative date ("Today", "Yesterday") is computed at build: rebuild
+    // when the app comes back, so it is not stale after midnight.
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () => setState(() {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final summary = ref.watch(receivedWishesSummaryProvider).valueOrNull;
     final latest = summary?.latestCompletedAt;

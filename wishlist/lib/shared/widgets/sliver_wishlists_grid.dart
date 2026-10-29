@@ -15,47 +15,11 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/wishlist_service.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
-import 'package:wishlist/shared/theme/colors.dart';
-import 'package:wishlist/shared/widgets/wishlist_card.dart';
-
-const _animationDuration = Duration(milliseconds: 500);
-const _sliverGridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
-  crossAxisCount: 2,
-);
-
-/// A wishlist card with its entrance animation, shared by the plain and the
-/// reorderable grids.
-Widget buildWishlistGridCard(Wishlist wishlist, int index) {
-  return AnimationConfiguration.staggeredList(
-    key: Key(wishlist.id.toString()),
-    duration: _animationDuration,
-    position: index,
-    child: ScaleAnimation(
-      child: FadeInAnimation(
-        child: WishlistCard(
-          wishlist: wishlist,
-          color: AppColors.getColorFromHexValue(wishlist.color),
-        ),
-      ),
-    ),
-  );
-}
-
-/// The same grid as [SliverGrid] with [buildWishlistGridCard], without
-/// reordering.
-Widget buildPlainWishlistsSliver(List<Wishlist> wishlists) {
-  return AnimationLimiter(
-    child: SliverGrid(
-      gridDelegate: _sliverGridDelegate,
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => buildWishlistGridCard(wishlists[index], index),
-        childCount: wishlists.length,
-      ),
-    ),
-  );
-}
+import 'package:wishlist/shared/utils/app_snackbar.dart';
+import 'package:wishlist/shared/widgets/wishlists_grid.dart';
 
 /// Reorderable grid of wishlists, as a sliver for a page's `CustomScrollView`.
 /// A drag and drop saves the new order, which shows at once while the stream
@@ -111,9 +75,18 @@ class _SliverWishlistsGridState extends ConsumerState<SliverWishlistsGrid> {
 
     setState(() => _optimisticWishlists = reorderedWishlists);
 
-    await ref
-        .read(wishlistServiceProvider)
-        .updateWishlistsOrder(reorderedWishlists.toIList());
+    final service = ref.read(wishlistServiceProvider);
+    final errorMessage = context.l10n.genericError;
+    try {
+      await service.updateWishlistsOrder(reorderedWishlists.toIList());
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      // The order was not saved: back to the one of the stream
+      setState(() => _optimisticWishlists = null);
+      showAppSnackBar(context, errorMessage, type: SnackBarType.error);
+    }
   }
 
   Widget _buildProxyDecorator(
@@ -137,7 +110,7 @@ class _SliverWishlistsGridState extends ConsumerState<SliverWishlistsGrid> {
         items: _displayedWishlists,
         onReorder: _handleReorder,
         proxyDecorator: _buildProxyDecorator,
-        sliverGridDelegate: _sliverGridDelegate,
+        sliverGridDelegate: wishlistsGridDelegate,
         scrollDirection: Axis.vertical,
         // AnimatedReorderableGridView defaults to true, MotionListImpl to
         // false: without it a card lifts on touch and the page can't scroll.
@@ -146,11 +119,11 @@ class _SliverWishlistsGridState extends ConsumerState<SliverWishlistsGrid> {
         enterTransition: [
           FadeIn(
             curve: Curves.easeInOut,
-            duration: _animationDuration,
+            duration: wishlistsGridAnimationDuration,
           ),
           ScaleIn(
             curve: Curves.easeInOut,
-            duration: _animationDuration,
+            duration: wishlistsGridAnimationDuration,
           ),
         ],
         itemBuilder: (context, index) =>
