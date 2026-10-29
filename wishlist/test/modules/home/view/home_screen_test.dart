@@ -241,4 +241,38 @@ void main() {
     expect(profileLoads, 2);
     expect(summaryLoads, 2);
   });
+
+  testWidgets(
+      '$HomeScreen pull to refresh does not throw when the wishlists fail',
+      (tester) async {
+    final l10n = AppLocalizationsFr();
+    await tester.pumpApp(
+      const FloatingNavBarNavigator(
+        // ignore: avoid_redundant_argument_values
+        currentTab: FloatingNavBarTab.home,
+      ),
+      overrides: [
+        ...homeScreenOverrides(),
+        wishlistsRealtimeProvider.overrideWith(
+          (ref) => Stream.error(
+            AppException(
+              statusCode: 500,
+              cause: const SocketException('Failed host lookup'),
+            ),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    await tester.fling(
+      find.byType(CustomScrollView).first,
+      const Offset(0, 400),
+      1000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text(l10n.networkErrorTitle), findsOneWidget);
+  });
 }

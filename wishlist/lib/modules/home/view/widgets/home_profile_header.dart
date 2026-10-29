@@ -94,25 +94,27 @@ class _EditProfileButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Only the button is tappable, one handler (the InkWell). The InkWell is
-    // 44 px tall but only as wide as the pill, which stays at its own size,
-    // centred: at rest it looks the same, only the tap area is taller.
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: SizedBox(
-          height: 44,
-          child: Center(
-            widthFactor: 1,
-            child: DecoratedBox(
-              key: editProfilePillKey,
-              decoration: const ShapeDecoration(
-                shape: StadiumBorder(
-                  side: BorderSide(color: AppColors.pastelGray),
-                ),
-              ),
+    // The pill stays at its own size, centred in a 44 px tall hit area as wide
+    // as the pill. The ink (ripple and highlight) is clipped to the pill by its
+    // own Material, so it matches what is seen. A tap on the pill is taken by
+    // the InkWell, a tap on the strip above or below it by the GestureDetector:
+    // never both, so `onTap` runs once.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: 44,
+        child: Center(
+          widthFactor: 1,
+          child: Material(
+            key: editProfilePillKey,
+            type: MaterialType.transparency,
+            shape: const StadiumBorder(
+              side: BorderSide(color: AppColors.pastelGray),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
               child: Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

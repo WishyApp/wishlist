@@ -23,6 +23,14 @@ class HomeScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final wishlists = ref.watch(wishlistsRealtimeProvider);
 
+    // The header and the received wishes row hide their errors, so the retry
+    // reloads all three providers (retryFailed only reloads the failed ones)
+    final retriedProviders = [
+      watchCurrentUserProfileProvider,
+      receivedWishesSummaryProvider,
+      wishlistsRealtimeProvider,
+    ];
+
     Future<void> refreshWishlists() async {
       // The header and the received wishes row hide their errors (they never
       // block the page): a refresh is what brings them back
@@ -51,8 +59,8 @@ class HomeScreen extends ConsumerWidget {
       error: (error, stackTrace) => SliverToBoxAdapter(
         child: HomeWishlistsError(
           error: error,
-          onRetry: () => ref.retryFailed([wishlistsRealtimeProvider]),
-          isRetrying: ref.isRetryingAny([wishlistsRealtimeProvider]),
+          onRetry: () => ref.retryFailed(retriedProviders),
+          isRetrying: ref.isRetryingAny(retriedProviders),
         ),
       ),
       data: (data) => data.isEmpty

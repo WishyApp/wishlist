@@ -83,8 +83,11 @@ class _SliverWishlistsGridState extends ConsumerState<SliverWishlistsGrid> {
       if (!mounted) {
         return;
       }
-      // The order was not saved: back to the one of the stream
-      setState(() => _optimisticWishlists = null);
+      // The order was not saved: back to the one of the stream, unless a newer
+      // reorder has taken over in the meantime
+      if (identical(_optimisticWishlists, reorderedWishlists)) {
+        setState(() => _optimisticWishlists = null);
+      }
       showAppSnackBar(context, errorMessage, type: SnackBarType.error);
     }
   }

@@ -79,10 +79,12 @@ void main() {
 
     final pill = tester.getRect(find.byKey(editProfilePillKey));
     final tapArea = tester.getRect(
-      find.ancestor(
-        of: find.byKey(editProfilePillKey),
-        matching: find.byType(InkWell),
-      ),
+      find
+          .ancestor(
+            of: find.byKey(editProfilePillKey),
+            matching: find.byType(GestureDetector),
+          )
+          .first,
     );
     // The visible pill is as before (about 30 px), only the tap area is taller
     expect(pill.height, inInclusiveRange(28, 34));
