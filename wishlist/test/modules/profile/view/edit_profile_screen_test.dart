@@ -185,9 +185,8 @@ void main() {
 
     expect(
       find.text(
-        "Ton anniversaire n'est visible que par tes amis. Ta photo et ton "
-        'pseudo sont visibles par tes amis et par les personnes avec qui tu '
-        'partages une liste.',
+        'Seuls tes amis voient ton anniversaire. Ton pseudo et ta photo sont '
+        'visibles par tous.',
       ),
       findsOneWidget,
     );

@@ -74,7 +74,7 @@
   "editProfilePseudo": "Pseudo",
   "editProfileBirthday": "Birthday",
   "editProfileBirthdayNotSet": "Not set",
-  "editProfilePrivacy": "Your birthday is only visible to your friends. Your photo and pseudo are visible to your friends and to the people you share a list with.",
+  "editProfilePrivacy": "Only your friends see your birthday. Your pseudo and photo are visible to everyone.",
   "changeBirthdayScreenTitle": "Birthday",
   "changeBirthdayExplanation": "Only your friends will see it.",
   "changeBirthdayConfirm": "Save",
