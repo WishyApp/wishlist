@@ -12,6 +12,7 @@ import 'package:wishlist/modules/settings/change_birthday/view/change_birthday_s
 import 'package:wishlist/modules/settings/change_password/view/change_password_screen.dart';
 import 'package:wishlist/modules/settings/change_pseudo/view/change_pseudo_screen.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
+import 'package:wishlist/modules/wishlists/view/default_received_day.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_settings_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/add_wish_screen.dart';
@@ -142,14 +143,20 @@ class BirthdayStepRoute extends AuthenticatedRoute {
 class WishlistRoute extends AuthenticatedRoute {
   WishlistRoute({
     required this.wishlistId,
+    this.receivedOn,
   });
 
   final int wishlistId;
+
+  /// The party day (`yyyy-MM-dd`) of the after-party card that opened the
+  /// list: the day proposed by default when marking a wish received.
+  final String? receivedOn;
 
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) {
     return WishlistScreen(
       wishlistId: wishlistId,
+      receivedOn: parseReceivedOn(receivedOn),
     );
   }
 }

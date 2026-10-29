@@ -208,6 +208,7 @@ void main() {
       expect(content.occasion, AfterPartyOccasion.birthday);
       expect(content.daysAgo, 1);
       expect(content.wishlist, isNull);
+      expect(content.partyDay, DateTime(2026, 10, 29));
     });
 
     test('without any wishlist there is no card, whatever the occasion', () {
@@ -300,6 +301,7 @@ void main() {
       expect(content.occasion, AfterPartyOccasion.christmas);
       expect(content.daysAgo, 2);
       expect(content.wishlist, christmas);
+      expect(content.partyDay, DateTime(2026, 12, 25));
     });
 
     test('two wishlists without a Christmas name leave the list null', () {

@@ -253,10 +253,14 @@ extension $CompletedWishesRouteExtension on CompletedWishesRoute {
 extension $WishlistRouteExtension on WishlistRoute {
   static WishlistRoute _fromState(GoRouterState state) => WishlistRoute(
         wishlistId: int.parse(state.pathParameters['wishlistId']!),
+        receivedOn: state.uri.queryParameters['received-on'],
       );
 
   String get location => GoRouteData.$location(
         '/wishlist/${Uri.encodeComponent(wishlistId.toString())}',
+        queryParams: {
+          if (receivedOn != null) 'received-on': receivedOn,
+        },
       );
 
   void go(BuildContext context) => context.go(location);
