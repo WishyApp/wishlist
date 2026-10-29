@@ -20,6 +20,13 @@ abstract class UserCompletedWishRepository {
     required int newQuantity,
   });
 
+  /// Change le jour où un wish complété a été reçu.
+  Future<void> updateCompletionDate({
+    required String userId,
+    required int wishId,
+    required DateTime completedAt,
+  });
+
   /// Retire un wish de l'état complété.
   Future<void> unmarkAsCompleted({
     required String userId,

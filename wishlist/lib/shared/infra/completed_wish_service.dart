@@ -37,6 +37,18 @@ class CompletedWishService {
     );
   }
 
+  Future<void> updateCompletionDate({
+    required int wishId,
+    required DateTime completedAt,
+  }) async {
+    final userId = _userService.getCurrentUserId();
+    await _repository.updateCompletionDate(
+      userId: userId,
+      wishId: wishId,
+      completedAt: completedAt,
+    );
+  }
+
   Future<void> unmarkAsCompleted(int wishId) async {
     final userId = _userService.getCurrentUserId();
     await _repository.unmarkAsCompleted(userId: userId, wishId: wishId);

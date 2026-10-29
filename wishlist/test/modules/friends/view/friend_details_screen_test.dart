@@ -285,8 +285,8 @@ void main() {
     );
     expect(screen.userId, fakeFriendUserId1);
     expect(find.text('Wish 1'), findsOneWidget);
-    // The friend's wishes cannot be uncompleted from here
-    expect(find.byIcon(Icons.undo), findsNothing);
+    // The friend's completed wishes cannot be changed from here
+    expect(find.byIcon(Icons.more_vert), findsNothing);
   });
 
   group("the wish screen shows the friend's received quantity", () {

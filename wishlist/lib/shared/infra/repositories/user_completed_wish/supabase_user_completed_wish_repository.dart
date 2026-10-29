@@ -1,6 +1,7 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
 import 'package:wishlist/shared/infra/utils/execute_safely.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
@@ -16,6 +17,25 @@ class SupabaseUserCompletedWishRepository
 
   /// completed_at is a date column: a day, without time or time zone.
   static final _dateFormat = DateFormat('yyyy-MM-dd');
+
+  /// Updates the completed wish [wishId] of [userId]. An UPDATE that matches
+  /// no row is not an error for PostgREST: a row gone meanwhile (uncompleted
+  /// on another device) throws, rather than passing for a success.
+  Future<void> _updateRow({
+    required String userId,
+    required int wishId,
+    required Map<String, Object> values,
+  }) async {
+    final updated = await _client
+        .from(_tableName)
+        .update(values)
+        .eq('user_id', userId)
+        .eq('wish_id', wishId)
+        .select('wish_id');
+    if (updated.isEmpty) {
+      throw AppException(statusCode: 404, message: 'Completed wish not found');
+    }
+  }
 
   @override
   Future<void> markAsCompleted({
@@ -41,14 +61,14 @@ class SupabaseUserCompletedWishRepository
           final newCompletedAt = completedAt.isAfter(existingCompletedAt)
               ? completedAt
               : existingCompletedAt;
-          await _client
-              .from(_tableName)
-              .update({
-                'quantity': newQuantity,
-                'completed_at': _dateFormat.format(newCompletedAt),
-              })
-              .eq('user_id', userId)
-              .eq('wish_id', wishId);
+          await _updateRow(
+            userId: userId,
+            wishId: wishId,
+            values: {
+              'quantity': newQuantity,
+              'completed_at': _dateFormat.format(newCompletedAt),
+            },
+          );
         } else {
           await _client.from(_tableName).insert({
             'user_id': userId,
@@ -71,13 +91,31 @@ class SupabaseUserCompletedWishRepository
   }) async {
     return executeSafely(
       () async {
-        await _client
-            .from(_tableName)
-            .update({'quantity': newQuantity})
-            .eq('user_id', userId)
-            .eq('wish_id', wishId);
+        await _updateRow(
+          userId: userId,
+          wishId: wishId,
+          values: {'quantity': newQuantity},
+        );
       },
       errorMessage: 'Failed to update completed wish quantity',
+    );
+  }
+
+  @override
+  Future<void> updateCompletionDate({
+    required String userId,
+    required int wishId,
+    required DateTime completedAt,
+  }) async {
+    return executeSafely(
+      () async {
+        await _updateRow(
+          userId: userId,
+          wishId: wishId,
+          values: {'completed_at': _dateFormat.format(completedAt)},
+        );
+      },
+      errorMessage: 'Failed to update completion date',
     );
   }
 

@@ -4,13 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/supabase_user_completed_wish_repository.dart';
 
 void main() {
   /// A client whose fake PostgREST answers a GET with [existing] (the rows of
-  /// the lookup) and any write with an empty body, recording the requests.
+  /// the lookup), an UPDATE with [updated] (the rows it matched) and an
+  /// INSERT with an empty body, recording the requests.
   ({SupabaseClient client, List<http.Request> requests}) fakeClient({
     List<Map<String, dynamic>> existing = const [],
+    List<Map<String, dynamic>> updated = const [
+      {'wish_id': 7},
+    ],
   }) {
     final requests = <http.Request>[];
     final client = SupabaseClient(
@@ -18,12 +23,21 @@ void main() {
       'anon-key',
       httpClient: MockClient((req) async {
         requests.add(req);
-        return http.Response(
-          req.method == 'GET' ? jsonEncode(existing) : '',
-          req.method == 'GET' ? 200 : 204,
-          headers: {'content-type': 'application/json'},
-          request: req,
-        );
+        return switch (req.method) {
+          'GET' => http.Response(
+              jsonEncode(existing),
+              200,
+              headers: {'content-type': 'application/json'},
+              request: req,
+            ),
+          'PATCH' => http.Response(
+              jsonEncode(updated),
+              200,
+              headers: {'content-type': 'application/json'},
+              request: req,
+            ),
+          _ => http.Response('', 201, request: req),
+        };
       }),
     );
     addTearDown(client.dispose);
@@ -92,6 +106,50 @@ void main() {
         {'quantity': 3, 'completed_at': '2026-03-10'},
       );
     });
+  });
+
+  test('SupabaseUserCompletedWishRepository.updateCompletionDate sets the day',
+      () async {
+    final fake = fakeClient();
+    await SupabaseUserCompletedWishRepository(fake.client).updateCompletionDate(
+      userId: 'me',
+      wishId: 7,
+      completedAt: DateTime(2025, 12, 24),
+    );
+
+    final update = fake.requests.single;
+    expect(update.method, 'PATCH');
+    expect(update.url.queryParameters['user_id'], 'eq.me');
+    expect(update.url.queryParameters['wish_id'], 'eq.7');
+    expect(jsonDecode(update.body), {'completed_at': '2025-12-24'});
+  });
+
+  test(
+      'SupabaseUserCompletedWishRepository.updateCompletionDate fails on a '
+      'completed wish that is gone', () async {
+    final fake = fakeClient(updated: []);
+
+    await expectLater(
+      SupabaseUserCompletedWishRepository(fake.client).updateCompletionDate(
+        userId: 'me',
+        wishId: 7,
+        completedAt: DateTime(2025, 12, 24),
+      ),
+      throwsA(isA<AppException>()),
+    );
+    expect(fake.requests.single.url.queryParameters['select'], 'wish_id');
+  });
+
+  test(
+      'SupabaseUserCompletedWishRepository.updateCompletedWishQuantity fails '
+      'on a completed wish that is gone', () async {
+    final fake = fakeClient(updated: []);
+
+    await expectLater(
+      SupabaseUserCompletedWishRepository(fake.client)
+          .updateCompletedWishQuantity(userId: 'me', wishId: 7, newQuantity: 2),
+      throwsA(isA<AppException>()),
+    );
   });
 
   group('SupabaseUserCompletedWishRepository.getCompletedWishesByUser', () {

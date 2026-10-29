@@ -962,6 +962,18 @@ abstract class AppLocalizations {
   /// **'Modifier la quantité complétée'**
   String get modifyCompletedQuantity;
 
+  /// No description provided for @completedWishOptions.
+  ///
+  /// In fr, this message translates to:
+  /// **'Options du wish'**
+  String get completedWishOptions;
+
+  /// No description provided for @modifyCompletionDate.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier la date de complétion'**
+  String get modifyCompletionDate;
+
   /// No description provided for @cancelBookingDialogTitle.
   ///
   /// In fr, this message translates to:

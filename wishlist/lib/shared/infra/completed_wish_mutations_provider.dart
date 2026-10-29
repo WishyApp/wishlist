@@ -45,6 +45,21 @@ class CompletedWishMutations extends _$CompletedWishMutations
     );
   }
 
+  Future<void> updateCompletionDate({
+    required int wishId,
+    required DateTime completedAt,
+  }) async {
+    await mutateAsync(
+      () async {
+        final service = ref.read(completedWishServiceProvider);
+        await service.updateCompletionDate(
+          wishId: wishId,
+          completedAt: completedAt,
+        );
+      },
+    );
+  }
+
   Future<void> unmarkAsCompleted(int wishId) async {
     await mutateAsync(
       () async {
