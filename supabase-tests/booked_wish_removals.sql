@@ -125,6 +125,8 @@ SELECT pg_temp.expect_rows('owner deletes W2',
 RESET ROLE;
 SELECT pg_temp.expect_count('W2 recorded for A and B',
   $q$SELECT count(DISTINCT booker_id) FROM public.booked_wish_removals WHERE wish_id = 981002$q$, 2);
+SELECT pg_temp.expect_count('W2 records the booked quantity (1), not the wish quantity (4), for A and B',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981002 AND quantity = 1$q$, 2);
 SELECT pg_temp.expect_count('W2 recorded once per booking',
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981002$q$, 2);
 

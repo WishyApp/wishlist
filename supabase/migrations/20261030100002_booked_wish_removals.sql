@@ -32,14 +32,18 @@
 -- verified by supabase-tests/booked_wish_removals.sql.
 --
 -- Not recorded (rules of record_booked_wish_removals):
---   - a wish the owner marked as received (user_completed_wishs row of the
---     owner): the gift was given;
+--   - any wish the owner marked as received (a user_completed_wishs row of the
+--     owner): the gift was given. Even a partially received wish records
+--     nothing: with a quantity of 3 booked 1 by A and 1 by B, and 1 received,
+--     deleting the wish alerts nobody. This is the chosen rule;
 --   - a booking made by the owner on their own wish.
 -- One row per booking (wish_taken_by_user row), with the booked quantity.
 --
--- The triggers must never make a deletion fail: they are SECURITY DEFINER (they
--- read the bookings of other users) and swallow any error with a WARNING. An
--- alert lost is better than a wish that cannot be deleted.
+-- The triggers are SECURITY DEFINER (they read the bookings of other users) and
+-- do not catch errors, like the other triggers of the repo: a deletion they
+-- break fails loudly (and shows in Sentry) instead of losing an alert silently.
+-- They are written not to fail: every copied column is NOT NULL at its source
+-- and both foreign keys of the table are guarded.
 --
 -- Access: the booker reads their rows and can only set dismissed_at (the card is
 -- closed). When the owner or the booker deletes their account, the rows
@@ -111,8 +115,8 @@ CREATE POLICY "Bookers dismiss their removed booked wishes"
 -- 3. Internal function shared by the two triggers: one row per booking of the
 -- given wishes, except the wishes received by the owner and the bookings of the
 -- owner. Called by the triggers only (no EXECUTE for anyone else): it writes
--- on behalf of any user. The bookers and the owner must still have a profile,
--- or the foreign keys would refuse the insert.
+-- on behalf of any user. The bookers have a profile (foreign key of
+-- wish_taken_by_user.user_id) and the owner is checked below.
 CREATE OR REPLACE FUNCTION public.record_booked_wish_removals(
   p_wish_ids bigint[],
   p_owner_id uuid,
@@ -129,9 +133,10 @@ BEGIN
   SELECT t.user_id, p_owner_id, w.id, w.name, t.quantity, p_wishlist_name
   FROM public.wishs w
   JOIN public.wish_taken_by_user t ON t.wish_id = w.id
-  JOIN public.profiles booker ON booker.id = t.user_id
   WHERE w.id = ANY (p_wish_ids)
     AND t.user_id <> p_owner_id
+    -- Doubles the guard of the wishlists trigger on purpose (defence in depth):
+    -- whatever the caller, no row is written for an owner who is gone.
     AND EXISTS (SELECT 1 FROM public.profiles owner WHERE owner.id = p_owner_id)
     AND NOT EXISTS (
       SELECT 1
@@ -167,11 +172,6 @@ BEGIN
   END IF;
 
   RETURN OLD;
-EXCEPTION WHEN OTHERS THEN
-  -- Never make the deletion fail.
-  RAISE WARNING 'record_booked_wish_removal_on_wish_delete failed for wish %: % (%)',
-    OLD.id, SQLERRM, SQLSTATE;
-  RETURN OLD;
 END $$;
 
 REVOKE ALL ON FUNCTION public.record_booked_wish_removal_on_wish_delete()
@@ -203,11 +203,6 @@ BEGIN
   END IF;
 
   RETURN OLD;
-EXCEPTION WHEN OTHERS THEN
-  -- Never make the deletion fail.
-  RAISE WARNING 'record_booked_wish_removals_on_wishlist_delete failed for wishlist %: % (%)',
-    OLD.id, SQLERRM, SQLSTATE;
-  RETURN OLD;
 END $$;
 
 REVOKE ALL ON FUNCTION public.record_booked_wish_removals_on_wishlist_delete()
@@ -228,5 +223,3 @@ CREATE TRIGGER record_booked_wish_removals
 -- Pending alerts per booker:
 --   SELECT booker_id, count(*) FROM public.booked_wish_removals
 --    WHERE dismissed_at IS NULL GROUP BY booker_id;
--- Warnings of a trigger that swallowed an error show in the Postgres logs:
---   'record_booked_wish_removal... failed'

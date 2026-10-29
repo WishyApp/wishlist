@@ -210,6 +210,30 @@ void main() {
       await sub.cancel();
     });
 
+    test('a subscribed status reloads the list', () async {
+      final query = FakePendingQuery([
+        [_row(1, '2026-10-29T10:00:00Z')],
+        [
+          _row(2, '2026-10-30T10:00:00Z'),
+          _row(1, '2026-10-29T10:00:00Z'),
+        ],
+      ]);
+      when(table.select).thenAnswer((_) => query);
+
+      final received = <List<BookedWishRemoval>>[];
+      final sub = repository.watchPending().listen(received.add);
+      await pumpEventQueue();
+      expect(received.map((l) => l.length), [1]);
+
+      // A change committed before the subscription is never delivered as an
+      // event: the first `subscribed` reloads.
+      statusCallbacks.single(RealtimeSubscribeStatus.subscribed, null);
+      await pumpEventQueue();
+
+      expect(received.map((l) => l.length), [1, 2]);
+      await sub.cancel();
+    });
+
     test('the load error is surfaced', () async {
       when(table.select).thenThrow(Exception('boom'));
 

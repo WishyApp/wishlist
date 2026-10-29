@@ -20,9 +20,11 @@ class SupabaseBookedWishRemovalRepository
   /// Builds, without subscribing it, a channel on the rows of
   /// `booked_wish_removals` booked by [userId].
   ///
-  /// INSERT (a trigger recorded a removal) and UPDATE (the alert was dismissed
-  /// from another device) both reload. The filter reduces traffic, it is not an
-  /// access barrier: Realtime applies the SELECT policy of the table.
+  /// Every event reloads: INSERT (a trigger recorded a removal), UPDATE (the
+  /// alert was dismissed from another device) and DELETE (the owner deleted
+  /// their account, which cascades the alerts away). The filter reduces
+  /// traffic, it is not an access barrier: Realtime applies the SELECT policy
+  /// of the table.
   /// A change committed between the first load and the subscription is never
   /// delivered: [KeyedRealtimeStreams] reloads once the channel is subscribed
   /// (and on every reconnection).
@@ -71,7 +73,7 @@ class SupabaseBookedWishRemovalRepository
     return executeSafely(
       () async {
         await _client.from(_tableName).update({
-          'dismissed_at': DateTime.now().toUtc().toIso8601String()
+          'dismissed_at': DateTime.now().toUtc().toIso8601String(),
         }).eq('id', id);
       },
       errorMessage: 'Failed to dismiss the removed booked wish',
