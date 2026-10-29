@@ -446,22 +446,14 @@ List<HomeCardCandidate> staleWishlistCandidates({
   ];
 }
 
-/// The wishlist left untouched the longest, if that is `stale_days` days or
-/// more ago, among those whose card is not hidden by its state at [now]. One
-/// card at a time: hiding it makes room for the next list.
+/// The first of the stale [candidates] (see `staleWishlistCandidates`, idle
+/// the longest first) whose card is not hidden by its state at [now]. One card
+/// at a time: hiding it makes room for the next list.
 List<HomeCardCandidate> staleWishlistCards({
-  required List<Wishlist> wishlists,
-  required Map<int, DateTime> lastActivity,
+  required List<HomeCardCandidate> candidates,
   required Map<String, CardState> states,
-  required HomeCardDefinition? definition,
   required DateTime now,
 }) {
-  final candidates = staleWishlistCandidates(
-    wishlists: wishlists,
-    lastActivity: lastActivity,
-    definition: definition,
-    now: now,
-  );
   for (final candidate in candidates) {
     if (!(states[candidate.stateKey]?.isHidden(now) ?? false)) {
       return [candidate];

@@ -279,10 +279,8 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   ]);
   candidates.addAll(
     staleWishlistCards(
-      wishlists: wishlists,
-      lastActivity: lastActivity,
+      candidates: staleCandidates,
       states: states,
-      definition: definitions['stale_wishlist'],
       now: now,
     ),
   );

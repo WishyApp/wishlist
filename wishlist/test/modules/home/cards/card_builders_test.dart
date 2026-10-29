@@ -1003,10 +1003,13 @@ void main() {
       Map<String, CardState> states = const {},
     }) {
       return staleWishlistCards(
-        wishlists: wishlists,
-        lastActivity: lastActivity,
+        candidates: staleWishlistCandidates(
+          wishlists: wishlists,
+          lastActivity: lastActivity,
+          definition: definition ?? staleDef,
+          now: now,
+        ),
         states: states,
-        definition: definition ?? staleDef,
         now: now,
       );
     }
@@ -1079,10 +1082,13 @@ void main() {
 
     test('a disabled type gives nothing', () {
       final cards = staleWishlistCards(
-        wishlists: [wishlist(1, 'A')],
-        lastActivity: {1: daysAgo(200)},
+        candidates: staleWishlistCandidates(
+          wishlists: [wishlist(1, 'A')],
+          lastActivity: {1: daysAgo(200)},
+          definition: null,
+          now: now,
+        ),
         states: const {},
-        definition: null,
         now: now,
       );
 
@@ -1326,10 +1332,13 @@ void main() {
 
     test('a stale wishlist comes back in 60 days', () {
       final cards = staleWishlistCards(
-        wishlists: [wishlist(1, 'A')],
-        lastActivity: {1: on(2026, 1, 1)},
+        candidates: staleWishlistCandidates(
+          wishlists: [wishlist(1, 'A')],
+          lastActivity: {1: on(2026, 1, 1)},
+          definition: staleDef,
+          now: now,
+        ),
         states: const {},
-        definition: staleDef,
         now: now,
       );
 
