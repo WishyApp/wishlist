@@ -19,8 +19,8 @@ class FakeVoidRpc extends Fake implements PostgrestFilterBuilder<void> {
 
 class MockQueryBuilder extends Mock implements SupabaseQueryBuilder {}
 
-// ignore: must_be_immutable
 /// A select that returns [_rows] and records its `inFilter`.
+// ignore: must_be_immutable
 class FakeRows extends Fake implements PostgrestFilterBuilder<PostgrestList> {
   FakeRows(this._rows);
   final PostgrestList _rows;
