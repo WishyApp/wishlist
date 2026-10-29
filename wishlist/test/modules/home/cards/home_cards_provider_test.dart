@@ -676,6 +676,31 @@ void main() {
       expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist2.id}');
     });
 
+    test('a snoozed list makes room for the next oldest one', () async {
+      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+        (_) async => {
+          fakeWishlist1.id: DateTime(2026, 7, 2),
+          fakeWishlist2.id: DateTime(2026, 5, 2),
+          fakeWishlist3.id: DateTime(2026, 6, 2),
+        },
+      );
+      final key = 'stale_wishlist:${fakeWishlist2.id}';
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {
+          key: CardState(
+            cardKey: key,
+            shownCount: 1,
+            dismissedAt: now,
+            snoozedUntil: now.add(const Duration(days: 30)),
+          ),
+        },
+      );
+
+      final cards = await loadWithActivity();
+
+      expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist3.id}');
+    });
+
     test('the last activity unavailable only loses this card', () async {
       when(() => wishlistRepository.getLastActivityByWishlist())
           .thenThrow(Exception('offline'));

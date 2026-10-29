@@ -406,11 +406,10 @@ List<HomeCardCandidate> onboardingCards({
   return const [];
 }
 
-/// The wishlist left untouched the longest, if that is `stale_days` days or
-/// more ago. One card at a time: hiding it makes room for the next list.
-/// [lastActivity] is by wishlist id; a list missing from it, or closed, is
-/// ignored.
-List<HomeCardCandidate> staleWishlistCards({
+/// Every open wishlist untouched for `stale_days` days or more, the one idle
+/// the longest first (then by id). [lastActivity] is by wishlist id; a list
+/// missing from it, or closed, is ignored.
+List<HomeCardCandidate> staleWishlistCandidates({
   required List<Wishlist> wishlists,
   required Map<int, DateTime> lastActivity,
   required HomeCardDefinition? definition,
@@ -421,30 +420,54 @@ List<HomeCardCandidate> staleWishlistCards({
   }
   final today = _day(now);
   final staleDays = definition.intParam('stale_days', 90);
-  Wishlist? oldest;
-  var oldestIdle = 0;
+  final stale = <({Wishlist wishlist, int idle, DateTime activity})>[];
   for (final wishlist in wishlists) {
     final activity = lastActivity[wishlist.id];
     if (activity == null || wishlist.isClosed) {
       continue;
     }
     final idle = _daysBetween(activity.toLocal(), today);
-    if (idle >= staleDays && idle > oldestIdle) {
-      oldest = wishlist;
-      oldestIdle = idle;
+    if (idle >= staleDays) {
+      stale.add((wishlist: wishlist, idle: idle, activity: activity));
     }
   }
-  if (oldest == null) {
-    return const [];
-  }
+  stale.sort((a, b) {
+    final byIdle = b.idle.compareTo(a.idle);
+    return byIdle != 0 ? byIdle : a.wishlist.id.compareTo(b.wishlist.id);
+  });
   return [
-    HomeCardCandidate(
-      type: definition.key,
-      stateKey: cardKey(definition.key, id: oldest.id),
-      content: StaleWishlist(oldest, oldestIdle ~/ 30),
-      eventAt: lastActivity[oldest.id],
-    ),
+    for (final entry in stale)
+      HomeCardCandidate(
+        type: definition.key,
+        stateKey: cardKey(definition.key, id: entry.wishlist.id),
+        content: StaleWishlist(entry.wishlist, entry.idle ~/ 30),
+        eventAt: entry.activity,
+      ),
   ];
+}
+
+/// The wishlist left untouched the longest, if that is `stale_days` days or
+/// more ago, among those whose card is not hidden by its state at [now]. One
+/// card at a time: hiding it makes room for the next list.
+List<HomeCardCandidate> staleWishlistCards({
+  required List<Wishlist> wishlists,
+  required Map<int, DateTime> lastActivity,
+  required Map<String, CardState> states,
+  required HomeCardDefinition? definition,
+  required DateTime now,
+}) {
+  final candidates = staleWishlistCandidates(
+    wishlists: wishlists,
+    lastActivity: lastActivity,
+    definition: definition,
+    now: now,
+  );
+  for (final candidate in candidates) {
+    if (!(states[candidate.stateKey]?.isHidden(now) ?? false)) {
+      return [candidate];
+    }
+  }
+  return const [];
 }
 
 /// What was received (`completedAt`) and given (a booking marked received,

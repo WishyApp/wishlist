@@ -997,10 +997,12 @@ void main() {
       List<Wishlist> wishlists,
       Map<int, DateTime> lastActivity, {
       HomeCardDefinition? definition,
+      Map<String, CardState> states = const {},
     }) {
       return staleWishlistCards(
         wishlists: wishlists,
         lastActivity: lastActivity,
+        states: states,
         definition: definition ?? staleDef,
         now: now,
       );
@@ -1035,6 +1037,32 @@ void main() {
       expect((cards.single.content as StaleWishlist).monthsIdle, 13);
     });
 
+    test('a snoozed list makes room for the next oldest one', () {
+      final cards = build(
+        [wishlist(1, 'A'), wishlist(2, 'B'), wishlist(3, 'C')],
+        {1: daysAgo(120), 2: daysAgo(400), 3: daysAgo(100)},
+        states: {
+          'stale_wishlist:2': CardState(
+            cardKey: 'stale_wishlist:2',
+            shownCount: 1,
+            dismissedAt: now,
+            snoozedUntil: now.add(const Duration(days: 30)),
+          ),
+        },
+      );
+
+      expect(cards.single.stateKey, 'stale_wishlist:1');
+    });
+
+    test('two lists idle the same day: the smaller id comes first', () {
+      final cards = build(
+        [wishlist(5, 'A'), wishlist(4, 'B')],
+        {5: daysAgo(200), 4: daysAgo(200)},
+      );
+
+      expect(cards.single.stateKey, 'stale_wishlist:4');
+    });
+
     test('a list without a known activity is ignored', () {
       expect(build([wishlist(1, 'A')], {2: daysAgo(200)}), isEmpty);
     });
@@ -1050,6 +1078,7 @@ void main() {
       final cards = staleWishlistCards(
         wishlists: [wishlist(1, 'A')],
         lastActivity: {1: daysAgo(200)},
+        states: const {},
         definition: null,
         now: now,
       );
@@ -1272,6 +1301,7 @@ void main() {
       final cards = staleWishlistCards(
         wishlists: [wishlist(1, 'A')],
         lastActivity: {1: on(2026, 1, 1)},
+        states: const {},
         definition: staleDef,
         now: now,
       );

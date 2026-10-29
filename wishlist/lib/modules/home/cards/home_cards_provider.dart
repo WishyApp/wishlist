@@ -252,12 +252,6 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
       definition: definitions['christmas'],
       now: now,
     ),
-    ...staleWishlistCards(
-      wishlists: wishlists,
-      lastActivity: lastActivity,
-      definition: definitions['stale_wishlist'],
-      now: now,
-    ),
     if (yearRecap != null)
       ...yearRecapCards(
         facts: yearRecap,
@@ -268,10 +262,27 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
 
   // The onboarding card needs the states of its optional steps, which are
   // fetched with the others in one go.
+  // The stale lists too: the oldest one whose card is not snoozed is kept.
+  final staleCandidates = staleWishlistCandidates(
+    wishlists: wishlists,
+    lastActivity: lastActivity,
+    definition: definitions['stale_wishlist'],
+    now: now,
+  );
   final states = await cardStateRepository.getStates([
     for (final candidate in candidates) candidate.stateKey,
+    for (final candidate in staleCandidates) candidate.stateKey,
     ..._onboardingStateKeys,
   ]);
+  candidates.addAll(
+    staleWishlistCards(
+      wishlists: wishlists,
+      lastActivity: lastActivity,
+      states: states,
+      definition: definitions['stale_wishlist'],
+      now: now,
+    ),
+  );
   candidates.addAll(
     onboardingCards(
       wishlistCount: wishlists.length,
