@@ -334,6 +334,68 @@ void main() {
       expect((cards.single.content as AfterParty).wishlist, single);
     });
 
+    group('the single open wishlist fallback for a birthday', () {
+      List<HomeCardCandidate> buildWith(String name) => build(
+            now,
+            mine: const Birthday(month: 10, day: 29),
+            wishlists: [wishlist(1, name)],
+          );
+
+      test('is refused when its name is a birthday of another year', () {
+        expect(
+          (buildWith('Anniv 2025').single.content as AfterParty).wishlist,
+          isNull,
+        );
+      });
+
+      test('is refused when its name is a Christmas list', () {
+        expect(
+          (buildWith('Noël 2026').single.content as AfterParty).wishlist,
+          isNull,
+        );
+      });
+
+      test('is used when its name has no occasion keyword', () {
+        final maison = wishlist(1, 'Maison');
+        final cards = build(
+          now,
+          mine: const Birthday(month: 10, day: 29),
+          wishlists: [maison],
+        );
+        expect((cards.single.content as AfterParty).wishlist, maison);
+      });
+    });
+
+    test('the birthday year is the one of the birthday, not of today', () {
+      const birthday = Birthday(month: 12, day: 30);
+      final at = DateTime(2027, 1, 2, 9);
+      final anniv2026 = wishlist(1, 'Anniv 2026');
+      final anniv2027 = wishlist(1, 'Anniv 2027');
+      final holiday = wishlist(2, 'Vacances');
+
+      final right = build(at, mine: birthday, wishlists: [anniv2026, holiday]);
+      expect((right.single.content as AfterParty).wishlist, anniv2026);
+
+      final wrong = build(at, mine: birthday, wishlists: [anniv2027, holiday]);
+      expect((wrong.single.content as AfterParty).wishlist, isNull);
+    });
+
+    test('empty birthday keywords fall back to the default ones', () {
+      final anniv = wishlist(1, 'Anniv 2026');
+      for (final keywords in [<String>[], 'oops']) {
+        final cards = build(
+          now,
+          mine: const Birthday(month: 10, day: 29),
+          wishlists: [anniv, wishlist(2, 'Vacances')],
+          definition: def(
+            'after_party',
+            params: {'days_after': 7, 'birthday_keywords': keywords},
+          ),
+        );
+        expect((cards.single.content as AfterParty).wishlist, anniv);
+      }
+    });
+
     test('a birthday in December still counts in January, with its year', () {
       final cards = build(
         DateTime(2027, 1, 2, 9),

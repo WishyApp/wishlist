@@ -63,6 +63,15 @@ Wishlist? _christmasWishlist(
   );
 }
 
+/// The only open wishlist, unless its name is that of an occasion (a birthday
+/// of another year, Christmas): the matcher rejected it for a reason.
+Wishlist? _singleOtherList(List<Wishlist> openOwn, List<String> keywords) {
+  if (openOwn.length != 1 || nameHasKeyword(openOwn.single.name, keywords)) {
+    return null;
+  }
+  return openOwn.single;
+}
+
 /// Friends whose birthday is today (`friend_birthday_today`) or within the
 /// largest `reminder_days` of [soon] (`friend_birthday`). The key carries the
 /// year of the next occurrence: on December 20 a birthday on January 3 is the
@@ -139,9 +148,11 @@ List<HomeCardCandidate> afterPartyCards({
   }
   final today = _day(now);
   final daysAfter = definition.intParam('days_after', 7);
-  final birthdayKeywords = definition.params.containsKey('birthday_keywords')
-      ? definition.stringListParam('birthday_keywords')
-      : _defaultBirthdayKeywords;
+  final configuredKeywords = definition.stringListParam('birthday_keywords');
+  final birthdayKeywords = configuredKeywords.isEmpty
+      ? _defaultBirthdayKeywords
+      : configuredKeywords;
+  final christmasKeywords = christmas?.stringListParam('keywords') ?? const [];
   final cards = <HomeCardCandidate>[];
 
   if (myBirthday != null) {
@@ -162,7 +173,10 @@ List<HomeCardCandidate> afterPartyCards({
                     keywords: birthdayKeywords,
                     occasionDate: day,
                   ) ??
-                  (openOwn.length == 1 ? openOwn.single : null),
+                  _singleOtherList(
+                    openOwn,
+                    [...birthdayKeywords, ...christmasKeywords],
+                  ),
             ),
             eventAt: day,
           ),

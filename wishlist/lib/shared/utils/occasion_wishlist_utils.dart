@@ -31,13 +31,7 @@ Wishlist? findOccasionWishlist({
   required String userId,
   required DateTime occasionDate,
 }) {
-  final normalizedKeywords = <String>{};
-  for (final keyword in keywords) {
-    final words = _words(keyword);
-    if (words.length == 1) {
-      normalizedKeywords.add(words.single);
-    }
-  }
+  final normalizedKeywords = _normalizedKeywords(keywords);
   final year = occasionDate.year;
   final shortYear = year % 100;
   final previousShortYear = (year - 1) % 100;
@@ -89,3 +83,21 @@ List<String> _words(String text) => _wordPattern
     .allMatches(normalizeString(text))
     .map((match) => match.group(0)!)
     .toList();
+
+Set<String> _normalizedKeywords(List<String> keywords) {
+  final normalized = <String>{};
+  for (final keyword in keywords) {
+    final words = _words(keyword);
+    if (words.length == 1) {
+      normalized.add(words.single);
+    }
+  }
+  return normalized;
+}
+
+/// Whether one of the words of [name] is one of [keywords], with the same
+/// normalization as [findOccasionWishlist] (the year is not looked at).
+bool nameHasKeyword(String name, List<String> keywords) {
+  final normalized = _normalizedKeywords(keywords);
+  return _words(name).any(normalized.contains);
+}
