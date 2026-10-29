@@ -421,7 +421,8 @@
   },
   "homeCardAfterPartyTitle": "Did you get things from your list?",
   "homeCardAfterPartyAction": "Tick what I received",
-  "homeCardAfterPartyNoList": "Open your list to tick what you received.",
+  "homeCardAfterPartyNoListChristmas": "Christmas is over! Open your list below to mark what you received.",
+  "homeCardAfterPartyNoListBirthday": "Your birthday is over! Open your list below to mark what you received.",
   "homeCardBookedReminderBirthdayOverline": "Reminder · {pseudo}'s birthday is {days, plural, =0{today} =1{tomorrow} other{in {days} days}}",
   "@homeCardBookedReminderBirthdayOverline": {
     "placeholders": {
@@ -472,6 +473,7 @@
   },
   "homeCardRemovedTitleNoPseudo": "A wish you had booked was removed",
   "homeCardRemovedBody": "If you already bought it, you can still give it. If not, their list has other ideas.",
+  "homeCardRemovedBodyNoList": "If you already bought it, you can still give it.",
   "homeCardAcceptedTitle": "{pseudo} accepted your request",
   "@homeCardAcceptedTitle": {
     "placeholders": {

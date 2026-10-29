@@ -171,7 +171,27 @@ void main() {
 
       expect(find.byType(ElevatedButton), findsNothing);
       expect(
-        find.text('Ouvre ta liste pour cocher ce que tu as reçu.'),
+        find.text(
+          'Ton anniversaire est passé ! Ouvre ta liste ci-dessous pour '
+          'marquer ce que tu as reçu.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('after Christmas without a wishlist points to the grid',
+        (tester) async {
+      await pumpCard(
+        tester,
+        card(const AfterParty(AfterPartyOccasion.christmas, 2, null)),
+      );
+
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(
+        find.text(
+          'Noël est passé ! Ouvre ta liste ci-dessous pour marquer ce que '
+          'tu as reçu.',
+        ),
         findsOneWidget,
       );
     });
@@ -262,6 +282,25 @@ void main() {
         tester,
         'Voir sa liste',
         '/friend/$fakeFriendUserId1',
+      );
+    });
+
+    testWidgets('a removed wish without an openable list only informs',
+        (tester) async {
+      await pumpCard(
+        tester,
+        card(BookedWishRemoved(removal(), canOpenList: false)),
+      );
+
+      expect(
+        find.text('Alice a retiré Casque que tu avais réservé'),
+        findsOneWidget,
+      );
+      expect(find.text('Voir sa liste'), findsNothing);
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(
+        find.text("Si tu l'as déjà acheté, tu peux toujours l'offrir."),
+        findsOneWidget,
       );
     });
 

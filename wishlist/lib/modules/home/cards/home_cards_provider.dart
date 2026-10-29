@@ -17,6 +17,7 @@ import 'package:wishlist/shared/infra/repositories/card_state/card_state_reposit
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_repository_provider.dart';
 import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
@@ -24,6 +25,7 @@ import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
+import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
 const _stackKey = 'home_stack';
 const _defaultMaxCards = 3;
@@ -140,6 +142,21 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     },
     const <BookedWishRemoval>[],
   );
+  // The owner's list is only offered while the user is still their friend and
+  // the wishlist is open: their public wishlists are fetched for that, a
+  // failure leaves the alerts without the button.
+  final removalsWithList = removals.isEmpty
+      ? const <int>{}
+      : await _orElse<Set<int>>(
+          'removed wishes lists',
+          () => _loadRemovalsWithOpenList(
+            ref.watch(wishlistRepositoryProvider).getPublicWishlistsByUser,
+            removals,
+            {for (final friend in friends) friend.user.id},
+            now,
+          ),
+          const <int>{},
+        );
   final accepted = friends.isEmpty
       ? const <({AppUser friend, DateTime acceptedAt})>[]
       : await _orElse<List<({AppUser friend, DateTime acceptedAt})>>(
@@ -200,6 +217,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     ...bookedWishRemovedCards(
       removals: removals,
       definition: definitions['booked_wish_removed'],
+      withOpenList: removalsWithList,
     ),
     ...friendAcceptedCards(
       accepted: accepted,
@@ -254,6 +272,27 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     unawaited(_recordOptionalWindow(cardStateRepository));
   }
   return cards;
+}
+
+Future<Set<int>> _loadRemovalsWithOpenList(
+  Future<IList<Wishlist>> Function(String) load,
+  List<BookedWishRemoval> removals,
+  Set<String> friendIds,
+  DateTime now,
+) async {
+  final owners = {
+    for (final removal in removals)
+      if (friendIds.contains(removal.ownerId)) removal.ownerId,
+  };
+  final wishlists = {
+    for (final owner in owners) owner: (await load(owner)).toList(),
+  };
+  return removalsWithOpenList(
+    removals: removals,
+    friendIds: friendIds,
+    publicWishlists: wishlists,
+    now: now,
+  );
 }
 
 Future<List<({AppUser friend, DateTime acceptedAt})>> _loadAccepted(

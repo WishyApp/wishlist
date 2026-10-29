@@ -199,7 +199,11 @@ class HomeCardView extends ConsumerWidget {
               ? l10n.homeCardAfterPartyBirthdayOverline(daysAgo)
               : l10n.homeCardAfterPartyChristmasOverline(daysAgo),
           title: l10n.homeCardAfterPartyTitle,
-          body: wishlist == null ? l10n.homeCardAfterPartyNoList : null,
+          body: wishlist == null
+              ? occasion == AfterPartyOccasion.birthday
+                  ? l10n.homeCardAfterPartyNoListBirthday
+                  : l10n.homeCardAfterPartyNoListChristmas
+              : null,
           actionLabel: wishlist == null ? null : l10n.homeCardAfterPartyAction,
           onAction: wishlist == null
               ? null
@@ -225,7 +229,7 @@ class HomeCardView extends ConsumerWidget {
           ).push(context),
           illustration: Assets.svg.noWishBag,
         );
-      case BookedWishRemoved(:final removal):
+      case BookedWishRemoved(:final removal, :final canOpenList):
         final hasPseudo = removal.ownerPseudo.isNotEmpty;
         return _CardSpec(
           overline: hasPseudo
@@ -238,9 +242,13 @@ class HomeCardView extends ConsumerWidget {
                   removal.wishName,
                 )
               : l10n.homeCardRemovedTitleNoPseudo,
-          body: l10n.homeCardRemovedBody,
-          actionLabel: l10n.homeCardSeeTheirList,
-          onAction: () => FriendDetailsRoute(removal.ownerId).push(context),
+          body: canOpenList
+              ? l10n.homeCardRemovedBody
+              : l10n.homeCardRemovedBodyNoList,
+          actionLabel: canOpenList ? l10n.homeCardSeeTheirList : null,
+          onAction: canOpenList
+              ? () => FriendDetailsRoute(removal.ownerId).push(context)
+              : null,
           illustration: Assets.svg.noWishFlashlight,
         );
       case FriendAccepted(:final friend, :final acceptedAt):

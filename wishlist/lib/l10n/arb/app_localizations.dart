@@ -1784,11 +1784,17 @@ abstract class AppLocalizations {
   /// **'Cocher ce que j\'ai reçu'**
   String get homeCardAfterPartyAction;
 
-  /// No description provided for @homeCardAfterPartyNoList.
+  /// No description provided for @homeCardAfterPartyNoListChristmas.
   ///
   /// In fr, this message translates to:
-  /// **'Ouvre ta liste pour cocher ce que tu as reçu.'**
-  String get homeCardAfterPartyNoList;
+  /// **'Noël est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.'**
+  String get homeCardAfterPartyNoListChristmas;
+
+  /// No description provided for @homeCardAfterPartyNoListBirthday.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ton anniversaire est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.'**
+  String get homeCardAfterPartyNoListBirthday;
 
   /// No description provided for @homeCardBookedReminderBirthdayOverline.
   ///
@@ -1843,6 +1849,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Si tu l\'as déjà acheté, tu peux toujours l\'offrir. Sinon, sa liste a d\'autres idées.'**
   String get homeCardRemovedBody;
+
+  /// No description provided for @homeCardRemovedBodyNoList.
+  ///
+  /// In fr, this message translates to:
+  /// **'Si tu l\'as déjà acheté, tu peux toujours l\'offrir.'**
+  String get homeCardRemovedBodyNoList;
 
   /// No description provided for @homeCardAcceptedTitle.
   ///

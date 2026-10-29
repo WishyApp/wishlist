@@ -58,10 +58,14 @@ final class BookedReminder extends HomeCardContent {
 }
 
 final class BookedWishRemoved extends HomeCardContent {
-  const BookedWishRemoved(this.removal);
+  const BookedWishRemoved(this.removal, {this.canOpenList = true});
 
   /// Carries the pseudo of the owner (empty when they had none).
   final BookedWishRemoval removal;
+
+  /// Whether the owner's list can still be opened: the user is still their
+  /// friend and the wishlist is open. Otherwise the card only informs.
+  final bool canOpenList;
 }
 
 final class FriendAccepted extends HomeCardContent {

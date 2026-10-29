@@ -16,6 +16,8 @@ import 'package:wishlist/shared/infra/repositories/friendship/friendship_reposit
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository.dart';
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_repository.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_repository_provider.dart';
 import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
@@ -35,6 +37,8 @@ class MockCardStateRepository extends Mock implements CardStateRepository {}
 
 class MockBookedWishRemovalRepository extends Mock
     implements BookedWishRemovalRepository {}
+
+class MockWishlistRepository extends Mock implements WishlistRepository {}
 
 HomeCardDefinition def(
   String key,
@@ -289,6 +293,68 @@ void main() {
     final cards = await load();
 
     expect(cards.map((c) => c.type), ['booked_wish_removed']);
+  });
+
+  group('removal alert button', () {
+    late MockWishlistRepository wishlistRepository;
+
+    setUp(() {
+      wishlistRepository = MockWishlistRepository();
+      when(() => removals.watchPending()).thenAnswer(
+        (_) => Stream.value([
+          BookedWishRemoval(
+            id: 1,
+            ownerId: fakeFriendUserId1,
+            ownerPseudo: 'Alice',
+            wishId: 9,
+            wishName: 'Casque',
+            quantity: 1,
+            wishlistName: 'Noël',
+            removedAt: now,
+          ),
+        ]),
+      );
+    });
+
+    Future<bool> canOpenList() async {
+      final cards = await load(
+        extra: [
+          wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+        ],
+      );
+      return (cards.single.content as BookedWishRemoved).canOpenList;
+    }
+
+    test('is offered to a friend whose wishlist is open', () async {
+      when(() => wishlistRepository.getPublicWishlistsByUser(any())).thenAnswer(
+          (_) async => [
+                fakeWishlist1.copyWith(
+                    name: 'Noël', endDate: DateTime(2026, 12, 31),),
+              ].lock,);
+
+      expect(await canOpenList(), isTrue);
+    });
+
+    test('is not offered when the wishlist is closed', () async {
+      when(() => wishlistRepository.getPublicWishlistsByUser(any())).thenAnswer(
+        (_) async => [
+          fakeWishlist1.copyWith(
+            name: 'Noël',
+            endDate: DateTime(2026, 12, 31),
+            isClosed: true,
+          ),
+        ].lock,
+      );
+
+      expect(await canOpenList(), isFalse);
+    });
+
+    test('is not offered when the wishlists cannot be loaded', () async {
+      when(() => wishlistRepository.getPublicWishlistsByUser(any()))
+          .thenThrow(Exception('boom'));
+
+      expect(await canOpenList(), isFalse);
+    });
   });
 
   group('onboarding window', () {

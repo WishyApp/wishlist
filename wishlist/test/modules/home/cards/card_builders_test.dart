@@ -499,6 +499,7 @@ void main() {
       final cards = bookedWishRemovedCards(
         removals: [removal(1), removal(2, ownerPseudo: '')],
         definition: removedDef,
+        withOpenList: {2},
       );
 
       expect(cards.map((c) => c.stateKey), [
@@ -511,13 +512,70 @@ void main() {
         'Alice',
       );
       expect(cards.first.eventAt, DateTime.utc(2026, 10, 29));
+      expect((cards.first.content as BookedWishRemoved).canOpenList, isFalse);
+      expect((cards.last.content as BookedWishRemoved).canOpenList, isTrue);
     });
 
     test('a disabled type gives no card', () {
       expect(
-        bookedWishRemovedCards(removals: [removal(1)], definition: null),
+        bookedWishRemovedCards(
+          removals: [removal(1)],
+          definition: null,
+          withOpenList: {1},
+        ),
         isEmpty,
       );
+    });
+  });
+
+  group('removalsWithOpenList', () {
+    final open = wishlist(1, 'Liste');
+
+    // The public wishlists of the owner, [friend] or not.
+    Set<int> build(List<Wishlist> lists, {bool friend = true}) {
+      return removalsWithOpenList(
+        removals: [removal(1)],
+        friendIds: friend ? const {'owner'} : const {},
+        publicWishlists: {'owner': lists},
+        now: now,
+      );
+    }
+
+    test('a friend with an open wishlist keeps the button', () {
+      expect(build([open]), {1});
+    });
+
+    test('an end date today or later is still open', () {
+      expect(build([open.copyWith(endDate: DateTime(2026, 10, 30))]), {1});
+    });
+
+    test('someone who is no longer a friend loses the button', () {
+      expect(build([open], friend: false), isEmpty);
+    });
+
+    test('a closed wishlist loses the button', () {
+      expect(build([open.copyWith(isClosed: true)]), isEmpty);
+    });
+
+    test('an end date in the past loses the button', () {
+      expect(build([open.copyWith(endDate: DateTime(2026, 10, 29))]), isEmpty);
+    });
+
+    test('a wishlist no longer visible (archived, private) loses it', () {
+      expect(build(const []), isEmpty);
+      expect(
+        removalsWithOpenList(
+          removals: [removal(1)],
+          friendIds: const {'owner'},
+          publicWishlists: const {},
+          now: now,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('another open wishlist is not the one of the wish', () {
+      expect(build([wishlist(2, 'Autre')]), isEmpty);
     });
   });
 

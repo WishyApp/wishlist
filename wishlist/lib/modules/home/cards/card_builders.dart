@@ -233,10 +233,41 @@ List<HomeCardCandidate> bookedReminderCards({
   return cards;
 }
 
-/// One alert per wish a friend removed after the user booked it.
+/// The ids of the [removals] whose owner's list can still be opened: the owner
+/// is still one of [friendIds] and [publicWishlists] (by owner id) holds an
+/// open wishlist with the name the wish had. Closed, past its end date, or
+/// absent (archived, deleted, no longer public) means not open.
+Set<int> removalsWithOpenList({
+  required List<BookedWishRemoval> removals,
+  required Set<String> friendIds,
+  required Map<String, List<Wishlist>> publicWishlists,
+  required DateTime now,
+}) {
+  final today = _day(now);
+  bool isOpen(Wishlist wishlist) {
+    final end = wishlist.endDate?.toLocal();
+    return !wishlist.isClosed &&
+        (end == null ||
+            !DateTime(end.year, end.month, end.day).isBefore(today));
+  }
+
+  return {
+    for (final removal in removals)
+      if (friendIds.contains(removal.ownerId) &&
+          (publicWishlists[removal.ownerId] ?? const []).any(
+            (wishlist) =>
+                wishlist.name == removal.wishlistName && isOpen(wishlist),
+          ))
+        removal.id,
+  };
+}
+
+/// One alert per wish a friend removed after the user booked it. The alert
+/// offers the owner's list only for the ids of [withOpenList].
 List<HomeCardCandidate> bookedWishRemovedCards({
   required List<BookedWishRemoval> removals,
   required HomeCardDefinition? definition,
+  required Set<int> withOpenList,
 }) {
   if (definition == null) {
     return const [];
@@ -246,7 +277,10 @@ List<HomeCardCandidate> bookedWishRemovedCards({
       HomeCardCandidate(
         type: definition.key,
         stateKey: cardKey(definition.key, id: removal.id),
-        content: BookedWishRemoved(removal),
+        content: BookedWishRemoved(
+          removal,
+          canOpenList: withOpenList.contains(removal.id),
+        ),
         eventAt: removal.removedAt,
       ),
   ];

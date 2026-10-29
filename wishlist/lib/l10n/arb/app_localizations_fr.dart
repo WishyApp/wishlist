@@ -1066,8 +1066,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeCardAfterPartyAction => 'Cocher ce que j\'ai reçu';
 
   @override
-  String get homeCardAfterPartyNoList =>
-      'Ouvre ta liste pour cocher ce que tu as reçu.';
+  String get homeCardAfterPartyNoListChristmas =>
+      'Noël est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.';
+
+  @override
+  String get homeCardAfterPartyNoListBirthday =>
+      'Ton anniversaire est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.';
 
   @override
   String homeCardBookedReminderBirthdayOverline(String pseudo, int days) {
@@ -1121,6 +1125,10 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get homeCardRemovedBody =>
       'Si tu l\'as déjà acheté, tu peux toujours l\'offrir. Sinon, sa liste a d\'autres idées.';
+
+  @override
+  String get homeCardRemovedBodyNoList =>
+      'Si tu l\'as déjà acheté, tu peux toujours l\'offrir.';
 
   @override
   String homeCardAcceptedTitle(String pseudo) {

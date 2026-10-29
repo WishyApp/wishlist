@@ -438,7 +438,8 @@
   },
   "homeCardAfterPartyTitle": "Tu as reçu des choses de ta liste ?",
   "homeCardAfterPartyAction": "Cocher ce que j'ai reçu",
-  "homeCardAfterPartyNoList": "Ouvre ta liste pour cocher ce que tu as reçu.",
+  "homeCardAfterPartyNoListChristmas": "Noël est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.",
+  "homeCardAfterPartyNoListBirthday": "Ton anniversaire est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.",
   "homeCardBookedReminderBirthdayOverline": "Rappel · {pseudo} fête son anniversaire {days, plural, =0{aujourd'hui} =1{demain} other{dans {days} jours}}",
   "@homeCardBookedReminderBirthdayOverline": {
     "placeholders": {
@@ -489,6 +490,7 @@
   },
   "homeCardRemovedTitleNoPseudo": "Un wish que tu avais réservé a été retiré",
   "homeCardRemovedBody": "Si tu l'as déjà acheté, tu peux toujours l'offrir. Sinon, sa liste a d'autres idées.",
+  "homeCardRemovedBodyNoList": "Si tu l'as déjà acheté, tu peux toujours l'offrir.",
   "homeCardAcceptedTitle": "{pseudo} a accepté ta demande",
   "@homeCardAcceptedTitle": {
     "placeholders": {
