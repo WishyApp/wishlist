@@ -1,10 +1,12 @@
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
 import 'package:wishlist/modules/home/view/widgets/cards/home_card_view.dart';
 import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository.dart';
 import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository_provider.dart';
@@ -86,6 +88,7 @@ void main() {
     WidgetTester tester,
     HomeCardCandidate candidate, {
     WindowConfigData? windowConfig,
+    List<Override> overrides = const [],
   }) async {
     await tester.pumpRouterApp(
       '/card',
@@ -121,6 +124,7 @@ void main() {
         watchWishsFromWishlistProvider.overrideWith(
           (ref, id) => Stream.value(fakeWishes.toIList()),
         ),
+        ...overrides,
       ],
     );
     await tester.pumpAndSettle();
@@ -471,6 +475,37 @@ void main() {
         '/wishlist/${fakeWishlist1.id}',
       );
       expect(hidden, 0);
+    });
+
+    testWidgets('coming back from the wishlist reloads the cards',
+        (tester) async {
+      var loads = 0;
+      await pumpCard(
+        tester,
+        card(StaleWishlist(fakeWishlist1, 3)),
+        overrides: [
+          homeCardsProvider.overrideWith((ref) async {
+            loads++;
+            return const [];
+          }),
+        ],
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.text('La revoir')),
+      );
+      final subscription = container.listen(homeCardsProvider, (_, __) {});
+      addTearDown(subscription.close);
+      await tester.pumpAndSettle();
+      final before = loads;
+
+      await tester.tap(find.text('La revoir'));
+      await tester.pumpAndSettle();
+      expect(loads, before);
+
+      Navigator.of(tester.element(find.text('at /wishlist/1'))).pop();
+      await tester.pumpAndSettle();
+
+      expect(loads, before + 1);
     });
 
     testWidgets('the year recap shows the numbers on a dark card',
