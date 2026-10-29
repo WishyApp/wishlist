@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
@@ -142,9 +143,6 @@ class SocialSignInClient {
   /// interrupted, no UI to show it, no Apple ID signed in on the device), as
   /// opposed to a misconfiguration.
   static bool isUserSideFailure(Object error) {
-    if (isSafariUnavailable(error)) {
-      return true;
-    }
     return switch (error) {
       GoogleSignInException(:final code) => const [
           GoogleSignInExceptionCode.canceled,
@@ -159,19 +157,32 @@ class SocialSignInClient {
     };
   }
 
-  /// Whether a failed sign-in is worth a Sentry report: mostly a
-  /// misconfigured provider or client ID. Not a lost connection, a passing
-  /// server error (5xx, WISHY-6) or a sheet the user closed.
-  static bool isWorthReporting(Object error) =>
-      !isNetworkError(error) &&
-      error is! AuthRetryableFetchException &&
-      !isUserSideFailure(error);
+  /// Sentry level of a failed sign-in, null when it is not reported: a sheet
+  /// the user closed or a lost connection. A warning for a known cause that
+  /// one occurrence does not make a bug, but that must stay visible if it
+  /// lasts or spreads: Safari unavailable (WISHY-2), a 502/503/504 (WISHY-6).
+  /// An error otherwise, mostly a misconfigured provider or client ID.
+  static SentryLevel? sentryLevelOf(Object error) {
+    if (isNetworkError(error) || isUserSideFailure(error)) {
+      return null;
+    }
+    if (isSafariUnavailable(error) || isTransientServerError(error)) {
+      return SentryLevel.warning;
+    }
+    return SentryLevel.error;
+  }
 
   /// Whether the Google sheet could not open on iOS: it runs in an
   /// `ASWebAuthenticationSession`, which refuses to start when Safari is
   /// blocked (Screen Time) or Guided Access is on (WISHY-2, seen on an Apple
-  /// test device). The plugin only reports AppAuth's message.
-  static bool isSafariUnavailable(Object error) =>
+  /// test device).
+  ///
+  /// Only the text tells this case apart: AppAuth's
+  /// `OIDErrorCodeSafariOpenError` reaches Dart as `unknownError`, with nothing
+  /// but `NSLocalizedDescription` in the details (google_sign_in_ios 6.3.8).
+  /// If a plugin update rewords it, the generic error is back and the Sentry
+  /// level goes back to error.
+  static bool isSafariUnavailable(Object? error) =>
       error is GoogleSignInException &&
       error.code == GoogleSignInExceptionCode.unknownError &&
       (error.description?.contains('Unable to open Safari') ?? false);

@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
@@ -160,46 +163,91 @@ void main() {
     });
   });
 
-  group('SocialSignInClient.isWorthReporting', () {
-    test('reports a misconfiguration', () {
+  group('SocialSignInClient.sentryLevelOf', () {
+    const safariUnavailable = GoogleSignInException(
+      code: GoogleSignInExceptionCode.unknownError,
+      description: 'Unable to open Safari.',
+      details: {'NSLocalizedDescription': 'Unable to open Safari.'},
+    );
+
+    test('reports a misconfiguration as an error', () {
       expect(
-        SocialSignInClient.isWorthReporting(
+        SocialSignInClient.sentryLevelOf(
           const GoogleSignInException(
             code: GoogleSignInExceptionCode.clientConfigurationError,
           ),
         ),
-        isTrue,
+        SentryLevel.error,
       );
       expect(
-        SocialSignInClient.isWorthReporting(
+        SocialSignInClient.sentryLevelOf(
           const AuthApiException('Bad ID token', statusCode: '400'),
         ),
-        isTrue,
+        SentryLevel.error,
       );
     });
 
-    test('skips a passing server error or a lost connection', () {
+    test('reports a 502, 503 or 504 as a warning', () {
+      for (final status in ['502', '503', '504']) {
+        expect(
+          SocialSignInClient.sentryLevelOf(
+            AuthRetryableFetchException(statusCode: status),
+          ),
+          SentryLevel.warning,
+          reason: status,
+        );
+      }
+    });
+
+    test('reports another 5xx as an error', () {
       expect(
-        SocialSignInClient.isWorthReporting(
-          AuthRetryableFetchException(statusCode: '504'),
+        SocialSignInClient.sentryLevelOf(
+          AuthRetryableFetchException(statusCode: '500'),
         ),
-        isFalse,
-      );
-      expect(
-        SocialSignInClient.isWorthReporting(AuthRetryableFetchException()),
-        isFalse,
+        SentryLevel.error,
       );
     });
 
-    test('skips a closed sheet and Safari unavailable', () {
+    test('reports Safari unavailable as a warning', () {
       expect(
-        SocialSignInClient.isWorthReporting(
-          const GoogleSignInException(
-            code: GoogleSignInExceptionCode.unknownError,
-            description: 'Unable to open Safari.',
+        SocialSignInClient.sentryLevelOf(safariUnavailable),
+        SentryLevel.warning,
+      );
+    });
+
+    test('skips a lost connection', () {
+      for (final error in <Object>[
+        AuthRetryableFetchException(),
+        const SocketException('Network is unreachable'),
+        TimeoutException('No event received'),
+      ]) {
+        expect(
+          SocialSignInClient.sentryLevelOf(error),
+          isNull,
+          reason: '$error',
+        );
+      }
+    });
+
+    test('skips a closed or interrupted sheet', () {
+      for (final code in [
+        GoogleSignInExceptionCode.canceled,
+        GoogleSignInExceptionCode.interrupted,
+      ]) {
+        expect(
+          SocialSignInClient.sentryLevelOf(GoogleSignInException(code: code)),
+          isNull,
+          reason: '$code',
+        );
+      }
+      expect(
+        SocialSignInClient.sentryLevelOf(
+          const SignInWithAppleAuthorizationException(
+            code: AuthorizationErrorCode.canceled,
+            message: '',
           ),
         ),
-        isFalse,
+        isNull,
       );
     });
   });
@@ -212,7 +260,6 @@ void main() {
       );
 
       expect(SocialSignInClient.isSafariUnavailable(error), isTrue);
-      expect(SocialSignInClient.isUserSideFailure(error), isTrue);
     });
 
     test('is false for another unknown Google error', () {
@@ -222,7 +269,6 @@ void main() {
       );
 
       expect(SocialSignInClient.isSafariUnavailable(error), isFalse);
-      expect(SocialSignInClient.isUserSideFailure(error), isFalse);
     });
   });
 

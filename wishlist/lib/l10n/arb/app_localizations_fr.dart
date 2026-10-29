@@ -62,7 +62,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get googleSignInSafariUnavailable =>
-      'La connexion avec Google a besoin de Safari, qui n\'est pas disponible sur cet appareil. Connecte-toi avec ton email ou avec Apple.';
+      'La connexion avec Google a besoin de Safari, qui n\'est pas disponible sur cet appareil. Connectez-vous avec votre email ou avec Apple.';
 
   @override
   String get invalidLoginCredentials => 'Identifiants de connexion invalides';
