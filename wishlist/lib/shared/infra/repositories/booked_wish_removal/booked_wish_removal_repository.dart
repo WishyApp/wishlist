@@ -6,7 +6,9 @@ abstract class BookedWishRemovalRepository {
   /// after each (re)subscription of the Realtime channel.
   Stream<List<BookedWishRemoval>> watchPending();
 
-  /// Closes the alert [id] (sets `dismissed_at`).
+  /// Closes the alert [id] (server function, which sets `dismissed_at`), then
+  /// reloads the pending stream so that the alert goes even if Realtime is
+  /// down.
   Future<void> dismiss(int id);
 
   /// Releases the Realtime channel and the streams.

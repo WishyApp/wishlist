@@ -3,11 +3,12 @@ import 'package:wishlist/shared/models/booked_wish_removal.dart';
 
 void main() {
   group('BookedWishRemoval.fromRow', () {
-    test('reads the seven fields, removed_at in UTC', () {
+    test('reads the eight fields, removed_at in UTC', () {
       final removal = BookedWishRemoval.fromRow(const {
         'id': 42,
         'booker_id': 'booker',
         'owner_id': 'owner',
+        'owner_pseudo': 'Lea',
         'wish_id': 7,
         'wish_name': 'Board game',
         'quantity': 2,
@@ -18,6 +19,7 @@ void main() {
 
       expect(removal.id, 42);
       expect(removal.ownerId, 'owner');
+      expect(removal.ownerPseudo, 'Lea');
       expect(removal.wishId, 7);
       expect(removal.wishName, 'Board game');
       expect(removal.quantity, 2);

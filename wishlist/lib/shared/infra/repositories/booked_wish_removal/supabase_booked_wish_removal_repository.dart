@@ -12,6 +12,11 @@ class SupabaseBookedWishRemovalRepository
   final SupabaseClient _client;
   static const _tableName = 'booked_wish_removals';
 
+  /// Reloads the pending list of the open stream, if any (set when the channel
+  /// is built, which happens when the stream is created).
+  Future<void> Function([Future<List<BookedWishRemoval>> Function()?])?
+      _reloadPending;
+
   late final _streams = KeyedRealtimeStreams(
     logTag: 'booked_wish_removals',
     isSocketConnected: () => _client.realtime.isConnected,
@@ -64,22 +69,29 @@ class SupabaseBookedWishRemovalRepository
     return _streams.watch<List<BookedWishRemoval>>(
       'pending_$currentUserId',
       load: _fetchPending,
-      channelBuilder: (reload) => _buildChannel(currentUserId, reload),
+      channelBuilder: (reload) {
+        _reloadPending = reload;
+        return _buildChannel(currentUserId, reload);
+      },
     );
   }
 
   @override
-  Future<void> dismiss(int id) {
-    return executeSafely(
+  Future<void> dismiss(int id) async {
+    await executeSafely(
       () async {
-        await _client.from(_tableName).update({
-          'dismissed_at': DateTime.now().toUtc().toIso8601String(),
-        }).eq('id', id);
+        // The server sets dismissed_at (no UPDATE privilege on the table).
+        await _client.rpc('dismiss_booked_wish_removal', params: {'p_id': id});
       },
       errorMessage: 'Failed to dismiss the removed booked wish',
     );
+    // Reload now: the card must go even if the Realtime channel is down.
+    await _reloadPending?.call();
   }
 
   @override
-  Future<void> dispose() => _streams.dispose();
+  Future<void> dispose() {
+    _reloadPending = null;
+    return _streams.dispose();
+  }
 }

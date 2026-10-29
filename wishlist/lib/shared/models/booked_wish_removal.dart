@@ -9,6 +9,7 @@ class BookedWishRemoval {
   const BookedWishRemoval({
     required this.id,
     required this.ownerId,
+    required this.ownerPseudo,
     required this.wishId,
     required this.wishName,
     required this.quantity,
@@ -22,6 +23,7 @@ class BookedWishRemoval {
     return BookedWishRemoval(
       id: row['id'] as int,
       ownerId: row['owner_id'] as String,
+      ownerPseudo: row['owner_pseudo'] as String,
       wishId: row['wish_id'] as int,
       wishName: row['wish_name'] as String,
       quantity: row['quantity'] as int,
@@ -32,6 +34,11 @@ class BookedWishRemoval {
 
   final int id;
   final String ownerId;
+
+  /// Pseudo of the owner when the wish was removed, copied into the row: the
+  /// booker may no longer be allowed to read the owner's profile. Empty when
+  /// the owner had none.
+  final String ownerPseudo;
 
   /// Id of the removed wish. It no longer exists: do not look it up.
   final int wishId;
@@ -47,6 +54,7 @@ class BookedWishRemoval {
       other is BookedWishRemoval &&
       other.id == id &&
       other.ownerId == ownerId &&
+      other.ownerPseudo == ownerPseudo &&
       other.wishId == wishId &&
       other.wishName == wishName &&
       other.quantity == quantity &&
@@ -57,6 +65,7 @@ class BookedWishRemoval {
   int get hashCode => Object.hash(
         id,
         ownerId,
+        ownerPseudo,
         wishId,
         wishName,
         quantity,
