@@ -897,7 +897,9 @@ void main() {
       );
       when(() => completedRepository.getCompletedWishesByUser(any()))
           .thenAnswer((_) async {
-        if (!recapAsked.isCompleted) recapAsked.complete();
+        if (!recapAsked.isCompleted) {
+          recapAsked.complete();
+        }
         return [
           received(DateTime(2026, 3, 4), createdAt: DateTime(2024, 6, 2)),
           received(DateTime(2026, 8, 9)),

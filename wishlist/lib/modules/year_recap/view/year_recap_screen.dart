@@ -10,10 +10,10 @@ import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/page_layout_error/page_layout_error.dart';
-import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 
 /// The page behind the card "Ton année Wishy". It works out its facts again

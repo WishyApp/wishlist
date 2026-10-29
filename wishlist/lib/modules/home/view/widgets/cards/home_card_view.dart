@@ -7,7 +7,6 @@ import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/friends/view/widgets/add_friend_bottom_sheet.dart';
 import 'package:wishlist/modules/home/cards/home_card_actions.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
-import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
