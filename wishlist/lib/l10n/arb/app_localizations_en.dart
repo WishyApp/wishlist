@@ -783,13 +783,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String wishesCompletedSnackBar(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Added to your completed wishes!',
-      one: 'Added to your completed wishes!',
-    );
-    return '$_temp0';
+    return 'Added to your completed wishes!';
   }
 
   @override

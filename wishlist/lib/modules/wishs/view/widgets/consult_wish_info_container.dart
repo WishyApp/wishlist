@@ -8,6 +8,7 @@ import 'package:wishlist/modules/completed_wishes/view/widgets/wishes_completed_
 import 'package:wishlist/modules/wishs/view/widgets/consult_box_shadow.dart';
 import 'package:wishlist/modules/wishs/view/widgets/scrollable_content_with_indicator.dart';
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
+import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/wish_taken_by_user_service.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
@@ -141,12 +142,29 @@ class ConsultWishInfoContainer extends ConsumerWidget {
       return;
     }
 
+    // Relue après le dialog : le wish a pu être complété ailleurs pendant
+    // qu'il était ouvert, et la quantité ne doit pas dépasser celle du wish.
+    // Les réceptions du propriétaire (moi) : celles que l'écran écoute
+    final currentUserId = ref.read(currentUserIdProvider);
+    final receipts = currentUserId == null
+        ? null
+        : ref
+            .read(completedWishesByUserRealtimeProvider(currentUserId))
+            .valueOrNull;
+    final alreadyCompletedQuantity = receipts == null
+        ? completedQuantity
+        : receipts.where((c) => c.wish.id == wish.id).firstOrNull?.quantity ??
+            0;
+    if (alreadyCompletedQuantity >= wish.quantity) {
+      return;
+    }
+
     if (needsQuantity) {
       final confirmed = await showCompleteWishQuantityDialog(
         context,
         ref,
         wish: wish,
-        alreadyCompletedQuantity: completedQuantity,
+        alreadyCompletedQuantity: alreadyCompletedQuantity,
         completedAt: completedAt,
       );
       if (!confirmed || !context.mounted) {

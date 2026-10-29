@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:wishlist/shared/theme/colors.dart';
@@ -19,7 +20,8 @@ Future<DateTime?> showCompletionDateDialog(
   String? wishName,
   DateTime? initialValue,
 }) async {
-  final now = DateTime.now();
+  // clock, not DateTime: tests fix the day
+  final now = clock.now();
   var selected = PastDatePicker.clampDay(initialValue ?? now, now: now);
   DateTime? confirmed;
 

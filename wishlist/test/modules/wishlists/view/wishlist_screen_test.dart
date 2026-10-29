@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:adaptive_test/adaptive_test.dart';
+import 'package:clock/clock.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -42,6 +43,10 @@ import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
 import '../../../fixtures/mock_supabase.dart';
 import '../../../pump_app.dart';
+
+/// The day the completion tests run on, read by the date dialog from the clock
+final _completionDay = DateTime(2026, 3, 5);
+final _lateOnCompletionDay = DateTime(2026, 3, 5, 23, 59, 59);
 
 class _MockUserCompletedWishRepository extends Mock
     implements UserCompletedWishRepository {}
@@ -703,7 +708,12 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 1));
     await tester.longPress(find.text(fakeWish1.name));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.check_circle_outline));
+    // The dialog takes the day from the clock: late, to catch a test that
+    // would read the real time
+    await withClock(
+      Clock.fixed(_lateOnCompletionDay),
+      () => tester.tap(find.byIcon(Icons.check_circle_outline)),
+    );
     await tester.pumpAndSettle();
 
     // The day is asked first, for the one selected wish, named
@@ -720,7 +730,6 @@ void main() {
     );
 
     // Today, picked by default
-    final now = DateTime.now();
     await tester.tap(
       find.descendant(
         of: find.byType(AlertDialog),
@@ -737,7 +746,7 @@ void main() {
         wishId: fakeWish1.id,
         fromWishlistId: fakeWishlist1.id,
         quantity: 1,
-        completedAt: DateTime(now.year, now.month, now.day),
+        completedAt: _completionDay,
       ),
     ).called(1);
     expect(find.text(l10n.wishesCompletedSnackBar(1)), findsOneWidget);
@@ -781,7 +790,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text(l10n.wishlistSelectAll));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.check_circle_outline));
+    // The dialog takes the day from the clock: late, to catch a test that
+    // would read the real time
+    await withClock(
+      Clock.fixed(_lateOnCompletionDay),
+      () => tester.tap(find.byIcon(Icons.check_circle_outline)),
+    );
     await tester.pumpAndSettle();
 
     // A quantity follows: the day dialog continues
@@ -793,8 +807,6 @@ void main() {
       ),
       findsWidgets,
     );
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
     await tester.tap(
       find.descendant(
         of: find.byType(AlertDialog),
@@ -828,7 +840,7 @@ void main() {
           wishId: wish.id,
           fromWishlistId: fakeWishlist1.id,
           quantity: quantity,
-          completedAt: today,
+          completedAt: _completionDay,
         ),
       ).called(1);
     }

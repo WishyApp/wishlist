@@ -3,8 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:wishlist/shared/models/birthday.dart';
-import 'package:wishlist/shared/theme/colors.dart';
-import 'package:wishlist/shared/theme/text_styles.dart';
+import 'package:wishlist/shared/widgets/wheel_picker_style.dart';
 
 /// Two wheels, day then month, to pick a birthday without a year.
 ///
@@ -95,60 +94,46 @@ class _BirthdayPickerState extends State<BirthdayPicker> {
     final locale = Localizations.localeOf(context).toString();
     final monthFormat = DateFormat.MMMM(locale);
 
-    // The wheels take their text style from the Cupertino theme, which
-    // defaults to the platform font: use the app's instead.
-    return CupertinoTheme(
-      data: CupertinoTheme.of(context).copyWith(
-        textTheme: CupertinoTextThemeData(
-          pickerTextStyle: AppTextStyles.large.copyWith(
-            color: AppColors.darkGrey,
-          ),
-        ),
-      ),
-      child: _buildWheels(monthFormat),
-    );
+    return WheelPickerStyle(child: _buildWheels(monthFormat));
   }
 
   Widget _buildWheels(DateFormat monthFormat) {
-    return SizedBox(
-      height: 180,
-      child: Row(
-        children: [
-          Expanded(
-            // A new wheel for each controller (see _onMonthChanged)
-            child: KeyedSubtree(
-              key: ValueKey(_dayController),
-              child: CupertinoPicker(
-                key: const ValueKey('birthday-day-picker'),
-                scrollController: _dayController,
-                itemExtent: _itemExtent,
-                looping: true,
-                onSelectedItemChanged: _onDayChanged,
-                children: [
-                  for (var day = 1; day <= Birthday.daysInMonth(_month); day++)
-                    Center(child: Text('$day')),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
+    return Row(
+      children: [
+        Expanded(
+          // A new wheel for each controller (see _onMonthChanged)
+          child: KeyedSubtree(
+            key: ValueKey(_dayController),
             child: CupertinoPicker(
-              key: const ValueKey('birthday-month-picker'),
-              scrollController: _monthController,
+              key: const ValueKey('birthday-day-picker'),
+              scrollController: _dayController,
               itemExtent: _itemExtent,
               looping: true,
-              onSelectedItemChanged: _onMonthChanged,
+              onSelectedItemChanged: _onDayChanged,
               children: [
-                for (var month = 1; month <= 12; month++)
-                  Center(
-                    child: Text(monthFormat.format(DateTime(2024, month))),
-                  ),
+                for (var day = 1; day <= Birthday.daysInMonth(_month); day++)
+                  Center(child: Text('$day')),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          flex: 2,
+          child: CupertinoPicker(
+            key: const ValueKey('birthday-month-picker'),
+            scrollController: _monthController,
+            itemExtent: _itemExtent,
+            looping: true,
+            onSelectedItemChanged: _onMonthChanged,
+            children: [
+              for (var month = 1; month <= 12; month++)
+                Center(
+                  child: Text(monthFormat.format(DateTime(2024, month))),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
