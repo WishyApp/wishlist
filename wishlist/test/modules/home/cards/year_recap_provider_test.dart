@@ -1,14 +1,18 @@
 import 'dart:async';
 
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
+import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/received_wishes_summary_provider.dart';
 import 'package:wishlist/shared/infra/repositories/year_recap/year_recap_repository_provider.dart';
+import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/received_wishes_summary/received_wishes_summary.dart';
 import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 
+import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
 import '../../../fixtures/fake_year_recap.dart';
 
@@ -20,13 +24,15 @@ void main() {
   });
 
   ProviderContainer containerWith(
-    Stream<ReceivedWishesSummary> summaries,
-  ) {
+    Stream<ReceivedWishesSummary> summaries, {
+    Stream<IList<BookedWishWithDetails>> bookings = const Stream.empty(),
+  }) {
     final container = ProviderContainer(
       overrides: [
         supabaseClientOverride(),
         yearRecapRepositoryProvider.overrideWithValue(repository),
         receivedWishesSummaryProvider.overrideWith((ref) => summaries),
+        bookedWishesRealtimeProvider.overrideWith((ref) => bookings),
       ],
     );
     addTearDown(container.dispose);
@@ -81,6 +87,66 @@ void main() {
     final second = await container.read(yearRecapFactsProvider(2026).future);
     expect(second.stats.received, 2);
     subscription.close();
+  });
+
+  test('a booking received by its owner loads the recap again', () async {
+    var offered = 0;
+    when(() => repository.getMyYearRecap(any())).thenAnswer(
+      (_) async => fakeYearRecap(stats: YearRecapStats(offered: offered)),
+    );
+    final bookings = StreamController<IList<BookedWishWithDetails>>();
+    addTearDown(bookings.close);
+    bookings.add([fakeBookedWish1].toIList());
+    final container =
+        containerWith(const Stream.empty(), bookings: bookings.stream);
+    final subscription = container.listen(
+      yearRecapFactsProvider(2026),
+      (_, __) {},
+    );
+    final first = await container.read(yearRecapFactsProvider(2026).future);
+    expect(first.stats.offered, 0);
+
+    offered = 1;
+    bookings.add(
+      [fakeBookedWish1.copyWith(receivedAt: DateTime(2026, 5, 6))].toIList(),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final second = await container.read(yearRecapFactsProvider(2026).future);
+    expect(second.stats.offered, 1);
+    subscription.close();
+  });
+
+  test('a booking that did not change does not load the recap again', () async {
+    when(() => repository.getMyYearRecap(any()))
+        .thenAnswer((_) async => fakeYearRecap());
+    final bookings = StreamController<IList<BookedWishWithDetails>>();
+    addTearDown(bookings.close);
+    bookings.add([fakeBookedWish1].toIList());
+    final container =
+        containerWith(const Stream.empty(), bookings: bookings.stream);
+    // The first value is there before the recap loads
+    final bookingsSubscription = container.listen(
+      bookedWishesRealtimeProvider,
+      (_, __) {},
+    );
+    await container.read(bookedWishesRealtimeProvider.future);
+    final subscription = container.listen(
+      yearRecapFactsProvider(2026),
+      (_, __) {},
+    );
+    await container.read(yearRecapFactsProvider(2026).future);
+
+    // A rename of the list, for instance: nothing about the receipts
+    bookings.add(
+      [fakeBookedWish1.copyWith(wishlistName: 'Autre')].toIList(),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await container.read(yearRecapFactsProvider(2026).future);
+
+    verify(() => repository.getMyYearRecap(2026)).called(1);
+    subscription.close();
+    bookingsSubscription.close();
   });
 
   test('a summary that did not change does not load the recap again', () async {

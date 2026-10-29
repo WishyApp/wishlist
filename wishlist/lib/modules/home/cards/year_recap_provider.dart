@@ -1,4 +1,6 @@
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/received_wishes_summary_provider.dart';
 import 'package:wishlist/shared/infra/repositories/year_recap/year_recap_repository_provider.dart';
@@ -9,7 +11,7 @@ import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 /// share image. Only read in the month of the recap (see `homeCardsProvider`)
 /// and by the recap page. It is read again when the count or the latest day of
 /// the received wishes changes (`receivedWishesSummaryProvider`, already live
-/// on the home screen).
+/// on the home screen) and when a booking of the user gets received.
 final yearRecapFactsProvider =
     FutureProvider.autoDispose.family<YearRecapData, int>((ref, year) async {
   // Only to start again for another user
@@ -21,6 +23,15 @@ final yearRecapFactsProvider =
         summary.valueOrNull?.count,
         summary.valueOrNull?.latestCompletedAt,
       ),
+    ),
+  );
+  // The gifts the user offered count too: they are read again when one of
+  // their bookings gets received. A trigger as well, it cannot fail the recap.
+  ref.watch(
+    bookedWishesRealtimeProvider.select(
+      (bookings) => bookings.valueOrNull
+          ?.map((booking) => (booking.wish.id, booking.receivedAt))
+          .toIList(),
     ),
   );
   return ref.watch(yearRecapRepositoryProvider).getMyYearRecap(year);
