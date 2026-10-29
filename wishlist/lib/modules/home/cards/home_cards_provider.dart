@@ -78,7 +78,8 @@ final homeCardsProvider =
 });
 
 Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
-  if (ref.watch(currentUserIdProvider) == null) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) {
     return const [];
   }
   final now = ref.watch(clockProvider)();
@@ -185,6 +186,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     ...afterPartyCards(
       myBirthday: myBirthday,
       wishlists: wishlists,
+      userId: userId,
       definition: definitions['after_party'],
       christmas: definitions['christmas'],
       now: now,
@@ -206,6 +208,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     ),
     ...christmasCards(
       wishlists: wishlists,
+      userId: userId,
       definition: definitions['christmas'],
       now: now,
     ),

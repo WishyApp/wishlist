@@ -184,6 +184,7 @@ void main() {
       return afterPartyCards(
         myBirthday: mine,
         wishlists: wishlists,
+        userId: fakeCurrentUserId,
         definition: definition ?? afterPartyDef,
         christmas: christmasDef,
         now: at,
@@ -305,6 +306,7 @@ void main() {
       final cards = afterPartyCards(
         myBirthday: const Birthday(month: 10, day: 29),
         wishlists: const [],
+        userId: fakeCurrentUserId,
         definition: null,
         christmas: christmasDef,
         now: now,
@@ -560,6 +562,7 @@ void main() {
     ]) {
       return christmasCards(
         wishlists: wishlists,
+        userId: fakeCurrentUserId,
         definition: christmasDef,
         now: at,
       );
@@ -609,10 +612,22 @@ void main() {
       expect((missing.single.content as Christmas).wishlist, isNull);
     });
 
+    test('a Christmas wishlist of another user is ignored', () {
+      final cards = christmasCards(
+        wishlists: [wishlist(2, 'Noël 2026')],
+        userId: 'someone-else',
+        definition: christmasDef,
+        now: DateTime(2026, 12, 1, 9),
+      );
+
+      expect((cards.single.content as Christmas).wishlist, isNull);
+    });
+
     test('a disabled type gives no card', () {
       expect(
         christmasCards(
           wishlists: const [],
+          userId: fakeCurrentUserId,
           definition: null,
           now: DateTime(2026, 12),
         ),
@@ -803,6 +818,7 @@ void main() {
       final at = DateTime(2026, 12, 5, 9);
       final cards = christmasCards(
         wishlists: const [],
+        userId: fakeCurrentUserId,
         definition: christmasDef,
         now: at,
       );

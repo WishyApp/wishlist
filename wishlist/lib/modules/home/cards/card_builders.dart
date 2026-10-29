@@ -48,11 +48,13 @@ int _maxReminderDays(HomeCardDefinition definition) {
 
 Wishlist? _christmasWishlist(
   List<Wishlist> wishlists,
+  String userId,
   HomeCardDefinition? christmas,
   DateTime occasionDate,
 ) {
   return findOccasionWishlist(
     wishlists: wishlists,
+    userId: userId,
     keywords: christmas?.stringListParam('keywords') ?? const [],
     occasionDate: occasionDate,
   );
@@ -114,6 +116,7 @@ List<HomeCardCandidate> friendBirthdayCards({
 List<HomeCardCandidate> afterPartyCards({
   required Birthday? myBirthday,
   required List<Wishlist> wishlists,
+  required String userId,
   required HomeCardDefinition? definition,
   required HomeCardDefinition? christmas,
   required DateTime now,
@@ -158,7 +161,7 @@ List<HomeCardCandidate> afterPartyCards({
           content: AfterParty(
             AfterPartyOccasion.christmas,
             ago,
-            _christmasWishlist(wishlists, christmas, christmasDay),
+            _christmasWishlist(wishlists, userId, christmas, christmasDay),
           ),
           eventAt: christmasDay,
         ),
@@ -274,6 +277,7 @@ List<HomeCardCandidate> friendAcceptedCards({
 /// From the largest `reminder_days` before Christmas to the day itself.
 List<HomeCardCandidate> christmasCards({
   required List<Wishlist> wishlists,
+  required String userId,
   required HomeCardDefinition? definition,
   required DateTime now,
 }) {
@@ -292,7 +296,7 @@ List<HomeCardCandidate> christmasCards({
       stateKey: cardKey(definition.key, year: christmasDay.year),
       content: Christmas(
         days,
-        _christmasWishlist(wishlists, definition, christmasDay),
+        _christmasWishlist(wishlists, userId, definition, christmasDay),
       ),
       tone: definition.isHighlighted(eventOn: christmasDay, now: now)
           ? HomeCardTone.highlighted
