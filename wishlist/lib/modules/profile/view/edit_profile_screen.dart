@@ -76,11 +76,15 @@ class EditProfileScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    const Gap(16),
-                    Text(
-                      l10n.editProfilePrivacy,
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.smaller.copyWith(color: Colors.grey),
+                    const Gap(8),
+                    // Aligned with the text of the lines above it.
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        l10n.editProfilePrivacy,
+                        style:
+                            AppTextStyles.smaller.copyWith(color: Colors.grey),
+                      ),
                     ),
                   ],
                 ),
