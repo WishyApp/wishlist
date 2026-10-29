@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
 import 'package:wishlist/modules/home/view/widgets/cards/home_card_stack.dart';
 import 'package:wishlist/modules/home/view/widgets/home_empty_wishlists.dart';
 import 'package:wishlist/modules/home/view/widgets/home_profile_header.dart';
@@ -40,6 +41,8 @@ class HomeScreen extends ConsumerWidget {
         ..invalidate(watchCurrentUserProfileProvider)
         ..invalidate(receivedWishesSummaryProvider)
         ..invalidate(wishlistsRealtimeProvider)
+        // Read again even if the summary did not change
+        ..invalidate(receivedWishesSnapshotProvider)
         // Not awaited: the pile keeps its cards while it reloads
         ..invalidate(homeCardsProvider);
 

@@ -4,10 +4,13 @@ import 'package:wishlist/modules/home/cards/card_builders.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_id_provider.dart';
+import 'package:wishlist/shared/infra/received_wishes_summary_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 
-/// The wishes the user received, read once. Not the live stream
+/// The wishes the user received, read again when their count or latest day
+/// changes (`receivedWishesSummaryProvider`, already live on the home screen).
+/// Not the live stream
 /// (completedWishesRealtimeProvider): it listens to four tables without a
 /// filter and the home screen must not keep it all year for a card shown in
 /// December. Only read in the month of the recap (see `homeCardsProvider`)
@@ -18,6 +21,15 @@ final receivedWishesSnapshotProvider =
   if (userId == null) {
     return const IListConst([]);
   }
+  // Only a trigger: a summary that cannot be read must not fail the recap.
+  ref.watch(
+    receivedWishesSummaryProvider.select(
+      (summary) => (
+        summary.valueOrNull?.count,
+        summary.valueOrNull?.latestCompletedAt,
+      ),
+    ),
+  );
   return ref
       .watch(userCompletedWishRepositoryProvider)
       .getCompletedWishesByUser(userId);
