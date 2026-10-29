@@ -225,6 +225,7 @@ class WishlistScreen extends ConsumerWidget {
   Future<void> _shareWishlist(
     BuildContext context,
     Wishlist wishlist,
+    Rect origin,
   ) async {
     final shareLink =
         DeeplinkConfig.buildWishlistShareUri(wishlistId: wishlist.id)
@@ -232,7 +233,12 @@ class WishlistScreen extends ConsumerWidget {
 
     try {
       await SharePlus.instance.share(
-        ShareParams(text: '${wishlist.name}\n$shareLink'),
+        ShareParams(
+          text: '${wishlist.name}\n$shareLink',
+          // Required on iPad, where the sheet is a popover: without it the
+          // share fails
+          sharePositionOrigin: origin,
+        ),
       );
     } catch (e) {
       if (context.mounted) {
@@ -345,9 +351,10 @@ class WishlistScreen extends ConsumerWidget {
                     wishlistTheme: wishlistTheme,
                     isMyWishlist: isMyWishlist,
                     canShareWishlist: canShareWishlist,
-                    onShare: () => _shareWishlist(
+                    onShare: (origin) => _shareWishlist(
                       context,
                       wishlist,
+                      origin,
                     ),
                     onSettings: () => WishlistSettingsRoute(
                       wishlistId: wishlist.id,

@@ -21,7 +21,9 @@ class WishlistAppBar extends StatelessWidget implements PreferredSizeWidget {
   final ThemeData wishlistTheme;
   final bool isMyWishlist;
   final bool canShareWishlist;
-  final VoidCallback onShare;
+
+  /// Gets the button's area: the iPad share sheet opens from it
+  final ValueChanged<Rect> onShare;
   final VoidCallback onSettings;
 
   @override
@@ -48,9 +50,15 @@ class WishlistAppBar extends StatelessWidget implements PreferredSizeWidget {
                   padding: EdgeInsets.only(
                     right: isMyWishlist ? 0 : 8,
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.share, size: 32),
-                    onPressed: onShare,
+                  child: Builder(
+                    builder: (buttonContext) => IconButton(
+                      icon: const Icon(Icons.share, size: 32),
+                      onPressed: () {
+                        final box =
+                            buttonContext.findRenderObject()! as RenderBox;
+                        onShare(box.localToGlobal(Offset.zero) & box.size);
+                      },
+                    ),
                   ),
                 ),
               if (isMyWishlist)
