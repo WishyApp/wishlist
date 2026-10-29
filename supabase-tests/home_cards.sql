@@ -62,9 +62,7 @@ DO $$
 DECLARE
   k text;
 BEGIN
-  FOREACH k IN ARRAY ARRAY['friend_birthday_today', 'after_party', 'onboarding',
-    'booked_reminder', 'booked_wish_removed', 'year_recap', 'friend_birthday',
-    'friend_accepted', 'christmas', 'stale_wishlist'] LOOP
+  FOR k IN SELECT key FROM pg_temp.expected_seeds WHERE kind = 'computed' LOOP
     IF NOT EXISTS (SELECT 1 FROM public.home_cards WHERE key = k AND kind = 'computed') THEN
       RAISE EXCEPTION 'FAIL computed card % is not seeded', k;
     END IF;
@@ -95,7 +93,10 @@ BEGIN
      IS DISTINCT FROM '90' THEN
     RAISE EXCEPTION 'FAIL stale_wishlist stale_days';
   END IF;
-  RAISE NOTICE 'ok   seeds: 11 rows with the expected kinds and params';
+  -- authenticated cannot read the temp table: hand the count over for later
+  PERFORM set_config('test.seed_count', (SELECT count(*) FROM pg_temp.expected_seeds)::text, true);
+  RAISE NOTICE 'ok   seeds: % rows with the expected kinds and params',
+    current_setting('test.seed_count');
 
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.home_cards'::regclass) THEN
     RAISE EXCEPTION 'FAIL RLS is off on home_cards';
@@ -226,8 +227,8 @@ BEGIN
   IF keys IS DISTINCT FROM ARRAY['t_live'] THEN
     RAISE EXCEPTION 'FAIL authenticated sees test rows %, expected only t_live', keys;
   END IF;
-  IF (SELECT count(*) FROM public.home_cards) <> 12 THEN
-    RAISE EXCEPTION 'FAIL authenticated sees % rows, expected the 11 seeds and t_live',
+  IF (SELECT count(*) FROM public.home_cards) <> current_setting('test.seed_count')::int + 1 THEN
+    RAISE EXCEPTION 'FAIL authenticated sees % rows, expected the seeds and t_live',
       (SELECT count(*) FROM public.home_cards);
   END IF;
   RAISE NOTICE 'ok   authenticated reads active rows only (live window, enabled)';
