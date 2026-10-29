@@ -252,6 +252,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
       bookings: bookings,
       birthdays: birthdays,
       definition: definitions['booked_reminder'],
+      christmas: definitions['christmas'],
       now: now,
     ),
     ...bookedWishRemovedCards(

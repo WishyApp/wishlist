@@ -588,23 +588,19 @@ void main() {
     });
 
     void background(TestWidgetsFlutterBinding binding) {
-      for (final state in [
+      [
         AppLifecycleState.inactive,
         AppLifecycleState.hidden,
         AppLifecycleState.paused,
-      ]) {
-        binding.handleAppLifecycleStateChanged(state);
-      }
+      ].forEach(binding.handleAppLifecycleStateChanged);
     }
 
     void foreground(TestWidgetsFlutterBinding binding) {
-      for (final state in [
+      [
         AppLifecycleState.hidden,
         AppLifecycleState.inactive,
         AppLifecycleState.resumed,
-      ]) {
-        binding.handleAppLifecycleStateChanged(state);
-      }
+      ].forEach(binding.handleAppLifecycleStateChanged);
     }
 
     test('coming back to the foreground on another day recomputes', () {
@@ -637,7 +633,7 @@ void main() {
           now: now,
           bookedWishes: fakeBookedWishes.clear(),
         ),
-        currentUserBirthdayOverride(birthday: null),
+        currentUserBirthdayOverride(),
         watchCurrentUserProfileOverride(
           profile: Profile(
             id: fakeCurrentUserId,

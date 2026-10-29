@@ -183,13 +183,16 @@ List<HomeCardCandidate> afterPartyCards({
   return cards;
 }
 
-/// Wishes still to give whose owner has their birthday, or Christmas comes,
-/// within `days_before` days. The closest occasion wins, the birthday on a tie.
+/// Wishes still to give, within `days_before` days of their occasion. The
+/// wishlist decides the occasion: a name with a Christmas keyword (see
+/// `keywords` of [christmas]) is for Christmas, any other list is for the
+/// birthday of its owner when the app knows it, and has no reminder otherwise.
 /// The key carries the occasion.
 List<HomeCardCandidate> bookedReminderCards({
   required List<BookedWishWithDetails> bookings,
   required Map<String, Birthday> birthdays,
   required HomeCardDefinition? definition,
+  required HomeCardDefinition? christmas,
   required DateTime now,
 }) {
   if (definition == null) {
@@ -197,6 +200,7 @@ List<HomeCardCandidate> bookedReminderCards({
   }
   final today = _day(now);
   final daysBefore = definition.intParam('days_before', 14);
+  final keywords = _christmasKeywords(christmas);
   final christmasDay = _nextChristmas(today);
   final christmasDays = _daysBetween(today, christmasDay);
   final cards = <HomeCardCandidate>[];
@@ -205,25 +209,25 @@ List<HomeCardCandidate> bookedReminderCards({
     if (booking.isGiven) {
       continue;
     }
-    final birthday = birthdays[booking.ownerId];
-    final birthdayDays = birthday?.daysUntil(now);
-
-    ReminderOccasion? occasion;
-    int? days;
-    if (birthdayDays != null && birthdayDays <= daysBefore) {
-      occasion = ReminderOccasion.ownerBirthday;
-      days = birthdayDays;
-    }
-    if (christmasDays <= daysBefore && (days == null || christmasDays < days)) {
+    final ReminderOccasion occasion;
+    final int days;
+    final DateTime eventDay;
+    if (nameHasKeyword(booking.wishlistName, keywords)) {
       occasion = ReminderOccasion.christmas;
       days = christmasDays;
+      eventDay = christmasDay;
+    } else {
+      final birthdayDays = birthdays[booking.ownerId]?.daysUntil(now);
+      if (birthdayDays == null) {
+        continue;
+      }
+      occasion = ReminderOccasion.ownerBirthday;
+      days = birthdayDays;
+      eventDay = _birthdayDay(today, days);
     }
-    if (occasion == null || days == null) {
+    if (days > daysBefore) {
       continue;
     }
-    final eventDay = occasion == ReminderOccasion.christmas
-        ? christmasDay
-        : _birthdayDay(today, days);
     final occasionName =
         occasion == ReminderOccasion.christmas ? 'christmas' : 'birthday';
     cards.add(
