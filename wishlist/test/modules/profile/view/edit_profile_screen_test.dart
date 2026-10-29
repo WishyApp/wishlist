@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:adaptive_test/adaptive_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/modules/profile/view/edit_profile_screen.dart';
 import 'package:wishlist/modules/settings/change_birthday/view/change_birthday_screen.dart';
@@ -134,5 +135,60 @@ void main() {
 
     expect(find.text('MonPseudo'), findsNothing);
     expect(find.text('—'), findsOneWidget);
+  });
+
+  testWidgets('goes back to the profile from a deep link to the birthday',
+      (tester) async {
+    await tester.pumpRouterApp(
+      ChangeBirthdayRoute().location,
+      overrides: settingsScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ChangeBirthdayScreen), findsOneWidget);
+
+    Navigator.of(tester.element(find.byType(ChangeBirthdayScreen))).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditProfileScreen), findsOneWidget);
+  });
+
+  testWidgets('goes back to the profile from a deep link to the pseudo',
+      (tester) async {
+    await tester.pumpRouterApp(
+      ChangePseudoRoute().location,
+      overrides: [
+        ...settingsScreenOverrides(),
+        ...changePseudoScreenOverrides(),
+      ],
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ChangePseudoScreen), findsOneWidget);
+
+    Navigator.of(tester.element(find.byType(ChangePseudoScreen))).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditProfileScreen), findsOneWidget);
+  });
+
+  testWidgets('keeps the profile routes under /profile', (tester) async {
+    expect(ChangePseudoRoute().location, '/profile/change-pseudo');
+    expect(ChangeBirthdayRoute().location, '/profile/change-birthday');
+  });
+
+  testWidgets('says what friends and list sharers can see', (tester) async {
+    await tester.pumpRouterApp(
+      EditProfileRoute().location,
+      overrides: settingsScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        "Ton anniversaire n'est visible que par tes amis. Ta photo et ton "
+        'pseudo sont visibles par tes amis et par les personnes avec qui tu '
+        'partages une liste.',
+      ),
+      findsOneWidget,
+    );
   });
 }

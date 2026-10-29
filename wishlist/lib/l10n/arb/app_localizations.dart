@@ -512,12 +512,6 @@ abstract class AppLocalizations {
   /// **'Pseudo modifié avec succès !'**
   String get changePseudoSuccess;
 
-  /// No description provided for @settingsScreenBirthdayNotSet.
-  ///
-  /// In fr, this message translates to:
-  /// **'Non renseigné'**
-  String get settingsScreenBirthdayNotSet;
-
   /// No description provided for @editProfileScreenTitle.
   ///
   /// In fr, this message translates to:
@@ -536,10 +530,16 @@ abstract class AppLocalizations {
   /// **'Anniversaire'**
   String get editProfileBirthday;
 
+  /// No description provided for @editProfileBirthdayNotSet.
+  ///
+  /// In fr, this message translates to:
+  /// **'Non renseigné'**
+  String get editProfileBirthdayNotSet;
+
   /// No description provided for @editProfilePrivacy.
   ///
   /// In fr, this message translates to:
-  /// **'Seuls tes amis voient ta photo, ton pseudo et ton anniversaire.'**
+  /// **'Ton anniversaire n\'est visible que par tes amis. Ta photo et ton pseudo sont visibles par tes amis et par les personnes avec qui tu partages une liste.'**
   String get editProfilePrivacy;
 
   /// No description provided for @changeBirthdayScreenTitle.
@@ -1331,7 +1331,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsSignedInAs.
   ///
   /// In fr, this message translates to:
-  /// **'Connecté avec'**
+  /// **'Connecté en tant que'**
   String get settingsSignedInAs;
 
   /// No description provided for @settingsGeneral.

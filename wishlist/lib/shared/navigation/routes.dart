@@ -40,6 +40,14 @@ part 'routes.g.dart';
     // Edit profile (photo, pseudo, birthday)
     TypedGoRoute<EditProfileRoute>(
       path: 'profile',
+      routes: [
+        TypedGoRoute<ChangePseudoRoute>(
+          path: 'change-pseudo',
+        ),
+        TypedGoRoute<ChangeBirthdayRoute>(
+          path: 'change-birthday',
+        ),
+      ],
     ),
     // Settings et ses sous-routes
     TypedGoRoute<SettingsRoute>(
@@ -47,12 +55,6 @@ part 'routes.g.dart';
       routes: [
         TypedGoRoute<ChangePasswordRoute>(
           path: 'change-password',
-        ),
-        TypedGoRoute<ChangePseudoRoute>(
-          path: 'change-pseudo',
-        ),
-        TypedGoRoute<ChangeBirthdayRoute>(
-          path: 'change-birthday',
         ),
       ],
     ),
