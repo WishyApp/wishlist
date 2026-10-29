@@ -84,6 +84,9 @@ class HomeProfileHeader extends ConsumerWidget {
 
 /// Small outlined button. No outlined button exists in `buttons.dart`, so it
 /// stays local to the header.
+@visibleForTesting
+const editProfilePillKey = ValueKey('edit-profile-pill');
+
 class _EditProfileButton extends StatelessWidget {
   const _EditProfileButton({required this.onTap});
 
@@ -91,37 +94,47 @@ class _EditProfileButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Only the button is tappable, one handler (the InkWell), at least 44 px
-    // tall: the space next to it does nothing.
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 44),
-      child: Material(
-        color: Colors.transparent,
-        shape: const StadiumBorder(
-          side: BorderSide(color: AppColors.pastelGray),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.edit, size: 14, color: AppColors.darkGrey),
-                const Gap(6),
-                Flexible(
-                  child: Text(
-                    context.l10n.editProfileScreenTitle,
-                    style: AppTextStyles.smaller.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkGrey,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+    // Only the button is tappable, one handler (the InkWell). The InkWell is
+    // 44 px tall but only as wide as the pill, which stays at its own size,
+    // centred: at rest it looks the same, only the tap area is taller.
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: SizedBox(
+          height: 44,
+          child: Center(
+            widthFactor: 1,
+            child: DecoratedBox(
+              key: editProfilePillKey,
+              decoration: const ShapeDecoration(
+                shape: StadiumBorder(
+                  side: BorderSide(color: AppColors.pastelGray),
                 ),
-              ],
+              ),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.edit, size: 14, color: AppColors.darkGrey),
+                    const Gap(6),
+                    Flexible(
+                      child: Text(
+                        context.l10n.editProfileScreenTitle,
+                        style: AppTextStyles.smaller.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkGrey,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

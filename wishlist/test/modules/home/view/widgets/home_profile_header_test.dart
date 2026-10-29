@@ -73,13 +73,40 @@ void main() {
     expect(find.byType(EditProfileScreen), findsNothing);
   });
 
-  testWidgets('the button is at least 44 px tall to tap', (tester) async {
+  testWidgets('keeps the size of the pill with a 44 px tap area',
+      (tester) async {
     await pumpHeader(tester);
 
-    final tapArea = find.ancestor(
-      of: find.text('Modifier le profil'),
-      matching: find.byType(InkWell),
+    final pill = tester.getRect(find.byKey(editProfilePillKey));
+    final tapArea = tester.getRect(
+      find.ancestor(
+        of: find.byKey(editProfilePillKey),
+        matching: find.byType(InkWell),
+      ),
     );
-    expect(tester.getSize(tapArea.first).height, greaterThanOrEqualTo(44));
+    // The visible pill is as before (about 30 px), only the tap area is taller
+    expect(pill.height, inInclusiveRange(28, 34));
+    expect(tapArea.height, greaterThanOrEqualTo(44));
+    // As wide as the pill
+    expect(tapArea.width, pill.width);
+  });
+
+  testWidgets(
+      'a tap just above or below the pill, in its band, opens the '
+      'profile', (tester) async {
+    await pumpHeader(tester);
+    final pill = tester.getRect(find.byKey(editProfilePillKey));
+
+    await tester.tapAt(Offset(pill.center.dx, pill.top - 5));
+    await tester.pumpAndSettle();
+    expect(find.byType(EditProfileScreen), findsOneWidget);
+
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await tester.pumpAndSettle();
+    expect(find.byType(EditProfileScreen), findsNothing);
+
+    await tester.tapAt(Offset(pill.center.dx, pill.bottom + 5));
+    await tester.pumpAndSettle();
+    expect(find.byType(EditProfileScreen), findsOneWidget);
   });
 }
