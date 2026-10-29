@@ -60,6 +60,13 @@ BEGIN
     json_build_object('sub', user_id, 'role', 'authenticated')::text, true);
 END $$;
 
+-- The after-the-party window depends on the day the test runs (now() is fixed
+-- in the transaction, and a run in late December or on the owner's birthday
+-- would silently record nothing). paris_today() is replaced, until the
+-- rollback, by a day with no window; the cases of the window set their own day.
+CREATE OR REPLACE FUNCTION public.paris_today()
+RETURNS date LANGUAGE sql STABLE AS $$ SELECT DATE '2026-06-01' $$;
+
 -- Fixtures. O owns the wishlists, A and B are friends who book wishes.
 INSERT INTO auth.users (id) VALUES
   ('00000000-0000-4000-d000-0000000000f1'),
@@ -272,6 +279,124 @@ SELECT pg_temp.expect_count('W10 recorded for A',
 DELETE FROM auth.users WHERE id = '00000000-0000-4000-d000-0000000000f2';
 SELECT pg_temp.expect_count('removals of a deleted booker disappear',
   $q$SELECT count(*) FROM public.booked_wish_removals WHERE booker_id = '00000000-0000-4000-d000-0000000000f2'$q$, 0);
+
+-- 9b. Partially received wish: all the bookers are alerted while the owner
+-- received less than the total booked, nobody when it is equal or higher.
+INSERT INTO auth.users (id) VALUES
+  ('00000000-0000-4000-d000-0000000000f5'),
+  ('00000000-0000-4000-d000-0000000000f6'),
+  ('00000000-0000-4000-d000-0000000000f7');
+INSERT INTO public.profiles (id, pseudo) VALUES
+  ('00000000-0000-4000-d000-0000000000f5', 'bwr_o3'),
+  ('00000000-0000-4000-d000-0000000000f6', 'bwr_c'),
+  ('00000000-0000-4000-d000-0000000000f7', 'bwr_d');
+INSERT INTO public.wishlists (id, name, id_owner, color, updated_by, visibility) VALUES
+  (980007, 'O3 list', '00000000-0000-4000-d000-0000000000f5', '#FFFFFF', '00000000-0000-4000-d000-0000000000f5', 'public');
+INSERT INTO public.wishs (id, name, description, quantity, wishlist_id, updated_by) VALUES
+  (981020, 'W20 received 1 of 3', '', 3, 980007, '00000000-0000-4000-d000-0000000000f5'),
+  (981021, 'W21 received 2 of 3', '', 3, 980007, '00000000-0000-4000-d000-0000000000f5');
+INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES
+  (981020, '00000000-0000-4000-d000-0000000000f6', 1),
+  (981020, '00000000-0000-4000-d000-0000000000f7', 1),
+  (981021, '00000000-0000-4000-d000-0000000000f6', 1),
+  (981021, '00000000-0000-4000-d000-0000000000f7', 1);
+INSERT INTO public.user_completed_wishs (user_id, wish_id, from_wishlist_id, quantity) VALUES
+  ('00000000-0000-4000-d000-0000000000f5', 981020, 980007, 1),
+  ('00000000-0000-4000-d000-0000000000f5', 981021, 980007, 2);
+DELETE FROM public.wishs WHERE id IN (981020, 981021);
+SELECT pg_temp.expect_count('received 1 of 3 booked 2: both bookers alerted',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981020 AND quantity = 1$q$, 2);
+SELECT pg_temp.expect_count('received 2 of 3 booked 2: nobody alerted',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981021$q$, 0);
+
+-- 9c. is_after_party_window on fixed dates. Owner f5, no birthday first.
+SELECT pg_temp.expect_count('Dec 24: no window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-12-24')) x$q$, 0);
+SELECT pg_temp.expect_count('Dec 25: window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-12-25')) x$q$, 1);
+SELECT pg_temp.expect_count('Jan 24: window (Christmas + 30)',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2027-01-24')) x$q$, 1);
+SELECT pg_temp.expect_count('Jan 25: no window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2027-01-25')) x$q$, 0);
+SELECT pg_temp.expect_count('no birthday, Jun 1: no window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-06-01')) x$q$, 0);
+
+INSERT INTO public.profile_birthdays (profile_id, month, day)
+  VALUES ('00000000-0000-4000-d000-0000000000f5', 3, 10);
+SELECT pg_temp.expect_count('birthday Mar 10, Mar 9: no window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-03-09')) x$q$, 0);
+SELECT pg_temp.expect_count('birthday Mar 10, Mar 10: window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-03-10')) x$q$, 1);
+SELECT pg_temp.expect_count('birthday Mar 10, Apr 9: window (+30)',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-04-09')) x$q$, 1);
+SELECT pg_temp.expect_count('birthday Mar 10, Apr 10: no window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-04-10')) x$q$, 0);
+
+-- A birthday just before the new year covers days of the next one. Dec 20
+-- alone cannot show it (Jan 19 is already in the Christmas window, which ends
+-- on Jan 24), so Dec 31 is used: the window goes to Jan 30, the previous
+-- year's birthday counts.
+UPDATE public.profile_birthdays SET month = 12, day = 20
+  WHERE profile_id = '00000000-0000-4000-d000-0000000000f5';
+SELECT pg_temp.expect_count('birthday Dec 20, Jan 19 of the next year: window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2027-01-19')) x$q$, 1);
+SELECT pg_temp.expect_count('birthday Dec 20, Dec 19: no window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-12-19')) x$q$, 0);
+UPDATE public.profile_birthdays SET month = 11, day = 20
+  WHERE profile_id = '00000000-0000-4000-d000-0000000000f5';
+SELECT pg_temp.expect_count('birthday Nov 20, Dec 20: window (+30)',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-12-20')) x$q$, 1);
+SELECT pg_temp.expect_count('birthday Nov 20, Dec 21: no window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-12-21')) x$q$, 0);
+UPDATE public.profile_birthdays SET month = 12, day = 31
+  WHERE profile_id = '00000000-0000-4000-d000-0000000000f5';
+SELECT pg_temp.expect_count('birthday Dec 31, Jan 30 of the next year: window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2027-01-30')) x$q$, 1);
+SELECT pg_temp.expect_count('birthday Dec 31, Jan 31 of the next year: no window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2027-01-31')) x$q$, 0);
+
+-- Feb 29 exists in no common year: it counts as Feb 28 there.
+UPDATE public.profile_birthdays SET month = 2, day = 29
+  WHERE profile_id = '00000000-0000-4000-d000-0000000000f5';
+SELECT pg_temp.expect_count('birthday Feb 29, Feb 28 of a common year: window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2027-02-28')) x$q$, 1);
+SELECT pg_temp.expect_count('birthday Feb 29, Feb 27 of a common year: no window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2027-02-27')) x$q$, 0);
+SELECT pg_temp.expect_count('birthday Feb 29, Feb 29 of a leap year: window',
+  $q$SELECT count(*) FROM (SELECT 1 WHERE public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2028-02-29')) x$q$, 1);
+
+SELECT pg_temp.act_as('00000000-0000-4000-d000-0000000000f6');
+SELECT pg_temp.expect_denied('a user calls is_after_party_window',
+  $q$SELECT public.is_after_party_window('00000000-0000-4000-d000-0000000000f5', DATE '2026-12-25')$q$);
+RESET ROLE;
+
+-- 9d. End to end: a deletion inside the window records nothing.
+-- Christmas window (Dec 26), then the owner's birthday window.
+INSERT INTO public.wishs (id, name, description, quantity, wishlist_id, updated_by) VALUES
+  (981022, 'W22 after Christmas', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5'),
+  (981023, 'W23 after the birthday', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5'),
+  (981024, 'W24 outside the window', '', 1, 980007, '00000000-0000-4000-d000-0000000000f5');
+INSERT INTO public.wish_taken_by_user (wish_id, user_id, quantity) VALUES
+  (981022, '00000000-0000-4000-d000-0000000000f6', 1),
+  (981023, '00000000-0000-4000-d000-0000000000f6', 1),
+  (981024, '00000000-0000-4000-d000-0000000000f6', 1);
+CREATE OR REPLACE FUNCTION public.paris_today()
+RETURNS date LANGUAGE sql STABLE AS $$ SELECT DATE '2026-12-26' $$;
+DELETE FROM public.wishs WHERE id = 981022;
+SELECT pg_temp.expect_count('no removal the day after Christmas',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981022$q$, 0);
+CREATE OR REPLACE FUNCTION public.paris_today()
+RETURNS date LANGUAGE sql STABLE AS $$ SELECT DATE '2026-06-01' $$;
+UPDATE public.profile_birthdays SET month = 5, day = 25
+  WHERE profile_id = '00000000-0000-4000-d000-0000000000f5';
+DELETE FROM public.wishs WHERE id = 981023;
+SELECT pg_temp.expect_count('no removal 7 days after the birthday',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981023$q$, 0);
+UPDATE public.profile_birthdays SET month = 4, day = 1
+  WHERE profile_id = '00000000-0000-4000-d000-0000000000f5';
+DELETE FROM public.wishs WHERE id = 981024;
+SELECT pg_temp.expect_count('a removal outside both windows is recorded',
+  $q$SELECT count(*) FROM public.booked_wish_removals WHERE wish_id = 981024$q$, 1);
 
 -- 10. Realtime prerequisites, as in friendships_realtime.sql: the app filters
 -- its channel on booker_id, UPDATEs included.

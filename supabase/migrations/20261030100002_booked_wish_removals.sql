@@ -32,11 +32,18 @@
 -- verified by supabase-tests/booked_wish_removals.sql.
 --
 -- Not recorded (rules of record_booked_wish_removals):
---   - any wish the owner marked as received (a user_completed_wishs row of the
---     owner): the gift was given. Even a partially received wish records
---     nothing: with a quantity of 3 booked 1 by A and 1 by B, and 1 received,
---     deleting the wish alerts nobody. This is the chosen rule;
---   - a booking made by the owner on their own wish.
+--   - a wish the owner has received enough of: the gift was given. The owner
+--     has received at least as much as the total booked quantity of the wish
+--     (user_completed_wishs.quantity of the owner >= sum of the bookings).
+--     When the owner received less than the total booked, ALL the bookers are
+--     alerted: with a quantity of 3 booked 1 by A and 1 by B, 1 received
+--     alerts A and B, 2 received alerts nobody;
+--   - a booking made by the owner on their own wish;
+--   - a deletion made within 30 days after the owner's birthday or after
+--     Christmas (see is_after_party_window): owners tidy their lists after the
+--     party without marking the gifts as received, and every booker would get
+--     a false "removed" alert for a gift already given. The day is the current
+--     day in Europe/Paris, as for user_completed_wishs.completed_at.
 -- One row per booking (wish_taken_by_user row), with the booked quantity.
 --
 -- The triggers are SECURITY DEFINER (they read the bookings of other users) and
@@ -112,11 +119,86 @@ CREATE POLICY "Bookers dismiss their removed booked wishes"
   USING (booker_id = (SELECT auth.uid()))
   WITH CHECK (booker_id = (SELECT auth.uid()));
 
--- 3. Internal function shared by the two triggers: one row per booking of the
--- given wishes, except the wishes received by the owner and the bookings of the
--- owner. Called by the triggers only (no EXECUTE for anyone else): it writes
--- on behalf of any user. The bookers have a profile (foreign key of
--- wish_taken_by_user.user_id) and the owner is checked below.
+-- 3. Date helpers, then the internal function shared by the two triggers.
+
+-- Current day in the time zone of the app's users, as for
+-- user_completed_wishs.completed_at (20261029100000). A function of its own so
+-- that the SQL tests can pin the day: now() is fixed inside a transaction, and
+-- a test run in late December would otherwise hit the window below.
+CREATE OR REPLACE FUNCTION public.paris_today()
+RETURNS date
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT (now() AT TIME ZONE 'Europe/Paris')::date;
+$$;
+
+REVOKE ALL ON FUNCTION public.paris_today() FROM PUBLIC, anon, authenticated;
+
+-- Is p_today within 30 days after the birthday of the owner (this year or the
+-- previous one: Dec 20 covers up to Jan 19) or after Christmas (Dec 25 to
+-- Jan 24 inclusive)? Takes the day as a parameter so that it can be tested on
+-- fixed dates. Without a birthday row only Christmas counts. A Feb 29 birthday
+-- counts as Feb 28 in a common year.
+-- Internal, no EXECUTE for anyone: it reads the birthday of any user,
+-- bypassing the policies of profile_birthdays.
+CREATE OR REPLACE FUNCTION public.is_after_party_window(p_owner_id uuid, p_today date)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  -- The one place that says how long a party lasts, in days.
+  c_window_days CONSTANT integer := 30;
+  v_year integer;
+  v_party date;
+  v_birthday public.profile_birthdays%ROWTYPE;
+BEGIN
+  SELECT * INTO v_birthday
+  FROM public.profile_birthdays b
+  WHERE b.profile_id = p_owner_id;
+
+  FOR v_year IN
+    SELECT y FROM generate_series(
+      extract(year FROM p_today)::integer - 1,
+      extract(year FROM p_today)::integer
+    ) AS y
+  LOOP
+    v_party := make_date(v_year, 12, 25);
+    IF p_today BETWEEN v_party AND v_party + c_window_days THEN
+      RETURN true;
+    END IF;
+
+    IF v_birthday.profile_id IS NOT NULL THEN
+      v_party := make_date(
+        v_year,
+        v_birthday.month,
+        LEAST(
+          v_birthday.day,
+          extract(day FROM (make_date(v_year, v_birthday.month, 1)
+                            + interval '1 month - 1 day'))::integer
+        )
+      );
+      IF p_today BETWEEN v_party AND v_party + c_window_days THEN
+        RETURN true;
+      END IF;
+    END IF;
+  END LOOP;
+
+  RETURN false;
+END $$;
+
+REVOKE ALL ON FUNCTION public.is_after_party_window(uuid, date)
+  FROM PUBLIC, anon, authenticated;
+
+-- Internal function shared by the two triggers: one row per booking of the
+-- given wishes, except the exclusions of the header (received enough, booking of
+-- the owner, after-the-party window). Called by the triggers only (no EXECUTE
+-- for anyone else): it writes on behalf of any user. The bookers have a profile
+-- (foreign key of wish_taken_by_user.user_id) and the owner is checked below.
 CREATE OR REPLACE FUNCTION public.record_booked_wish_removals(
   p_wish_ids bigint[],
   p_owner_id uuid,
@@ -128,6 +210,10 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
+  IF public.is_after_party_window(p_owner_id, public.paris_today()) THEN
+    RETURN;
+  END IF;
+
   INSERT INTO public.booked_wish_removals
     (booker_id, owner_id, wish_id, wish_name, quantity, wishlist_name)
   SELECT t.user_id, p_owner_id, w.id, w.name, t.quantity, p_wishlist_name
@@ -138,11 +224,16 @@ BEGIN
     -- Doubles the guard of the wishlists trigger on purpose (defence in depth):
     -- whatever the caller, no row is written for an owner who is gone.
     AND EXISTS (SELECT 1 FROM public.profiles owner WHERE owner.id = p_owner_id)
-    AND NOT EXISTS (
-      SELECT 1
+    -- The owner received less than the total booked: the bookers are alerted.
+    AND (
+      SELECT COALESCE(SUM(c.quantity), 0)
       FROM public.user_completed_wishs c
       WHERE c.wish_id = w.id
         AND c.user_id = p_owner_id
+    ) < (
+      SELECT SUM(b.quantity)
+      FROM public.wish_taken_by_user b
+      WHERE b.wish_id = w.id
     );
 END $$;
 
