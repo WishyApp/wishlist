@@ -66,7 +66,7 @@ class EditProfileScreen extends ConsumerWidget {
                             value: birthday.whenOrNull(
                               data: (birthday) =>
                                   birthday?.format(locale) ??
-                                  l10n.settingsScreenBirthdayNotSet,
+                                  l10n.editProfileBirthdayNotSet,
                               error: (error, stackTrace) => '—',
                             ),
                             onTap: () {

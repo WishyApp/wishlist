@@ -26,6 +26,16 @@ RouteBase get $homeRoute => GoRouteData.$route(
         GoRouteData.$route(
           path: 'profile',
           factory: $EditProfileRouteExtension._fromState,
+          routes: [
+            GoRouteData.$route(
+              path: 'change-pseudo',
+              factory: $ChangePseudoRouteExtension._fromState,
+            ),
+            GoRouteData.$route(
+              path: 'change-birthday',
+              factory: $ChangeBirthdayRouteExtension._fromState,
+            ),
+          ],
         ),
         GoRouteData.$route(
           path: 'settings',
@@ -34,14 +44,6 @@ RouteBase get $homeRoute => GoRouteData.$route(
             GoRouteData.$route(
               path: 'change-password',
               factory: $ChangePasswordRouteExtension._fromState,
-            ),
-            GoRouteData.$route(
-              path: 'change-pseudo',
-              factory: $ChangePseudoRouteExtension._fromState,
-            ),
-            GoRouteData.$route(
-              path: 'change-birthday',
-              factory: $ChangeBirthdayRouteExtension._fromState,
             ),
           ],
         ),
@@ -159,6 +161,42 @@ extension $EditProfileRouteExtension on EditProfileRoute {
   void replace(BuildContext context) => context.replace(location);
 }
 
+extension $ChangePseudoRouteExtension on ChangePseudoRoute {
+  static ChangePseudoRoute _fromState(GoRouterState state) =>
+      ChangePseudoRoute();
+
+  String get location => GoRouteData.$location(
+        '/profile/change-pseudo',
+      );
+
+  void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  void replace(BuildContext context) => context.replace(location);
+}
+
+extension $ChangeBirthdayRouteExtension on ChangeBirthdayRoute {
+  static ChangeBirthdayRoute _fromState(GoRouterState state) =>
+      ChangeBirthdayRoute();
+
+  String get location => GoRouteData.$location(
+        '/profile/change-birthday',
+      );
+
+  void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  void replace(BuildContext context) => context.replace(location);
+}
+
 extension $SettingsRouteExtension on SettingsRoute {
   static SettingsRoute _fromState(GoRouterState state) => SettingsRoute();
 
@@ -182,42 +220,6 @@ extension $ChangePasswordRouteExtension on ChangePasswordRoute {
 
   String get location => GoRouteData.$location(
         '/settings/change-password',
-      );
-
-  void go(BuildContext context) => context.go(location);
-
-  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
-
-  void pushReplacement(BuildContext context) =>
-      context.pushReplacement(location);
-
-  void replace(BuildContext context) => context.replace(location);
-}
-
-extension $ChangePseudoRouteExtension on ChangePseudoRoute {
-  static ChangePseudoRoute _fromState(GoRouterState state) =>
-      ChangePseudoRoute();
-
-  String get location => GoRouteData.$location(
-        '/settings/change-pseudo',
-      );
-
-  void go(BuildContext context) => context.go(location);
-
-  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
-
-  void pushReplacement(BuildContext context) =>
-      context.pushReplacement(location);
-
-  void replace(BuildContext context) => context.replace(location);
-}
-
-extension $ChangeBirthdayRouteExtension on ChangeBirthdayRoute {
-  static ChangeBirthdayRoute _fromState(GoRouterState state) =>
-      ChangeBirthdayRoute();
-
-  String get location => GoRouteData.$location(
-        '/settings/change-birthday',
       );
 
   void go(BuildContext context) => context.go(location);
