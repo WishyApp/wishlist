@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/home/cards/card_builders.dart';
 import 'package:wishlist/modules/home/cards/card_selection.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/home/cards/wishlists_last_activity_provider.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
@@ -102,15 +103,26 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
     ),
   );
   final wishlists = _valueOf(wishlistsRealtimeProvider, ref) ?? const [];
-  // Started now and awaited with the stale card: it runs in parallel with the
-  // sources below. Its failure is caught here, it only loses that card.
+  // The two slow reads start now and are awaited at the end: they run in
+  // parallel with the sources below. Their failure is caught here, it only
+  // loses their cards. The last activity has its own provider, so that a
+  // reload of the cards (swipe, booking change) does not ask it again.
   final lastActivityFuture = _orElse<Map<int, DateTime>>(
     'wishlists last activity',
     () => definitions['stale_wishlist'] == null || wishlists.isEmpty
         ? Future.value(const <int, DateTime>{})
-        : wishlistRepository.getLastActivityByWishlist(),
+        : ref.watch(wishlistsLastActivityProvider.future),
     const <int, DateTime>{},
   );
+  // The recap reads the received wishes once, and only in its month: nothing
+  // heavy is kept alive the rest of the year.
+  final yearRecapFuture = !isYearRecapMonth(definitions['year_recap'], now)
+      ? Future<YearRecapFacts?>.value()
+      : _orElse<YearRecapFacts?>(
+          'year recap',
+          () => ref.watch(yearRecapFactsProvider(now.toLocal().year).future),
+          null,
+        );
   await ref.watch(
     friendshipsRealtimeProvider.selectAsync(
       (data) => (
@@ -207,15 +219,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   );
 
   final lastActivity = await lastActivityFuture;
-  // The recap reads the received wishes once, and only in its month: nothing
-  // heavy is kept alive the rest of the year.
-  final yearRecap = !isYearRecapMonth(definitions['year_recap'], now)
-      ? null
-      : await _orElse<YearRecapFacts?>(
-          'year recap',
-          () => ref.watch(yearRecapFactsProvider(now.toLocal().year).future),
-          null,
-        );
+  final yearRecap = await yearRecapFuture;
 
   final candidates = [
     ...friendBirthdayCards(

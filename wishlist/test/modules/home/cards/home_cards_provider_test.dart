@@ -7,6 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/modules/home/cards/wishlists_last_activity_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
@@ -115,13 +116,13 @@ void main() {
         .thenAnswer((_) => Stream.value(const []));
   });
 
-  Future<List<HomeCardCandidate>> load({
+  ProviderContainer containerFor({
     DateTime? at,
     Map<String, Birthday> birthdays = const {},
     Birthday? myBirthday = const Birthday(month: 1, day: 1),
     bool hasAvatar = true,
     List<Override> extra = const [],
-  }) async {
+  }) {
     final container = ProviderContainer(
       overrides: [
         ...homeScreenOverrides(
@@ -146,7 +147,23 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    return container.read(homeCardsProvider.future);
+    return container;
+  }
+
+  Future<List<HomeCardCandidate>> load({
+    DateTime? at,
+    Map<String, Birthday> birthdays = const {},
+    Birthday? myBirthday = const Birthday(month: 1, day: 1),
+    bool hasAvatar = true,
+    List<Override> extra = const [],
+  }) {
+    return containerFor(
+      at: at,
+      birthdays: birthdays,
+      myBirthday: myBirthday,
+      hasAvatar: hasAvatar,
+      extra: extra,
+    ).read(homeCardsProvider.future);
   }
 
   Birthday tomorrow({DateTime? from}) {
@@ -741,6 +758,60 @@ void main() {
       expect(cards.single.type, 'friend_birthday');
     });
 
+    group('its own provider', () {
+      setUp(() {
+        when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+          (_) async => {fakeWishlist1.id: DateTime(2026, 5, 2)},
+        );
+      });
+
+      ProviderContainer homeContainer() => containerFor(
+            extra: [
+              wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+            ],
+          );
+
+      test('a reload of the cards does not ask it again', () async {
+        final container = homeContainer();
+        final subscription = container.listen(
+          homeCardsProvider,
+          (_, __) {},
+        );
+        addTearDown(subscription.close);
+        await container.read(homeCardsProvider.future);
+
+        // What a swipe or a change of bookings does
+        container.invalidate(homeCardsProvider);
+        final cards = await container.read(homeCardsProvider.future);
+
+        expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist1.id}');
+        verify(() => wishlistRepository.getLastActivityByWishlist()).called(1);
+      });
+
+      test('invalidating it reloads the cards from a fresh read', () async {
+        final container = homeContainer();
+        final subscription = container.listen(
+          homeCardsProvider,
+          (_, __) {},
+        );
+        addTearDown(subscription.close);
+        expect(
+          (await container.read(homeCardsProvider.future)).single.stateKey,
+          'stale_wishlist:${fakeWishlist1.id}',
+        );
+        // The user touched the list since: it is not stale anymore
+        when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+          (_) async => {fakeWishlist1.id: now},
+        );
+
+        container.invalidate(wishlistsLastActivityProvider);
+        final cards = await container.read(homeCardsProvider.future);
+
+        expect(cards.where((card) => card.type == 'stale_wishlist'), isEmpty);
+        verify(() => wishlistRepository.getLastActivityByWishlist()).called(2);
+      });
+    });
+
     test('is not asked when the card type is disabled', () async {
       when(() => homeCards.getActiveCards()).thenAnswer(
         (_) async => [
@@ -813,6 +884,32 @@ void main() {
           for (final card in await loadAll(at))
             if (card.type == 'year_recap') card,
         ];
+
+    test('the recap is read while the other sources load', () async {
+      // The accepted requests only answer once the received wishes were
+      // asked for: loaded one after the other, the stack would never come.
+      final recapAsked = Completer<void>();
+      when(() => friendships.getRecentlyAcceptedRequests(any())).thenAnswer(
+        (_) async {
+          await recapAsked.future;
+          return const [];
+        },
+      );
+      when(() => completedRepository.getCompletedWishesByUser(any()))
+          .thenAnswer((_) async {
+        if (!recapAsked.isCompleted) recapAsked.complete();
+        return [
+          received(DateTime(2026, 3, 4), createdAt: DateTime(2024, 6, 2)),
+          received(DateTime(2026, 8, 9)),
+        ].toIList();
+      });
+
+      final cards = await loadRecap(DateTime(2026, 12, 10, 9)).timeout(
+        const Duration(seconds: 2),
+      );
+
+      expect(cards, hasLength(1));
+    });
 
     test('in December, a dark card with what was received and given', () async {
       final cards = await loadRecap(DateTime(2026, 12, 10, 9));
