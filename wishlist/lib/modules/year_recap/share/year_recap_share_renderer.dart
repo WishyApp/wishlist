@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -13,7 +13,7 @@ import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 
 /// How long the illustration of the bucket may take before the generic one
 /// replaces it.
-const _illustrationTimeout = Duration(seconds: 8);
+const _illustrationTimeout = Duration(seconds: 4);
 
 /// Draws [YearRecapShareImage] off-screen and returns it as a PNG of
 /// 1080x1920. The illustration (the one at [illustrationUrl], or the bundled
@@ -24,10 +24,13 @@ Future<Uint8List> renderYearRecapShareImage({
   required YearRecapData recap,
   required AppLocalizations l10n,
   String? illustrationUrl,
+  @visibleForTesting ImageProvider Function(String url) illustrationProvider =
+      CachedNetworkImageProvider.new,
 }) async {
   // Both are in the image cache once resolved: the logo then paints at once
   await precacheImage(Assets.logo.wishyLogo.provider(), context);
-  final illustration = await _loadIllustration(illustrationUrl);
+  final illustration =
+      await _loadIllustration(illustrationUrl, illustrationProvider);
   try {
     return await renderWidgetToPng(
       YearRecapShareImage(
@@ -43,11 +46,13 @@ Future<Uint8List> renderYearRecapShareImage({
   }
 }
 
-Future<ui.Image> _loadIllustration(String? url) async {
+Future<ui.Image> _loadIllustration(
+  String? url,
+  ImageProvider Function(String url) providerFor,
+) async {
   if (url != null) {
     try {
-      return await _resolve(CachedNetworkImageProvider(url))
-          .timeout(_illustrationTimeout);
+      return await _resolve(providerFor(url), _illustrationTimeout);
     } catch (_) {
       // The generic illustration is shown instead
     }
@@ -55,24 +60,44 @@ Future<ui.Image> _loadIllustration(String? url) async {
   return _loadGenericIllustration();
 }
 
-Future<ui.Image> _resolve(ImageProvider provider) {
+/// The first frame of [provider], which the caller owns and disposes. Fails
+/// when it takes more than [timeout] or cannot be loaded; the stream is let go
+/// of in every case.
+Future<ui.Image> _resolve(ImageProvider provider, Duration timeout) {
   final completer = Completer<ui.Image>();
   final stream = provider.resolve(ImageConfiguration.empty);
+  Timer? timer;
   late final ImageStreamListener listener;
+  void done() {
+    timer?.cancel();
+    stream.removeListener(listener);
+  }
+
   listener = ImageStreamListener(
     (info, _) {
-      if (!completer.isCompleted) {
-        completer.complete(info.image.clone());
+      if (completer.isCompleted) {
+        // Too late: the caller gave up
+        info.dispose();
+      } else {
+        // The stream hands every listener a clone of its own: no need for
+        // another one, the image is ours to dispose.
+        completer.complete(info.image);
       }
-      stream.removeListener(listener);
+      done();
     },
     onError: (error, stackTrace) {
       if (!completer.isCompleted) {
         completer.completeError(error, stackTrace);
       }
-      stream.removeListener(listener);
+      done();
     },
   );
+  timer = Timer(timeout, () {
+    if (!completer.isCompleted) {
+      completer.completeError(TimeoutException('Illustration', timeout));
+    }
+    done();
+  });
   stream.addListener(listener);
   return completer.future;
 }
@@ -122,7 +147,8 @@ Future<Uint8List> renderWidgetToPng(
   );
   final pipelineOwner = PipelineOwner()..rootNode = renderView;
   renderView.prepareInitialFrame();
-  final buildOwner = BuildOwner(focusManager: FocusManager());
+  final focusManager = FocusManager();
+  final buildOwner = BuildOwner(focusManager: focusManager);
   final root = RenderObjectToWidgetAdapter<RenderBox>(
     container: boundary,
     child: Directionality(
@@ -159,6 +185,9 @@ Future<Uint8List> renderWidgetToPng(
     RenderObjectToWidgetAdapter<RenderBox>(container: boundary)
         .attachToRenderTree(buildOwner, root);
     buildOwner.finalizeTree();
+    pipelineOwner.rootNode = null;
     renderView.dispose();
+    pipelineOwner.dispose();
+    focusManager.dispose();
   }
 }
