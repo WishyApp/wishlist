@@ -17,6 +17,7 @@
   "socialSignInSeparator": "or",
   "continueWithGoogle": "Continue with Google",
   "continueWithApple": "Continue with Apple",
+  "googleSignInSafariUnavailable": "Google sign-in needs Safari, which isn't available on this device. Sign in with your email or with Apple.",
   "invalidLoginCredentials": "Invalid login credentials",
   "userAlreadyRegistered": "This email is already registered",
   "genericError": "An error occurred, please try again!",

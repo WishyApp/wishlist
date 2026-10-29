@@ -14,7 +14,6 @@ import 'package:wishlist/modules/auth/view/widgets/social_sign_in_buttons.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
 import 'package:wishlist/shared/infra/first_launch_service.dart';
 import 'package:wishlist/shared/infra/social_sign_in_client.dart';
-import 'package:wishlist/shared/infra/utils/network_error.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -22,6 +21,17 @@ import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/widgets/text_form_fields/input_email.dart';
 import 'package:wishlist/shared/widgets/text_form_fields/input_password.dart';
 import 'package:wishlist/shared/widgets/text_form_fields/input_pseudo_or_email.dart';
+
+/// Sends a failed social sign-in to Sentry at the given level. Replaced in
+/// tests.
+@visibleForTesting
+Future<void> Function(Object error, StackTrace stackTrace, SentryLevel level)
+    captureSocialSignInFailure =
+    (error, stackTrace, level) => Sentry.captureException(
+          error,
+          stackTrace: stackTrace,
+          withScope: (scope) => scope.level = level,
+        ).then<void>((_) {});
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({
@@ -195,10 +205,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     try {
       await signIn();
     } catch (e, stackTrace) {
-      // Mostly a misconfigured provider or client ID: worth seeing in Sentry,
-      // unlike a lost connection or a sheet the user closed.
-      if (!isNetworkError(e) && !SocialSignInClient.isUserSideFailure(e)) {
-        unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+      final level = SocialSignInClient.sentryLevelOf(e);
+      if (level != null) {
+        unawaited(captureSocialSignInFailure(e, stackTrace, level));
       }
       if (mounted) {
         showGenericError(context, error: e);
