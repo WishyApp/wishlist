@@ -143,4 +143,36 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Done'), findsNothing);
   });
+
+  testWidgets('colors the action with the theme of the calling screen',
+      (tester) async {
+    await tester.pumpApp(
+      Theme(
+        data: ThemeData(primaryColor: Colors.teal),
+        child: Builder(
+          builder: (context) {
+            return ElevatedButton(
+              onPressed: () {
+                showAppSnackBar(
+                  context,
+                  'Done',
+                  type: SnackBarType.success,
+                  actionLabel: 'See',
+                  onAction: () {},
+                );
+              },
+              child: const Text('Trigger'),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Trigger'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(tester.widget<Text>(find.text('See')).style?.color, Colors.teal);
+    await tester.pumpAndSettle();
+  });
 }
