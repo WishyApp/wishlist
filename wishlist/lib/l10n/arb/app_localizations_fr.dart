@@ -789,9 +789,8 @@ class AppLocalizationsFr extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other:
-          '$count wishs complétés ! Ils sont maintenant dans tes wishs complétés.',
-      one: 'Wish complété ! Il est maintenant dans tes wishs complétés.',
+      other: '$count wishs ajoutés à tes complétés !',
+      one: 'Wish ajouté à tes complétés !',
     );
     return '$_temp0';
   }
