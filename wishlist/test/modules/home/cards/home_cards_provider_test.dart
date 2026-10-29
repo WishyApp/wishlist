@@ -109,6 +109,7 @@ void main() {
         ...homeScreenOverrides(
           birthdays: birthdays,
           now: at ?? now,
+          overrideHomeCards: false,
           bookedWishes: fakeBookedWishes.clear(),
         ),
         currentUserBirthdayOverride(birthday: myBirthday),
@@ -428,6 +429,7 @@ void main() {
         overrides: [
           ...homeScreenOverrides(
             now: now,
+            overrideHomeCards: false,
             bookedWishes: fakeBookedWishes.clear(),
           ),
           friendshipsRealtimeProvider

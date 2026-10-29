@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/modules/home/view/widgets/cards/home_card_stack.dart';
 import 'package:wishlist/modules/home/view/widgets/home_empty_wishlists.dart';
 import 'package:wishlist/modules/home/view/widgets/home_profile_header.dart';
 import 'package:wishlist/modules/home/view/widgets/home_received_wishes_row.dart';
@@ -22,7 +24,10 @@ class HomeScreen extends ConsumerWidget {
     final wishlists = ref.watch(wishlistsRealtimeProvider);
 
     Future<void> refreshWishlists() async {
-      ref.invalidate(wishlistsRealtimeProvider);
+      ref
+        ..invalidate(wishlistsRealtimeProvider)
+        // Not awaited: the pile keeps its cards while it reloads
+        ..invalidate(homeCardsProvider);
 
       // Attendre que le nouveau stream soit initialisé
       await ref.read(wishlistsRealtimeProvider.future);
@@ -50,6 +55,7 @@ class HomeScreen extends ConsumerWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 const SliverToBoxAdapter(child: HomeProfileHeader()),
+                const SliverToBoxAdapter(child: HomeCardsSlot()),
                 const SliverToBoxAdapter(child: HomeReceivedWishesRow()),
                 SliverToBoxAdapter(
                   child: Padding(

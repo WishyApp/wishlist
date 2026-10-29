@@ -1,0 +1,286 @@
+import 'package:fake_async/fake_async.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:wishlist/modules/home/cards/home_card_actions.dart';
+import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository.dart';
+import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository_provider.dart';
+import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository.dart';
+import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository_provider.dart';
+import 'package:wishlist/shared/models/booked_wish_removal.dart';
+import 'package:wishlist/shared/models/home_card_definition.dart';
+
+import '../../../fixtures/fake_data.dart';
+import '../../../fixtures/fake_providers.dart';
+
+class MockCardStateRepository extends Mock implements CardStateRepository {}
+
+class MockBookedWishRemovalRepository extends Mock
+    implements BookedWishRemovalRepository {}
+
+HomeCardDefinition def(
+  String key,
+  int priority, [
+  Map<String, dynamic> params = const {},
+]) {
+  return HomeCardDefinition(
+    key: key,
+    kind: key == 'home_stack' ? HomeCardKind.settings : HomeCardKind.computed,
+    priority: priority,
+    params: params,
+  );
+}
+
+HomeCardCandidate photoCard() {
+  return const HomeCardCandidate(
+    type: 'onboarding',
+    stateKey: 'onboarding:photo',
+    content: Onboarding(OnboardingStep.photo),
+  );
+}
+
+HomeCardCandidate removalCard() {
+  return HomeCardCandidate(
+    type: 'booked_wish_removed',
+    stateKey: 'booked_wish_removed:7',
+    content: BookedWishRemoved(
+      BookedWishRemoval(
+        id: 7,
+        ownerId: fakeFriendUserId1,
+        ownerPseudo: 'Alice',
+        wishId: 99,
+        wishName: 'Casque',
+        quantity: 1,
+        wishlistName: 'Anniversaire',
+        removedAt: DateTime(2026, 10, 28),
+      ),
+    ),
+  );
+}
+
+void main() {
+  late MockCardStateRepository cardStates;
+  late MockBookedWishRemovalRepository removals;
+  // 10:00 on the 29th: "later" is the 30th at midnight, not 10:00.
+  final now = DateTime(2026, 10, 29, 10);
+
+  setUpAll(() => registerFallbackValue(DateTime(2026)));
+
+  setUp(() {
+    cardStates = MockCardStateRepository();
+    removals = MockBookedWishRemovalRepository();
+    when(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    ).thenAnswer((_) async {});
+    when(() => cardStates.recordShown(any())).thenAnswer((_) async {});
+    when(() => removals.dismiss(any())).thenAnswer((_) async {});
+  });
+
+  /// Runs [body] in fake async with the notifier alive, then disposes it.
+  void run(
+    void Function(
+      FakeAsync async,
+      HomeCardActions actions,
+      ProviderContainer container,
+    ) body, {
+    List<HomeCardDefinition>? definitions,
+  }) {
+    fakeAsync((async) {
+      final container = ProviderContainer(
+        overrides: [
+          clockOverride(now),
+          cardStateRepositoryProvider.overrideWithValue(cardStates),
+          bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
+          homeCardsProvider.overrideWith((ref) async => const []),
+          homeCardDefinitionsProvider.overrideWith(
+            (ref) async => {
+              for (final d in definitions ??
+                  [
+                    def('home_stack', 0, {'later_days': 1}),
+                    def('friend_birthday', 30, {
+                      'reminder_days': [30, 7],
+                    }),
+                  ])
+                d.key: d,
+            },
+          ),
+        ],
+      );
+      container
+        ..listen(homeCardActionsProvider, (_, __) {})
+        ..listen(homeCardDefinitionsProvider, (_, __) {});
+      async.flushMicrotasks();
+      body(async, container.read(homeCardActionsProvider.notifier), container);
+      container.dispose();
+      async.flushMicrotasks();
+    });
+  }
+
+  test('hide is sent for good once the snack-bar is over', () {
+    run((async, actions, container) {
+      actions.swipe(photoCard(), HomeCardSwipe.hide);
+
+      expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
+      async.elapse(const Duration(seconds: 3));
+      verifyNever(
+        () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+      );
+
+      async.elapse(const Duration(seconds: 1));
+      verify(
+        () => cardStates.dismiss('onboarding:photo'),
+      ).called(1);
+      // Still off the screen once sent
+      expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
+    });
+  });
+
+  test('hide of a friend birthday comes back at the next reminder step', () {
+    run((async, actions, container) {
+      final card = HomeCardCandidate(
+        type: 'friend_birthday',
+        stateKey: 'friend_birthday:$fakeFriendUserId1@2026',
+        content: FriendBirthdayToday(fakeFriendAppUser1),
+        eventAt: DateTime(2026, 11, 5),
+      );
+
+      actions.swipe(card, HomeCardSwipe.hide);
+      async.elapse(homeCardUndoDuration);
+
+      // The J-7 step is this morning, already past: the next one is the day.
+      verify(
+        () => cardStates.dismiss(
+          card.stateKey,
+          snoozeUntil: DateTime(2026, 11, 5),
+        ),
+      ).called(1);
+    });
+  });
+
+  test('later is postponed to the start of the next local day', () {
+    run((async, actions, container) {
+      actions.swipe(photoCard(), HomeCardSwipe.later);
+      async.elapse(homeCardUndoDuration);
+
+      verify(
+        () => cardStates.dismiss(
+          'onboarding:photo',
+          snoozeUntil: DateTime(2026, 10, 30),
+        ),
+      ).called(1);
+    });
+  });
+
+  test('later follows later_days of home_stack', () {
+    run(
+      (async, actions, container) {
+        expect(actions.laterDays, 3);
+        actions.swipe(photoCard(), HomeCardSwipe.later);
+        async.elapse(homeCardUndoDuration);
+
+        verify(
+          () => cardStates.dismiss(
+            'onboarding:photo',
+            snoozeUntil: DateTime(2026, 11),
+          ),
+        ).called(1);
+      },
+      definitions: [
+        def('home_stack', 0, {'later_days': 3}),
+      ],
+    );
+  });
+
+  test('undo before the end sends nothing and brings the card back', () {
+    run((async, actions, container) {
+      actions.swipe(photoCard(), HomeCardSwipe.hide);
+      async.elapse(const Duration(seconds: 2));
+      actions.undo('onboarding:photo');
+
+      expect(container.read(homeCardActionsProvider), isEmpty);
+      async.elapse(const Duration(seconds: 10));
+      verifyNever(
+        () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+      );
+    });
+  });
+
+  test('leaving the screen sends what is waiting at once', () {
+    fakeAsync((async) {
+      final container = ProviderContainer(
+        overrides: [
+          clockOverride(now),
+          cardStateRepositoryProvider.overrideWithValue(cardStates),
+          bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
+          homeCardsProvider.overrideWith((ref) async => const []),
+          homeCardDefinitionsProvider.overrideWith(
+            (ref) async => {'home_stack': def('home_stack', 0)},
+          ),
+        ],
+      );
+      final subscription =
+          container.listen(homeCardActionsProvider, (_, __) {});
+      container
+          .read(homeCardActionsProvider.notifier)
+          .swipe(photoCard(), HomeCardSwipe.hide);
+      async.elapse(const Duration(seconds: 1));
+      verifyNever(
+        () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+      );
+
+      // The screen is left: nothing listens to the notifier any more
+      subscription.close();
+      async.elapse(Duration.zero);
+
+      verify(
+        () => cardStates.dismiss('onboarding:photo'),
+      ).called(1);
+      // The timer is gone: no second send
+      async.elapse(const Duration(seconds: 10));
+      verifyNoMoreInteractions(cardStates);
+      container.dispose();
+    });
+  });
+
+  test('a removal alert is closed on its own table, not as a card state', () {
+    run((async, actions, container) {
+      actions.swipe(removalCard(), HomeCardSwipe.hide);
+      async.elapse(homeCardUndoDuration);
+
+      verify(() => removals.dismiss(7)).called(1);
+      verifyNever(
+        () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+      );
+    });
+  });
+
+  test('records a card once, and never the optional window', () {
+    run((async, actions, container) {
+      actions
+        ..recordShown('onboarding:birthday')
+        ..recordShown('onboarding:birthday')
+        ..recordShown('friend_accepted:a');
+      async.flushMicrotasks();
+
+      verify(() => cardStates.recordShown('onboarding:birthday')).called(1);
+      verify(() => cardStates.recordShown('friend_accepted:a')).called(1);
+      verifyNever(
+        () => cardStates.recordShown('onboarding:optional_window'),
+      );
+    });
+  });
+
+  test('a failing send does not throw', () {
+    when(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    ).thenThrow(Exception('offline'));
+
+    run((async, actions, container) {
+      actions.swipe(photoCard(), HomeCardSwipe.hide);
+      async.elapse(homeCardUndoDuration);
+      async.flushMicrotasks();
+    });
+  });
+}

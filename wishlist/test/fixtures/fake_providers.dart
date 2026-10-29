@@ -2,6 +2,8 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/app/config/config.dart';
 import 'package:wishlist/app/config/config_provider.dart';
+import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
@@ -172,11 +174,19 @@ List<Override> homeScreenOverrides({
   Birthday? currentUserBirthday,
   DateTime? now,
 
+  /// Cards of the moment of the home stack (none by default)
+  List<HomeCardCandidate> homeCards = const [],
+
+  /// `false` : homeCardsProvider reste le vrai, au-dessus des repositories.
+  bool overrideHomeCards = true,
+
   /// `false` : visibleBirthdaysProvider reste le vrai, au-dessus du service.
   bool overrideBirthdays = true,
 }) {
   return [
     supabaseClientOverride(userId: currentUserId),
+    if (overrideHomeCards)
+      homeCardsProvider.overrideWith((ref) async => homeCards),
     wishlistsRealtimeOverride(wishlists: wishlists),
     completedWishesRealtimeProvider.overrideWith(
       (ref) => Stream.value((completedWishes ?? const []).toIList()),
