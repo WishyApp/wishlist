@@ -6,6 +6,7 @@ import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/friends/view/widgets/add_friend_bottom_sheet.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
@@ -57,47 +58,52 @@ class HomeCardView extends ConsumerWidget {
             : Border.all(color: palette.border!),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 16),
+        padding: const EdgeInsets.fromLTRB(16, 0, 4, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                if (spec.badge case final badge?) ...[
-                  _Badge(badge: badge, palette: palette),
-                  const Gap(8),
-                ],
-                Flexible(
-                  child: Text(
-                    spec.overline,
-                    style: AppTextStyles.tiny.copyWith(
-                      color: palette.secondaryText,
-                      fontWeight: FontWeight.w700,
+            ConstrainedBox(
+              // The same height with or without the cross
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Row(
+                children: [
+                  if (spec.badge case final badge?) ...[
+                    _Badge(badge: badge, palette: palette),
+                    const Gap(8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      spec.overline,
+                      style: AppTextStyles.tiny.copyWith(
+                        color: palette.secondaryText,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
-                if (spec.step case final step?) ...[
-                  const Gap(8),
-                  _StepDots(step: step, palette: palette),
-                ],
-                const Spacer(),
-                if (card.dismissable)
-                  SizedBox.square(
-                    dimension: 32,
-                    child: IconButton(
+                  if (spec.step case final step?) ...[
+                    const Gap(8),
+                    _StepDots(step: step, palette: palette),
+                  ],
+                  if (card.dismissable)
+                    // 48 px to touch, the icon stays small
+                    IconButton(
                       padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 48,
+                        height: 48,
+                      ),
                       iconSize: 18,
                       tooltip: l10n.homeCardHide,
                       color: palette.secondaryText,
                       onPressed: onHide,
                       icon: const Icon(Icons.close),
-                    ),
-                  )
-                else
-                  const Gap(8),
-              ],
+                    )
+                  else
+                    const Gap(8),
+                ],
+              ),
             ),
-            const Gap(6),
+            const Gap(2),
             Row(
               children: [
                 Expanded(
@@ -214,6 +220,8 @@ class HomeCardView extends ConsumerWidget {
             booking.wish.wishlistId,
             booking.wish.id,
             wishIds: [booking.wish.id],
+            // As the Booked tab opens it
+            quantityDisplay: WishQuantityDisplay.myBooked,
           ).push(context),
           illustration: Assets.svg.noWishBag,
         );

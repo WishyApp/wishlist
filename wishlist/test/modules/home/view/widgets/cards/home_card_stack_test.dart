@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -13,6 +14,7 @@ import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wi
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository.dart';
 import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository_provider.dart';
+import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 
 import '../../../../../fixtures/fake_data.dart';
@@ -262,6 +264,198 @@ void main() {
 
     expect(find.text('Crée ta première wishlist'), findsOneWidget);
     expect(find.text('Carte masquée'), findsNothing);
+  });
+
+  testWidgets('the card is sent when the snack-bar closes, not on a timer',
+      (tester) async {
+    await pump(tester, () async => cards);
+
+    await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+    await letItLeave(tester);
+    // The snack-bar lasts 4 s, the fallback timer 5 s
+    await tester.pump(const Duration(milliseconds: 3000));
+    verifyNever(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    );
+    await tester.pump(const Duration(milliseconds: 800));
+
+    verify(() => cardStates.dismiss('friend_accepted:a')).called(1);
+    await finish(tester);
+  });
+
+  testWidgets('swiping the snack-bar away sends the card', (tester) async {
+    await pump(tester, () async => cards);
+
+    await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+    await letItLeave(tester);
+    await tester.drag(find.text('Carte masquée'), const Offset(600, 0));
+    await letItLeave(tester);
+
+    verify(() => cardStates.dismiss('friend_accepted:a')).called(1);
+    await finish(tester);
+  });
+
+  testWidgets('leaving the screen closes the snack-bar: no Undo left',
+      (tester) async {
+    await pump(tester, () async => cards);
+
+    await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+    await letItLeave(tester);
+    expect(find.text('Annuler'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    expect(find.text('Annuler'), findsNothing);
+    verify(() => cardStates.dismiss('friend_accepted:a')).called(1);
+  });
+
+  testWidgets('going to the background sends the card and closes the snack-bar',
+      (tester) async {
+    await pump(tester, () async => cards);
+
+    await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+    await letItLeave(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+
+    verify(() => cardStates.dismiss('friend_accepted:a')).called(1);
+    expect(find.text('Annuler'), findsNothing);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await finish(tester);
+  });
+
+  group('cards closed for good', () {
+    final removal = HomeCardCandidate(
+      type: 'booked_wish_removed',
+      stateKey: 'booked_wish_removed:7',
+      content: BookedWishRemoved(
+        BookedWishRemoval(
+          id: 7,
+          ownerId: fakeFriendUserId1,
+          ownerPseudo: 'Alice',
+          wishId: 9,
+          wishName: 'Casque',
+          quantity: 1,
+          wishlistName: 'Liste',
+          removedAt: fakeNow,
+        ),
+      ),
+    );
+    const photo = HomeCardCandidate(
+      type: 'onboarding',
+      stateKey: 'onboarding:photo',
+      content: Onboarding(OnboardingStep.photo),
+    );
+    const birthday = HomeCardCandidate(
+      type: 'onboarding',
+      stateKey: 'onboarding:birthday',
+      content: Onboarding(OnboardingStep.birthday),
+    );
+
+    for (final card in [removal, photo, birthday]) {
+      testWidgets('${card.stateKey} cannot be postponed', (tester) async {
+        await pump(tester, () async => [card]);
+
+        await tester.drag(find.byType(HomeCardView), const Offset(500, 0));
+        await letItLeave(tester);
+
+        expect(find.byType(HomeCardView), findsOneWidget);
+        expect(find.textContaining('Reportée'), findsNothing);
+
+        await tester.drag(find.byType(HomeCardView), const Offset(-500, 0));
+        await letItLeave(tester);
+        expect(find.text('Carte masquée'), findsOneWidget);
+        await finish(tester);
+      });
+    }
+
+    testWidgets('a card that comes back can be postponed', (tester) async {
+      await pump(tester, () async => cards);
+
+      await tester.drag(find.text(_firstTitle), const Offset(500, 0));
+      await letItLeave(tester);
+
+      expect(find.text('Reportée à demain'), findsOneWidget);
+      await finish(tester);
+    });
+  });
+
+  group('accessibility', () {
+    testWidgets('the top card offers Later and Hide as actions',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await pump(tester, () async => cards);
+
+      final data = tester
+          .getSemantics(
+            find.descendant(
+              of: find.byType(HomeCardStack),
+              matching: find.byWidgetPredicate(
+                (w) =>
+                    w is Semantics &&
+                    w.properties.customSemanticsActions != null,
+              ),
+            ),
+          )
+          .getSemanticsData();
+      final labels = [
+        for (final id in data.customSemanticsActionIds!)
+          CustomSemanticsAction.getAction(id)!.label,
+      ];
+      expect(labels, containsAll(['Plus tard', 'Masquer']));
+      handle.dispose();
+    });
+
+    testWidgets('the Hide action of a card closed for good has no Later',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await pump(tester, () async => [cards[1]]);
+
+      final semantics = tester.widget<Semantics>(
+        find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.customSemanticsActions != null,
+        ),
+      );
+      final labels = [
+        for (final action in semantics.properties.customSemanticsActions!.keys)
+          action.label,
+      ];
+      expect(labels, ['Masquer']);
+      handle.dispose();
+    });
+
+    testWidgets('with a screen reader the snack-bar stays and nothing is sent',
+        (tester) async {
+      await tester.pumpApp(
+        Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(accessibleNavigation: true),
+            child: const Scaffold(
+              body: SafeArea(
+                child: SingleChildScrollView(child: HomeCardsSlot()),
+              ),
+            ),
+          ),
+        ),
+        overrides: overrides(() async => cards),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+      await letItLeave(tester);
+      await tester.pump(const Duration(minutes: 1));
+
+      expect(find.text('Carte masquée'), findsOneWidget);
+      verifyNever(
+        () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+      );
+
+      // Leaving still sends it
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      verify(() => cardStates.dismiss('friend_accepted:a')).called(1);
+    });
   });
 
   testWidgets('records the top card once, then the next one', (tester) async {

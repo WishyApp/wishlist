@@ -67,8 +67,14 @@ void main() {
         // Any other route shows where it led
         GoRoute(
           path: '/:rest(.*)',
-          builder: (context, state) =>
-              Scaffold(body: Text('at ${state.uri.path}')),
+          builder: (context, state) => Scaffold(
+            body: Column(
+              children: [
+                Text('at ${state.uri.path}'),
+                Text('query ${state.uri.query}'),
+              ],
+            ),
+          ),
         ),
       ],
       overrides: [
@@ -192,6 +198,25 @@ void main() {
         'Voir le wish',
         '/wishlist/${fakeWish1.wishlistId}/wish/${fakeWish1.id}',
       );
+    });
+
+    testWidgets('a booked reminder opens the wish as the Booked tab does',
+        (tester) async {
+      await pumpCard(
+        tester,
+        card(
+          BookedReminder(
+            fakeBookedWish1,
+            ReminderOccasion.ownerBirthday,
+            5,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Voir le wish'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('quantity-display=my-booked'), findsOneWidget);
     });
 
     testWidgets('a booked reminder on the day does not say 0 days',
@@ -336,6 +361,37 @@ void main() {
 
       expect(find.text('Mets une photo'), findsOneWidget);
       await tapAndExpectPath(tester, 'Choisir une photo', '/profile');
+    });
+  });
+
+  group('layout', () {
+    testWidgets('a long overline uses the free width of the card',
+        (tester) async {
+      tester.view
+        ..physicalSize = const Size(375 * 3, 800 * 3)
+        ..devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final booking = fakeBookedWish1.copyWith(
+        ownerPseudo: 'Alexandrine-Joséphine',
+      );
+      await pumpCard(
+        tester,
+        card(BookedReminder(booking, ReminderOccasion.ownerBirthday, 5)),
+      );
+
+      final overline = find.textContaining('Rappel');
+      // Half of the row would be about 150: it takes the room left by the
+      // cross, up to the edge of the card
+      expect(tester.getSize(overline).width, greaterThan(250));
+    });
+
+    testWidgets('the cross has a 48 px hit area', (tester) async {
+      await pumpCard(tester, card(FriendBirthdayToday(fakeFriendAppUser1)));
+
+      final size = tester.getSize(find.byType(IconButton));
+      expect(size.width, greaterThanOrEqualTo(48));
+      expect(size.height, greaterThanOrEqualTo(48));
+      expect(tester.widget<IconButton>(find.byType(IconButton)).iconSize, 18);
     });
   });
 

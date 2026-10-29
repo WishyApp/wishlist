@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:wishlist/l10n/l10n.dart';
@@ -81,19 +82,40 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
   void _swipe(HomeCardCandidate card, HomeCardSwipe swipe) {
     final l10n = context.l10n;
     final actions = ref.read(homeCardActionsProvider.notifier);
-    actions.swipe(card, swipe);
-    showAppSnackBar(
+    final key = card.stateKey;
+    // A screen reader user needs more than 4 s: the snack-bar stays until
+    // dismissed, and the card is sent when leaving or on the app lifecycle.
+    final keepOpen = MediaQuery.of(context).accessibleNavigation;
+    actions.swipe(card, swipe, autoCommit: !keepOpen);
+    final close = showAppSnackBar(
       context,
       swipe == HomeCardSwipe.hide
           ? l10n.homeCardHidden
           : l10n.homeCardPostponed(actions.laterDays),
       type: SnackBarType.success,
-      // The default duration of the snack-bar is `homeCardUndoDuration`
+      // Explicit: the undo delay does not depend on the default of the widget
+      // ignore: avoid_redundant_argument_values
+      duration: homeCardUndoDuration,
+      autoClose: !keepOpen,
       actionLabel: l10n.cancelButton,
-      // The snack-bar outlives the screen: the notifier ignores an undo
-      // that comes after its disposal.
-      onAction: () => actions.undo(card.stateKey),
+      onAction: () => actions.undo(key),
+      // The card is sent when the snack-bar closes, so "Undo" is never offered
+      // once it was sent.
+      onClosed: () => actions.commit(key),
     );
+    // Anything else that sends the card (lifecycle, leaving) closes it too
+    actions.attachCloser(key, close);
+  }
+
+  /// Whether swiping right makes sense: a card closed for good (an alert, the
+  /// optional onboarding steps) is not brought back tomorrow, it is hidden.
+  bool _canPostpone(HomeCardCandidate card) {
+    return switch (card.content) {
+      BookedWishRemoved() => false,
+      Onboarding(:final step) =>
+        step != OnboardingStep.birthday && step != OnboardingStep.photo,
+      _ => true,
+    };
   }
 
   @override
@@ -108,44 +130,64 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
       onHide: () => _swipe(top, HomeCardSwipe.hide),
     );
 
+    final l10n = context.l10n;
+    final canPostpone = _canPostpone(top);
+    final hideBackground = _SwipeBackground(
+      color: AppColors.gainsboro,
+      icon: Icons.close,
+      label: l10n.homeCardHide,
+      alignment: Alignment.centerRight,
+    );
+
     return Column(
       children: [
         if (top.dismissable)
           // One rounded slot: the card slides in it, the background is
           // revealed in it, and the outline is drawn over both so that it
           // stays continuous (the flat card has none of its own).
-          DecoratedBox(
-            position: DecorationPosition.foreground,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(homeCardRadius),
-              border: homeCardBorderColor(top.tone) == null
-                  ? null
-                  : Border.all(color: homeCardBorderColor(top.tone)!),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(homeCardRadius),
-              child: Dismissible(
-                // One element per card: the next card never inherits the drag
-                key: ValueKey(top.stateKey),
-                onDismissed: (direction) => _swipe(
-                  top,
-                  direction == DismissDirection.startToEnd
-                      ? HomeCardSwipe.later
-                      : HomeCardSwipe.hide,
+          Semantics(
+            // The swipes, for those who cannot do the gesture
+            customSemanticsActions: {
+              if (canPostpone)
+                CustomSemanticsAction(label: l10n.homeCardLater): () =>
+                    _swipe(top, HomeCardSwipe.later),
+              CustomSemanticsAction(label: l10n.homeCardHide): () =>
+                  _swipe(top, HomeCardSwipe.hide),
+            },
+            child: DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(homeCardRadius),
+                border: homeCardBorderColor(top.tone) == null
+                    ? null
+                    : Border.all(color: homeCardBorderColor(top.tone)!),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(homeCardRadius),
+                child: Dismissible(
+                  // One element per card: the next card never inherits the drag
+                  key: ValueKey(top.stateKey),
+                  direction: canPostpone
+                      ? DismissDirection.horizontal
+                      : DismissDirection.endToStart,
+                  onDismissed: (direction) => _swipe(
+                    top,
+                    direction == DismissDirection.startToEnd
+                        ? HomeCardSwipe.later
+                        : HomeCardSwipe.hide,
+                  ),
+                  // With a single direction `background` is what is shown
+                  background: canPostpone
+                      ? _SwipeBackground(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                          icon: Icons.schedule,
+                          label: l10n.homeCardLater,
+                          alignment: Alignment.centerLeft,
+                        )
+                      : hideBackground,
+                  secondaryBackground: canPostpone ? hideBackground : null,
+                  child: view,
                 ),
-                background: _SwipeBackground(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  icon: Icons.schedule,
-                  label: context.l10n.homeCardLater,
-                  alignment: Alignment.centerLeft,
-                ),
-                secondaryBackground: _SwipeBackground(
-                  color: AppColors.gainsboro,
-                  icon: Icons.close,
-                  label: context.l10n.homeCardHide,
-                  alignment: Alignment.centerRight,
-                ),
-                child: view,
               ),
             ),
           )
