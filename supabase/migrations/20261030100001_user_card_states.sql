@@ -12,6 +12,15 @@
 -- must not undo a "hide"); "later" then "hide" does end permanent. The app
 -- applies this rule, the table does not.
 --
+-- Rows accumulate (one per card occurrence), so purge_stale_card_states
+-- deletes them once a year (pg_cron, January 2). A row is stale when it was
+-- last shown or dismissed more than a year ago and holds no snooze still to
+-- come: the app asks for the keys of the cards it displays, and the keys that
+-- carry a year (friend_birthday:<uuid>:2026) are not read again a year later.
+-- Rows whose key starts with 'onboarding:' are never purged: onboarding:birthday,
+-- onboarding:photo and onboarding:optional_window have no year in their key,
+-- deleting them would bring the skipped onboarding steps back.
+--
 -- Clients only read their rows. They write through record_card_shown and
 -- dismiss_card, which always write the row of the current user.
 
@@ -136,5 +145,41 @@ REVOKE ALL ON FUNCTION public.record_card_shown(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.record_card_shown(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.dismiss_card(text, timestamptz) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.dismiss_card(text, timestamptz) TO authenticated;
+
+-- Deletes the stale rows of every user and returns how many. Internal: run by
+-- pg_cron as postgres, so no client can call it. The retention is spelled once,
+-- in v_retention.
+CREATE OR REPLACE FUNCTION public.purge_stale_card_states()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_retention constant interval := interval '1 year';
+  v_deleted integer;
+BEGIN
+  DELETE FROM public.user_card_states
+  WHERE GREATEST(last_shown_at, dismissed_at) < now() - v_retention
+    AND (snoozed_until IS NULL OR snoozed_until < now())
+    AND card_key NOT LIKE 'onboarding:%';
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.purge_stale_card_states() FROM PUBLIC, anon, authenticated;
+
+-- Once a year, January 2 at 03:17 UTC. Scheduling by name replaces an existing
+-- job, so this stays idempotent.
+-- No grant on the cron schema: enabling the extension already gives postgres
+-- what it needs on Supabase, and granting again breaks its re-creation hook.
+CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+
+SELECT cron.schedule(
+  'purge-user-card-states',
+  '17 3 2 1 *',
+  $cron$SELECT public.purge_stale_card_states()$cron$
+);
 
 -- Tests: supabase-tests/user_card_states.sql.

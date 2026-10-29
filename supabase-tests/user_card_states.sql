@@ -189,6 +189,45 @@ SELECT pg_temp.expect_denied('anon reads the table',
   $q$SELECT * FROM public.user_card_states$q$);
 RESET ROLE;
 
+-- Yearly purge. User C owns rows of every age.
+INSERT INTO auth.users (id) VALUES ('00000000-0000-4000-e000-00000000000c');
+INSERT INTO public.profiles (id, pseudo) VALUES ('00000000-0000-4000-e000-00000000000c', 'cards_c');
+INSERT INTO public.user_card_states (user_id, card_key, shown_count, last_shown_at, dismissed_at, snoozed_until) VALUES
+  -- purged: nothing for more than a year, and no snooze left
+  ('00000000-0000-4000-e000-00000000000c', 'old_shown:1', 1, now() - interval '13 months', NULL, NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'old_dismissed:1', 1, now() - interval '14 months', now() - interval '13 months', NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'old_permanent:1', 0, NULL, now() - interval '2 years', NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'old_expired:1', 0, NULL, now() - interval '2 years', now() - interval '18 months'),
+  -- kept
+  ('00000000-0000-4000-e000-00000000000c', 'recent:1', 1, now() - interval '11 months', NULL, NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'recent_dismissed:1', 1, now() - interval '2 years', now() - interval '11 months', NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'old_snoozed:1', 0, NULL, now() - interval '2 years', now() + interval '1 month'),
+  ('00000000-0000-4000-e000-00000000000c', 'onboarding:birthday', 0, NULL, now() - interval '5 years', NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'onboarding:photo', 0, NULL, now() - interval '5 years', NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'onboarding:optional_window', 1, now() - interval '5 years', NULL, NULL);
+
+SELECT pg_temp.act_as('00000000-0000-4000-e000-00000000000a');
+SELECT pg_temp.expect_denied('authenticated executes purge_stale_card_states',
+  $q$SELECT public.purge_stale_card_states()$q$);
+SELECT pg_temp.act_as_anon();
+SELECT pg_temp.expect_denied('anon executes purge_stale_card_states',
+  $q$SELECT public.purge_stale_card_states()$q$);
+RESET ROLE;
+
+SELECT pg_temp.expect_true('purge returns the number of rows deleted',
+  public.purge_stale_card_states() = 4);
+SELECT pg_temp.expect_true('only the stale rows are gone',
+  (SELECT array_agg(card_key COLLATE "C" ORDER BY card_key COLLATE "C") FROM public.user_card_states
+   WHERE user_id = '00000000-0000-4000-e000-00000000000c')
+  = ARRAY['old_snoozed:1', 'onboarding:birthday', 'onboarding:optional_window',
+          'onboarding:photo', 'recent:1', 'recent_dismissed:1']::text[]);
+SELECT pg_temp.expect_true('a second purge deletes nothing', public.purge_stale_card_states() = 0);
+
+-- Scheduled once a year with pg_cron
+SELECT pg_temp.expect_true('purge job is scheduled on January 2',
+  (SELECT count(*) = 1 AND bool_and(schedule = '17 3 2 1 *' AND command LIKE '%purge_stale_card_states%')
+   FROM cron.job WHERE jobname = 'purge-user-card-states'));
+
 -- Deleting the user deletes their rows
 DELETE FROM auth.users WHERE id = '00000000-0000-4000-e000-00000000000a';
 SELECT pg_temp.expect_true('rows go with the user',
