@@ -472,4 +472,37 @@ void main() {
       verify(() => cardStates.getStates(any())).called(2);
     });
   });
+
+  group('onboarding step 2', () {
+    FriendsData onlyPending() => FriendsData(
+          friends: const IListConst([]),
+          pendingFriends: [fakePendingAppUser].toIList(),
+          requestedFriends: const IListConst([]),
+        );
+
+    test('a sent request is enough: step 3 comes next', () async {
+      final cards = await load(
+        myBirthday: null,
+        extra: [friendshipsRealtimeOverride(friendsData: onlyPending())],
+      );
+
+      expect(cards.single.stateKey, 'onboarding:birthday');
+    });
+
+    test('a received request is not: step 2 stays', () async {
+      final cards = await load(
+        extra: [
+          friendshipsRealtimeOverride(
+            friendsData: FriendsData(
+              friends: const IListConst([]),
+              pendingFriends: const IListConst([]),
+              requestedFriends: [fakeRequestedAppUser].toIList(),
+            ),
+          ),
+        ],
+      );
+
+      expect(cards.single.stateKey, 'onboarding:firstFriend');
+    });
+  });
 }

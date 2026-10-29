@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/modules/home/cards/card_builders.dart';
+import 'package:wishlist/modules/home/cards/card_selection.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
@@ -337,7 +338,7 @@ void main() {
       expect(cards.single.type, 'booked_reminder');
       expect(
         cards.single.stateKey,
-        'booked_reminder:${fakeBookedWish1.wish.id}@2026',
+        'booked_reminder:${fakeBookedWish1.wish.id}-birthday@2026',
       );
       final content = cards.single.content as BookedReminder;
       expect(content.days, 10);
@@ -381,7 +382,10 @@ void main() {
       final content = cards.single.content as BookedReminder;
       expect(content.occasion, ReminderOccasion.christmas);
       expect(content.days, 10);
-      expect(cards.single.stateKey, endsWith('@2026'));
+      expect(
+        cards.single.stateKey,
+        'booked_reminder:${fakeBookedWish1.wish.id}-christmas@2026',
+      );
     });
 
     test('the closest occasion wins', () {
@@ -418,9 +422,39 @@ void main() {
 
       expect(
         cards.single.stateKey,
-        'booked_reminder:${fakeBookedWish1.wish.id}@2027',
+        'booked_reminder:${fakeBookedWish1.wish.id}-birthday@2027',
       );
       expect(cards.single.eventAt, DateTime(2027, 1, 3));
+    });
+
+    test('hiding the birthday reminder does not hide the Christmas one', () {
+      final wishId = fakeBookedWish1.wish.id;
+      final owner = {
+        fakeBookedWish1.ownerId: const Birthday(month: 3, day: 10),
+      };
+      final march = build(DateTime(2026, 3, 1, 9), [fakeBookedWish1], owner);
+      final december = build(DateTime(2026, 12, 20, 9), [fakeBookedWish1], {});
+
+      expect(march.single.stateKey, 'booked_reminder:$wishId-birthday@2026');
+      expect(
+        december.single.stateKey,
+        'booked_reminder:$wishId-christmas@2026',
+      );
+      final hiddenMarch = {
+        march.single.stateKey: CardState(
+          cardKey: march.single.stateKey,
+          shownCount: 1,
+          dismissedAt: DateTime.utc(2026, 3),
+        ),
+      };
+      final shown = selectHomeCards(
+        candidates: december,
+        definitions: {'booked_reminder': bookedReminderDef},
+        states: hiddenMarch,
+        maxCards: 3,
+        now: DateTime(2026, 12, 20, 9),
+      );
+      expect(shown, hasLength(1));
     });
 
     test('counts whole days across a daylight saving change', () {
@@ -636,6 +670,13 @@ void main() {
 
       expect(step(cards), OnboardingStep.firstFriend);
       expect(cards.single.dismissable, isFalse);
+    });
+
+    test('an old account with wishlists and friends still gets step 3', () {
+      // No account-age gate: everyone missing a birthday sees it once.
+      final cards = build(wishlistCount: 6, friendCount: 12);
+
+      expect(step(cards), OnboardingStep.birthday);
     });
 
     test('a wishlist, a friend and no birthday gives step 3', () {

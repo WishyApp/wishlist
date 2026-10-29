@@ -171,6 +171,7 @@ List<HomeCardCandidate> afterPartyCards({
 
 /// Wishes still to give whose owner has their birthday, or Christmas comes,
 /// within `days_before` days. The closest occasion wins, the birthday on a tie.
+/// The key carries the occasion.
 List<HomeCardCandidate> bookedReminderCards({
   required List<BookedWishWithDetails> bookings,
   required Map<String, Birthday> birthdays,
@@ -209,12 +210,16 @@ List<HomeCardCandidate> bookedReminderCards({
     final eventDay = occasion == ReminderOccasion.christmas
         ? christmasDay
         : _birthdayDay(today, days);
+    final occasionName =
+        occasion == ReminderOccasion.christmas ? 'christmas' : 'birthday';
     cards.add(
       HomeCardCandidate(
         type: definition.key,
+        // One reminder per party: hiding the birthday one leaves the
+        // Christmas one of the same wish.
         stateKey: cardKey(
           definition.key,
-          id: booking.wish.id,
+          id: '${booking.wish.id}-$occasionName',
           year: eventDay.year,
         ),
         content: BookedReminder(booking, occasion, days),
@@ -298,8 +303,9 @@ List<HomeCardCandidate> christmasCards({
 }
 
 /// One card that moves from step to step: first wishlist, first friend (not
-/// dismissable), then birthday and photo. The optional steps are dismissed
-/// for good by a swipe, and end `optional_steps_hours` hours after
+/// dismissable; [friendCount] counts friends and requests the user sent),
+/// then birthday and photo. The optional steps are dismissed for good by a
+/// swipe, and end `optional_steps_hours` hours after
 /// `onboarding:optional_window` was first shown.
 List<HomeCardCandidate> onboardingCards({
   required int wishlistCount,

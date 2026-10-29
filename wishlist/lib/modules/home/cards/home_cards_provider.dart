@@ -96,11 +96,15 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   final wishlists = _valueOf(wishlistsRealtimeProvider, ref) ?? const [];
   await ref.watch(
     friendshipsRealtimeProvider.selectAsync(
-      (data) => [for (final f in data.friends) f.user.id].toIList(),
+      (data) => (
+        [for (final f in data.friends) f.user.id].toIList(),
+        [for (final f in data.pendingFriends) f.user.id].toIList(),
+      ),
     ),
   );
-  final friends = _valueOf(friendshipsRealtimeProvider, ref)?.friends ??
-      const IListConst<AppUser>([]);
+  final friendsData = _valueOf(friendshipsRealtimeProvider, ref);
+  final friends = friendsData?.friends ?? const IListConst<AppUser>([]);
+  final sentRequests = friendsData?.pendingFriends.length ?? 0;
 
   // Each of these only feeds some cards: a failure loses just those.
   final birthdays = await _orElse<Map<String, Birthday>>(
@@ -216,7 +220,8 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   candidates.addAll(
     onboardingCards(
       wishlistCount: wishlists.length,
-      friendCount: friends.length,
+      // A request already sent is as good as a friend for step 2.
+      friendCount: friends.length + sentRequests,
       hasBirthday: hasBirthday,
       hasAvatar: hasAvatar,
       states: states,
