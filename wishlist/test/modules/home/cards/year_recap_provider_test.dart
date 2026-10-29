@@ -63,10 +63,8 @@ void main() {
       yearRecapFactsProvider(2026),
       (_, __) {},
     );
-    expect(
-        (await container.read(yearRecapFactsProvider(2026).future))
-            .receivedCount,
-        1);
+    final first = await container.read(yearRecapFactsProvider(2026).future);
+    expect(first.receivedCount, 1);
 
     wishes.add(received(2, DateTime(2026, 5, 6)));
     summaries.add(
@@ -74,10 +72,8 @@ void main() {
     );
     await Future<void>.delayed(Duration.zero);
 
-    expect(
-        (await container.read(yearRecapFactsProvider(2026).future))
-            .receivedCount,
-        2);
+    final second = await container.read(yearRecapFactsProvider(2026).future);
+    expect(second.receivedCount, 2);
     facts.close();
   });
 }
