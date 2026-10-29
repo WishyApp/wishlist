@@ -748,9 +748,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get friendCompletedWishesTitle => 'Completed wishes';
 
   @override
-  String get completeSelectedWishes => 'Complete';
-
-  @override
   String get seeAllCompletedWishes => 'See all';
 
   @override
