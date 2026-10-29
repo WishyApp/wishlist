@@ -278,22 +278,24 @@ class HomeCardView extends ConsumerWidget {
     Wishlist? wishlist,
   ) {
     final l10n = context.l10n;
+    if (days == 0) {
+      // The big day: no body, and a button only if there is a list to open.
+      return _CardSpec(
+        overline: l10n.homeCardChristmasOverline(days),
+        title: l10n.homeCardChristmasDayTitle,
+        actionLabel: wishlist == null ? null : l10n.homeCardChristmasDayAction,
+        onAction: wishlist == null
+            ? null
+            : () => WishlistRoute(wishlistId: wishlist.id).push(context),
+        illustration: Assets.svg.noWishBoxHat,
+      );
+    }
     if (wishlist == null) {
       return _CardSpec(
         overline: l10n.homeCardChristmasOverline(days),
         title: l10n.homeCardChristmasNoListTitle,
         actionLabel: l10n.homeCardChristmasNoListAction,
         onAction: () => showCreateDialog(context, ref),
-        illustration: Assets.svg.noWishBoxHat,
-      );
-    }
-    if (days == 0) {
-      return _CardSpec(
-        overline: l10n.homeCardChristmasOverline(days),
-        title: l10n.homeCardChristmasDayTitle,
-        body: l10n.homeCardChristmasListTitleNoCount(wishlist.name),
-        actionLabel: l10n.homeCardChristmasDayAction,
-        onAction: () => WishlistRoute(wishlistId: wishlist.id).push(context),
         illustration: Assets.svg.noWishBoxHat,
       );
     }

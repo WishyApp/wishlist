@@ -1141,7 +1141,7 @@ class AppLocalizationsFr extends AppLocalizations {
       locale: localeName,
       other: 'Noël dans $days jours',
       one: 'Noël demain',
-      zero: 'C\'est Noël !',
+      zero: 'C\'est le grand jour',
     );
     return '$_temp0';
   }
@@ -1173,7 +1173,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeCardChristmasNoListAction => 'Créer ma liste de Noël';
 
   @override
-  String get homeCardChristmasDayTitle => 'Joyeux Noël !';
+  String get homeCardChristmasDayTitle => 'Le Père Noël a lu ta liste ?';
 
   @override
   String get homeCardChristmasDayAction => 'Voir ma liste';

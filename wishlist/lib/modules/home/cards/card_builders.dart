@@ -317,8 +317,9 @@ List<HomeCardCandidate> friendAcceptedCards({
 }
 
 /// From the largest `reminder_days` before Christmas to the day itself. On
-/// the day, the card only wishes a merry Christmas to a user who has a
-/// Christmas wishlist: without one there is nothing to create or complete.
+/// the day, the card asks if Santa read the list: it is kept without a
+/// Christmas wishlist as long as the user owns an open one (no button then),
+/// and dropped for a user with nothing to show.
 List<HomeCardCandidate> christmasCards({
   required List<Wishlist> wishlists,
   required String userId,
@@ -336,7 +337,9 @@ List<HomeCardCandidate> christmasCards({
   }
   final wishlist =
       _christmasWishlist(wishlists, userId, definition, christmasDay);
-  if (days == 0 && wishlist == null) {
+  if (days == 0 &&
+      wishlist == null &&
+      !wishlists.any((w) => w.idOwner == userId && !w.isClosed)) {
     return const [];
   }
   return [

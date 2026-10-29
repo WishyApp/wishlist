@@ -1865,7 +1865,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeCardChristmasOverline.
   ///
   /// In fr, this message translates to:
-  /// **'{days, plural, =0{C\'est Noël !} =1{Noël demain} other{Noël dans {days} jours}}'**
+  /// **'{days, plural, =0{C\'est le grand jour} =1{Noël demain} other{Noël dans {days} jours}}'**
   String homeCardChristmasOverline(int days);
 
   /// No description provided for @homeCardChristmasListTitle.
@@ -1901,7 +1901,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeCardChristmasDayTitle.
   ///
   /// In fr, this message translates to:
-  /// **'Joyeux Noël !'**
+  /// **'Le Père Noël a lu ta liste ?'**
   String get homeCardChristmasDayTitle;
 
   /// No description provided for @homeCardChristmasDayAction.
