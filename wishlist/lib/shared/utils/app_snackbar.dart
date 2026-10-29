@@ -110,6 +110,7 @@ void showGenericError(
   Object? error,
   bool isTopSnackBar = false,
   Duration duration = const Duration(seconds: 4),
+  VoidCallback? onClosed,
 }) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final userMessageKey = error is AppException ? error.userMessageKey : null;
@@ -126,6 +127,7 @@ void showGenericError(
       type: SnackBarType.error,
       isTopSnackBar: isTopSnackBar,
       duration: duration,
+      onClosed: onClosed,
     );
   });
 }

@@ -82,6 +82,8 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
     final lifecycle = AppLifecycleListener(
       onHide: _flush,
       onPause: _flush,
+      // Reached from paused: a swipe made after the pause is still sent
+      onDetach: _flush,
     );
     ref.onDispose(() {
       _disposed = true;

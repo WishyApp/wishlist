@@ -16,11 +16,20 @@ import 'package:wishlist/shared/utils/app_snackbar.dart';
 /// rest. Shows nothing while the cards load for the first time and when they
 /// cannot be loaded; while they reload it keeps the previous ones, so that the
 /// pile never blinks. The cards swiped away and not sent yet are left out.
-class HomeCardsSlot extends ConsumerWidget {
+class HomeCardsSlot extends ConsumerStatefulWidget {
   const HomeCardsSlot({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeCardsSlot> createState() => _HomeCardsSlotState();
+}
+
+class _HomeCardsSlotState extends ConsumerState<HomeCardsSlot> {
+  /// An error snack-bar of this slot is on screen (or about to be): several
+  /// sends failing at once (offline) tell the user once, not once per card.
+  var _errorVisible = false;
+
+  @override
+  Widget build(BuildContext context) {
     // `valueOrNull` keeps the previous value while reloading
     final cards = ref.watch(homeCardsProvider).valueOrNull;
     final removed = ref.watch(homeCardActionsProvider);
@@ -37,8 +46,13 @@ class HomeCardsSlot extends ConsumerWidget {
       })
       // A send that failed: the card is back, the user must know
       ..listen(homeCardSendFailureProvider, (_, failure) {
-        if (failure != null) {
-          showGenericError(context, error: failure.error);
+        if (failure != null && !_errorVisible) {
+          _errorVisible = true;
+          showGenericError(
+            context,
+            error: failure.error,
+            onClosed: () => _errorVisible = false,
+          );
         }
       });
     final visible = [

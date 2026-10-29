@@ -114,12 +114,26 @@ void main() {
       expect(cards.single.tone, HomeCardTone.light);
       expect(cards.single.dismissable, isTrue);
       expect(cards.single.eventAt, DateTime(2026, 11, 29));
-      // The card is built until the day itself
-      expect(cards.single.lastDay, DateTime(2026, 11, 29));
+      // The day itself gives the "today" card, under another key
+      expect(cards.single.lastDay, DateTime(2026, 11, 28));
       expect(cards.single.stateKey, 'friend_birthday:$friendId@2026');
       final content = cards.single.content as FriendBirthdaySoon;
       expect(content.days, 30);
       expect(content.friend, friend);
+    });
+
+    test('the day before, "Later" has nowhere to go: it is the last day', () {
+      final cards = build(now, inDays(1));
+
+      final today = DateTime(now.year, now.month, now.day);
+      expect(cards.single.type, 'friend_birthday');
+      expect(cards.single.lastDay, today);
+      // later_days = 1 comes back on the birthday, a different card
+      expect(
+        DateTime(today.year, today.month, today.day + 1)
+            .isAfter(cards.single.lastDay!),
+        isTrue,
+      );
     });
 
     test('7 days ahead gives a highlighted card', () {
@@ -306,6 +320,8 @@ void main() {
       expect(content.occasion, AfterPartyOccasion.christmas);
       expect(content.daysAgo, 2);
       expect(content.wishlist, christmas);
+      // days_after: 7 days after Christmas, the day of it included
+      expect(cards.single.lastDay, DateTime(2027));
     });
 
     test('without the Christmas definition, the default keywords apply', () {
@@ -485,6 +501,8 @@ void main() {
         cards.single.stateKey,
         'booked_reminder:${wish.wish.id}-christmas@2026',
       );
+      expect(cards.single.eventAt, DateTime(2026, 12, 25));
+      expect(cards.single.lastDay, DateTime(2026, 12, 25));
     });
 
     test('a wish on a Christmas list far from Christmas gives nothing', () {

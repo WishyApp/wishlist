@@ -1,13 +1,14 @@
 import 'package:flutter/widgets.dart';
 
 /// Goes to [target] through the states in between, the only transitions the
-/// framework accepts (resumed, inactive, hidden, paused).
+/// framework accepts (resumed, inactive, hidden, paused, detached).
 void walkLifecycleTo(AppLifecycleState target) {
   const path = [
     AppLifecycleState.resumed,
     AppLifecycleState.inactive,
     AppLifecycleState.hidden,
     AppLifecycleState.paused,
+    AppLifecycleState.detached,
   ];
   final binding = WidgetsBinding.instance;
   var index = path.indexOf(binding.lifecycleState ?? AppLifecycleState.resumed);

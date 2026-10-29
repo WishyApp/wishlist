@@ -115,7 +115,9 @@ List<HomeCardCandidate> friendBirthdayCards({
               ? HomeCardTone.highlighted
               : HomeCardTone.light,
           eventAt: eventDay,
-          lastDay: eventDay,
+          // The day itself is another card (`friend_birthday_today`, another
+          // key): this one ends the day before.
+          lastDay: DateTime(eventDay.year, eventDay.month, eventDay.day - 1),
         ),
       );
     }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -414,6 +416,32 @@ void main() {
         expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
       });
     });
+
+    test('a card whose send is in flight is never released', () {
+      run((async, actions, container) {
+        final sending = Completer<void>();
+        when(
+          () => cardStates.dismiss(
+            any(),
+            snoozeUntil: any(named: 'snoozeUntil'),
+          ),
+        ).thenAnswer((_) => sending.future);
+
+        actions.swipe(photoCard(), HomeCardSwipe.later);
+        async.elapse(homeCardCommitFallback);
+
+        // A reload that does not hold it comes while the request is out
+        actions.release(const {});
+        expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
+
+        sending.complete();
+        async.flushMicrotasks();
+        expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
+
+        actions.release(const {});
+        expect(container.read(homeCardActionsProvider), isEmpty);
+      });
+    });
   });
 
   test('an alert closed does not reload the cards, its stream does', () {
@@ -498,6 +526,19 @@ void main() {
         actions.swipe(removalCard(), HomeCardSwipe.hide);
         changeTo(async, AppLifecycleState.paused);
         verify(() => removals.dismiss(7)).called(1);
+      });
+    });
+
+    test('detached sends what is waiting', () {
+      run((async, actions, container) {
+        // Already paused: only the detach is left to tell the app is going
+        changeTo(async, AppLifecycleState.paused);
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+        verifyNever(() => cardStates.dismiss(any()));
+
+        changeTo(async, AppLifecycleState.detached);
+
+        verify(() => cardStates.dismiss('onboarding:photo')).called(1);
       });
     });
 

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:adaptive_test/adaptive_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -399,6 +400,70 @@ void main() {
       findsOneWidget,
     );
     await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
+  testWidgets('several failed sends at once show a single error',
+      (tester) async {
+    when(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    ).thenThrow(Exception('offline'));
+    await pump(tester, () async => cards);
+
+    // Two swipes, the second card is on top once the first one is gone
+    await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+    await letItLeave(tester);
+    await tester.drag(find.byType(HomeCardView), const Offset(-500, 0));
+    await letItLeave(tester);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    verify(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    ).called(2);
+    expect(
+      find.text('Une erreur est survenue, veuillez réessayer.'),
+      findsOneWidget,
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+
+    // Once it is gone, a new failure tells the user again
+    await tester.drag(find.byType(HomeCardView), const Offset(-500, 0));
+    await letItLeave(tester);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.text('Une erreur est survenue, veuillez réessayer.'),
+      findsOneWidget,
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
+  testWidgets('the stack lets go of the app lifecycle when it leaves',
+      (tester) async {
+    var alive = 0;
+    void track(ObjectEvent event) {
+      if (event.object is! AppLifecycleListener) {
+        return;
+      }
+      if (event is ObjectCreated) {
+        alive++;
+      } else if (event is ObjectDisposed) {
+        alive--;
+      }
+    }
+
+    FlutterMemoryAllocations.instance.addListener(track);
+    addTearDown(() => FlutterMemoryAllocations.instance.removeListener(track));
+
+    await pump(tester, () async => cards);
+    expect(alive, greaterThan(0));
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+
+    expect(alive, 0);
   });
 
   testWidgets('a postponed card shows again once it comes back after a reload',
