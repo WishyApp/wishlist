@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/supabase_user_completed_wish_stream_repository.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/models/received_wishes_summary/received_wishes_summary.dart';
 import 'package:wishlist/shared/utils/first_event_timeout.dart';
 
 import '../../../../fixtures/fake_data.dart';
@@ -346,6 +347,66 @@ void main() {
         IList([_completedWish]),
       ]);
       expect(firstErrors, hasLength(1));
+    });
+  });
+
+  group('watchReceivedWishesSummary', () {
+    final summary = ReceivedWishesSummary(
+      count: 2,
+      latestCompletedAt: DateTime(2026, 3, 5),
+    );
+
+    test('listens only to the rows of the user, nothing else', () async {
+      when(() => completedWishRepository.getReceivedWishesSummary(any()))
+          .thenAnswer((_) async => summary);
+
+      final received = <ReceivedWishesSummary>[];
+      final sub =
+          repository.watchReceivedWishesSummary('me').listen(received.add);
+      await pumpEventQueue();
+
+      expect(received, [summary]);
+      verify(() => client.channel('received_wishes_summary_me')).called(1);
+      // One subscription, on user_completed_wishs, filtered on the user: not
+      // on wishs, wishlists and profiles of everybody
+      final captured = verify(
+        () => channel.onPostgresChanges(
+          event: any(named: 'event'),
+          schema: any(named: 'schema'),
+          table: captureAny(named: 'table'),
+          filter: captureAny(named: 'filter'),
+          callback: any(named: 'callback'),
+        ),
+      ).captured;
+      expect(captured, hasLength(2));
+      expect(captured.first, 'user_completed_wishs');
+      final filter = captured.last as PostgresChangeFilter;
+      expect(filter.column, 'user_id');
+      expect(filter.value, 'me');
+      verifyNever(
+        () => completedWishRepository.getCompletedWishesByUser(any()),
+      );
+
+      await sub.cancel();
+    });
+
+    test('reloads the summary when one of the rows changes', () async {
+      var count = 1;
+      when(() => completedWishRepository.getReceivedWishesSummary(any()))
+          .thenAnswer((_) async => ReceivedWishesSummary(count: count++));
+
+      final received = <ReceivedWishesSummary>[];
+      final sub =
+          repository.watchReceivedWishesSummary('me').listen(received.add);
+      await pumpEventQueue();
+      expect(received.last.count, 1);
+
+      triggerReload();
+      await pumpEventQueue();
+
+      expect(received.last.count, 2);
+
+      await sub.cancel();
     });
   });
 }

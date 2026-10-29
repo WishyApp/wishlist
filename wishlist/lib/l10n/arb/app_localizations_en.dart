@@ -251,7 +251,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editProfilePrivacy =>
-      'Your birthday is only visible to your friends. Your photo and pseudo are visible to your friends and to the people you share a list with.';
+      'Only your friends see your birthday. Your pseudo and photo are visible to everyone.';
 
   @override
   String get changeBirthdayScreenTitle => 'Birthday';

@@ -11,6 +11,7 @@ import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_profile_provider.dart';
 import 'package:wishlist/shared/infra/friendship_service.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
+import 'package:wishlist/shared/infra/received_wishes_summary_provider.dart';
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_stream_repository.dart';
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_stream_repository_provider.dart';
@@ -30,6 +31,7 @@ import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/profile.dart';
+import 'package:wishlist/shared/models/received_wishes_summary/received_wishes_summary.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
 import '../../fixtures/fake_data.dart';
@@ -476,6 +478,35 @@ void main() {
         await container.read(completedWishesRealtimeProvider.future),
         isEmpty,
       );
+    });
+  });
+
+  group('receivedWishesSummaryProvider', () {
+    test('stops serving the previous user summary while signed out', () async {
+      final repository = MockCompletedWishStreamRepository();
+      when(() => repository.watchReceivedWishesSummary(any())).thenAnswer(
+        (_) => Stream.value(const ReceivedWishesSummary(count: 3)),
+      );
+      start(
+        userId: 'user-a',
+        overrides: [
+          userCompletedWishStreamRepositoryProvider
+              .overrideWithValue(repository),
+        ],
+      );
+      container.listen(receivedWishesSummaryProvider, (_, __) {});
+      await pumpEventQueue();
+      expect(
+        container.read(receivedWishesSummaryProvider).valueOrNull?.count,
+        3,
+      );
+
+      session.signOut();
+      await pumpEventQueue();
+
+      final state = container.read(receivedWishesSummaryProvider);
+      expect(state.hasError, isFalse);
+      expect(state.valueOrNull?.count, 0);
     });
   });
 

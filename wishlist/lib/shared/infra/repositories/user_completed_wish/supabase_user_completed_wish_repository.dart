@@ -5,6 +5,7 @@ import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
 import 'package:wishlist/shared/infra/utils/execute_safely.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/models/received_wishes_summary/received_wishes_summary.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 
 class SupabaseUserCompletedWishRepository
@@ -208,6 +209,35 @@ class SupabaseUserCompletedWishRepository
         }).toIList();
       },
       errorMessage: 'Failed to get completed wishes by user',
+    );
+  }
+
+  @override
+  Future<ReceivedWishesSummary> getReceivedWishesSummary(String userId) async {
+    return executeSafely(
+      () async {
+        // The same inner joins as [getCompletedWishesByUser], on their ids
+        // only: the rows that are counted are the ones the list shows.
+        final response = await _client.from(_tableName).select('''
+               completed_at,
+               wishs!inner(
+                 id,
+                 wishlist:wishlists!inner(
+                   id,
+                   profiles!inner(id)
+                 )
+               )
+            ''').eq('user_id', userId).order('completed_at', ascending: false);
+
+        return ReceivedWishesSummary(
+          count: response.length,
+          // A day ('2026-10-29'): parsed as local midnight
+          latestCompletedAt: response.isEmpty
+              ? null
+              : DateTime.parse(response.first['completed_at'] as String),
+        );
+      },
+      errorMessage: 'Failed to get received wishes summary',
     );
   }
 }

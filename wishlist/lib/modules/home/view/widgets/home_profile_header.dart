@@ -84,6 +84,9 @@ class HomeProfileHeader extends ConsumerWidget {
 
 /// Small outlined button. No outlined button exists in `buttons.dart`, so it
 /// stays local to the header.
+@visibleForTesting
+const editProfilePillKey = ValueKey('edit-profile-pill');
+
 class _EditProfileButton extends StatelessWidget {
   const _EditProfileButton({required this.onTap});
 
@@ -91,16 +94,23 @@ class _EditProfileButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The pill keeps its look; the tap area around it is 44 px tall.
+    // The pill stays at its own size, centred in a 44 px tall hit area as wide
+    // as the pill. The ink (ripple and highlight) is clipped to the pill by its
+    // own Material, so it matches what is seen. A tap on the pill is taken by
+    // the InkWell, a tap on the strip above or below it by the GestureDetector:
+    // never both, so `onTap` runs once. Only the InkWell is in the semantics
+    // tree: a screen reader announces one labelled button.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      excludeFromSemantics: true,
       onTap: onTap,
       child: SizedBox(
         height: 44,
-        child: Align(
-          alignment: Alignment.centerLeft,
+        child: Center(
+          widthFactor: 1,
           child: Material(
-            color: Colors.transparent,
+            key: editProfilePillKey,
+            type: MaterialType.transparency,
             shape: const StadiumBorder(
               side: BorderSide(color: AppColors.pastelGray),
             ),
@@ -113,11 +123,7 @@ class _EditProfileButton extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.edit,
-                      size: 14,
-                      color: AppColors.darkGrey,
-                    ),
+                    const Icon(Icons.edit, size: 14, color: AppColors.darkGrey),
                     const Gap(6),
                     Flexible(
                       child: Text(
