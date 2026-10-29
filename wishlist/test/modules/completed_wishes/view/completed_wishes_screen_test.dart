@@ -1,4 +1,5 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -96,9 +97,10 @@ void main() {
       expect(find.text(l10n.modifyCompletedQuantity), findsNothing);
     });
 
-    testWidgets('change the completion date from the saved one',
-        (tester) async {
-      final item = completed(1, name: 'Plaid', completedAt: DateTime(2025, 12));
+    Future<_MockUserCompletedWishRepository> openDateDialog(
+      WidgetTester tester,
+      CompletedWishWithDetails item,
+    ) async {
       final repository = await pumpScreen(tester, [item]);
       when(
         () => repository.updateCompletionDate(
@@ -112,14 +114,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text(l10n.modifyCompletionDate));
       await tester.pumpAndSettle();
+      return repository;
+    }
 
-      // The dialog of the completion, on the saved day
-      expect(
-        find.text(l10n.completionDateDialogExplanation(1)),
-        findsOneWidget,
-      );
-      expect(find.text('2025'), findsWidgets);
-
+    Future<void> tapSave(WidgetTester tester) async {
       await tester.tap(
         find.descendant(
           of: find.byType(AlertDialog),
@@ -129,15 +127,134 @@ void main() {
       // Not settled: the snackbar would be gone
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
+    }
+
+    testWidgets('change the completion date from the saved one',
+        (tester) async {
+      final item = completed(1, name: 'Plaid', completedAt: DateTime(2025, 12));
+      final repository = await openDateDialog(tester, item);
+
+      // The dialog of the completion, its wheels on the saved day
+      expect(
+        find.text(l10n.completionDateDialogExplanation(1)),
+        findsOneWidget,
+      );
+      final picker = tester.widget<CupertinoDatePicker>(
+        find.byType(CupertinoDatePicker),
+      );
+      expect(picker.initialDateTime, DateTime(2025, 12));
+
+      picker.onDateTimeChanged(DateTime(2025, 12, 24));
+      await tapSave(tester);
 
       verify(
         () => repository.updateCompletionDate(
           userId: fakeCurrentUserId,
           wishId: item.wish.id,
-          completedAt: DateTime(2025, 12),
+          completedAt: DateTime(2025, 12, 24),
         ),
       ).called(1);
       expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text(l10n.updateSuccess), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('save nothing when the date is kept', (tester) async {
+      final item = completed(1, name: 'Plaid', completedAt: DateTime(2025, 12));
+      final repository = await openDateDialog(tester, item);
+
+      await tapSave(tester);
+
+      verifyNever(
+        () => repository.updateCompletionDate(
+          userId: any(named: 'userId'),
+          wishId: any(named: 'wishId'),
+          completedAt: any(named: 'completedAt'),
+        ),
+      );
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text(l10n.updateSuccess), findsNothing);
+    });
+
+    testWidgets('bring a saved day after today back to today', (tester) async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final item = completed(
+        1,
+        name: 'Plaid',
+        completedAt: today.add(const Duration(days: 2)),
+      );
+      final repository = await openDateDialog(tester, item);
+
+      expect(
+        tester
+            .widget<CupertinoDatePicker>(find.byType(CupertinoDatePicker))
+            .initialDateTime,
+        today,
+      );
+      await tapSave(tester);
+
+      verify(
+        () => repository.updateCompletionDate(
+          userId: fakeCurrentUserId,
+          wishId: item.wish.id,
+          completedAt: today,
+        ),
+      ).called(1);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('explain a failed change of the date', (tester) async {
+      final item = completed(1, name: 'Plaid', completedAt: DateTime(2025, 12));
+      final repository = await openDateDialog(tester, item);
+      when(
+        () => repository.updateCompletionDate(
+          userId: any(named: 'userId'),
+          wishId: any(named: 'wishId'),
+          completedAt: any(named: 'completedAt'),
+        ),
+      ).thenThrow(Exception('boom'));
+
+      tester
+          .widget<CupertinoDatePicker>(find.byType(CupertinoDatePicker))
+          .onDateTimeChanged(DateTime(2025, 12, 24));
+      await tapSave(tester);
+
+      expect(find.text(l10n.genericError), findsOneWidget);
+      expect(find.text(l10n.updateSuccess), findsNothing);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('change the completed quantity up to the wish quantity',
+        (tester) async {
+      final item = completed(1, name: 'Plaid', quantity: 3);
+      final repository = await pumpScreen(tester, [item]);
+      when(
+        () => repository.updateCompletedWishQuantity(
+          userId: any(named: 'userId'),
+          wishId: any(named: 'wishId'),
+          newQuantity: any(named: 'newQuantity'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.modifyCompletedQuantity));
+      await tester.pumpAndSettle();
+
+      // Starts on the saved quantity (1), the wish quantity is the most
+      expect(find.text(l10n.selectQuantityToComplete), findsOneWidget);
+      await tester.enterText(find.byType(TextFormField), '3');
+      await tester.pumpAndSettle();
+      await tapSave(tester);
+
+      verify(
+        () => repository.updateCompletedWishQuantity(
+          userId: fakeCurrentUserId,
+          wishId: item.wish.id,
+          newQuantity: 3,
+        ),
+      ).called(1);
       expect(find.text(l10n.updateSuccess), findsOneWidget);
       await tester.pumpAndSettle();
     });

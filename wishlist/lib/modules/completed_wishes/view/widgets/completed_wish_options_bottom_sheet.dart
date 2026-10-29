@@ -62,14 +62,29 @@ Future<void> _modifyCompletionDate(
     wishName: item.wish.name,
     initialValue: item.completedAt,
     confirmButtonLabel: l10n.save,
-    onConfirm: (completedAt) =>
-        ref.read(completedWishMutationsProvider.notifier).updateCompletionDate(
-              wishId: item.wish.id,
-              completedAt: completedAt,
-            ),
   );
-  if (completedAt != null && context.mounted) {
-    showAppSnackBar(context, l10n.updateSuccess, type: SnackBarType.success);
+  // Saved as is: nothing to update
+  if (completedAt == null || completedAt == item.completedAt) {
+    return;
+  }
+  if (!context.mounted) {
+    return;
+  }
+
+  try {
+    await ref
+        .read(completedWishMutationsProvider.notifier)
+        .updateCompletionDate(
+          wishId: item.wish.id,
+          completedAt: completedAt,
+        );
+    if (context.mounted) {
+      showAppSnackBar(context, l10n.updateSuccess, type: SnackBarType.success);
+    }
+  } catch (e) {
+    if (context.mounted) {
+      showGenericError(context, error: e);
+    }
   }
 }
 
@@ -109,41 +124,39 @@ class _CompletedWishOptions extends StatelessWidget {
       Navigator.pop(context);
     }
 
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              item.wish.name,
-              style: AppTextStyles.medium.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            item.wish.name,
+            style: AppTextStyles.medium.copyWith(
+              fontWeight: FontWeight.bold,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
+        ),
+        AppListTile(
+          icon: Icons.event,
+          title: l10n.modifyCompletionDate,
+          onTap: () => pick(_CompletedWishOption.modifyDate),
+        ),
+        if (item.wish.quantity > 1)
           AppListTile(
-            icon: Icons.event,
-            title: l10n.modifyCompletionDate,
-            onTap: () => pick(_CompletedWishOption.modifyDate),
+            icon: Icons.numbers,
+            title: l10n.modifyCompletedQuantity,
+            onTap: () => pick(_CompletedWishOption.modifyQuantity),
           ),
-          if (item.wish.quantity > 1)
-            AppListTile(
-              icon: Icons.numbers,
-              title: l10n.modifyCompletedQuantity,
-              onTap: () => pick(_CompletedWishOption.modifyQuantity),
-            ),
-          AppListTile(
-            icon: Icons.undo,
-            title: l10n.unmarkWishAsCompleted,
-            onTap: () => pick(_CompletedWishOption.uncomplete),
-          ),
-          const Gap(16),
-        ],
-      ),
+        AppListTile(
+          icon: Icons.undo,
+          title: l10n.unmarkWishAsCompleted,
+          onTap: () => pick(_CompletedWishOption.uncomplete),
+        ),
+        const Gap(16),
+      ],
     );
   }
 }

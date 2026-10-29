@@ -25,7 +25,8 @@ class CompletedWishesScreen extends ConsumerStatefulWidget {
   const CompletedWishesScreen({super.key, this.userId});
 
   /// The user whose completed wishes are shown, read-only: the current user's
-  /// ones, which can be uncompleted, when null.
+  /// ones, whose date and quantity can be changed and which can be
+  /// uncompleted, when null.
   final String? userId;
 
   @override
