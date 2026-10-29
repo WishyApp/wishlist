@@ -114,6 +114,30 @@ SELECT * FROM public.get_app_version_policy('ios');
 
 Toujours vérifier avec le `SELECT` : une coquille (`3.0.0` pour `0.3.0`) bloque tout le monde. Les formats invalides (`^[0-9]+(\.[0-9]+){0,2}$`) sont refusés par la base. Les builds antérieurs à 0.3.0 n'ont pas ce garde-fou : le premier relèvement utile est vers une version ≥ 0.3.0.
 
+## Cartes de l'accueil
+
+La table `home_cards` pilote les cartes de l'écran d'accueil. L'app la lit à l'ouverture et au tirer-pour-rafraîchir (policy : lignes actives seulement, une carte éditoriale seulement dans sa fenêtre `starts_at` / `ends_at`). Comme `app_versions`, elle se modifie à la main dans le SQL editor : aucun privilège d'écriture pour les clients.
+
+Les lignes `computed` règlent des cartes dont la logique reste dans l'app (`enabled`, `priority`, `params`). La ligne `home_stack` (`settings`) règle la pile, ce n'est pas une carte. Les seeds sont posés avec `ON CONFLICT DO NOTHING` : une migration ne réécrit jamais un réglage, une modification se fait à la main.
+
+Une carte éditoriale ponctuelle (occasion, annonce) se crée avec un `INSERT`, sans publier l'app. La contrainte `home_cards_editorial_complete` refuse une carte sans dates, sans titre fr et en, ou dont `ends_at` précède `starts_at`.
+
+```sql
+INSERT INTO public.home_cards
+  (key, kind, priority, event_at, starts_at, ends_at, title, body, cta_label, cta_route)
+VALUES (
+  'new_feature_2026_12', 'editorial', 45,
+  '2026-12-10 00:00+01', '2026-12-03 00:00+01', '2026-12-10 23:59+01',
+  '{"fr": "Du nouveau dans Wishy", "en": "What''s new in Wishy"}',
+  '{"fr": "Découvre les cartes de l''accueil.", "en": "Discover the home cards."}',
+  '{"fr": "Voir", "en": "Take a look"}',
+  '/'
+);
+SELECT key, enabled, starts_at, ends_at FROM public.home_cards WHERE key = 'new_feature_2026_12';
+```
+
+Dev d'abord, puis prod, et toujours vérifier avec le `SELECT`. Pour retirer une carte avant la fin, `UPDATE public.home_cards SET enabled = false WHERE key = '...'`.
+
 ## Tester en local
 
 Docker doit tourner.
