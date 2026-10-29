@@ -26,6 +26,10 @@ void main() {
       expect(snoozed.isHidden(now), isTrue);
     });
 
+    test('is false when the snooze ends exactly now', () {
+      expect(state(dismissedAt: now, snoozedUntil: now).isHidden(now), isFalse);
+    });
+
     test('is false once the snooze is over', () {
       final snoozed = state(
         dismissedAt: now,

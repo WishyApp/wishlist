@@ -96,17 +96,72 @@ SELECT pg_temp.expect_denied('direct DELETE',
   $q$DELETE FROM public.user_card_states$q$);
 RESET ROLE;
 
--- As B
+-- As B, same key as A
 SELECT pg_temp.act_as('00000000-0000-4000-e000-00000000000b');
 SELECT pg_temp.expect_rows('B sees no row of A',
   $q$SELECT * FROM public.user_card_states$q$, 0);
-SELECT public.dismiss_card('booked_reminder:1');
+SELECT public.record_card_shown('booked_reminder:1');
+SELECT public.dismiss_card('booked_reminder:1', now() + interval '3 days');
 SELECT pg_temp.expect_rows('B has its own row',
   $q$SELECT * FROM public.user_card_states WHERE card_key = 'booked_reminder:1'$q$, 1);
 RESET ROLE;
 SELECT pg_temp.expect_true('row of A untouched by B',
-  (SELECT shown_count = 2 FROM public.user_card_states
+  (SELECT shown_count = 2 AND snoozed_until IS NULL
+   FROM public.user_card_states
    WHERE user_id = '00000000-0000-4000-e000-00000000000a' AND card_key = 'booked_reminder:1'));
+SELECT pg_temp.expect_true('row of B has its own count and snooze',
+  (SELECT shown_count = 1 AND snoozed_until BETWEEN now() + interval '2 days 23 hours' AND now() + interval '3 days 1 hour'
+   FROM public.user_card_states
+   WHERE user_id = '00000000-0000-4000-e000-00000000000b' AND card_key = 'booked_reminder:1'));
+
+-- Semantics the app relies on. now() is constant in the transaction: push the
+-- timestamps to the past first so that a refresh is visible.
+UPDATE public.user_card_states SET dismissed_at = '2000-01-01', last_shown_at = '2000-01-01'
+  WHERE user_id = '00000000-0000-4000-e000-00000000000a' AND card_key = 'booked_reminder:1';
+SELECT pg_temp.act_as('00000000-0000-4000-e000-00000000000a');
+SELECT public.dismiss_card('booked_reminder:1', now() + interval '1 day');
+SELECT public.dismiss_card('booked_reminder:1');
+SELECT pg_temp.expect_true('dismiss after a snooze clears the snooze and refreshes dismissed_at',
+  (SELECT snoozed_until IS NULL AND dismissed_at > '2000-01-01'
+   FROM public.user_card_states WHERE card_key = 'booked_reminder:1'));
+
+RESET ROLE;
+UPDATE public.user_card_states SET dismissed_at = '2000-01-01', last_shown_at = '2000-01-01',
+    snoozed_until = now() + interval '5 days', shown_count = 2
+  WHERE user_id = '00000000-0000-4000-e000-00000000000a' AND card_key = 'booked_reminder:1';
+SELECT pg_temp.act_as('00000000-0000-4000-e000-00000000000a');
+SELECT public.record_card_shown('booked_reminder:1');
+SELECT pg_temp.expect_true('record_card_shown leaves dismissal and snooze alone',
+  (SELECT dismissed_at = '2000-01-01' AND snoozed_until > now() + interval '4 days'
+      AND shown_count = 3 AND last_shown_at > '2000-01-01'
+   FROM public.user_card_states WHERE card_key = 'booked_reminder:1'));
+
+RESET ROLE;
+UPDATE public.user_card_states SET snoozed_until = now() - interval '1 day'
+  WHERE user_id = '00000000-0000-4000-e000-00000000000a' AND card_key = 'booked_reminder:1';
+SELECT pg_temp.act_as('00000000-0000-4000-e000-00000000000a');
+SELECT public.dismiss_card('booked_reminder:1', now() + interval '7 days');
+SELECT pg_temp.expect_true('dismiss after an expired snooze sets the new date',
+  (SELECT snoozed_until > now() + interval '6 days'
+   FROM public.user_card_states WHERE card_key = 'booked_reminder:1'));
+
+-- Key length: 1 to 200 characters
+SELECT pg_temp.expect_denied('key of 201 characters',
+  $q$SELECT public.record_card_shown(repeat('a', 201))$q$);
+SELECT pg_temp.expect_denied('empty key',
+  $q$SELECT public.record_card_shown('')$q$);
+SELECT pg_temp.expect_denied('empty key on dismiss',
+  $q$SELECT public.dismiss_card('')$q$);
+RESET ROLE;
+
+-- Signatures: no user id parameter, one function of each name
+SELECT pg_temp.expect_true('function signatures are pinned',
+  to_regprocedure('public.dismiss_card(text, timestamptz)') IS NOT NULL
+  AND to_regprocedure('public.record_card_shown(text)') IS NOT NULL
+  AND (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND p.proname = 'dismiss_card') = 1
+  AND (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND p.proname = 'record_card_shown') = 1);
 
 -- anon
 SELECT pg_temp.act_as_anon();

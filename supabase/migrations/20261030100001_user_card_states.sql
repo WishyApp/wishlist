@@ -1,6 +1,6 @@
 -- Remember, per user and per precise card, what was shown and what was
 -- dismissed on the home screen. The cards themselves are computed by the app
--- (see home_cards); this table only keeps the device-independent state.
+-- (see home_cards); this table only keeps the state shared by all the user's devices.
 --
 -- Card keys: <home_cards.key>:<id>[:<year>], one per occurrence of a card.
 -- Examples: booked_reminder:4512, friend_birthday:<uuid>:2026,
@@ -16,12 +16,13 @@
 CREATE TABLE IF NOT EXISTS public.user_card_states (
   user_id uuid NOT NULL
     REFERENCES public.profiles (id) ON UPDATE CASCADE ON DELETE CASCADE,
-  card_key text NOT NULL CHECK (char_length(card_key) <= 200),
+  card_key text NOT NULL,
   shown_count integer NOT NULL DEFAULT 0,
   last_shown_at timestamptz,
   dismissed_at timestamptz,
   snoozed_until timestamptz,
-  PRIMARY KEY (user_id, card_key)
+  PRIMARY KEY (user_id, card_key),
+  CONSTRAINT user_card_states_card_key_length CHECK (char_length(card_key) BETWEEN 1 AND 200)
 );
 
 ALTER TABLE public.user_card_states ENABLE ROW LEVEL SECURITY;
@@ -35,6 +36,41 @@ CREATE POLICY "Users read their own card states"
   FOR SELECT
   TO authenticated
   USING (user_id = (SELECT auth.uid()));
+
+-- Policies add up (OR): fail if a permissive policy other than the one above
+-- exists on the table (CREATE TABLE IF NOT EXISTS keeps a table that already
+-- exists, with its policies), and if anon or PUBLIC got a privilege on it.
+DO $$
+DECLARE
+  extra text;
+BEGIN
+  SELECT string_agg(format('"%s" (%s)', policyname, cmd), ', ')
+  INTO extra
+  FROM pg_policies
+  WHERE schemaname = 'public'
+    AND tablename = 'user_card_states'
+    AND permissive = 'PERMISSIVE'
+    AND policyname NOT IN ('Users read their own card states');
+  IF extra IS NOT NULL THEN
+    RAISE EXCEPTION 'unexpected permissive policy on user_card_states: %', extra
+      USING HINT = 'Drop it: permissive policies add up and would widen who can read card states.';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_class c, aclexplode(c.relacl) a
+    WHERE c.oid = 'public.user_card_states'::regclass
+      AND a.grantee IN (0, 'anon'::regrole)
+  ) OR EXISTS (
+    SELECT 1
+    FROM pg_attribute t, aclexplode(t.attacl) a
+    WHERE t.attrelid = 'public.user_card_states'::regclass
+      AND t.attnum > 0
+      AND a.grantee IN (0, 'anon'::regrole)
+  ) THEN
+    RAISE EXCEPTION 'anon or PUBLIC still has a privilege on user_card_states';
+  END IF;
+END $$;
 
 -- The card was shown to the current user: creates the row or counts one more
 -- display.

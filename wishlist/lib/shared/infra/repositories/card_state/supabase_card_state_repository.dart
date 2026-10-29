@@ -9,9 +9,14 @@ class SupabaseCardStateRepository implements CardStateRepository {
 
   /// RLS only returns the rows of the current user.
   @override
-  Future<Map<String, CardState>> getStates() async {
+  Future<Map<String, CardState>> getStates(Iterable<String> cardKeys) async {
+    final keys = cardKeys.toList();
+    if (keys.isEmpty) {
+      return const {};
+    }
     final rows = await executeSafely(
-      () => _client.from('user_card_states').select(),
+      () =>
+          _client.from('user_card_states').select().inFilter('card_key', keys),
       errorMessage: 'Failed to load the card states',
     );
     final states = rows.map(CardState.fromRow);

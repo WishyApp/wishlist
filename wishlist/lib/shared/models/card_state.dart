@@ -18,8 +18,8 @@ class CardState {
     this.snoozedUntil,
   });
 
-  /// One row of `user_card_states`. Throws if a column is missing or has the
-  /// wrong type.
+  /// One row of `user_card_states`. Throws if `card_key` or `shown_count` is
+  /// missing or has the wrong type; the dates may be absent or null.
   factory CardState.fromRow(Map<String, dynamic> row) {
     return CardState(
       cardKey: row['card_key'] as String,
