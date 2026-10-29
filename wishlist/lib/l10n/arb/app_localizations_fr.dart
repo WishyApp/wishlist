@@ -979,4 +979,21 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get wishlistSettingsOwnerOnly =>
       'Seul le propriétaire de cette wishlist peut modifier ses paramètres';
+
+  @override
+  String get homeMyWishlists => 'Mes wishlists';
+
+  @override
+  String get homeNoWishlist => 'Pas encore de wishlist';
+
+  @override
+  String homeReceivedWishes(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wishs reçus',
+      one: '1 wish reçu',
+    );
+    return '$_temp0';
+  }
 }

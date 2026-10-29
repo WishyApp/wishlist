@@ -369,5 +369,8 @@
   "unsavedChangesMessage": "Your changes will be lost.",
   "unsavedChangesLeave": "Leave without saving",
   "unsavedChangesKeepEditing": "Keep editing",
-  "wishlistSettingsOwnerOnly": "Only the owner of this wishlist can change its settings"
+  "wishlistSettingsOwnerOnly": "Only the owner of this wishlist can change its settings",
+  "homeMyWishlists": "My wishlists",
+  "homeNoWishlist": "No wishlist yet",
+  "homeReceivedWishes": "{count, plural, =1 {1 wish received} other {{count} wishes received}}"
 }

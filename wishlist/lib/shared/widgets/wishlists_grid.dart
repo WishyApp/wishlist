@@ -14,11 +14,16 @@ class WishlistsGrid extends ConsumerStatefulWidget {
     required this.wishlists,
     required this.isReorderable,
     this.padding,
+    this.shrinkWrap = false,
   });
 
   final List<Wishlist> wishlists;
   final bool isReorderable;
   final EdgeInsets? padding;
+
+  /// Sizes the reorderable grid to its content and stops it from scrolling, to
+  /// live inside a parent that scrolls. Ignored when not reorderable.
+  final bool shrinkWrap;
 
   @override
   ConsumerState<WishlistsGrid> createState() => _WishlistsGridState();
@@ -127,6 +132,9 @@ class _WishlistsGridState extends ConsumerState<WishlistsGrid> {
     return AnimationLimiter(
       child: AnimatedReorderableGridView(
         padding: widget.padding,
+        shrinkWrap: widget.shrinkWrap,
+        physics:
+            widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
         items: _displayedWishlists,
         onReorder: _handleReorder,
         proxyDecorator: _buildProxyDecorator,
