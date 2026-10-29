@@ -1,4 +1,5 @@
 import 'package:adaptive_test/adaptive_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
 import 'package:wishlist/shared/models/birthday.dart';
@@ -95,5 +96,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mes wishs complétés'), findsNothing);
+  });
+
+  testWidgets('ends right above the home indicator', (tester) async {
+    const inset = 34.0;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(400, 500);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpRouterApp(
+      SettingsRoute().location,
+      overrides: settingsScreenOverrides(),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          padding: const EdgeInsets.only(bottom: inset),
+          viewPadding: const EdgeInsets.only(bottom: inset),
+        ),
+        child: child!,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final version = find.textContaining('v1.0.0');
+    await tester.scrollUntilVisible(version, 100);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -2000));
+    await tester.pumpAndSettle();
+
+    // Clear of the home indicator and nothing more: no page padding stacked on
+    // the bottom inset.
+    expect(tester.getBottomLeft(version).dy, 500 - inset);
   });
 }

@@ -22,55 +22,71 @@ class EditProfileScreen extends ConsumerWidget {
 
     return PageLayout(
       title: l10n.editProfileScreenTitle,
+      // No bottom padding: the content scrolls under the home indicator and its
+      // SliverSafeArea keeps the last item clear of it, so the bottom inset is
+      // not stacked on a fixed margin. The minimum is for devices without an
+      // inset.
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: SafeArea(
-        child: SingleChildScrollView(
+        bottom: false,
+        child: CustomScrollView(
           physics: const ClampingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Gap(8),
-              const Center(child: EditableAvatar()),
-              const Gap(24),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+          slivers: [
+            SliverSafeArea(
+              top: false,
+              left: false,
+              right: false,
+              minimum: const EdgeInsets.only(bottom: 16),
+              sliver: SliverToBoxAdapter(
                 child: Column(
-                  spacing: 2,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SettingsLine(
-                      title: l10n.editProfilePseudo,
-                      // Nothing while loading, a dash on error: the screen
-                      // behind the line handles the failure itself.
-                      value: profile.whenOrNull(
-                        data: (profile) => profile?.pseudo,
-                        error: (error, stackTrace) => '—',
+                    const Gap(8),
+                    const Center(child: EditableAvatar()),
+                    const Gap(24),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Column(
+                        spacing: 2,
+                        children: [
+                          SettingsLine(
+                            title: l10n.editProfilePseudo,
+                            // Nothing while loading, a dash on error: the
+                            // screen behind the line handles the failure.
+                            value: profile.whenOrNull(
+                              data: (profile) => profile?.pseudo,
+                              error: (error, stackTrace) => '—',
+                            ),
+                            onTap: () {
+                              ChangePseudoRoute().push(context);
+                            },
+                          ),
+                          SettingsLine(
+                            title: l10n.editProfileBirthday,
+                            value: birthday.whenOrNull(
+                              data: (birthday) =>
+                                  birthday?.format(locale) ??
+                                  l10n.settingsScreenBirthdayNotSet,
+                              error: (error, stackTrace) => '—',
+                            ),
+                            onTap: () {
+                              ChangeBirthdayRoute().push(context);
+                            },
+                          ),
+                        ],
                       ),
-                      onTap: () {
-                        ChangePseudoRoute().push(context);
-                      },
                     ),
-                    SettingsLine(
-                      title: l10n.editProfileBirthday,
-                      value: birthday.whenOrNull(
-                        data: (birthday) =>
-                            birthday?.format(locale) ??
-                            l10n.settingsScreenBirthdayNotSet,
-                        error: (error, stackTrace) => '—',
-                      ),
-                      onTap: () {
-                        ChangeBirthdayRoute().push(context);
-                      },
+                    const Gap(16),
+                    Text(
+                      l10n.editProfilePrivacy,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.smaller.copyWith(color: Colors.grey),
                     ),
                   ],
                 ),
               ),
-              const Gap(16),
-              Text(
-                l10n.editProfilePrivacy,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.smaller.copyWith(color: Colors.grey),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -78,65 +78,81 @@ class SettingsScreen extends ConsumerWidget {
 
     return PageLayout(
       title: l10n.settingsScreenTitle,
+      // No bottom padding: the content scrolls under the home indicator and its
+      // SliverSafeArea keeps the last item clear of it, so the bottom inset is
+      // not stacked on a fixed margin. The minimum is for devices without an
+      // inset.
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: SafeArea(
-        child: SingleChildScrollView(
+        bottom: false,
+        child: CustomScrollView(
           physics: const ClampingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Gap(8),
-              // Null in the frame after a sign-out, before the redirect
-              if (currentUserEmail != null)
-                Text(
-                  currentUserEmail,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.smaller.copyWith(
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              const Gap(24),
-              SettingsSection(
-                title: l10n.settingsGeneral,
-                children: [
-                  if (hasPassword)
-                    SettingsLine(
-                      title: l10n.settingsScreenPasswordModify,
-                      onTap: () {
-                        ChangePasswordRoute().push(context);
-                      },
+          slivers: [
+            SliverSafeArea(
+              top: false,
+              left: false,
+              right: false,
+              minimum: const EdgeInsets.only(bottom: 16),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Gap(8),
+                    // Null in the frame after a sign-out, before the redirect
+                    if (currentUserEmail != null)
+                      Text(
+                        currentUserEmail,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.smaller.copyWith(
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    const Gap(24),
+                    SettingsSection(
+                      title: l10n.settingsGeneral,
+                      children: [
+                        if (hasPassword)
+                          SettingsLine(
+                            title: l10n.settingsScreenPasswordModify,
+                            onTap: () {
+                              ChangePasswordRoute().push(context);
+                            },
+                          ),
+                        SettingsLine(
+                          title: l10n.settingsScreenDeleteAccount,
+                          onTap: () {
+                            _onDeleteAccountTap(context, ref);
+                          },
+                        ),
+                      ],
                     ),
-                  SettingsLine(
-                    title: l10n.settingsScreenDeleteAccount,
-                    onTap: () {
-                      _onDeleteAccountTap(context, ref);
-                    },
-                  ),
-                ],
+                    const Gap(16),
+                    SettingsSection(
+                      title: l10n.settingsAbout,
+                      children: [
+                        SettingsLine(
+                          title: l10n.settingsTermsOfUse,
+                          onTap: () => _onTermsOfUseTap(context),
+                        ),
+                        SettingsLine(
+                          title: l10n.settingsPrivacyPolicy,
+                          onTap: () => _onPrivacyPolicyTap(context),
+                        ),
+                      ],
+                    ),
+                    const Gap(24),
+                    PrimaryButton(
+                      text: l10n.settingsScreenDisconnect,
+                      onPressed: () => _onSignOutTap(context, ref),
+                      style: BaseButtonStyle.medium,
+                    ),
+                    const Gap(24),
+                    _AppVersionInfo(appInfo: appInfo),
+                  ],
+                ),
               ),
-              const Gap(16),
-              SettingsSection(
-                title: l10n.settingsAbout,
-                children: [
-                  SettingsLine(
-                    title: l10n.settingsTermsOfUse,
-                    onTap: () => _onTermsOfUseTap(context),
-                  ),
-                  SettingsLine(
-                    title: l10n.settingsPrivacyPolicy,
-                    onTap: () => _onPrivacyPolicyTap(context),
-                  ),
-                ],
-              ),
-              const Gap(24),
-              PrimaryButton(
-                text: l10n.settingsScreenDisconnect,
-                onPressed: () => _onSignOutTap(context, ref),
-                style: BaseButtonStyle.medium,
-              ),
-              const Gap(24),
-              _AppVersionInfo(appInfo: appInfo),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
