@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
@@ -180,6 +181,27 @@ void main() {
     verify(() => cardStates.dismiss('friend_accepted:a')).called(1);
     // The card does not come back while the pile reloads
     expect(find.text(_firstTitle), findsNothing);
+  });
+
+  testWidgets('the slot never collapses while the next card replaces the top',
+      (tester) async {
+    await pump(tester, () async => cards.take(2).toList());
+
+    await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+    var lowest = double.infinity;
+    for (var i = 0; i < 50; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      lowest = min(lowest, tester.getSize(find.byType(HomeCardsSlot)).height);
+    }
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // The height ends at the one of the next card (no edge behind it), and
+    // never went below it on the way
+    final settled = tester.getSize(find.byType(HomeCardsSlot)).height;
+    expect(find.text('Ajoute ton anniversaire'), findsOneWidget);
+    expect(find.byType(HomeCardEdge), findsNothing);
+    expect(settled, greaterThan(100));
+    expect(lowest, greaterThanOrEqualTo(settled));
   });
 
   testWidgets('swipe right postpones the card', (tester) async {

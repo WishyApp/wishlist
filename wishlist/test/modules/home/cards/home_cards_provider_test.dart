@@ -327,10 +327,13 @@ void main() {
 
     test('is offered to a friend whose wishlist is open', () async {
       when(() => wishlistRepository.getPublicWishlistsByUser(any())).thenAnswer(
-          (_) async => [
-                fakeWishlist1.copyWith(
-                    name: 'Noël', endDate: DateTime(2026, 12, 31),),
-              ].lock,);
+        (_) async => [
+          fakeWishlist1.copyWith(
+            name: 'Noël',
+            endDate: DateTime(2026, 12, 31),
+          ),
+        ].lock,
+      );
 
       expect(await canOpenList(), isTrue);
     });

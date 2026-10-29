@@ -23,19 +23,21 @@ class HomeCardsSlot extends ConsumerWidget {
     // `valueOrNull` keeps the previous value while reloading
     final cards = ref.watch(homeCardsProvider).valueOrNull;
     final removed = ref.watch(homeCardActionsProvider);
-    if (cards == null) {
-      return const SizedBox.shrink();
-    }
     final visible = [
-      for (final card in cards)
+      for (final card in cards ?? const <HomeCardCandidate>[])
         if (!removed.contains(card.stateKey)) card,
     ];
-    if (visible.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      child: HomeCardStack(cards: visible),
+    // The height animates when the last card goes, when an undo brings one
+    // back, and when the next card is not as tall as the one it replaces.
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      alignment: Alignment.topCenter,
+      child: visible.isEmpty
+          ? const SizedBox(width: double.infinity)
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: HomeCardStack(cards: visible),
+            ),
     );
   }
 }
@@ -167,6 +169,9 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
                 child: Dismissible(
                   // One element per card: the next card never inherits the drag
                   key: ValueKey(top.stateKey),
+                  // No shrinking after the slide: the next card takes the slot
+                  // as soon as this one is gone
+                  resizeDuration: null,
                   direction: canPostpone
                       ? DismissDirection.horizontal
                       : DismissDirection.endToStart,
