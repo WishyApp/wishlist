@@ -4,11 +4,18 @@ import 'package:wishlist/shared/utils/occasion_wishlist_utils.dart';
 
 import '../../fixtures/fake_data.dart';
 
-Wishlist _wishlist(int id, String name) => Wishlist(
+Wishlist _wishlist(
+  int id,
+  String name, {
+  String owner = fakeCurrentUserId,
+  bool isClosed = false,
+}) =>
+    Wishlist(
       id: id,
       createdAt: fakeCreatedAt,
       name: name,
-      idOwner: fakeCurrentUserId,
+      idOwner: owner,
+      isClosed: isClosed,
       color: fakeColorBlue,
       endDate: DateTime(2024, 6, 15),
       canOwnerSeeTakenWish: true,
@@ -29,6 +36,7 @@ void main() {
       return findOccasionWishlist(
         wishlists: wishlists,
         keywords: words,
+        userId: fakeCurrentUserId,
         occasionDate: occasionDate,
       )?.name;
     }
@@ -72,6 +80,58 @@ void main() {
       test(description, () {
         expect(find(c.$1), c.$2);
       });
+    });
+
+    String? findIn(List<Wishlist> wishlists) => findOccasionWishlist(
+          wishlists: wishlists,
+          keywords: keywords,
+          userId: fakeCurrentUserId,
+          occasionDate: occasionDate,
+        )?.name;
+
+    test('ignores the wishlists of other users', () {
+      expect(
+        findIn([_wishlist(1, 'Noël 2026', owner: fakeFriendUserId1)]),
+        isNull,
+      );
+    });
+
+    test('ignores a closed wishlist next to an open one', () {
+      expect(
+        findIn([
+          _wishlist(1, 'Noël 2026', isClosed: true),
+          _wishlist(2, 'Mes envies de Noël'),
+        ]),
+        'Mes envies de Noël',
+      );
+    });
+
+    test('returns null for a closed wishlist alone', () {
+      expect(findIn([_wishlist(1, 'Noël 2026', isClosed: true)]), isNull);
+    });
+
+    test('accepts a two-digit year equal to the occasion year', () {
+      expect(find(['Noël 26']), 'Noël 26');
+    });
+
+    test('discards a two-digit previous year', () {
+      expect(find(['Noël 25']), isNull);
+    });
+
+    test('ignores another two-digit number', () {
+      expect(find(['Top 10 Noël']), 'Top 10 Noël');
+    });
+
+    test('cleans keywords like names', () {
+      expect(find(['Noël 2026'], words: const ['noel ']), 'Noël 2026');
+    });
+
+    test('ignores multi-word keywords', () {
+      expect(find(['Noël 2026'], words: const ['pere noel']), isNull);
+      expect(
+        find(['Noël 2026'], words: const ['pere noel', 'noel']),
+        'Noël 2026',
+      );
     });
 
     test('returns null without keywords', () {
