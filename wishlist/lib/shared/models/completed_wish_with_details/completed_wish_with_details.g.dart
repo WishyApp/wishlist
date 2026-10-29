@@ -15,7 +15,7 @@ _$CompletedWishWithDetailsImpl _$$CompletedWishWithDetailsImplFromJson(
       ownerPseudo: json['owner_pseudo'] as String,
       ownerId: json['owner_id'] as String,
       ownerAvatarUrl: json['owner_avatar_url'] as String?,
-      completedAt: DateTime.parse(json['created_at'] as String),
+      completedAt: DateTime.parse(json['completed_at'] as String),
       quantity: (json['quantity'] as num).toInt(),
     );
 
@@ -28,6 +28,6 @@ Map<String, dynamic> _$$CompletedWishWithDetailsImplToJson(
       'owner_pseudo': instance.ownerPseudo,
       'owner_id': instance.ownerId,
       'owner_avatar_url': instance.ownerAvatarUrl,
-      'created_at': instance.completedAt.toIso8601String(),
+      'completed_at': instance.completedAt.toIso8601String(),
       'quantity': instance.quantity,
     };

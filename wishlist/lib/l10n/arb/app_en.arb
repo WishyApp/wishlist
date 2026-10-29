@@ -252,6 +252,33 @@
   "friendCompletedWishesTitle": "Completed wishes",
   "completeSelectedWishes": "Complete",
   "seeAllCompletedWishes": "See all",
+  "completionDateDialogTitle": "{count, plural, =1{When did you receive it?} other{When did you receive them?}}",
+  "@completionDateDialogTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "completionDateDialogExplanation": "{count, plural, =1{Select the date this wish was given to you.} other{Select the date these {count} wishes were given to you.}}",
+  "@completionDateDialogExplanation": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "completeButton": "Complete",
+  "continueButton": "Continue",
+  "wishesCompletedSnackBar": "{count, plural, =1{Wish completed! It is now in your completed wishes.} other{{count} wishes completed! They are now in your completed wishes.}}",
+  "@wishesCompletedSnackBar": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "snackBarSeeAction": "See",
   "relativeDateToday": "Today",
   "relativeDateYesterday": "Yesterday",
   "relativeDateDaysAgo": "{count} days ago",

@@ -13,11 +13,19 @@ class CompletedWishMutations extends _$CompletedWishMutations
     return const AsyncUpdate.idle();
   }
 
-  Future<void> markAsCompleted(Wish wish, {int quantity = 1}) async {
+  Future<void> markAsCompleted(
+    Wish wish, {
+    int quantity = 1,
+    required DateTime completedAt,
+  }) async {
     await mutateAsync(
       () async {
         final service = ref.read(completedWishServiceProvider);
-        await service.markAsCompleted(wish, quantity: quantity);
+        await service.markAsCompleted(
+          wish,
+          quantity: quantity,
+          completedAt: completedAt,
+        );
       },
     );
   }

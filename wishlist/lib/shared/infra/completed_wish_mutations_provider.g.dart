@@ -7,7 +7,7 @@ part of 'completed_wish_mutations_provider.dart';
 // **************************************************************************
 
 String _$completedWishMutationsHash() =>
-    r'4caa23dff88dad037ac2655db8b308a6747ba406';
+    r'66ffcc821ddb7fb160a68c2e282abfa3dff5847c';
 
 /// See also [CompletedWishMutations].
 @ProviderFor(CompletedWishMutations)

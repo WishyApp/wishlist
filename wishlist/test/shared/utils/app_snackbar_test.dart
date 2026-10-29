@@ -108,4 +108,39 @@ void main() {
 
     expect(find.text(l10n.networkError), findsOneWidget);
   });
+
+  testWidgets('runs the action and closes the snackbar on its button',
+      (tester) async {
+    var actions = 0;
+    await tester.pumpApp(
+      Builder(
+        builder: (context) {
+          return ElevatedButton(
+            onPressed: () {
+              showAppSnackBar(
+                context,
+                'Done',
+                type: SnackBarType.success,
+                actionLabel: 'See',
+                onAction: () => actions++,
+              );
+            },
+            child: const Text('Trigger'),
+          );
+        },
+      ),
+    );
+
+    await tester.tap(find.text('Trigger'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('Done'), findsOneWidget);
+
+    await tester.tap(find.text('See'));
+    await tester.pump();
+    expect(actions, 1);
+
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Done'), findsNothing);
+  });
 }

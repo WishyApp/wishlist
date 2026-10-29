@@ -670,8 +670,11 @@ void main() {
     );
   });
 
-  testWidgets('completes the selected wish with its default quantity',
-      (tester) async {
+  testWidgets(
+      'completes the selected wish on the picked day with its default '
+      'quantity', (tester) async {
+    registerFallbackValue(DateTime(2000));
+    final l10n = AppLocalizationsFr();
     final repository = _MockUserCompletedWishRepository();
     when(
       () => repository.markAsCompleted(
@@ -679,6 +682,7 @@ void main() {
         wishId: any(named: 'wishId'),
         fromWishlistId: any(named: 'fromWishlistId'),
         quantity: any(named: 'quantity'),
+        completedAt: any(named: 'completedAt'),
       ),
     ).thenAnswer((_) async {});
 
@@ -701,15 +705,91 @@ void main() {
     await tester.tap(find.byIcon(Icons.check_circle_outline));
     await tester.pumpAndSettle();
 
+    // The day is asked first, for the one selected wish, named
+    expect(find.text(l10n.completionDateDialogExplanation(1)), findsOneWidget);
+    expect(find.text(fakeWish1.name), findsNWidgets(2));
+    verifyNever(
+      () => repository.markAsCompleted(
+        userId: any(named: 'userId'),
+        wishId: any(named: 'wishId'),
+        fromWishlistId: any(named: 'fromWishlistId'),
+        quantity: any(named: 'quantity'),
+        completedAt: any(named: 'completedAt'),
+      ),
+    );
+
+    // Today, picked by default
+    final now = DateTime.now();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(PrimaryButton),
+      ),
+    );
+    // Not settled: the snackbar would be gone
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
     verify(
       () => repository.markAsCompleted(
         userId: fakeCurrentUserId,
         wishId: fakeWish1.id,
         fromWishlistId: fakeWishlist1.id,
         quantity: 1,
+        completedAt: DateTime(now.year, now.month, now.day),
       ),
     ).called(1);
+    expect(find.text(l10n.wishesCompletedSnackBar(1)), findsOneWidget);
+    expect(find.text(l10n.snackBarSeeAction), findsOneWidget);
+    await tester.pumpAndSettle();
     expect(find.byIcon(Icons.add), findsOneWidget);
+  });
+
+  testWidgets('completes nothing when the day is not picked', (tester) async {
+    final l10n = AppLocalizationsFr();
+    final repository = _MockUserCompletedWishRepository();
+
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 1).location,
+      overrides: [
+        ...wishlistScreenOverrides(
+          wishlistId: 1,
+          wishlist: fakeWishlist1,
+          wishes: fakeWishes,
+          currentUserId: fakeCurrentUserId,
+        ),
+        userCompletedWishRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await tester.longPress(find.text(fakeWish1.name));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.wishlistSelectAll));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.check_circle_outline));
+    await tester.pumpAndSettle();
+
+    // Several wishes: the plural, without a name
+    final count = fakeWishes.length;
+    expect(
+      find.text(l10n.completionDateDialogExplanation(count)),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(SecondaryButton),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    verifyZeroInteractions(repository);
+    expect(
+      find.text(l10n.completionDateDialogExplanation(count)),
+      findsNothing,
+    );
   });
 
   testWidgets('does not rebuild the screen root when typing in the search',

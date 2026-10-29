@@ -27,13 +27,23 @@ enum SnackBarType {
 ///   type: SnackBarType.error,
 /// );
 /// ```
+///
+/// Avec [actionLabel] et [onAction], un bouton à droite du message : le
+/// toucher ferme le snackbar puis appelle [onAction]. Le snackbar survit à
+/// l'écran qui l'affiche : [onAction] ne doit pas dépendre de son context.
 void showAppSnackBar(
   BuildContext context,
   String message, {
   required SnackBarType type,
   bool isTopSnackBar = false,
   Duration duration = const Duration(seconds: 4),
+  String? actionLabel,
+  VoidCallback? onAction,
 }) {
+  assert(
+    (actionLabel == null) == (onAction == null),
+    'An action needs both a label and a callback',
+  );
   final indicatorColor =
       type == SnackBarType.success ? Colors.green : Colors.red;
 
@@ -52,6 +62,8 @@ void showAppSnackBar(
       iconColor: indicatorColor,
       duration: duration,
       isTop: isTopSnackBar,
+      actionLabel: actionLabel,
+      onAction: onAction,
       onDismissed: () {
         overlayEntry.remove();
       },
@@ -96,6 +108,8 @@ class _AnimatedSnackBar extends StatefulWidget {
     required this.duration,
     required this.isTop,
     required this.onDismissed,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String message;
@@ -104,6 +118,8 @@ class _AnimatedSnackBar extends StatefulWidget {
   final Duration duration;
   final bool isTop;
   final VoidCallback onDismissed;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   State<_AnimatedSnackBar> createState() => _AnimatedSnackBarState();
@@ -187,6 +203,12 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
     _dismiss();
   }
 
+  /// Ferme le snackbar et lance l'action
+  void _handleAction() {
+    _handleTap();
+    widget.onAction?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
@@ -214,6 +236,8 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
                       icon: widget.icon,
                       iconColor: widget.iconColor,
                       progress: _progressController.value,
+                      actionLabel: widget.actionLabel,
+                      onAction: widget.onAction == null ? null : _handleAction,
                     ),
                   ),
                 ),
@@ -232,12 +256,16 @@ class _AppSnackBarContent extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.progress,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String message;
   final IconData icon;
   final Color iconColor;
   final double progress;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -279,6 +307,23 @@ class _AppSnackBarContent extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (actionLabel case final actionLabel?) ...[
+                  const SizedBox(width: 8),
+                  // The overlay has no Material for the button's ink
+                  Material(
+                    type: MaterialType.transparency,
+                    child: TextButton(
+                      onPressed: onAction,
+                      child: Text(
+                        actionLabel,
+                        style: AppTextStyles.smaller.copyWith(
+                          color: Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

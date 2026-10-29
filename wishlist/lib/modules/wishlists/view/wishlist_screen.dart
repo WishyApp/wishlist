@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:wishlist/app/config/deeplink_config.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/modules/completed_wishes/view/widgets/wishes_completed_snack_bar.dart';
 import 'package:wishlist/modules/wishlists/infra/wishlist_screen_data_realtime_provider.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/move_wishes_dialog.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
@@ -22,6 +23,7 @@ import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/utils/get_wishlist_theme.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
+import 'package:wishlist/shared/widgets/dialogs/completion_date_dialog.dart';
 import 'package:wishlist/shared/widgets/dialogs/confirm_dialog.dart';
 import 'package:wishlist/shared/widgets/dialogs/quantity_selection_dialog.dart';
 import 'package:wishlist/shared/widgets/error_page_with_back.dart';
@@ -127,15 +129,40 @@ class WishlistScreen extends ConsumerWidget {
   ) async {
     final notifier =
         ref.read(wishlistScreenNotifierProvider(wishlistId).notifier);
+    final selectedIds =
+        ref.read(wishlistScreenNotifierProvider(wishlistId)).selectedWishIds;
     final wishs = ref
             .read(wishlistScreenDataRealtimeProvider(wishlistId))
             .valueOrNull
             ?.wishs ??
         const IListConst([]);
+    final selectedWishs =
+        wishs.where((w) => selectedIds.contains(w.id)).toList();
+    // La sélection a pu se vider entre-temps (wishs supprimés ailleurs)
+    if (selectedWishs.isEmpty) {
+      return;
+    }
+    final l10n = context.l10n;
+
+    // Un seul jour pour toute la sélection, demandé avant les quantités
+    final count = selectedWishs.length;
+    final completedAt = await showCompletionDateDialog(
+      context,
+      title: l10n.completionDateDialogTitle(count),
+      explanation: l10n.completionDateDialogExplanation(count),
+      wishName: count == 1 ? selectedWishs.single.name : null,
+      confirmButtonLabel: selectedWishs.any((w) => w.quantity > 1)
+          ? l10n.continueButton
+          : l10n.completeButton,
+    );
+    if (completedAt == null || !context.mounted) {
+      return;
+    }
+
     final completedWishs =
         ref.read(completedWishesRealtimeProvider).valueOrNull;
 
-    var anyCompleted = false;
+    var completedCount = 0;
     // Chaque wish reçu quitte la liste pendant la boucle : runOnSelection
     // garde le mode sélection ouvert jusqu'à la fin
     await notifier.runOnSelection((selectedIds) async {
@@ -159,16 +186,17 @@ class WishlistScreen extends ConsumerWidget {
             ref,
             wish: wish,
             alreadyCompletedQuantity: alreadyCompletedQuantity,
+            completedAt: completedAt,
           );
           if (confirmed) {
-            anyCompleted = true;
+            completedCount++;
           }
         } else {
           try {
             await ref
                 .read(completedWishMutationsProvider.notifier)
-                .markAsCompleted(wish);
-            anyCompleted = true;
+                .markAsCompleted(wish, completedAt: completedAt);
+            completedCount++;
           } catch (e) {
             if (context.mounted) {
               showGenericError(context, error: e);
@@ -178,12 +206,8 @@ class WishlistScreen extends ConsumerWidget {
       }
     });
 
-    if (anyCompleted && context.mounted) {
-      showAppSnackBar(
-        context,
-        context.l10n.updateSuccess,
-        type: SnackBarType.success,
-      );
+    if (completedCount > 0 && context.mounted) {
+      showWishesCompletedSnackBar(context, completedCount);
     }
   }
 

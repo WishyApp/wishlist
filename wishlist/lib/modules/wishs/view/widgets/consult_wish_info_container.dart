@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/modules/completed_wishes/view/widgets/wishes_completed_snack_bar.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_box_shadow.dart';
 import 'package:wishlist/modules/wishs/view/widgets/scrollable_content_with_indicator.dart';
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
@@ -17,6 +18,7 @@ import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/utils/formatters.dart';
 import 'package:wishlist/shared/utils/link_utils.dart';
+import 'package:wishlist/shared/widgets/dialogs/completion_date_dialog.dart';
 import 'package:wishlist/shared/widgets/dialogs/confirm_dialog.dart';
 import 'package:wishlist/shared/widgets/dialogs/quantity_selection_dialog.dart';
 
@@ -126,42 +128,40 @@ class ConsultWishInfoContainer extends ConsumerWidget {
     required int completedQuantity,
   }) async {
     final l10n = context.l10n;
+    final needsQuantity = wish.quantity > 1;
 
-    if (wish.quantity > 1) {
+    // Sans quantité à choisir, le dialog de la date complète le wish
+    final completedAt = await showCompletionDateDialog(
+      context,
+      title: l10n.completionDateDialogTitle(1),
+      explanation: l10n.completionDateDialogExplanation(1),
+      confirmButtonLabel:
+          needsQuantity ? l10n.continueButton : l10n.completeButton,
+      onConfirm: needsQuantity
+          ? null
+          : (completedAt) => ref
+              .read(completedWishMutationsProvider.notifier)
+              .markAsCompleted(wish, completedAt: completedAt),
+    );
+    if (completedAt == null || !context.mounted) {
+      return;
+    }
+
+    if (needsQuantity) {
       final confirmed = await showCompleteWishQuantityDialog(
         context,
         ref,
         wish: wish,
         alreadyCompletedQuantity: completedQuantity,
+        completedAt: completedAt,
       );
-      if (confirmed && context.mounted) {
-        context.pop();
-        showAppSnackBar(
-          context,
-          l10n.updateSuccess,
-          type: SnackBarType.success,
-        );
+      if (!confirmed || !context.mounted) {
+        return;
       }
-      return;
     }
 
-    try {
-      await ref.read(completedWishMutationsProvider.notifier).markAsCompleted(
-            wish,
-          );
-      if (context.mounted) {
-        context.pop();
-        showAppSnackBar(
-          context,
-          l10n.updateSuccess,
-          type: SnackBarType.success,
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        showGenericError(context, error: e);
-      }
-    }
+    showWishesCompletedSnackBar(context, 1);
+    context.pop();
   }
 
   Future<void> _onCancelGiveItTap(BuildContext context, WidgetRef ref) async {
