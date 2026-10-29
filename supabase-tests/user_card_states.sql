@@ -15,7 +15,7 @@ RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
   EXECUTE statement;
   RAISE EXCEPTION 'FAIL %: allowed, expected a denial', label;
-EXCEPTION WHEN insufficient_privilege OR check_violation OR not_null_violation THEN
+EXCEPTION WHEN insufficient_privilege OR check_violation OR not_null_violation OR invalid_parameter_value THEN
   RAISE NOTICE 'ok   % (denied)', label;
 END $$;
 
@@ -144,6 +144,22 @@ SELECT public.dismiss_card('booked_reminder:1', now() + interval '7 days');
 SELECT pg_temp.expect_true('dismiss after an expired snooze sets the new date',
   (SELECT snoozed_until > now() + interval '6 days'
    FROM public.user_card_states WHERE card_key = 'booked_reminder:1'));
+
+-- A permanent mask stays permanent: a late "later" cannot turn it into a snooze
+SELECT public.dismiss_card('permanent:1');
+SELECT public.dismiss_card('permanent:1', now() + interval '1 day');
+SELECT pg_temp.expect_true('snooze after a permanent mask keeps it permanent',
+  (SELECT dismissed_at IS NOT NULL AND snoozed_until IS NULL
+   FROM public.user_card_states WHERE card_key = 'permanent:1'));
+
+-- Non-finite dates are refused, a past date is accepted
+SELECT pg_temp.expect_denied('infinite snooze',
+  $q$SELECT public.dismiss_card('infinite:1', 'infinity'::timestamptz)$q$);
+SELECT pg_temp.expect_denied('-infinite snooze',
+  $q$SELECT public.dismiss_card('infinite:2', '-infinity'::timestamptz)$q$);
+SELECT public.dismiss_card('past:1', now() - interval '1 day');
+SELECT pg_temp.expect_true('past snooze is accepted',
+  (SELECT snoozed_until < now() FROM public.user_card_states WHERE card_key = 'past:1'));
 
 -- Key length: 1 to 200 characters
 SELECT pg_temp.expect_denied('key of 201 characters',

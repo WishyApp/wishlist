@@ -85,7 +85,7 @@ void main() {
         },
       ]);
       when(() => client.from('user_card_states')).thenAnswer((_) => table);
-      when(table.select).thenAnswer((_) => query);
+      when(() => table.select(any())).thenAnswer((_) => query);
 
       final states =
           await repository.getStates(['stale_wishlist:9', 'booked_reminder:1']);
@@ -94,6 +94,52 @@ void main() {
       expect(query.filteredValues, ['stale_wishlist:9', 'booked_reminder:1']);
       expect(states.keys, ['stale_wishlist:9']);
       expect(states['stale_wishlist:9']!.shownCount, 2);
+    });
+
+    test('skips the rows it cannot read and keeps the others', () async {
+      final table = MockQueryBuilder();
+      final query = FakeRows([
+        {'card_key': 'ok:1', 'shown_count': 1},
+        {'card_key': 'bad:1', 'shown_count': 1, 'snoozed_until': 'infinity'},
+        {'card_key': 'bad:2', 'shown_count': 'x'},
+      ]);
+      when(() => client.from('user_card_states')).thenAnswer((_) => table);
+      when(() => table.select(any())).thenAnswer((_) => query);
+
+      final states = await repository.getStates(['ok:1', 'bad:1', 'bad:2']);
+
+      expect(states.keys, ['ok:1']);
+    });
+
+    test('asks for at most 50 keys per request and merges the results',
+        () async {
+      final table = MockQueryBuilder();
+      final keys = [for (var i = 0; i < 120; i++) 'card:$i'];
+      final queries = <FakeRows>[];
+      when(() => client.from('user_card_states')).thenAnswer((_) => table);
+      when(() => table.select(any())).thenAnswer((_) {
+        final start = queries.length * 50;
+        final batch = keys.skip(start).take(50);
+        final query = FakeRows([
+          for (final key in batch) {'card_key': key, 'shown_count': 1},
+        ]);
+        queries.add(query);
+        return query;
+      });
+
+      final states = await repository.getStates(keys);
+
+      expect(
+        queries.map((q) => q.filteredValues!.length),
+        [50, 50, 20],
+      );
+      expect(queries.expand((q) => q.filteredValues!), keys);
+      expect(states.keys, keys);
+      verify(
+        () => table.select(
+          'card_key, shown_count, last_shown_at, dismissed_at, snoozed_until',
+        ),
+      ).called(3);
     });
 
     test('makes no request for an empty list', () async {

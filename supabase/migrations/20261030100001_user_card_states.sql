@@ -7,7 +7,9 @@
 -- stale_wishlist:88, after_party:2026, christmas:2026.
 --
 -- A card is hidden when dismissed_at is set and snoozed_until is NULL or in
--- the future. A card dismissed without a snooze never comes back. The app
+-- the future. A card dismissed without a snooze never comes back, and that
+-- permanent mask cannot be turned into a snooze afterwards (a late "later"
+-- must not undo a "hide"); "later" then "hide" does end permanent. The app
 -- applies this rule, the table does not.
 --
 -- Clients only read their rows. They write through record_card_shown and
@@ -96,7 +98,8 @@ END;
 $$;
 
 -- The current user dismissed the card. With p_snooze_until it comes back
--- after that date, without it never.
+-- after that date, without it never. A date in the past is accepted (the card
+-- simply comes back); a non-finite one is refused.
 CREATE OR REPLACE FUNCTION public.dismiss_card(
   p_card_key text,
   p_snooze_until timestamptz DEFAULT NULL
@@ -113,11 +116,19 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated' USING ERRCODE = 'insufficient_privilege';
   END IF;
 
+  IF p_snooze_until IS NOT NULL AND NOT isfinite(p_snooze_until) THEN
+    RAISE EXCEPTION 'snooze_until must be finite' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
   INSERT INTO public.user_card_states (user_id, card_key, dismissed_at, snoozed_until)
   VALUES (v_user_id, p_card_key, now(), p_snooze_until)
   ON CONFLICT (user_id, card_key) DO UPDATE
     SET dismissed_at = now(),
-        snoozed_until = p_snooze_until;
+        snoozed_until = CASE
+          WHEN public.user_card_states.dismissed_at IS NOT NULL
+            AND public.user_card_states.snoozed_until IS NULL THEN NULL
+          ELSE p_snooze_until
+        END;
 END;
 $$;
 
