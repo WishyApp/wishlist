@@ -217,4 +217,123 @@ void main() {
     );
     await tester.pumpAndSettle();
   });
+
+  group('onClosed', () {
+    Future<void> pumpTrigger(
+      WidgetTester tester, {
+      required VoidCallback onClosed,
+      VoidCallback? onAction,
+      bool autoClose = true,
+      void Function(VoidCallback close)? onShown,
+    }) async {
+      await tester.pumpApp(
+        Builder(
+          builder: (context) {
+            return ElevatedButton(
+              onPressed: () {
+                final close = showAppSnackBar(
+                  context,
+                  'Done',
+                  type: SnackBarType.success,
+                  actionLabel: onAction == null ? null : 'See',
+                  onAction: onAction,
+                  onClosed: onClosed,
+                  autoClose: autoClose,
+                );
+                onShown?.call(close);
+              },
+              child: const Text('Trigger'),
+            );
+          },
+        ),
+      );
+      await tester.tap(find.text('Trigger'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 800));
+    }
+
+    testWidgets('fires when the delay is over', (tester) async {
+      var closed = 0;
+      await pumpTrigger(tester, onClosed: () => closed++);
+      expect(closed, 0);
+
+      await tester.pump(const Duration(seconds: 4));
+      expect(closed, 1);
+      await tester.pumpAndSettle();
+      expect(closed, 1);
+    });
+
+    testWidgets('fires when swiped away', (tester) async {
+      var closed = 0;
+      await pumpTrigger(tester, onClosed: () => closed++);
+
+      await tester.drag(find.text('Done'), const Offset(600, 0));
+      await tester.pumpAndSettle();
+
+      expect(closed, 1);
+      expect(find.text('Done'), findsNothing);
+    });
+
+    testWidgets('fires when tapped away', (tester) async {
+      var closed = 0;
+      await pumpTrigger(tester, onClosed: () => closed++);
+
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      expect(closed, 1);
+    });
+
+    testWidgets('does not fire after the action', (tester) async {
+      var closed = 0;
+      var actions = 0;
+      await pumpTrigger(
+        tester,
+        onClosed: () => closed++,
+        onAction: () => actions++,
+      );
+
+      await tester.tap(find.text('See'));
+      await tester.pumpAndSettle();
+
+      expect(actions, 1);
+      expect(closed, 0);
+    });
+
+    testWidgets('does not fire when the caller closes it', (tester) async {
+      var closed = 0;
+      late VoidCallback close;
+      await pumpTrigger(
+        tester,
+        onClosed: () => closed++,
+        onShown: (c) => close = c,
+      );
+
+      close();
+      await tester.pump();
+      close();
+      await tester.pump(const Duration(seconds: 5));
+
+      expect(find.text('Done'), findsNothing);
+      expect(closed, 0);
+    });
+
+    testWidgets('stays open past the delay without autoClose', (tester) async {
+      var closed = 0;
+      late VoidCallback close;
+      await pumpTrigger(
+        tester,
+        onClosed: () => closed++,
+        autoClose: false,
+        onShown: (c) => close = c,
+      );
+
+      await tester.pump(const Duration(seconds: 10));
+      expect(find.text('Done'), findsOneWidget);
+      expect(closed, 0);
+
+      close();
+      await tester.pump();
+    });
+  });
 }

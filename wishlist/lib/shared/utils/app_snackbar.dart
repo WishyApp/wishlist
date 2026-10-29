@@ -36,7 +36,15 @@ enum SnackBarType {
 /// son context. Le bouton prend la couleur principale du thème de [context]
 /// (celle de la wishlist sur ses écrans), foncée si besoin pour rester lisible
 /// sur le fond blanc : l'overlay racine n'a que le thème de l'app.
-void showAppSnackBar(
+///
+/// [onClosed] est appelé quand le snackbar se ferme sans passer par son
+/// bouton : fin du délai, glissement ou toucher. Jamais après [onAction], ni
+/// quand l'appelant le ferme avec la fonction retournée. Avec
+/// `autoClose: false` (accessibilité), le délai ne le ferme pas : il reste
+/// jusqu'à un geste ou jusqu'à `close`.
+///
+/// Retourne la fonction qui le retire tout de suite, sans animation.
+VoidCallback showAppSnackBar(
   BuildContext context,
   String message, {
   required SnackBarType type,
@@ -44,6 +52,8 @@ void showAppSnackBar(
   Duration duration = const Duration(seconds: 4),
   String? actionLabel,
   VoidCallback? onAction,
+  VoidCallback? onClosed,
+  bool autoClose = true,
 }) {
   assert(
     (actionLabel == null) == (onAction == null),
@@ -63,6 +73,13 @@ void showAppSnackBar(
   );
 
   late final OverlayEntry overlayEntry;
+  var isRemoved = false;
+  void remove() {
+    if (!isRemoved) {
+      isRemoved = true;
+      overlayEntry.remove();
+    }
+  }
 
   overlayEntry = OverlayEntry(
     builder: (context) => _AnimatedSnackBar(
@@ -74,13 +91,14 @@ void showAppSnackBar(
       actionLabel: actionLabel,
       actionColor: actionColor,
       onAction: onAction,
-      onDismissed: () {
-        overlayEntry.remove();
-      },
+      onClosed: onClosed,
+      autoClose: autoClose,
+      onDismissed: remove,
     ),
   );
 
   overlayState.insert(overlayEntry);
+  return remove;
 }
 
 /// Affiche une erreur : si [error] est une [AppException] avec un message
@@ -122,8 +140,10 @@ class _AnimatedSnackBar extends StatefulWidget {
     required this.isTop,
     required this.onDismissed,
     required this.actionColor,
+    required this.autoClose,
     this.actionLabel,
     this.onAction,
+    this.onClosed,
   });
 
   final String message;
@@ -131,6 +151,8 @@ class _AnimatedSnackBar extends StatefulWidget {
   final Color iconColor;
   final Duration duration;
   final bool isTop;
+  final bool autoClose;
+  final VoidCallback? onClosed;
   final VoidCallback onDismissed;
   final Color actionColor;
   final String? actionLabel;
@@ -178,11 +200,14 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
 
     // Démarrer les animations
     _slideController.forward();
-    _progressController.reverse().then((_) {
-      if (mounted) {
-        _dismiss();
-      }
-    });
+    if (widget.autoClose) {
+      _progressController.reverse().then((_) {
+        if (mounted) {
+          _notifyClosed();
+          _dismiss();
+        }
+      });
+    }
   }
 
   @override
@@ -190,6 +215,17 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
     _slideController.dispose();
     _progressController.dispose();
     super.dispose();
+  }
+
+  bool _isClosedNotified = false;
+
+  /// Prévient l'appelant, une seule fois, et jamais après le bouton d'action
+  void _notifyClosed() {
+    if (_isClosedNotified || _isActionDone) {
+      return;
+    }
+    _isClosedNotified = true;
+    widget.onClosed?.call();
   }
 
   /// Déclenche l'animation de sortie automatique
@@ -209,12 +245,14 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
   /// Gère le dismiss manuel par swipe
   void _handleDismiss(DismissDirection direction) {
     _progressController.stop();
+    _notifyClosed();
     widget.onDismissed();
   }
 
   /// Gère le dismiss manuel par tap
   void _handleTap() {
     _progressController.stop();
+    _notifyClosed();
     _dismiss();
   }
 
@@ -226,6 +264,7 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
     if (_isActionDone) {
       return;
     }
+    // Before closing: the action is not a close without action
     _isActionDone = true;
     _handleTap();
     widget.onAction?.call();
@@ -296,79 +335,84 @@ class _AppSnackBarContent extends StatelessWidget {
   Widget build(BuildContext context) {
     const radius = 8.0;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(radius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: radius,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: iconColor,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    message,
-                    style: AppTextStyles.smaller.copyWith(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
-                      decoration: TextDecoration.none,
-                    ),
+    return Semantics(
+      // Read out when it appears
+      liveRegion: true,
+      container: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: radius,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    color: iconColor,
+                    size: 24,
                   ),
-                ),
-                if (actionLabel case final actionLabel?) ...[
-                  const SizedBox(width: 8),
-                  // The overlay has no Material for the button's ink
-                  Material(
-                    type: MaterialType.transparency,
-                    child: TextButton(
-                      onPressed: onAction,
-                      child: Text(
-                        actionLabel,
-                        style: AppTextStyles.smaller.copyWith(
-                          color: actionColor,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: AppTextStyles.smaller.copyWith(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        decoration: TextDecoration.none,
                       ),
                     ),
                   ),
+                  if (actionLabel case final actionLabel?) ...[
+                    const SizedBox(width: 8),
+                    // The overlay has no Material for the button's ink
+                    Material(
+                      type: MaterialType.transparency,
+                      child: TextButton(
+                        onPressed: onAction,
+                        child: Text(
+                          actionLabel,
+                          style: AppTextStyles.smaller.copyWith(
+                            color: actionColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-          ),
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(radius),
-              bottomRight: Radius.circular(radius),
-            ),
-            child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity().scaledByDouble(-1, -1, 1, 1),
-              child: LinearProgressIndicator(
-                value: progress,
-                backgroundColor: Colors.transparent,
-                valueColor: AlwaysStoppedAnimation<Color>(iconColor),
-                minHeight: 3,
               ),
             ),
-          ),
-        ],
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(radius),
+                bottomRight: Radius.circular(radius),
+              ),
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity().scaledByDouble(-1, -1, 1, 1),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.transparent,
+                  valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+                  minHeight: 3,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
