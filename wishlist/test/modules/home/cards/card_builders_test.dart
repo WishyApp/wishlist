@@ -114,6 +114,8 @@ void main() {
       expect(cards.single.tone, HomeCardTone.light);
       expect(cards.single.dismissable, isTrue);
       expect(cards.single.eventAt, DateTime(2026, 11, 29));
+      // The card is built until the day itself
+      expect(cards.single.lastDay, DateTime(2026, 11, 29));
       expect(cards.single.stateKey, 'friend_birthday:$friendId@2026');
       final content = cards.single.content as FriendBirthdaySoon;
       expect(content.days, 30);
@@ -138,6 +140,8 @@ void main() {
       expect(cards.single.tone, HomeCardTone.highlighted);
       expect(cards.single.stateKey, 'friend_birthday_today:$friendId@2026');
       expect(cards.single.content, isA<FriendBirthdayToday>());
+      // Today is the only day: nothing to postpone to
+      expect(cards.single.lastDay, cards.single.eventAt);
     });
 
     test('a friend without a visible birthday gives nothing', () {
@@ -208,6 +212,8 @@ void main() {
       expect(content.occasion, AfterPartyOccasion.birthday);
       expect(content.daysAgo, 1);
       expect(content.wishlist, isNull);
+      // days_after: 7 days after the party, the day of it included
+      expect(cards.single.lastDay, DateTime(2026, 11, 5));
     });
 
     test('without any wishlist there is no card, whatever the occasion', () {
@@ -394,6 +400,7 @@ void main() {
       expect(content.occasion, ReminderOccasion.ownerBirthday);
       expect(content.booking, fakeBookedWish1);
       expect(cards.single.eventAt, date);
+      expect(cards.single.lastDay, date);
     });
 
     test('an owner born in 20 days with days_before = 14 gives nothing', () {
@@ -680,6 +687,7 @@ void main() {
       expect(cards.single.tone, HomeCardTone.light);
       expect(cards.single.stateKey, 'christmas@2026');
       expect(cards.single.eventAt, DateTime(2026, 12, 25));
+      expect(cards.single.lastDay, DateTime(2026, 12, 25));
       expect((cards.single.content as Christmas).days, 29);
     });
 

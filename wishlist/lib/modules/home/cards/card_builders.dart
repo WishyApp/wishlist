@@ -90,6 +90,7 @@ List<HomeCardCandidate> friendBirthdayCards({
             content: FriendBirthdayToday(friend),
             tone: HomeCardTone.highlighted,
             eventAt: eventDay,
+            lastDay: eventDay,
           ),
         );
       }
@@ -103,6 +104,7 @@ List<HomeCardCandidate> friendBirthdayCards({
               ? HomeCardTone.highlighted
               : HomeCardTone.light,
           eventAt: eventDay,
+          lastDay: eventDay,
         ),
       );
     }
@@ -151,6 +153,7 @@ List<HomeCardCandidate> afterPartyCards({
               openOwn.length == 1 ? openOwn.single : null,
             ),
             eventAt: day,
+            lastDay: DateTime(day.year, day.month, day.day + daysAfter),
           ),
         );
         break;
@@ -172,6 +175,7 @@ List<HomeCardCandidate> afterPartyCards({
             _christmasWishlist(wishlists, userId, christmas, christmasDay),
           ),
           eventAt: christmasDay,
+          lastDay: DateTime(year, 12, 25 + daysAfter),
         ),
       );
       break;
@@ -235,6 +239,7 @@ List<HomeCardCandidate> bookedReminderCards({
         ),
         content: BookedReminder(booking, occasion, days),
         eventAt: eventDay,
+        lastDay: eventDay,
       ),
     );
   }
@@ -351,6 +356,7 @@ List<HomeCardCandidate> christmasCards({
           ? HomeCardTone.highlighted
           : HomeCardTone.light,
       eventAt: christmasDay,
+      lastDay: christmasDay,
     ),
   ];
 }
