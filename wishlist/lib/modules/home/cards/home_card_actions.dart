@@ -36,8 +36,9 @@ int laterDaysOf(Map<String, HomeCardDefinition>? definitions) {
 }
 
 /// The cards the user swiped away. Its state is the set of card keys to take
-/// off the screen: the ones waiting to be sent, and the ones sent during the
-/// life of the notifier (the stack of cards does not reload at once).
+/// off the screen: the ones waiting to be sent, and the ones sent until a
+/// reload no longer holds them (`release`: the stack of cards does not reload
+/// at once, and a card postponed comes back on its day).
 ///
 /// A swipe is optimistic and sent late: the card goes at once, and the request
 /// is made when the snack-bar closes (`commit`), unless `undo` came first. What
@@ -50,12 +51,24 @@ final homeCardActionsProvider =
   HomeCardActions.new,
 );
 
+/// A send that failed (offline): the card is back, the screen tells the user.
+/// A new object each time, so that two failures in a row both notify.
+final homeCardSendFailureProvider =
+    StateProvider.autoDispose<HomeCardSendFailure?>((ref) => null);
+
+class HomeCardSendFailure {
+  HomeCardSendFailure(this.error);
+
+  final Object error;
+}
+
 class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
   late CardStateRepository _cardStates;
   late BookedWishRemovalRepository _removals;
   final _waiting = <String, _Swipe>{};
   final _closers = <String, VoidCallback>{};
   final _shown = <String>{};
+  final _sent = <String>{};
   var _disposed = false;
 
   @override
@@ -64,9 +77,9 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
     _removals = ref.watch(bookedWishRemovalRepositoryProvider);
     _disposed = false;
     // A process killed in the background never gets to the timer: send as soon
-    // as the app stops being in front.
+    // as the app is hidden. Not on inactive: the control center or a call
+    // banner is not leaving, and the user could still want to undo.
     final lifecycle = AppLifecycleListener(
-      onInactive: _flush,
       onHide: _flush,
       onPause: _flush,
     );
@@ -83,11 +96,13 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
       laterDaysOf(ref.read(homeCardDefinitionsProvider).valueOrNull);
 
   /// Takes [card] off the screen and sends it later, see the class comment.
+  /// False when it was already off the screen (waiting or sent): nothing
+  /// changed, so the caller has nothing to offer to undo.
   ///
   /// With [autoCommit] false (screen reader users, whose snack-bar does not
   /// close by itself) no timer is started: only `commit`, the lifecycle or
   /// the end of the screen send it.
-  void swipe(
+  bool swipe(
     HomeCardCandidate card,
     HomeCardSwipe swipe, {
     bool autoCommit = true,
@@ -95,7 +110,7 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
     final key = card.stateKey;
     // Already off the screen, waiting or sent: a second swipe changes nothing
     if (_disposed || state.contains(key)) {
-      return;
+      return false;
     }
     final now = ref.read(clockProvider)();
     final definitions = ref.read(homeCardDefinitionsProvider).valueOrNull;
@@ -114,6 +129,19 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
     }
     _waiting[key] = pending;
     state = {...state, key};
+    return true;
+  }
+
+  /// A reload holds [loadedKeys]: the cards sent and no longer among them are
+  /// no longer to filter out, so that they show again when they come back (the
+  /// next day, at the next reminder step).
+  void release(Set<String> loadedKeys) {
+    final gone = _sent.difference(loadedKeys);
+    if (_disposed || gone.isEmpty) {
+      return;
+    }
+    _sent.removeAll(gone);
+    state = {...state}..removeAll(gone);
   }
 
   /// Registers how to close the snack-bar of [stateKey]; called when the card
@@ -184,14 +212,28 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
   }
 
   Future<void> _sendAndReload(_Swipe swipe) async {
-    await _send(swipe);
-    if (!_disposed) {
+    final error = await _send(swipe);
+    if (_disposed) {
+      return;
+    }
+    final key = swipe.card.stateKey;
+    if (error != null) {
+      // Never closed: the card is back, and the user is told
+      state = {...state}..remove(key);
+      ref.read(homeCardSendFailureProvider.notifier).state =
+          HomeCardSendFailure(error);
+      return;
+    }
+    _sent.add(key);
+    // An alert is closed on its own table, whose stream reloads the cards.
+    if (swipe.card.content is! BookedWishRemoved) {
       // The next card may take its place now that this one is gone.
       ref.invalidate(homeCardsProvider);
     }
   }
 
-  Future<void> _send(_Swipe swipe) async {
+  /// The error, null when sent.
+  Future<Object?> _send(_Swipe swipe) async {
     final content = swipe.card.content;
     try {
       if (content is BookedWishRemoved) {
@@ -203,10 +245,12 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
           snoozeUntil: swipe.until,
         );
       }
+      return null;
     } catch (e) {
       debugPrint(
         '[Wishy home cards] could not send ${swipe.card.stateKey}: $e',
       );
+      return e;
     }
   }
 }

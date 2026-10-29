@@ -15,6 +15,7 @@ import 'package:wishlist/shared/models/home_card_definition.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
+import '../../../fixtures/lifecycle.dart';
 
 class MockCardStateRepository extends Mock implements CardStateRepository {}
 
@@ -74,9 +75,7 @@ void main() {
 
   tearDown(() {
     // Leaves the shared binding as it was found
-    WidgetsBinding.instance.handleAppLifecycleStateChanged(
-      AppLifecycleState.resumed,
-    );
+    walkLifecycleTo(AppLifecycleState.resumed);
   });
 
   setUp(() {
@@ -288,15 +287,39 @@ void main() {
     });
   });
 
-  test('a failing send does not throw', () {
+  test('a failing send does not throw, brings the card back and tells', () {
     when(
       () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
     ).thenThrow(Exception('offline'));
 
     run((async, actions, container) {
+      final failures = <HomeCardSendFailure?>[];
+      container.listen(
+        homeCardSendFailureProvider,
+        (_, next) => failures.add(next),
+      );
       actions.swipe(photoCard(), HomeCardSwipe.hide);
       async.elapse(homeCardCommitFallback);
       async.flushMicrotasks();
+
+      // Not hidden for the session while it was never closed
+      expect(container.read(homeCardActionsProvider), isEmpty);
+      expect(failures, hasLength(1));
+      expect(failures.single!.error, isA<Exception>());
+      // And it can be swiped again
+      expect(actions.swipe(photoCard(), HomeCardSwipe.hide), isTrue);
+    });
+  });
+
+  test('a failing send of an alert brings it back too', () {
+    when(() => removals.dismiss(any())).thenThrow(Exception('offline'));
+
+    run((async, actions, container) {
+      actions.swipe(removalCard(), HomeCardSwipe.hide);
+      async.elapse(homeCardCommitFallback);
+      async.flushMicrotasks();
+
+      expect(container.read(homeCardActionsProvider), isEmpty);
     });
   });
 
@@ -355,6 +378,58 @@ void main() {
     });
   });
 
+  test('swipe tells whether it took the card', () {
+    run((async, actions, container) {
+      expect(actions.swipe(photoCard(), HomeCardSwipe.hide), isTrue);
+      expect(actions.swipe(photoCard(), HomeCardSwipe.later), isFalse);
+      async.elapse(homeCardCommitFallback);
+      // Sent: still off the screen, still refused
+      expect(actions.swipe(photoCard(), HomeCardSwipe.hide), isFalse);
+    });
+  });
+
+  group('release', () {
+    test('a sent card comes back once a reload no longer holds it', () {
+      run((async, actions, container) {
+        actions.swipe(photoCard(), HomeCardSwipe.later);
+        async.elapse(homeCardCommitFallback);
+
+        // The reload that still holds it (read before the send) changes nothing
+        actions.release({'onboarding:photo'});
+        expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
+
+        // The next day's reload: gone, then back
+        actions.release(const {});
+        expect(container.read(homeCardActionsProvider), isEmpty);
+        expect(actions.swipe(photoCard(), HomeCardSwipe.later), isTrue);
+      });
+    });
+
+    test('a card still waiting to be sent is never released', () {
+      run((async, actions, container) {
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+
+        actions.release(const {});
+
+        expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
+      });
+    });
+  });
+
+  test('an alert closed does not reload the cards, its stream does', () {
+    run((async, actions, container) {
+      container.listen(homeCardsProvider, (_, __) {});
+      async.flushMicrotasks();
+      expect(homeCardsLoads, 1);
+
+      actions.swipe(removalCard(), HomeCardSwipe.hide);
+      async.elapse(homeCardCommitFallback);
+
+      verify(() => removals.dismiss(7)).called(1);
+      expect(homeCardsLoads, 1);
+    });
+  });
+
   test('later_days is at least one day', () {
     run(
       (async, actions, container) {
@@ -377,16 +452,33 @@ void main() {
 
   group('app lifecycle', () {
     void changeTo(FakeAsync async, AppLifecycleState state) {
-      WidgetsBinding.instance.handleAppLifecycleStateChanged(state);
+      walkLifecycleTo(state);
       async.flushMicrotasks();
     }
 
-    test('inactive sends what is waiting and keeps the cards hidden', () {
+    test('inactive alone (control center, call banner) sends nothing', () {
+      run((async, actions, container) {
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+        changeTo(async, AppLifecycleState.inactive);
+
+        verifyNever(
+          () => cardStates.dismiss(
+            any(),
+            snoozeUntil: any(named: 'snoozeUntil'),
+          ),
+        );
+        // The snack-bar goes on: it commits itself when it ends
+        async.elapse(homeCardCommitFallback);
+        verify(() => cardStates.dismiss('onboarding:photo')).called(1);
+      });
+    });
+
+    test('hidden sends what is waiting and keeps the cards hidden', () {
       run((async, actions, container) {
         actions.swipe(photoCard(), HomeCardSwipe.hide);
         async.elapse(const Duration(seconds: 1));
 
-        changeTo(async, AppLifecycleState.inactive);
+        changeTo(async, AppLifecycleState.hidden);
 
         verify(() => cardStates.dismiss('onboarding:photo')).called(1);
         expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
@@ -459,9 +551,7 @@ void main() {
         );
         actions.swipe(other, HomeCardSwipe.hide);
         actions.attachCloser('onboarding:birthday', () => closedByLifecycle++);
-        WidgetsBinding.instance.handleAppLifecycleStateChanged(
-          AppLifecycleState.inactive,
-        );
+        walkLifecycleTo(AppLifecycleState.hidden);
         async.flushMicrotasks();
 
         actions.swipe(removalCard(), HomeCardSwipe.hide);
