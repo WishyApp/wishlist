@@ -448,16 +448,22 @@ void main() {
 
   group('last activity of the wishlists', () {
     var reads = 0;
+    var cardLoads = 0;
 
     Future<void> pumpHome(WidgetTester tester) async {
       reads = 0;
+      cardLoads = 0;
       await tester.pumpApp(
         const FloatingNavBarNavigator(
           // ignore: avoid_redundant_argument_values
           currentTab: FloatingNavBarTab.home,
         ),
         overrides: [
-          ...homeScreenOverrides(),
+          ...homeScreenOverrides(overrideHomeCards: false),
+          homeCardsProvider.overrideWith((ref) async {
+            cardLoads++;
+            return const [];
+          }),
           wishlistsLastActivityProvider.overrideWith((ref) async {
             reads++;
             return const {};
@@ -476,6 +482,7 @@ void main() {
       addTearDown(subscription.close);
       await tester.pumpAndSettle();
       expect(reads, 1);
+      expect(cardLoads, 1);
     }
 
     testWidgets('is read again when the home comes back from a screen',
@@ -495,6 +502,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(reads, 2);
+      // The screen may have changed what the cards read without a stream
+      expect(cardLoads, 2);
     });
 
     testWidgets('is read again when the app comes back to the foreground',
@@ -507,6 +516,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(reads, 2);
+      // The same day: the cards themselves are not recomputed
+      expect(cardLoads, 1);
     });
 
     testWidgets('is read again by the pull-to-refresh', (tester) async {
