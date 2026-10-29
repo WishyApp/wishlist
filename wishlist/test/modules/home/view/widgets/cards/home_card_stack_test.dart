@@ -362,6 +362,7 @@ void main() {
           wishlistName: 'Liste',
           removedAt: fakeNow,
         ),
+        canOpenList: true,
       ),
     );
     const photo = HomeCardCandidate(

@@ -57,6 +57,7 @@ HomeCardCandidate removalCard() {
         wishlistName: 'Anniversaire',
         removedAt: DateTime(2026, 10, 28),
       ),
+      canOpenList: true,
     ),
   );
 }

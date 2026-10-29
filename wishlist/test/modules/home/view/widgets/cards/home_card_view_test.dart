@@ -270,7 +270,10 @@ void main() {
 
     testWidgets('a removed wish names its owner and opens their list',
         (tester) async {
-      await pumpCard(tester, card(BookedWishRemoved(removal())));
+      await pumpCard(
+        tester,
+        card(BookedWishRemoved(removal(), canOpenList: true)),
+      );
 
       expect(find.text('Changement chez Alice'), findsOneWidget);
       expect(
@@ -306,7 +309,10 @@ void main() {
 
     testWidgets('a removed wish of an owner without pseudo is neutral',
         (tester) async {
-      await pumpCard(tester, card(BookedWishRemoved(removal(pseudo: ''))));
+      await pumpCard(
+        tester,
+        card(BookedWishRemoved(removal(pseudo: ''), canOpenList: true)),
+      );
 
       expect(
         find.text('Un wish que tu avais réservé a été retiré'),
@@ -462,7 +468,7 @@ void main() {
           (tester, variant) async {
         await pumpCard(
           tester,
-          card(BookedWishRemoved(removal()), tone: tone),
+          card(BookedWishRemoved(removal(), canOpenList: true), tone: tone),
           windowConfig: variant,
         );
 

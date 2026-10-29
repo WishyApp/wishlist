@@ -58,7 +58,7 @@ final class BookedReminder extends HomeCardContent {
 }
 
 final class BookedWishRemoved extends HomeCardContent {
-  const BookedWishRemoved(this.removal, {this.canOpenList = true});
+  const BookedWishRemoved(this.removal, {required this.canOpenList});
 
   /// Carries the pseudo of the owner (empty when they had none).
   final BookedWishRemoval removal;
