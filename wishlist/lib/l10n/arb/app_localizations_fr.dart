@@ -243,6 +243,19 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsScreenBirthdayNotSet => 'Non renseigné';
 
   @override
+  String get editProfileScreenTitle => 'Modifier le profil';
+
+  @override
+  String get editProfilePseudo => 'Pseudo';
+
+  @override
+  String get editProfileBirthday => 'Anniversaire';
+
+  @override
+  String get editProfilePrivacy =>
+      'Seuls tes amis voient ta photo, ton pseudo et ton anniversaire.';
+
+  @override
   String get changeBirthdayScreenTitle => 'Anniversaire';
 
   @override

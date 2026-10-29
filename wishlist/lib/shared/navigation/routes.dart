@@ -7,6 +7,7 @@ import 'package:wishlist/modules/auth/view/pseudo_screen.dart';
 import 'package:wishlist/modules/auth/view/reset_password_screen.dart';
 import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/modules/friends/view/screens/friend_details_screen.dart';
+import 'package:wishlist/modules/profile/view/edit_profile_screen.dart';
 import 'package:wishlist/modules/settings/change_birthday/view/change_birthday_screen.dart';
 import 'package:wishlist/modules/settings/change_password/view/change_password_screen.dart';
 import 'package:wishlist/modules/settings/change_pseudo/view/change_pseudo_screen.dart';
@@ -35,6 +36,10 @@ part 'routes.g.dart';
     // Optional birthday step, after the pseudo at signup
     TypedGoRoute<BirthdayStepRoute>(
       path: 'birthday',
+    ),
+    // Edit profile (photo, pseudo, birthday)
+    TypedGoRoute<EditProfileRoute>(
+      path: 'profile',
     ),
     // Settings et ses sous-routes
     TypedGoRoute<SettingsRoute>(
@@ -260,6 +265,12 @@ class ChangePasswordRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) =>
       const ChangePasswordScreen();
+}
+
+class EditProfileRoute extends AuthenticatedRoute {
+  @override
+  Widget buildScreen(BuildContext context, GoRouterState state) =>
+      const EditProfileScreen();
 }
 
 class ChangePseudoRoute extends AuthenticatedRoute {

@@ -24,6 +24,10 @@ RouteBase get $homeRoute => GoRouteData.$route(
           factory: $BirthdayStepRouteExtension._fromState,
         ),
         GoRouteData.$route(
+          path: 'profile',
+          factory: $EditProfileRouteExtension._fromState,
+        ),
+        GoRouteData.$route(
           path: 'settings',
           factory: $SettingsRouteExtension._fromState,
           routes: [
@@ -126,6 +130,23 @@ extension $BirthdayStepRouteExtension on BirthdayStepRoute {
 
   String get location => GoRouteData.$location(
         '/birthday',
+      );
+
+  void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  void replace(BuildContext context) => context.replace(location);
+}
+
+extension $EditProfileRouteExtension on EditProfileRoute {
+  static EditProfileRoute _fromState(GoRouterState state) => EditProfileRoute();
+
+  String get location => GoRouteData.$location(
+        '/profile',
       );
 
   void go(BuildContext context) => context.go(location);

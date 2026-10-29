@@ -530,6 +530,30 @@ abstract class AppLocalizations {
   /// **'Non renseigné'**
   String get settingsScreenBirthdayNotSet;
 
+  /// No description provided for @editProfileScreenTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier le profil'**
+  String get editProfileScreenTitle;
+
+  /// No description provided for @editProfilePseudo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pseudo'**
+  String get editProfilePseudo;
+
+  /// No description provided for @editProfileBirthday.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire'**
+  String get editProfileBirthday;
+
+  /// No description provided for @editProfilePrivacy.
+  ///
+  /// In fr, this message translates to:
+  /// **'Seuls tes amis voient ta photo, ton pseudo et ton anniversaire.'**
+  String get editProfilePrivacy;
+
   /// No description provided for @changeBirthdayScreenTitle.
   ///
   /// In fr, this message translates to:
