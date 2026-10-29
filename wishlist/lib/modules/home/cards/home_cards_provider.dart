@@ -27,11 +27,10 @@ import 'package:wishlist/shared/models/home_card_definition.dart';
 
 const _stackKey = 'home_stack';
 const _defaultMaxCards = 3;
-const _optionalWindowKey = 'onboarding:optional_window';
 const _onboardingStateKeys = [
-  _optionalWindowKey,
-  'onboarding:birthday',
-  'onboarding:photo',
+  onboardingOptionalWindowKey,
+  onboardingBirthdayKey,
+  onboardingPhotoKey,
 ];
 
 /// Alerts about booked wishes the owner removed, not dismissed yet.
@@ -250,7 +249,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref) async {
   if (top is Onboarding &&
       (top.step == OnboardingStep.birthday ||
           top.step == OnboardingStep.photo) &&
-      !states.containsKey(_optionalWindowKey)) {
+      !states.containsKey(onboardingOptionalWindowKey)) {
     unawaited(_recordOptionalWindow(cardStateRepository));
   }
   return cards;
@@ -293,7 +292,7 @@ Future<T> _orElse<T>(
 /// stack.
 Future<void> _recordOptionalWindow(CardStateRepository repository) async {
   try {
-    await repository.recordShown(_optionalWindowKey);
+    await repository.recordShown(onboardingOptionalWindowKey);
   } catch (e) {
     debugPrint('[Wishy home cards] could not record the window: $e');
   }

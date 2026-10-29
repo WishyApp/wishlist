@@ -255,6 +255,36 @@ void main() {
       expect(content.wishlist, christmas);
     });
 
+    test('without the Christmas definition, the default keywords apply', () {
+      final christmas = wishlist(2, 'Noël 2026');
+      final cards = afterPartyCards(
+        myBirthday: null,
+        wishlists: [wishlist(1, 'Vacances'), christmas],
+        userId: fakeCurrentUserId,
+        definition: afterPartyDef,
+        christmas: null,
+        now: DateTime(2026, 12, 27, 9),
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, christmas);
+    });
+
+    test('a Christmas definition without keywords uses the default ones', () {
+      final christmas = wishlist(2, 'Noël 2026');
+      final cards = afterPartyCards(
+        myBirthday: null,
+        wishlists: [wishlist(1, 'Vacances'), christmas],
+        userId: fakeCurrentUserId,
+        definition: afterPartyDef,
+        christmas: def('christmas', params: {
+          'reminder_days': [7]
+        }),
+        now: DateTime(2026, 12, 27, 9),
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, christmas);
+    });
+
     test('two wishlists without a Christmas name leave the list null', () {
       final cards = build(
         DateTime(2026, 12, 27, 9),
@@ -534,9 +564,19 @@ void main() {
       final cards = build(const Duration(days: 2));
 
       expect(cards.single.type, 'friend_accepted');
-      expect(cards.single.stateKey, 'friend_accepted:$friendId');
+      expect(cards.single.stateKey, 'friend_accepted:$friendId@2026');
       final content = cards.single.content as FriendAccepted;
       expect(content.friend, friend);
+    });
+
+    test('a new acceptance the next year is another card', () {
+      final cards = friendAcceptedCards(
+        accepted: [(friend: friend, acceptedAt: DateTime(2027, 1, 2))],
+        definition: acceptedDef,
+        now: DateTime(2027, 1, 3),
+      );
+
+      expect(cards.single.stateKey, 'friend_accepted:$friendId@2027');
     });
 
     test('accepted 8 days ago with days = 7 gives nothing', () {
@@ -824,6 +864,30 @@ void main() {
       );
 
       expect(hideUntil(cards.single, definitions, at), DateTime(2026, 12, 18));
+    });
+
+    test('any type whose definition has reminder_days comes back', () {
+      final eventAt = DateTime(2026, 12, 25);
+      final card = HomeCardCandidate(
+        type: 'some_event',
+        stateKey: 'some_event@2026',
+        content: Christmas(20, null),
+        eventAt: eventAt,
+      );
+      final at = DateTime(2026, 12, 5, 9);
+
+      expect(
+        hideUntil(
+          card,
+          {
+            'some_event': def('some_event', params: {
+              'reminder_days': [30, 7]
+            })
+          },
+          at,
+        ),
+        DateTime(2026, 12, 18),
+      );
     });
 
     test('a booked reminder is hidden for good', () {

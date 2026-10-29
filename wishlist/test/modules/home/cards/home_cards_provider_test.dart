@@ -252,7 +252,7 @@ void main() {
 
     expect(
       cards.map((c) => c.stateKey),
-      ['friend_accepted:$fakeFriendUserId1'],
+      ['friend_accepted:$fakeFriendUserId1@${now.year}'],
     );
     final since = verify(
       () => friendships.getRecentlyAcceptedRequests(captureAny()),
