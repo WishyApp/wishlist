@@ -474,6 +474,10 @@ YearRecapFacts yearRecapFacts({
     for (final wish in received)
       if (wish.completedAt.toLocal().year == year) wish,
   ];
+  // Differs on purpose from `BookedWishWithDetails.isGiven` (every booking of
+  // the wish received, used by the booked reminder card): here the owner only
+  // has to have received what this user booked, whatever the other bookers
+  // did. Do not align the two.
   final offeredInYear = [
     for (final booking in bookings)
       if (booking.receivedAt?.toLocal().year == year &&
