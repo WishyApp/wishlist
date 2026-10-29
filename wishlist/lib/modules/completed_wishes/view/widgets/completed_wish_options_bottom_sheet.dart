@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/completed_wishes/view/widgets/uncomplete_wish_bottom_sheet.dart';
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
+import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
@@ -33,7 +34,18 @@ Future<void> showCompletedWishOptionsBottomSheet(
       onPicked: (option) => picked = option,
     ),
   );
-  if (!context.mounted) {
+  if (picked == null || !context.mounted) {
+    return;
+  }
+
+  // The wish as it is now: its date or quantity may have changed on another
+  // device while the sheet was open, and the dialogs start from it
+  final completedWishes = ref.read(completedWishesRealtimeProvider).valueOrNull;
+  final current = completedWishes == null
+      ? item
+      : completedWishes.where((c) => c.wish.id == item.wish.id).firstOrNull;
+  // No longer completed: its card is gone
+  if (current == null) {
     return;
   }
 
@@ -41,11 +53,11 @@ Future<void> showCompletedWishOptionsBottomSheet(
     case null:
       return;
     case _CompletedWishOption.modifyDate:
-      await _modifyCompletionDate(context, ref, item);
+      await _modifyCompletionDate(context, ref, current);
     case _CompletedWishOption.modifyQuantity:
-      await _modifyCompletedQuantity(context, ref, item);
+      await _modifyCompletedQuantity(context, ref, current);
     case _CompletedWishOption.uncomplete:
-      await showUncompleteWishBottomSheet(context, item);
+      await showUncompleteWishBottomSheet(context, current);
   }
 }
 

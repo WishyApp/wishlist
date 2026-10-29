@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
@@ -11,6 +12,7 @@ import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_comp
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
+import 'package:wishlist/shared/widgets/search_bar/app_search_bar.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
@@ -47,10 +49,13 @@ void main() {
         quantity: 1,
       );
 
+  /// The screen of the current user's completed wishes: [items], or the
+  /// values of [receipts] when given.
   Future<_MockUserCompletedWishRepository> pumpScreen(
     WidgetTester tester,
-    List<CompletedWishWithDetails> items,
-  ) async {
+    List<CompletedWishWithDetails> items, {
+    Stream<IList<CompletedWishWithDetails>>? receipts,
+  }) async {
     final repository = _MockUserCompletedWishRepository();
     // A router: the dialogs close through it
     await tester.pumpRouterApp(
@@ -66,7 +71,7 @@ void main() {
         userServiceOverride(),
         ...completedWishesOverrides(
           fakeCurrentUserId,
-          receipts: () => Stream.value(items.toIList()),
+          receipts: () => receipts ?? Stream.value(items.toIList()),
         ),
         userCompletedWishRepositoryProvider.overrideWithValue(repository),
       ],
@@ -297,16 +302,59 @@ void main() {
 
   testWidgets('keeps the order of the completions within a day',
       (tester) async {
-    // As the repository gives them: the last completed first
+    // As the repository gives them: by day, then the last completed first
     await pumpScreen(tester, [
       completed(1, name: 'Second of the day'),
-      completed(2, name: 'Earlier day', completedAt: DateTime(2026, 3, 4)),
       completed(3, name: 'First of the day'),
+      completed(2, name: 'Earlier day', completedAt: DateTime(2026, 3, 4)),
     ]);
 
     double top(String name) => tester.getTopLeft(find.text(name)).dy;
 
     expect(top('Second of the day'), lessThan(top('First of the day')));
     expect(top('First of the day'), lessThan(top('Earlier day')));
+
+    // Ascending: the other way round
+    await tester.tap(find.byType(SearchBarButton).last);
+    await tester.pumpAndSettle();
+
+    expect(top('Earlier day'), lessThan(top('First of the day')));
+    expect(top('First of the day'), lessThan(top('Second of the day')));
+  });
+
+  testWidgets('starts the date dialog from the wish as it is now',
+      (tester) async {
+    final before = completed(1, name: 'Plaid', completedAt: DateTime(2025, 12));
+    final receipts = BehaviorSubject<IList<CompletedWishWithDetails>>.seeded(
+      [before].toIList(),
+    );
+    addTearDown(receipts.close);
+    final repository = await pumpScreen(tester, [], receipts: receipts);
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    // Changed on another device while the options are open
+    receipts.add(
+      [before.copyWith(completedAt: DateTime(2025, 12, 20))].toIList(),
+    );
+    await tester.pump();
+    await tester.tap(find.text(l10n.modifyCompletionDate));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<CupertinoDatePicker>(find.byType(CupertinoDatePicker))
+          .initialDateTime,
+      DateTime(2025, 12, 20),
+    );
+    // Kept as it is now: nothing to save
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(PrimaryButton),
+      ),
+    );
+    await tester.pumpAndSettle();
+    verifyZeroInteractions(repository);
   });
 }
