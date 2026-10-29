@@ -272,7 +272,7 @@
   },
   "completeButton": "Complete",
   "continueButton": "Continue",
-  "wishesCompletedSnackBar": "{count, plural, =1{Added to your completed wishes!} other{Added to your completed wishes!}}",
+  "wishesCompletedSnackBar": "Added to your completed wishes!",
   "@wishesCompletedSnackBar": {
     "placeholders": {
       "count": {

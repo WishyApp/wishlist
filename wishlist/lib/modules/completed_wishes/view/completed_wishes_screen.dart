@@ -88,19 +88,11 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
           return _sort.order == SortOrder.ascending ? cmp : -cmp;
         });
       case CompletedWishSortType.completedAt:
-        // Received the same day: in the order of their first completion,
-        // which the list comes in from the last one
-        final completionRank = {
-          for (final (index, item) in result.indexed) item.wish.id: index,
-        };
-        result.sort((a, b) {
-          var cmp = a.completedAt.compareTo(b.completedAt);
-          if (cmp == 0) {
-            cmp = completionRank[b.wish.id]!
-                .compareTo(completionRank[a.wish.id]!);
-          }
-          return _sort.order == SortOrder.ascending ? cmp : -cmp;
-        });
+        // The list comes sorted by the repository, the last received first
+        // (the same day: the last one first completed first)
+        if (_sort.order == SortOrder.ascending) {
+          result = result.reversed.toList();
+        }
     }
     return result;
   }

@@ -1,16 +1,15 @@
 import 'package:flutter/cupertino.dart';
-import 'package:wishlist/shared/theme/colors.dart';
-import 'package:wishlist/shared/theme/text_styles.dart';
+import 'package:wishlist/shared/widgets/wheel_picker_style.dart';
 
 /// Three wheels, day, month and year (in the order of the locale), to pick a
 /// day up to today. The year wheel stops at the current year; the days and
 /// months after today are greyed out, and the wheels go back to today if one
 /// is picked.
 ///
-/// The wheels look like those of the BirthdayPicker. [initialValue] is only
-/// read when the picker is created, and brought back within the wheels (see
-/// [clampDay]); its time is ignored, and so is the time of the days given to
-/// [onChanged] (local midnight).
+/// The wheels share the WheelPickerStyle of the BirthdayPicker.
+/// [initialValue] is only read when the picker is created, and brought back
+/// within the wheels (see [clampDay]); its time is ignored, and so is the time
+/// of the days given to [onChanged] (local midnight).
 class PastDatePicker extends StatelessWidget {
   const PastDatePicker({
     super.key,
@@ -48,26 +47,14 @@ class PastDatePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = _day(now ?? DateTime.now());
 
-    // The wheels take their text style from the Cupertino theme, which
-    // defaults to the platform font: use the app's instead.
-    return CupertinoTheme(
-      data: CupertinoTheme.of(context).copyWith(
-        textTheme: CupertinoTextThemeData(
-          dateTimePickerTextStyle: AppTextStyles.large.copyWith(
-            color: AppColors.darkGrey,
-          ),
-        ),
-      ),
-      child: SizedBox(
-        height: 180,
-        child: CupertinoDatePicker(
-          mode: CupertinoDatePickerMode.date,
-          initialDateTime: clampDay(initialValue, now: today),
-          minimumYear: minimumYear,
-          maximumYear: today.year,
-          maximumDate: today,
-          onDateTimeChanged: (date) => onChanged(_day(date)),
-        ),
+    return WheelPickerStyle(
+      child: CupertinoDatePicker(
+        mode: CupertinoDatePickerMode.date,
+        initialDateTime: clampDay(initialValue, now: today),
+        minimumYear: minimumYear,
+        maximumYear: today.year,
+        maximumDate: today,
+        onDateTimeChanged: (date) => onChanged(_day(date)),
       ),
     );
   }

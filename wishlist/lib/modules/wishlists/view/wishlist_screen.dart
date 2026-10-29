@@ -164,8 +164,14 @@ class WishlistScreen extends ConsumerWidget {
     }
 
     final wishs = readWishs();
-    final completedWishs =
-        ref.read(completedWishesRealtimeProvider).valueOrNull;
+    // Mes réceptions : celles que l'écran écoute (la wishlist est à moi), lues
+    // après le dialog comme les wishs
+    final currentUserId = ref.read(currentUserIdProvider);
+    final completedWishs = currentUserId == null
+        ? null
+        : ref
+            .read(completedWishesByUserRealtimeProvider(currentUserId))
+            .valueOrNull;
 
     var completedCount = 0;
     // Chaque wish reçu quitte la liste pendant la boucle : runOnSelection
