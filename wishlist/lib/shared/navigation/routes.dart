@@ -54,10 +54,11 @@ part 'routes.g.dart';
         TypedGoRoute<ChangeBirthdayRoute>(
           path: 'change-birthday',
         ),
-        TypedGoRoute<CompletedWishesRoute>(
-          path: 'completed-wishes',
-        ),
       ],
+    ),
+    // Wishes received by the current user
+    TypedGoRoute<CompletedWishesRoute>(
+      path: 'completed-wishes',
     ),
     // Wishlist et ses sous-routes
     TypedGoRoute<WishlistRoute>(

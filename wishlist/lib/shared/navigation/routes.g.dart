@@ -43,11 +43,11 @@ RouteBase get $homeRoute => GoRouteData.$route(
               path: 'change-birthday',
               factory: $ChangeBirthdayRouteExtension._fromState,
             ),
-            GoRouteData.$route(
-              path: 'completed-wishes',
-              factory: $CompletedWishesRouteExtension._fromState,
-            ),
           ],
+        ),
+        GoRouteData.$route(
+          path: 'completed-wishes',
+          factory: $CompletedWishesRouteExtension._fromState,
         ),
         GoRouteData.$route(
           path: 'wishlist/:wishlistId',
@@ -235,7 +235,7 @@ extension $CompletedWishesRouteExtension on CompletedWishesRoute {
       CompletedWishesRoute();
 
   String get location => GoRouteData.$location(
-        '/settings/completed-wishes',
+        '/completed-wishes',
       );
 
   void go(BuildContext context) => context.go(location);
