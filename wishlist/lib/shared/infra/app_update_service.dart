@@ -128,7 +128,7 @@ void reportAppUpdateIssue(
 /// from a denied permission (42501): kept in the report, which otherwise only
 /// has the type. Looks through [AppException.cause].
 ({String kind, String text}) _describeFailure(Object error) {
-  final cause = error is AppException ? error.cause : error;
+  final cause = unwrapCause(error);
   if (cause is PostgrestException) {
     return (
       kind: 'PostgrestException/${cause.code}',
@@ -138,56 +138,59 @@ void reportAppUpdateIssue(
   return (kind: '${cause.runtimeType}', text: '${cause.runtimeType}');
 }
 
-/// A 5xx from the server or its gateway (502, 503, 504...): passing, like a
-/// missing network, so not worth a Sentry report. PostgREST puts the HTTP
-/// status in [PostgrestException.code] when the body is not its own error.
-bool _isTransientServerError(Object error) {
-  final cause = error is AppException ? error.cause : error;
-  if (cause is! PostgrestException) {
-    return false;
-  }
-  final status = int.tryParse(cause.code ?? '');
-  return status != null && status >= 500 && status < 600;
-}
-
 class AppUpdateService {
   AppUpdateService(
     this._repository, {
     AppUpdateReporter report = reportAppUpdateIssue,
+    this.retryDelay = const Duration(seconds: 3),
   }) : _report = report;
   final AppVersionRepository _repository;
   final AppUpdateReporter _report;
+
+  /// Wait before the single retry after a passing server error (502, 503,
+  /// 504): otherwise a user below the minimum version could use the app until
+  /// its next return to the foreground.
+  final Duration retryDelay;
 
   static const _timeout = Duration(seconds: 10);
 
   /// Null when the check failed (network, timeout, missing RPC, bad row...):
   /// the caller lets the user through. The failure is logged and reported to
-  /// Sentry, never shown; a passing failure (network, 5xx) only leaves a
-  /// breadcrumb.
+  /// Sentry, never shown; a passing failure (network, 502/503/504) only leaves
+  /// a breadcrumb. A passing server error is retried once after [retryDelay],
+  /// and reported if the retry fails too.
   Future<AppUpdateDecision?> check({
     required String currentVersion,
     required String platform,
   }) async {
-    try {
-      final policy = await _repository.getPolicy(platform).timeout(_timeout);
-      if (policy == null) {
-        debugPrint('[Wishy AppUpdate] no policy for $platform');
+    for (var attempt = 1;; attempt++) {
+      try {
+        final policy = await _repository.getPolicy(platform).timeout(_timeout);
+        if (policy == null) {
+          debugPrint('[Wishy AppUpdate] no policy for $platform');
+          _report(
+            'App version check: no policy row for $platform',
+            kind: 'no_policy_row',
+          );
+          return null;
+        }
+        return decideAppUpdate(currentVersion, policy);
+      } catch (e) {
+        debugPrint('[Wishy AppUpdate] check failed: $e');
+        final isTransient = isTransientServerError(e);
+        final failure = _describeFailure(e);
         _report(
-          'App version check: no policy row for $platform',
-          kind: 'no_policy_row',
+          'App version check failed ($platform): ${failure.text}',
+          // A passing server error still there after the retry may be an
+          // outage: worth a report
+          capture: !isNetworkError(e) && !(isTransient && attempt == 1),
+          kind: failure.kind,
         );
-        return null;
+        if (!isTransient || attempt > 1) {
+          return null;
+        }
+        await Future<void>.delayed(retryDelay);
       }
-      return decideAppUpdate(currentVersion, policy);
-    } catch (e) {
-      debugPrint('[Wishy AppUpdate] check failed: $e');
-      final failure = _describeFailure(e);
-      _report(
-        'App version check failed ($platform): ${failure.text}',
-        capture: !isNetworkError(e) && !_isTransientServerError(e),
-        kind: failure.kind,
-      );
-      return null;
     }
   }
 }

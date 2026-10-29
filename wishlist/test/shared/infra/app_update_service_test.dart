@@ -9,21 +9,32 @@ import 'package:wishlist/shared/infra/repositories/app_version/app_version_repos
 import 'package:wishlist/shared/models/app_version_policy.dart';
 
 class _FakeRepository implements AppVersionRepository {
-  _FakeRepository({this.policy, this.error, this.hangs = false});
+  _FakeRepository({
+    this.policy,
+    this.error,
+    this.failures,
+    this.hangs = false,
+  });
 
   final AppVersionPolicy? policy;
   final Exception? error;
+
+  /// Calls that throw [error] before [policy] is returned. Null: all of them.
+  final int? failures;
   final bool hangs;
   String? requestedPlatform;
+  int calls = 0;
 
   @override
   Future<AppVersionPolicy?> getPolicy(String platform) async {
     requestedPlatform = platform;
+    calls++;
     if (hangs) {
       return Completer<AppVersionPolicy?>().future;
     }
     final error = this.error;
-    if (error != null) {
+    final failures = this.failures;
+    if (error != null && (failures == null || calls <= failures)) {
       throw error;
     }
     return policy;
@@ -174,6 +185,7 @@ void main() {
           repository,
           report: (message, {capture = true, kind}) =>
               reports.add((message: message, capture: capture, kind: kind)),
+          retryDelay: Duration.zero,
         );
 
     test('no policy row is reported to Sentry', () async {
@@ -242,28 +254,83 @@ void main() {
       expect(reports.single.capture, isFalse);
     });
 
-    test('a gateway timeout (504) only leaves a breadcrumb', () async {
-      await service(
-        _FakeRepository(
-          error: AppException(
-            statusCode: 500,
-            cause: const PostgrestException(message: '', code: '504'),
+    test('a gateway timeout (504) is retried once, reported if it lasts',
+        () async {
+      final repository = _FakeRepository(
+        // What executeSafely builds from a gateway's non-JSON 504
+        error: AppException(
+          statusCode: 504,
+          cause: const PostgrestException(message: '', code: '504'),
+        ),
+      );
+      final decision = await service(repository)
+          .check(currentVersion: '0.2.0', platform: 'android');
+
+      expect(decision, isNull);
+      expect(repository.calls, 2);
+      expect(reports, hasLength(2));
+      expect(reports.map((r) => r.capture), [false, true]);
+      expect(reports.first.message, contains('504'));
+    });
+
+    test('the retry after a passing server error can decide', () async {
+      final repository = _FakeRepository(
+        policy: policy(min: '0.3.0'),
+        error: const PostgrestException(message: '', code: '503'),
+        failures: 1,
+      );
+      final decision = await service(repository)
+          .check(currentVersion: '0.2.0', platform: 'android');
+
+      expect(decision?.status, AppUpdateStatus.required);
+      expect(repository.calls, 2);
+      expect(reports.single.capture, isFalse);
+    });
+
+    test("PostgREST's own 503/504 codes are passing server errors", () async {
+      final repository = _FakeRepository(
+        error: AppException(
+          statusCode: 500,
+          cause: const PostgrestException(
+            message: 'Database client error',
+            code: 'PGRST003',
           ),
         ),
-      ).check(currentVersion: '0.2.0', platform: 'android');
+      );
+      await service(repository)
+          .check(currentVersion: '0.2.0', platform: 'android');
 
-      expect(reports.single.capture, isFalse);
-      expect(reports.single.message, contains('504'));
+      expect(repository.calls, 2);
+      expect(reports.map((r) => r.capture), [false, true]);
+    });
+
+    test('a 500 is reported to Sentry and not retried', () async {
+      final repository = _FakeRepository(
+        error: const PostgrestException(message: 'boom', code: '500'),
+      );
+      await service(repository)
+          .check(currentVersion: '0.2.0', platform: 'android');
+
+      expect(repository.calls, 1);
+      expect(reports.single.capture, isTrue);
     });
 
     test('a 4xx from the server is still reported to Sentry', () async {
-      await service(
-        _FakeRepository(
-          error: const PostgrestException(message: 'bad', code: '400'),
-        ),
-      ).check(currentVersion: '0.2.0', platform: 'android');
+      final repository = _FakeRepository(
+        error: const PostgrestException(message: 'bad', code: '400'),
+      );
+      await service(repository)
+          .check(currentVersion: '0.2.0', platform: 'android');
 
+      expect(repository.calls, 1);
       expect(reports.single.capture, isTrue);
+    });
+
+    test('a network failure is not retried', () async {
+      final repository = _FakeRepository(error: const SocketException('down'));
+      await service(repository).check(currentVersion: '0.2.0', platform: 'ios');
+
+      expect(repository.calls, 1);
     });
 
     test('a success reports nothing', () async {
