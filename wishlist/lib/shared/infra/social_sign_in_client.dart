@@ -4,9 +4,12 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/app/config/config.dart';
+import 'package:wishlist/shared/infra/utils/network_error.dart';
+import 'package:wishlist/shared/infra/utils/social_sign_in_error.dart';
 
 /// An ID token from a native sign-in, with the raw nonce whose SHA-256 the
 /// provider embedded in it: Supabase hashes [rawNonce] to check the token.
@@ -153,6 +156,21 @@ class SocialSignInClient {
         ].contains(code),
       _ => false,
     };
+  }
+
+  /// Sentry level of a failed sign-in, null when it is not reported: a sheet
+  /// the user closed or a lost connection. A warning for a known cause that
+  /// one occurrence does not make a bug, but that must stay visible if it
+  /// lasts or spreads: Safari unavailable (WISHY-2), a 502/503/504 (WISHY-6).
+  /// An error otherwise, mostly a misconfigured provider or client ID.
+  static SentryLevel? sentryLevelOf(Object error) {
+    if (isNetworkError(error) || isUserSideFailure(error)) {
+      return null;
+    }
+    if (isSafariUnavailable(error) || isTransientServerError(error)) {
+      return SentryLevel.warning;
+    }
+    return SentryLevel.error;
   }
 
   static String _generateRawNonce() {
