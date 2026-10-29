@@ -207,13 +207,15 @@ INSERT INTO public.user_card_states (user_id, card_key, shown_count, last_shown_
   -- purged: nothing for more than a year, no snooze left, and not a permanent
   -- mask (or a permanent mask whose year is over)
   ('00000000-0000-4000-e000-00000000000c', 'old_shown:1', 1, now() - interval '13 months', NULL, NULL),
-  ('00000000-0000-4000-e000-00000000000c', 'friend_birthday:x:2020', 0, NULL, now() - interval '3 years', NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'friend_birthday:x@2020', 0, NULL, now() - interval '3 years', NULL),
   ('00000000-0000-4000-e000-00000000000c', 'old_expired:1', 0, NULL, now() - interval '2 years', now() - interval '18 months'),
-  -- kept: permanent masks of the current or a keyless card, however old
+  -- kept: permanent masks of the current year, or of a card without a year (a
+  -- numeric id such as 2015 is not a year), however old
   ('00000000-0000-4000-e000-00000000000c', 'old_dismissed:1', 1, now() - interval '14 months', now() - interval '13 months', NULL),
   ('00000000-0000-4000-e000-00000000000c', 'old_permanent:1', 0, NULL, now() - interval '2 years', NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'stale_wishlist:2015', 0, NULL, now() - interval '3 years', NULL),
   ('00000000-0000-4000-e000-00000000000c', 'stale_wishlist:88', 0, NULL, now() - interval '3 years', NULL),
-  ('00000000-0000-4000-e000-00000000000c', 'friend_birthday:y:' || extract(year FROM now())::int, 0, NULL, now() - interval '2 years', NULL),
+  ('00000000-0000-4000-e000-00000000000c', 'friend_birthday:y@' || extract(year FROM now())::int, 0, NULL, now() - interval '2 years', NULL),
   ('00000000-0000-4000-e000-00000000000c', 'recent:1', 1, now() - interval '11 months', NULL, NULL),
   ('00000000-0000-4000-e000-00000000000c', 'recent_dismissed:1', 1, now() - interval '2 years', now() - interval '11 months', NULL),
   ('00000000-0000-4000-e000-00000000000c', 'old_snoozed:1', 0, NULL, now() - interval '2 years', now() + interval '1 month'),
@@ -237,10 +239,10 @@ SELECT pg_temp.expect_true('purge returns the number of rows deleted',
 SELECT pg_temp.expect_true('only the stale rows are gone',
   (SELECT array_agg(card_key COLLATE "C" ORDER BY card_key COLLATE "C") FROM public.user_card_states
    WHERE user_id = '00000000-0000-4000-e000-00000000000c')
-  = ARRAY['friend_birthday:y:' || extract(year FROM now())::int, 'old_dismissed:1',
+  = ARRAY['friend_birthday:y@' || extract(year FROM now())::int, 'old_dismissed:1',
           'old_permanent:1', 'old_snoozed:1', 'onboarding:birthday',
           'onboarding:optional_window', 'onboarding:photo', 'recent:1',
-          'recent_dismissed:1', 'stale_wishlist:88']::text[]);
+          'recent_dismissed:1', 'stale_wishlist:2015', 'stale_wishlist:88']::text[]);
 SELECT pg_temp.expect_true('a second purge deletes nothing', public.purge_stale_card_states() = 0);
 
 -- Scheduled once a year with pg_cron

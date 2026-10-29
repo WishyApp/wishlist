@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 
 /// Key of one occurrence of a home card in `user_card_states`:
-/// `type:id`, or `type:id:year` for a card that comes back every year.
-String cardKey(String type, Object id, {int? year}) {
-  return year == null ? '$type:$id' : '$type:$id:$year';
+/// `type[:id][@year]`: the year, for a card that comes back every year, only
+/// ever follows `@`, so that a numeric id is never read as a year.
+String cardKey(String type, {Object? id, int? year}) {
+  final withId = id == null ? type : '$type:$id';
+  return year == null ? withId : '$withId@$year';
 }
 
 /// What a user saw and dismissed of one home card (table

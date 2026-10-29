@@ -3,9 +3,11 @@
 -- (see home_cards); this table only keeps the state shared by all the user's
 -- devices.
 --
--- Card keys: <home_cards.key>:<id>[:<year>], one per occurrence of a card.
--- Examples: booked_reminder:4512, friend_birthday:<uuid>:2026,
--- stale_wishlist:88, after_party:2026, christmas:2026.
+-- Card keys: <home_cards.key>[:<id>][@<year>], one per occurrence of a card.
+-- Examples: booked_reminder:4512@2026, friend_birthday:<uuid>@2026,
+-- stale_wishlist:88, after_party:birthday@2026, christmas@2026,
+-- onboarding:birthday. The year only ever comes after '@': a numeric id such
+-- as stale_wishlist:2015 must never read as a year (see the purge below).
 --
 -- A card is hidden when dismissed_at is set and snoozed_until is NULL or in
 -- the future. A card dismissed without a snooze never comes back. A mask is
@@ -20,8 +22,8 @@
 -- come. A permanent mask (dismissed, no snooze) is the exception: it never
 -- gets activity again yet must keep holding, so it is only purged once its
 -- year is over, that is when its key ends with a year older than the current
--- one (friend_birthday:<uuid>:2020, the card cannot come back for that year).
--- A permanent mask without a year (stale_wishlist:88, booked_reminder:4512) is
+-- one (friend_birthday:<uuid>@2020, the card cannot come back for that year).
+-- A permanent mask without a year (stale_wishlist:88) is
 -- kept for good.
 -- Rows whose key starts with 'onboarding:' are never purged: onboarding:birthday,
 -- onboarding:photo and onboarding:optional_window have no year in their key,
@@ -176,7 +178,7 @@ BEGIN
       dismissed_at IS NULL
       OR snoozed_until IS NOT NULL
       OR (
-        card_key ~ ':[0-9]{4}$'
+        card_key ~ '@[0-9]{4}$'
         AND right(card_key, 4)::int < extract(year FROM now())
       )
     );

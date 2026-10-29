@@ -63,7 +63,7 @@ void main() {
 
   test('fromRow keeps null dates null', () {
     final cardState = CardState.fromRow(const <String, dynamic>{
-      'card_key': 'christmas:2026',
+      'card_key': 'christmas@2026',
       'shown_count': 0,
       'last_shown_at': null,
       'dismissed_at': null,
@@ -76,14 +76,19 @@ void main() {
   });
 
   group('cardKey', () {
-    test('joins the type and the id', () {
-      expect(cardKey('booked_reminder', 4512), 'booked_reminder:4512');
+    test('is the type alone', () {
+      expect(cardKey('home_stack'), 'home_stack');
     });
 
-    test('appends the year', () {
+    test('joins the type and the id', () {
+      expect(cardKey('booked_reminder', id: 4512), 'booked_reminder:4512');
+    });
+
+    test('appends the year after @', () {
+      expect(cardKey('christmas', year: 2026), 'christmas@2026');
       expect(
-        cardKey('friend_birthday', 'abc', year: 2026),
-        'friend_birthday:abc:2026',
+        cardKey('friend_birthday', id: 'abc', year: 2026),
+        'friend_birthday:abc@2026',
       );
     });
   });
