@@ -60,4 +60,26 @@ void main() {
 
     expect(find.byType(SettingsScreen), findsOneWidget);
   });
+
+  testWidgets('a tap in the empty space next to the button does nothing',
+      (tester) async {
+    await pumpHeader(tester);
+
+    final button = tester.getRect(find.text('Modifier le profil'));
+    // Right of the button, left of the cog, on the button's line
+    await tester.tapAt(Offset(button.right + 80, button.center.dy));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditProfileScreen), findsNothing);
+  });
+
+  testWidgets('the button is at least 44 px tall to tap', (tester) async {
+    await pumpHeader(tester);
+
+    final tapArea = find.ancestor(
+      of: find.text('Modifier le profil'),
+      matching: find.byType(InkWell),
+    );
+    expect(tester.getSize(tapArea.first).height, greaterThanOrEqualTo(44));
+  });
 }

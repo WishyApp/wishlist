@@ -91,48 +91,37 @@ class _EditProfileButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The pill keeps its look; the tap area around it is 44 px tall.
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: SizedBox(
-        height: 44,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Material(
-            color: Colors.transparent,
-            shape: const StadiumBorder(
-              side: BorderSide(color: AppColors.pastelGray),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.edit,
-                      size: 14,
+    // Only the button is tappable, one handler (the InkWell), at least 44 px
+    // tall: the space next to it does nothing.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 44),
+      child: Material(
+        color: Colors.transparent,
+        shape: const StadiumBorder(
+          side: BorderSide(color: AppColors.pastelGray),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.edit, size: 14, color: AppColors.darkGrey),
+                const Gap(6),
+                Flexible(
+                  child: Text(
+                    context.l10n.editProfileScreenTitle,
+                    style: AppTextStyles.smaller.copyWith(
+                      fontWeight: FontWeight.bold,
                       color: AppColors.darkGrey,
                     ),
-                    const Gap(6),
-                    Flexible(
-                      child: Text(
-                        context.l10n.editProfileScreenTitle,
-                        style: AppTextStyles.smaller.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkGrey,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
