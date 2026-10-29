@@ -139,6 +139,9 @@ class _SliverWishlistsGridState extends ConsumerState<SliverWishlistsGrid> {
         proxyDecorator: _buildProxyDecorator,
         sliverGridDelegate: _sliverGridDelegate,
         scrollDirection: Axis.vertical,
+        // AnimatedReorderableGridView defaults to true, MotionListImpl to
+        // false: without it a card lifts on touch and the page can't scroll.
+        longPressDraggable: true,
         isSameItem: (a, b) => a.id == b.id,
         enterTransition: [
           FadeIn(

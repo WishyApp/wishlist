@@ -19,47 +19,7 @@ void main() {
 
   testWidgets('$HomeScreen keeps scrolling while a wishlist is dragged',
       (tester) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(400, 800);
-    addTearDown(tester.view.reset);
-
-    final service = _MockWishlistService();
-    when(() => service.updateWishlistsOrder(any())).thenAnswer((_) async {});
-    final wishlists = [
-      for (var i = 0; i < 10; i++)
-        Wishlist(
-          id: 100 + i,
-          createdAt: fakeCreatedAt,
-          name: 'List $i',
-          idOwner: fakeCurrentUserId,
-          color: fakeColorBlue,
-          canOwnerSeeTakenWish: true,
-          order: i,
-          updatedBy: fakeCurrentUserId,
-          updatedAt: fakeUpdatedAt,
-        ),
-    ];
-
-    await tester.pumpApp(
-      const FloatingNavBarNavigator(
-        // ignore: avoid_redundant_argument_values
-        currentTab: FloatingNavBarTab.home,
-      ),
-      overrides: [
-        ...homeScreenOverrides(wishlists: wishlists),
-        wishlistServiceProvider.overrideWithValue(service),
-      ],
-    );
-    await tester.pumpAndSettle();
-
-    final pageScrollable = tester.state<ScrollableState>(
-      find
-          .descendant(
-            of: find.byType(HomeScreen),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
+    final (service, pageScrollable) = await _pumpHomeWithTenWishlists(tester);
     expect(pageScrollable.position.pixels, 0);
 
     // Long press the first card, then drag it to the bottom edge and hold it
@@ -82,4 +42,66 @@ void main() {
 
     verify(() => service.updateWishlistsOrder(any())).called(1);
   });
+
+  testWidgets('$HomeScreen scrolls without lifting a card on a quick swipe',
+      (tester) async {
+    final (service, pageScrollable) = await _pumpHomeWithTenWishlists(tester);
+
+    // No long press: the swipe scrolls the page instead of lifting the card
+    await tester.drag(
+      find.byType(WishlistCard).first,
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+
+    expect(pageScrollable.position.pixels, greaterThan(0));
+    verifyNever(() => service.updateWishlistsOrder(any()));
+  });
+}
+
+Future<(_MockWishlistService, ScrollableState)> _pumpHomeWithTenWishlists(
+  WidgetTester tester,
+) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(400, 800);
+  addTearDown(tester.view.reset);
+
+  final service = _MockWishlistService();
+  when(() => service.updateWishlistsOrder(any())).thenAnswer((_) async {});
+  final wishlists = [
+    for (var i = 0; i < 10; i++)
+      Wishlist(
+        id: 100 + i,
+        createdAt: fakeCreatedAt,
+        name: 'List $i',
+        idOwner: fakeCurrentUserId,
+        color: fakeColorBlue,
+        canOwnerSeeTakenWish: true,
+        order: i,
+        updatedBy: fakeCurrentUserId,
+        updatedAt: fakeUpdatedAt,
+      ),
+  ];
+
+  await tester.pumpApp(
+    const FloatingNavBarNavigator(
+      // ignore: avoid_redundant_argument_values
+      currentTab: FloatingNavBarTab.home,
+    ),
+    overrides: [
+      ...homeScreenOverrides(wishlists: wishlists),
+      wishlistServiceProvider.overrideWithValue(service),
+    ],
+  );
+  await tester.pumpAndSettle();
+
+  final pageScrollable = tester.state<ScrollableState>(
+    find
+        .descendant(
+          of: find.byType(HomeScreen),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
+  return (service, pageScrollable);
 }
