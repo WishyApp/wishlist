@@ -81,7 +81,8 @@ class _Recap extends StatelessWidget {
             _Block(
               text: l10n.yearRecapLongestAwaited(
                 awaited.wish.name,
-                DateFormat.yMMMMd(locale).format(awaited.wish.createdAt),
+                DateFormat.yMMMMd(locale)
+                    .format(awaited.wish.createdAt.toLocal()),
               ),
             ),
           ],

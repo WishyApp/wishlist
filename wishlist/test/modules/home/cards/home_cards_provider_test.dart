@@ -678,8 +678,7 @@ void main() {
       expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist2.id}');
     });
 
-    test('the last activity is fetched while the other sources load',
-        () async {
+    test('the last activity is fetched while the other sources load', () async {
       // The accepted requests only answer once the activity was asked for:
       // loaded one after the other, the stack would never come.
       final activityAsked = Completer<void>();

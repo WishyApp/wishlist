@@ -104,7 +104,12 @@ void main() {
     await tester.pumpRouterApp(
       YearRecapRoute(year: 2026).location,
       overrides: [
-        ...homeScreenOverrides(now: fakeNow, completedWishes: [completed()]),
+        ...homeScreenOverrides(
+          now: fakeNow,
+          bookedWishes: [
+            fakeBookedWish1.copyWith(receivedAt: DateTime(2026, 5, 1)),
+          ].toIList(),
+        ),
         receivedWishesSnapshotProvider.overrideWith(
           (ref) async => [completed()].toIList(),
         ),
@@ -113,6 +118,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('1 wish reçu'), findsOneWidget);
+    expect(find.text('1 wish offert'), findsOneWidget);
     expect(
       find.text('Le plus attendu : Casque, sur ta liste depuis 2 juin 2024'),
       findsOneWidget,
