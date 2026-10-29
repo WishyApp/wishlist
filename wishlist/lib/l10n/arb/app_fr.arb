@@ -642,7 +642,7 @@
       }
     }
   },
-  "yearRecapMostGifted": "Ton ami·e le·a plus gâté·e : {pseudo}",
+  "yearRecapMostGifted": "Ton ami le plus gâté : {pseudo}",
   "@yearRecapMostGifted": {
     "placeholders": {
       "pseudo": {

@@ -2045,7 +2045,7 @@ abstract class AppLocalizations {
   /// No description provided for @yearRecapMostGifted.
   ///
   /// In fr, this message translates to:
-  /// **'Ton ami·e le·a plus gâté·e : {pseudo}'**
+  /// **'Ton ami le plus gâté : {pseudo}'**
   String yearRecapMostGifted(String pseudo);
 
   /// No description provided for @yearRecapBack.

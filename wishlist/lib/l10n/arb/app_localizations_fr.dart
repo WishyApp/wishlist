@@ -1296,7 +1296,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String yearRecapMostGifted(String pseudo) {
-    return 'Ton ami·e le·a plus gâté·e : $pseudo';
+    return 'Ton ami le plus gâté : $pseudo';
   }
 
   @override
