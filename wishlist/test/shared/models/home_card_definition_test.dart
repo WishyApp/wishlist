@@ -206,6 +206,22 @@ void main() {
   });
 
   group('event day', () {
+    test('a reminder step can fall in the previous year', () {
+      final card = _christmas(
+        params: {
+          'reminder_days': [30],
+        },
+      );
+
+      expect(
+        card.nextReminderAfter(
+          eventOn: DateTime(2027, 1, 3),
+          dismissedAt: DateTime(2026, 11, 2),
+        ),
+        DateTime(2026, 12, 4),
+      );
+    });
+
     test('10 December stays 10 December in any timezone', () {
       final card = HomeCardDefinition.fromRow({
         ..._row('x', kind: 'editorial'),

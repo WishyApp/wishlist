@@ -69,6 +69,7 @@ BEGIN
   END IF;
   -- Texts are objects whose values are all strings (language code -> text):
   -- the app refuses a row with any other value, which would drop the card.
+  -- strict: the default lax mode unwraps arrays, so ["x"] would pass.
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'home_cards_texts_objects'
@@ -79,16 +80,16 @@ BEGIN
       CHECK (
         (title IS NULL OR (
           jsonb_typeof(title) = 'object'
-          AND NOT jsonb_path_exists(title, '$.* ? (@.type() != "string")')))
+          AND NOT jsonb_path_exists(title, 'strict $.* ? (@.type() != "string")')))
         AND (body IS NULL OR (
           jsonb_typeof(body) = 'object'
-          AND NOT jsonb_path_exists(body, '$.* ? (@.type() != "string")')))
+          AND NOT jsonb_path_exists(body, 'strict $.* ? (@.type() != "string")')))
         AND (cta_label IS NULL OR (
           jsonb_typeof(cta_label) = 'object'
-          AND NOT jsonb_path_exists(cta_label, '$.* ? (@.type() != "string")')))
+          AND NOT jsonb_path_exists(cta_label, 'strict $.* ? (@.type() != "string")')))
       );
   END IF;
-  -- A button needs both its label and its route.
+  -- A button needs its route and a label in fr and en.
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'home_cards_cta_pair'
@@ -96,7 +97,13 @@ BEGIN
   ) THEN
     ALTER TABLE public.home_cards
       ADD CONSTRAINT home_cards_cta_pair
-      CHECK ((cta_label IS NULL) = (cta_route IS NULL));
+      CHECK (
+        (cta_label IS NULL) = (cta_route IS NULL)
+        AND (cta_label IS NULL OR COALESCE(
+          jsonb_typeof(cta_label->'fr') = 'string'
+          AND jsonb_typeof(cta_label->'en') = 'string',
+          false))
+      );
   END IF;
   -- COALESCE: a NULL operand would make the CHECK pass instead of failing.
   IF NOT EXISTS (

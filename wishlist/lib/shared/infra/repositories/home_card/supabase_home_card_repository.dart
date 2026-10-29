@@ -48,7 +48,8 @@ class SupabaseHomeCardRepository implements HomeCardRepository {
       () => _client
           .from('home_cards')
           .select()
-          .order('priority', ascending: true),
+          .order('priority', ascending: true)
+          .order('key', ascending: true),
       errorMessage: 'Failed to load the home cards',
     );
     final cards = <HomeCardDefinition>[];

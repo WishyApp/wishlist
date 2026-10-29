@@ -119,23 +119,23 @@ END $$;
 -- Constraint on editorial cards (as postgres)
 SELECT pg_temp.expect_check_violation('editorial without an english title',
   $q$INSERT INTO public.home_cards (key, kind, priority, event_on, starts_at, ends_at, title)
-     VALUES ('t_no_en', 'editorial', 45, now(), now() - interval '1 day',
+     VALUES ('t_no_en', 'editorial', 45, current_date, now() - interval '1 day',
              now() + interval '1 day', '{"fr": "Salut"}')$q$);
 SELECT pg_temp.expect_check_violation('editorial without a title',
   $q$INSERT INTO public.home_cards (key, kind, priority, event_on, starts_at, ends_at)
-     VALUES ('t_no_title', 'editorial', 45, now(), now() - interval '1 day',
+     VALUES ('t_no_title', 'editorial', 45, current_date, now() - interval '1 day',
              now() + interval '1 day')$q$);
 SELECT pg_temp.expect_check_violation('editorial ending before it starts',
   $q$INSERT INTO public.home_cards (key, kind, priority, event_on, starts_at, ends_at, title)
-     VALUES ('t_backwards', 'editorial', 45, now(), now() + interval '1 day',
+     VALUES ('t_backwards', 'editorial', 45, current_date, now() + interval '1 day',
              now() - interval '1 day', '{"fr": "a", "en": "a"}')$q$);
 SELECT pg_temp.expect_check_violation('editorial without event_on',
   $q$INSERT INTO public.home_cards (key, kind, priority, starts_at, ends_at, title)
-     VALUES ('t_no_event', 'editorial', 45, now() - interval '1 day',
+     VALUES ('t_no_event', 'editorial', 45, current_date - interval '1 day',
              now() + interval '1 day', '{"fr": "a", "en": "a"}')$q$);
 SELECT pg_temp.expect_check_violation('editorial without a window',
   $q$INSERT INTO public.home_cards (key, kind, priority, event_on, title)
-     VALUES ('t_no_window', 'editorial', 45, now(), '{"fr": "a", "en": "a"}')$q$);
+     VALUES ('t_no_window', 'editorial', 45, current_date, '{"fr": "a", "en": "a"}')$q$);
 SELECT pg_temp.expect_check_violation('key with spaces and capitals',
   $q$INSERT INTO public.home_cards (key, kind, priority) VALUES ('Noël 2026', 'computed', 45)$q$);
 SELECT pg_temp.expect_check_violation('key ascii with a space',
@@ -144,11 +144,11 @@ SELECT pg_temp.expect_check_violation('key with a capital',
   $q$INSERT INTO public.home_cards (key, kind, priority) VALUES ('Christmas', 'computed', 45)$q$);
 SELECT pg_temp.expect_check_violation('editorial with title as an array',
   $q$INSERT INTO public.home_cards (key, kind, priority, event_on, starts_at, ends_at, title)
-     VALUES ('t_arr', 'editorial', 45, now(), now() - interval '1 day',
+     VALUES ('t_arr', 'editorial', 45, current_date, now() - interval '1 day',
              now() + interval '1 day', '["fr", "en"]')$q$);
 SELECT pg_temp.expect_check_violation('editorial with a null french title',
   $q$INSERT INTO public.home_cards (key, kind, priority, event_on, starts_at, ends_at, title)
-     VALUES ('t_nullfr', 'editorial', 45, now(), now() - interval '1 day',
+     VALUES ('t_nullfr', 'editorial', 45, current_date, now() - interval '1 day',
              now() + interval '1 day', '{"fr": null, "en": "x"}')$q$);
 SELECT pg_temp.expect_check_violation('params as an array',
   $q$INSERT INTO public.home_cards (key, kind, priority, params)
@@ -166,6 +166,30 @@ SELECT pg_temp.expect_check_violation('title with a null value in a third langua
   $q$INSERT INTO public.home_cards (key, kind, priority, event_on, starts_at, ends_at, title)
      VALUES ('t_title_de', 'editorial', 45, current_date, now() - interval '1 day',
              now() + interval '1 day', '{"fr": "a", "en": "b", "de": null}')$q$);
+SELECT pg_temp.expect_check_violation('body with an array value',
+  $q$INSERT INTO public.home_cards (key, kind, priority, body)
+     VALUES ('t_body_arr', 'computed', 45, '{"fr": ["x"], "en": "y"}')$q$);
+SELECT pg_temp.expect_check_violation('title with an array value',
+  $q$INSERT INTO public.home_cards (key, kind, priority, event_on, starts_at, ends_at, title)
+     VALUES ('t_title_arr', 'editorial', 45, current_date, now() - interval '1 day',
+             now() + interval '1 day', '{"fr": "a", "en": ["b"]}')$q$);
+SELECT pg_temp.expect_check_violation('cta_label with an empty array value',
+  $q$INSERT INTO public.home_cards (key, kind, priority, cta_label, cta_route)
+     VALUES ('t_cta_arr', 'computed', 45, '{"fr": []}', '/')$q$);
+SELECT pg_temp.expect_check_violation('cta_label without english',
+  $q$INSERT INTO public.home_cards (key, kind, priority, cta_label, cta_route)
+     VALUES ('t_cta_fr', 'computed', 45, '{"fr": "a"}', '/')$q$);
+SELECT pg_temp.expect_check_violation('cta_label empty object',
+  $q$INSERT INTO public.home_cards (key, kind, priority, cta_label, cta_route)
+     VALUES ('t_cta_empty', 'computed', 45, '{}', '/')$q$);
+SAVEPOINT accepted_shapes;
+-- Still accepted: empty or partial body, and a complete button
+INSERT INTO public.home_cards (key, kind, priority, body) VALUES
+  ('t_body_empty', 'computed', 48, '{}'),
+  ('t_body_fr', 'computed', 48, '{"fr": "a"}');
+INSERT INTO public.home_cards (key, kind, priority, cta_label, cta_route) VALUES
+  ('t_cta_ok', 'computed', 48, '{"fr": "a", "en": "b"}', '/');
+ROLLBACK TO accepted_shapes;
 SELECT pg_temp.expect_check_violation('cta_label with a number value',
   $q$INSERT INTO public.home_cards (key, kind, priority, cta_label, cta_route)
      VALUES ('t_cta_num', 'computed', 45, '{"fr": 1}', '/')$q$);
@@ -180,16 +204,16 @@ SELECT pg_temp.expect_check_violation('unknown kind',
 
 -- Fixtures for the read policy
 INSERT INTO public.home_cards (key, kind, priority, event_on, starts_at, ends_at, title) VALUES
-  ('t_live', 'editorial', 45, now(), now() - interval '1 day', now() + interval '1 day',
+  ('t_live', 'editorial', 45, current_date, now() - interval '1 day', now() + interval '1 day',
    '{"fr": "a", "en": "a"}'),
-  ('t_over', 'editorial', 46, now() - interval '2 days', now() - interval '2 days',
+  ('t_over', 'editorial', 46, current_date - 2, now() - interval '2 days',
    now() - interval '1 hour', '{"fr": "a", "en": "a"}'),
-  ('t_future', 'editorial', 47, now() + interval '3 days', now() + interval '2 days',
+  ('t_future', 'editorial', 47, current_date + 3, now() + interval '2 days',
    now() + interval '4 days', '{"fr": "a", "en": "a"}');
 INSERT INTO public.home_cards (key, kind, priority, enabled) VALUES
   ('t_disabled', 'computed', 48, false);
 INSERT INTO public.home_cards (key, kind, priority, enabled, event_on, starts_at, ends_at, title) VALUES
-  ('t_live_disabled', 'editorial', 49, false, now(), now() - interval '1 day',
+  ('t_live_disabled', 'editorial', 49, false, current_date, now() - interval '1 day',
    now() + interval '1 day', '{"fr": "a", "en": "a"}');
 
 SELECT pg_temp.act_as('00000000-0000-4000-c000-0000000000c1');

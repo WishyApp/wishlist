@@ -18,8 +18,7 @@ class FakeQuery extends Fake
         PostgrestTransformBuilder<PostgrestList> {
   FakeQuery(this.rows);
   final PostgrestList rows;
-  String? orderedBy;
-  bool? orderedAscending;
+  final orders = <(String, bool)>[];
 
   @override
   PostgrestTransformBuilder<PostgrestList> order(
@@ -28,8 +27,7 @@ class FakeQuery extends Fake
     bool nullsFirst = false,
     String? referencedTable,
   }) {
-    orderedBy = column;
-    orderedAscending = ascending;
+    orders.add((column, ascending));
     return this;
   }
 
@@ -76,8 +74,7 @@ void main() {
 
     expect(cards.map((c) => c.key), ['christmas', 'home_stack']);
     expect(cards.last.kind, HomeCardKind.settings);
-    expect(query.orderedBy, 'priority');
-    expect(query.orderedAscending, isTrue);
+    expect(query.orders, [('priority', true), ('key', true)]);
   });
 
   test('skips a malformed row and keeps the valid ones', () async {
