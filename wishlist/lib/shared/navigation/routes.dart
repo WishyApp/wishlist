@@ -7,6 +7,7 @@ import 'package:wishlist/modules/auth/view/pseudo_screen.dart';
 import 'package:wishlist/modules/auth/view/reset_password_screen.dart';
 import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/modules/friends/view/screens/friend_details_screen.dart';
+import 'package:wishlist/modules/profile/view/edit_profile_screen.dart';
 import 'package:wishlist/modules/settings/change_birthday/view/change_birthday_screen.dart';
 import 'package:wishlist/modules/settings/change_password/view/change_password_screen.dart';
 import 'package:wishlist/modules/settings/change_pseudo/view/change_pseudo_screen.dart';
@@ -36,6 +37,18 @@ part 'routes.g.dart';
     TypedGoRoute<BirthdayStepRoute>(
       path: 'birthday',
     ),
+    // Edit profile (photo, pseudo, birthday)
+    TypedGoRoute<EditProfileRoute>(
+      path: 'profile',
+      routes: [
+        TypedGoRoute<ChangePseudoRoute>(
+          path: 'change-pseudo',
+        ),
+        TypedGoRoute<ChangeBirthdayRoute>(
+          path: 'change-birthday',
+        ),
+      ],
+    ),
     // Settings et ses sous-routes
     TypedGoRoute<SettingsRoute>(
       path: 'settings',
@@ -43,16 +56,11 @@ part 'routes.g.dart';
         TypedGoRoute<ChangePasswordRoute>(
           path: 'change-password',
         ),
-        TypedGoRoute<ChangePseudoRoute>(
-          path: 'change-pseudo',
-        ),
-        TypedGoRoute<ChangeBirthdayRoute>(
-          path: 'change-birthday',
-        ),
-        TypedGoRoute<CompletedWishesRoute>(
-          path: 'completed-wishes',
-        ),
       ],
+    ),
+    // Wishes received by the current user
+    TypedGoRoute<CompletedWishesRoute>(
+      path: 'completed-wishes',
     ),
     // Wishlist et ses sous-routes
     TypedGoRoute<WishlistRoute>(
@@ -260,6 +268,12 @@ class ChangePasswordRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) =>
       const ChangePasswordScreen();
+}
+
+class EditProfileRoute extends AuthenticatedRoute {
+  @override
+  Widget buildScreen(BuildContext context, GoRouterState state) =>
+      const EditProfileScreen();
 }
 
 class ChangePseudoRoute extends AuthenticatedRoute {

@@ -434,12 +434,6 @@ abstract class AppLocalizations {
   /// **'Modifier mon mot de passe'**
   String get settingsScreenPasswordModify;
 
-  /// No description provided for @settingsScreenPseudoModify.
-  ///
-  /// In fr, this message translates to:
-  /// **'Modifier mon pseudo'**
-  String get settingsScreenPseudoModify;
-
   /// No description provided for @changePasswordScreenTitle.
   ///
   /// In fr, this message translates to:
@@ -524,17 +518,35 @@ abstract class AppLocalizations {
   /// **'Pseudo modifié avec succès !'**
   String get changePseudoSuccess;
 
-  /// No description provided for @settingsScreenBirthday.
+  /// No description provided for @editProfileScreenTitle.
   ///
   /// In fr, this message translates to:
-  /// **'Mon anniversaire'**
-  String get settingsScreenBirthday;
+  /// **'Modifier le profil'**
+  String get editProfileScreenTitle;
 
-  /// No description provided for @settingsScreenBirthdayNotSet.
+  /// No description provided for @editProfilePseudo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pseudo'**
+  String get editProfilePseudo;
+
+  /// No description provided for @editProfileBirthday.
+  ///
+  /// In fr, this message translates to:
+  /// **'Anniversaire'**
+  String get editProfileBirthday;
+
+  /// No description provided for @editProfileBirthdayNotSet.
   ///
   /// In fr, this message translates to:
   /// **'Non renseigné'**
-  String get settingsScreenBirthdayNotSet;
+  String get editProfileBirthdayNotSet;
+
+  /// No description provided for @editProfilePrivacy.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ton anniversaire n\'est visible que par tes amis. Ta photo et ton pseudo sont visibles par tes amis et par les personnes avec qui tu partages une liste.'**
+  String get editProfilePrivacy;
 
   /// No description provided for @changeBirthdayScreenTitle.
   ///
@@ -1321,6 +1333,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Le lien de réinitialisation a expiré. Veuillez en demander un nouveau.'**
   String get resetPasswordLinkExpired;
+
+  /// No description provided for @settingsSignedInAs.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connecté en tant que'**
+  String get settingsSignedInAs;
 
   /// No description provided for @settingsGeneral.
   ///

@@ -193,9 +193,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsScreenPasswordModify => 'Modifier mon mot de passe';
 
   @override
-  String get settingsScreenPseudoModify => 'Modifier mon pseudo';
-
-  @override
   String get changePasswordScreenTitle => 'Mot de passe';
 
   @override
@@ -241,10 +238,20 @@ class AppLocalizationsFr extends AppLocalizations {
   String get changePseudoSuccess => 'Pseudo modifié avec succès !';
 
   @override
-  String get settingsScreenBirthday => 'Mon anniversaire';
+  String get editProfileScreenTitle => 'Modifier le profil';
 
   @override
-  String get settingsScreenBirthdayNotSet => 'Non renseigné';
+  String get editProfilePseudo => 'Pseudo';
+
+  @override
+  String get editProfileBirthday => 'Anniversaire';
+
+  @override
+  String get editProfileBirthdayNotSet => 'Non renseigné';
+
+  @override
+  String get editProfilePrivacy =>
+      'Ton anniversaire n\'est visible que par tes amis. Ta photo et ton pseudo sont visibles par tes amis et par les personnes avec qui tu partages une liste.';
 
   @override
   String get changeBirthdayScreenTitle => 'Anniversaire';
@@ -713,6 +720,9 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get resetPasswordLinkExpired =>
       'Le lien de réinitialisation a expiré. Veuillez en demander un nouveau.';
+
+  @override
+  String get settingsSignedInAs => 'Connecté en tant que';
 
   @override
   String get settingsGeneral => 'Général';

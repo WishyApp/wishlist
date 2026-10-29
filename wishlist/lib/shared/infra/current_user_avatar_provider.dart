@@ -60,8 +60,9 @@ class AvatarEditNotifier extends StateNotifier<AsyncValue<void>> {
   }
 }
 
-// autoDispose: disposed each time Settings is left. An action still running
-// then completes in the service, and the profile stream carries its result.
+// autoDispose: disposed each time the edit profile page is left. An action
+// still running then completes in the service, and the profile stream carries
+// its result.
 // watchCurrentUserProfileProvider follows currentUserIdProvider, so the
 // avatar it emits is always the one of the signed-in user.
 final avatarEditProvider =
