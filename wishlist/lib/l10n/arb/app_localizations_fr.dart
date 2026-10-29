@@ -753,6 +753,49 @@ class AppLocalizationsFr extends AppLocalizations {
   String get seeAllCompletedWishes => 'Tout voir';
 
   @override
+  String completionDateDialogTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Quand les as-tu reçus ?',
+      one: 'Quand l\'as-tu reçu ?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String completionDateDialogExplanation(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Sélectionne la date à laquelle ces $count wishs t\'ont été offerts.',
+      one: 'Sélectionne la date à laquelle ce wish t\'a été offert.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get completeButton => 'Compléter';
+
+  @override
+  String get continueButton => 'Continuer';
+
+  @override
+  String wishesCompletedSnackBar(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Ajoutés à tes wishs complétés !',
+      one: 'Ajouté à tes wishs complétés !',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get snackBarSeeAction => 'Voir';
+
+  @override
   String get relativeDateToday => 'Aujourd\'hui';
 
   @override

@@ -2,13 +2,19 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:adaptive_test/adaptive_test.dart';
+import 'package:clock/clock.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
+import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
+import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_streams_providers.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
@@ -552,4 +558,244 @@ void main() {
       expect(find.byType(PrimaryButton), findsNothing);
     });
   });
+
+  group('completing the wish', () {
+    final l10n = AppLocalizationsFr();
+
+    /// The wish screen of the owner, pushed above a home page it pops back to
+    Future<_MockUserCompletedWishRepository> pumpOwnWish(
+      WidgetTester tester, {
+      required Wish wish,
+      Stream<IList<CompletedWishWithDetails>> Function()? receipts,
+    }) async {
+      registerFallbackValue(DateTime(2000));
+      final repository = _MockUserCompletedWishRepository();
+      when(
+        () => repository.markAsCompleted(
+          userId: any(named: 'userId'),
+          wishId: any(named: 'wishId'),
+          fromWishlistId: any(named: 'fromWishlistId'),
+          quantity: any(named: 'quantity'),
+          completedAt: any(named: 'completedAt'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await tester.pumpRouterApp(
+        '/wish',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const Text('home'),
+            routes: [
+              GoRoute(
+                path: 'wish',
+                builder: (context, state) => ConsultWishScreen(
+                  wishIds: [wish.id],
+                  initialIndex: 0,
+                ),
+              ),
+            ],
+          ),
+        ],
+        overrides: [
+          ...wishScreenOverrides(
+            wishId: wish.id,
+            wishlistId: wish.wishlistId,
+            wish: wish,
+            wishlist: fakeWishlist1,
+            receipts: receipts,
+          ),
+          userCompletedWishRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      await tester.pumpAndSettle();
+      return repository;
+    }
+
+    Future<void> tapDialogConfirm(WidgetTester tester) async {
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(PrimaryButton),
+        ),
+      );
+    }
+
+    CompletedWishWithDetails received(Wish wish, int quantity) =>
+        CompletedWishWithDetails(
+          wish: wish,
+          fromWishlistId: wish.wishlistId,
+          fromWishlistName: fakeWishlist1.name,
+          ownerPseudo: 'Me',
+          ownerId: fakeCurrentUserId,
+          completedAt: fakeCreatedAt,
+          quantity: quantity,
+        );
+
+    testWidgets('counts what was received elsewhere while the day was asked',
+        (tester) async {
+      final wish = fakeWish1.copyWith(quantity: 3);
+      final receipts = BehaviorSubject<IList<CompletedWishWithDetails>>.seeded(
+        const IListConst([]),
+      );
+      addTearDown(receipts.close);
+      await pumpOwnWish(tester, wish: wish, receipts: () => receipts);
+
+      await tester.tap(find.text(l10n.markWishAsCompleted).first);
+      await tester.pumpAndSettle();
+      // Another device completes 2 of the 3 meanwhile
+      receipts.add([received(wish, 2)].toIList());
+      await tester.pump();
+      await tapDialogConfirm(tester);
+      await tester.pumpAndSettle();
+
+      // 1 left: the quantity cannot go above it
+      expect(find.text(l10n.selectQuantityToComplete), findsOneWidget);
+      final increase = tester.widget<FilledButton>(
+        find.widgetWithIcon(FilledButton, Icons.add),
+      );
+      expect(increase.onPressed, isNull);
+    });
+
+    testWidgets('completes nothing once everything was received elsewhere',
+        (tester) async {
+      final wish = fakeWish1.copyWith(quantity: 3);
+      final receipts = BehaviorSubject<IList<CompletedWishWithDetails>>.seeded(
+        const IListConst([]),
+      );
+      addTearDown(receipts.close);
+      final repository =
+          await pumpOwnWish(tester, wish: wish, receipts: () => receipts);
+
+      await tester.tap(find.text(l10n.markWishAsCompleted).first);
+      await tester.pumpAndSettle();
+      receipts.add([received(wish, 3)].toIList());
+      await tester.pump();
+      await tapDialogConfirm(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.selectQuantityToComplete), findsNothing);
+      verifyNever(
+        () => repository.markAsCompleted(
+          userId: any(named: 'userId'),
+          wishId: any(named: 'wishId'),
+          fromWishlistId: any(named: 'fromWishlistId'),
+          quantity: any(named: 'quantity'),
+          completedAt: any(named: 'completedAt'),
+        ),
+      );
+    });
+
+    testWidgets('asks the day, then the quantity of the named wish',
+        (tester) async {
+      final wish = fakeWish1.copyWith(quantity: 3);
+      final repository = await pumpOwnWish(tester, wish: wish);
+
+      // The dialog takes the day from the clock: late, to catch a test that
+      // would read the real time
+      final day = DateTime(2026, 3, 5);
+      await withClock(
+        Clock.fixed(DateTime(2026, 3, 5, 23, 59, 59)),
+        () => tester.tap(find.text(l10n.markWishAsCompleted).first),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(l10n.completionDateDialogExplanation(1)),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.continueButton), findsWidgets);
+      await tapDialogConfirm(tester);
+      await tester.pumpAndSettle();
+
+      // The quantity dialog names the wish
+      expect(find.text(l10n.selectQuantityToComplete), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text(wish.name),
+        ),
+        findsOneWidget,
+      );
+      verifyNever(
+        () => repository.markAsCompleted(
+          userId: any(named: 'userId'),
+          wishId: any(named: 'wishId'),
+          fromWishlistId: any(named: 'fromWishlistId'),
+          quantity: any(named: 'quantity'),
+          completedAt: any(named: 'completedAt'),
+        ),
+      );
+
+      await tapDialogConfirm(tester);
+      // Not settled: the snackbar would be gone
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      verify(
+        () => repository.markAsCompleted(
+          userId: fakeCurrentUserId,
+          wishId: wish.id,
+          fromWishlistId: wish.wishlistId,
+          quantity: 1,
+          completedAt: day,
+        ),
+      ).called(1);
+      expect(find.text(l10n.wishesCompletedSnackBar(1)), findsOneWidget);
+      expect(find.text('home'), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('stays on the wish and explains a failed completion',
+        (tester) async {
+      final repository = await pumpOwnWish(tester, wish: fakeWish1);
+      when(
+        () => repository.markAsCompleted(
+          userId: any(named: 'userId'),
+          wishId: any(named: 'wishId'),
+          fromWishlistId: any(named: 'fromWishlistId'),
+          quantity: any(named: 'quantity'),
+          completedAt: any(named: 'completedAt'),
+        ),
+      ).thenThrow(Exception('boom'));
+
+      await tester.tap(find.text(l10n.markWishAsCompleted).first);
+      await tester.pumpAndSettle();
+      await tapDialogConfirm(tester);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text(l10n.genericError), findsOneWidget);
+      expect(find.text(l10n.wishesCompletedSnackBar(1)), findsNothing);
+      expect(find.byType(ConsultWishScreen), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('completes a single wish from the day dialog', (tester) async {
+      final repository = await pumpOwnWish(tester, wish: fakeWish1);
+
+      await tester.tap(find.text(l10n.markWishAsCompleted).first);
+      await tester.pumpAndSettle();
+      await tapDialogConfirm(tester);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      verify(
+        () => repository.markAsCompleted(
+          userId: any(named: 'userId'),
+          wishId: fakeWish1.id,
+          fromWishlistId: any(named: 'fromWishlistId'),
+          quantity: 1,
+          completedAt: any(named: 'completedAt'),
+        ),
+      ).called(1);
+      expect(find.text(l10n.selectQuantityToComplete), findsNothing);
+      expect(find.text(l10n.wishesCompletedSnackBar(1)), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+  });
 }
+
+class _MockUserCompletedWishRepository extends Mock
+    implements UserCompletedWishRepository {}

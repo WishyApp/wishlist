@@ -87,10 +87,11 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
           return _sort.order == SortOrder.ascending ? cmp : -cmp;
         });
       case CompletedWishSortType.completedAt:
-        result.sort((a, b) {
-          final cmp = a.completedAt.compareTo(b.completedAt);
-          return _sort.order == SortOrder.ascending ? cmp : -cmp;
-        });
+        // The list comes sorted by the repository, the last received first
+        // (the same day: the last one first completed first)
+        if (_sort.order == SortOrder.ascending) {
+          result = result.reversed.toList();
+        }
     }
     return result;
   }

@@ -317,6 +317,30 @@ SELECT pg_temp.expect_rows('marking received a wish booked in full (insert)',
 SELECT pg_temp.expect_rows('raising the received quantity up to the bookings (update)',
   $q$UPDATE public.user_completed_wishs SET quantity = 2 WHERE wish_id = 910303$q$, 1);
 
+-- The day of the completion: the current day when the insert does not give it
+-- (app versions before 20261029100000), then changed by the owner. The other
+-- columns stay out of reach.
+DO $$
+BEGIN
+  IF (SELECT completed_at FROM public.user_completed_wishs WHERE wish_id = 910303)
+     IS DISTINCT FROM (now() AT TIME ZONE 'Europe/Paris')::date THEN
+    RAISE EXCEPTION 'FAIL completion day defaults to the current day';
+  END IF;
+  RAISE NOTICE 'ok   completion day defaults to the current day';
+END $$;
+SELECT pg_temp.expect_rows('completion day changed (update)',
+  $q$UPDATE public.user_completed_wishs SET completed_at = '2026-01-15' WHERE wish_id = 910303$q$, 1);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000a', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000a", "role": "authenticated"}', true);
+SELECT pg_temp.expect_rows('completion day of another user left unchanged (update)',
+  $q$UPDATE public.user_completed_wishs SET completed_at = '2026-01-01' WHERE wish_id = 910303$q$, 0);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-4000-a000-00000000000b', true);
+SELECT set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-a000-00000000000b", "role": "authenticated"}', true);
+SELECT pg_temp.expect_denied('completion insert time changed (update)',
+  $q$UPDATE public.user_completed_wishs SET created_at = now() - interval '1 day' WHERE wish_id = 910303$q$);
+SELECT pg_temp.expect_denied('completion moved to another wishlist (update)',
+  $q$UPDATE public.user_completed_wishs SET from_wishlist_id = 900003 WHERE wish_id = 910303$q$);
+
 -- A still lowers a booking of a wish booked and received in full (910303:
 -- booked 2, received 2, quantity 2); raising it back is refused, and so is a
 -- new booking of C (GREATEST(1, 2) + 1 > 2).

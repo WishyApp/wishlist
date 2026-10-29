@@ -2,12 +2,15 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 
 abstract class UserCompletedWishRepository {
-  /// Marque un wish comme complété pour l'utilisateur courant.
+  /// Marque un wish comme complété pour l'utilisateur courant, reçu le jour
+  /// de [completedAt]. S'il l'était déjà, la quantité s'ajoute et le jour le
+  /// plus récent des deux est gardé.
   Future<void> markAsCompleted({
     required String userId,
     required int wishId,
     required int fromWishlistId,
     required int quantity,
+    required DateTime completedAt,
   });
 
   /// Met à jour la quantité d'un wish complété.

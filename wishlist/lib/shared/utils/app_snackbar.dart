@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/utils/network_error.dart';
+import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 
 enum SnackBarType {
@@ -27,13 +28,26 @@ enum SnackBarType {
 ///   type: SnackBarType.error,
 /// );
 /// ```
+///
+/// Avec [actionLabel] et [onAction], un bouton à droite du message : le
+/// toucher ferme le snackbar puis appelle [onAction], une seule fois. Le
+/// snackbar survit à l'écran qui l'affiche : [onAction] ne doit pas dépendre de
+/// son context. Le bouton prend la couleur principale du thème de [context]
+/// (celle de la wishlist sur ses écrans), foncée si besoin pour rester lisible
+/// sur le fond blanc : l'overlay racine n'a que le thème de l'app.
 void showAppSnackBar(
   BuildContext context,
   String message, {
   required SnackBarType type,
   bool isTopSnackBar = false,
   Duration duration = const Duration(seconds: 4),
+  String? actionLabel,
+  VoidCallback? onAction,
 }) {
+  assert(
+    (actionLabel == null) == (onAction == null),
+    'An action needs both a label and a callback',
+  );
   final indicatorColor =
       type == SnackBarType.success ? Colors.green : Colors.red;
 
@@ -42,6 +56,10 @@ void showAppSnackBar(
       : Icons.error_outline;
 
   final overlayState = Overlay.of(context, rootOverlay: true);
+  final actionColor = AppColors.darkenForContrast(
+    Theme.of(context).primaryColor,
+    foreground: Colors.white,
+  );
 
   late final OverlayEntry overlayEntry;
 
@@ -52,6 +70,9 @@ void showAppSnackBar(
       iconColor: indicatorColor,
       duration: duration,
       isTop: isTopSnackBar,
+      actionLabel: actionLabel,
+      actionColor: actionColor,
+      onAction: onAction,
       onDismissed: () {
         overlayEntry.remove();
       },
@@ -96,6 +117,9 @@ class _AnimatedSnackBar extends StatefulWidget {
     required this.duration,
     required this.isTop,
     required this.onDismissed,
+    required this.actionColor,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String message;
@@ -104,6 +128,9 @@ class _AnimatedSnackBar extends StatefulWidget {
   final Duration duration;
   final bool isTop;
   final VoidCallback onDismissed;
+  final Color actionColor;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   State<_AnimatedSnackBar> createState() => _AnimatedSnackBarState();
@@ -187,6 +214,19 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
     _dismiss();
   }
 
+  bool _isActionDone = false;
+
+  /// Ferme le snackbar et lance l'action, une seule fois : le bouton reste
+  /// visible pendant l'animation de sortie
+  void _handleAction() {
+    if (_isActionDone) {
+      return;
+    }
+    _isActionDone = true;
+    _handleTap();
+    widget.onAction?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
@@ -214,6 +254,9 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
                       icon: widget.icon,
                       iconColor: widget.iconColor,
                       progress: _progressController.value,
+                      actionLabel: widget.actionLabel,
+                      actionColor: widget.actionColor,
+                      onAction: widget.onAction == null ? null : _handleAction,
                     ),
                   ),
                 ),
@@ -232,12 +275,18 @@ class _AppSnackBarContent extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.progress,
+    required this.actionColor,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String message;
   final IconData icon;
   final Color iconColor;
   final double progress;
+  final Color actionColor;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -279,6 +328,23 @@ class _AppSnackBarContent extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (actionLabel case final actionLabel?) ...[
+                  const SizedBox(width: 8),
+                  // The overlay has no Material for the button's ink
+                  Material(
+                    type: MaterialType.transparency,
+                    child: TextButton(
+                      onPressed: onAction,
+                      child: Text(
+                        actionLabel,
+                        style: AppTextStyles.smaller.copyWith(
+                          color: actionColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
