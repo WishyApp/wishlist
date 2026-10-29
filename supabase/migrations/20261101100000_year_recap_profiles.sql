@@ -38,8 +38,12 @@
 --             (archived ones included: a friend who deletes their list after
 --             Christmas archives it, the gifts stay offered), whose owner's
 --             receipt (user_completed_wishs of the owner of the wishlist) has
---             a quantity >= the booked quantity and an updated_at in the year,
---             as a Paris day. A partial receipt does not count.
+--             a quantity >= the booked quantity and a completed_at in the
+--             year (a Paris day, fixed when the wish was first marked
+--             received). Not updated_at: it moves with every correction of
+--             the received quantity, so a gift received in December and
+--             corrected in January would change year. A partial receipt does
+--             not count.
 --             bookings_total and last_minute_bookings follow the same rule
 --             on wishlists.
 --   longest awaited  the received wish with the longest wait, completed day
@@ -223,7 +227,7 @@ BEGIN
            wl.id_owner,
            (t.created_at AT TIME ZONE 'Europe/Paris')::date AS booked_on,
            r.quantity AS received_quantity,
-           (r.updated_at AT TIME ZONE 'Europe/Paris')::date AS received_on,
+           r.completed_at AS received_on,
            ob.month AS owner_month,
            ob.day AS owner_day
     FROM public.wish_taken_by_user t

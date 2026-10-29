@@ -260,6 +260,27 @@ BEGIN
   PERFORM pg_temp.expect_eq('bookings of the year', pg_temp.st(13) ->> 'bookings_total', '3');
 END $$;
 
+-- the year of an offered gift is the day the owner received it (completed_at),
+-- not the last change of the received quantity (updated_at): received Dec 28,
+-- 2025 and corrected Jan 5, 2026 stays a 2025 gift; received Dec 30, 2026 and
+-- corrected Jan 3, 2027 stays a 2026 gift
+DO $$
+DECLARE
+  w1 bigint := pg_temp.mk_wish(90);
+  w2 bigint := pg_temp.mk_wish(90);
+BEGIN
+  PERFORM pg_temp.book(32, w1);
+  PERFORM pg_temp.book(32, w2);
+  PERFORM pg_temp.receive(90, w1, '2025-12-28', 1, '2026-01-05T10:00:00Z');
+  PERFORM pg_temp.receive(90, w2, '2026-12-30', 1, '2027-01-03T10:00:00Z');
+  PERFORM pg_temp.expect_eq('offered: completed_at decides the year (2026)',
+    pg_temp.st(32) ->> 'offered', '1');
+  PERFORM pg_temp.expect_eq('offered: completed_at decides the year (2025)',
+    public.year_recap_stats(pg_temp.u(32), 2025) ->> 'offered', '1');
+  PERFORM pg_temp.expect_eq('ami fidele: completed_at decides the year',
+    public.year_recap_stats(pg_temp.u(32), 2025) ->> 'max_offered_same_friend', '1');
+END $$;
+
 -- a friend archiving their wishlist after the gifts does not drop them
 DO $$
 BEGIN
