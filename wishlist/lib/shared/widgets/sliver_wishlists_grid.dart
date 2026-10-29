@@ -5,6 +5,8 @@ import 'package:animated_reorderable_list/animated_reorderable_list.dart';
 // that inner view would swallow the autoscroll and the page would stay still
 // while a wishlist is dragged to the bottom. Using the sliver directly in the
 // page's own `CustomScrollView` makes the page the one that scrolls.
+// The one default that differs from the grid view is `longPressDraggable`
+// (true there, false here): it is set explicitly below.
 // Recheck this import on any upgrade of animated_reorderable_list (the
 // dependency is pinned to 1.1.1 for that reason).
 // ignore: implementation_imports
@@ -78,12 +80,10 @@ class _SliverWishlistsGridState extends ConsumerState<SliverWishlistsGrid> {
   void didUpdateWidget(SliverWishlistsGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Si on a un état optimiste, on vérifie si les données du stream
-    // correspondent
+    // With an optimistic order, check whether the stream data matches it
     if (_optimisticWishlists != null) {
       if (_isOrderMatching(widget.wishlists, _optimisticWishlists!)) {
-        // Les données du stream correspondent à l'état optimiste, on peut le
-        // réinitialiser
+        // The stream caught up with the optimistic order: drop it
         _optimisticWishlists = null;
       }
     }
@@ -94,7 +94,7 @@ class _SliverWishlistsGridState extends ConsumerState<SliverWishlistsGrid> {
       return false;
     }
 
-    // Vérifie que l'ordre des IDs est identique
+    // Same order of ids
     for (var i = 0; i < list1.length; i++) {
       if (list1[i].id != list2[i].id) {
         return false;

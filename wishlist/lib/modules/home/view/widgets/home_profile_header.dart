@@ -26,9 +26,13 @@ class HomeProfileHeader extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(20, 24, 8, 20),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: openEditProfile,
-            child: AppAvatar(avatarUrl: profile?.avatarUrl, size: 64),
+          // Hidden from semantics: the "Edit profile" button below does the
+          // same, a screen reader would announce it twice.
+          ExcludeSemantics(
+            child: GestureDetector(
+              onTap: openEditProfile,
+              child: AppAvatar(avatarUrl: profile?.avatarUrl, size: 64),
+            ),
           ),
           const Gap(16),
           Expanded(
@@ -43,7 +47,6 @@ class HomeProfileHeader extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const Gap(6),
                 _EditProfileButton(onTap: openEditProfile),
               ],
             ),
@@ -72,33 +75,49 @@ class _EditProfileButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      shape: const StadiumBorder(
-        side: BorderSide(color: AppColors.pastelGray),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.edit, size: 14, color: AppColors.darkGrey),
-              const Gap(6),
-              Flexible(
-                child: Text(
-                  context.l10n.editProfileScreenTitle,
-                  style: AppTextStyles.smaller.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkGrey,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+    // The pill keeps its look; the tap area around it is 44 px tall.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: 44,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Material(
+            color: Colors.transparent,
+            shape: const StadiumBorder(
+              side: BorderSide(color: AppColors.pastelGray),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.edit,
+                      size: 14,
+                      color: AppColors.darkGrey,
+                    ),
+                    const Gap(6),
+                    Flexible(
+                      child: Text(
+                        context.l10n.editProfileScreenTitle,
+                        style: AppTextStyles.smaller.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkGrey,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

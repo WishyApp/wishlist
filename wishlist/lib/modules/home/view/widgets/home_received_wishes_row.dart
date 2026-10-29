@@ -45,15 +45,20 @@ class HomeReceivedWishesRow extends ConsumerWidget {
                   size: 22,
                 ),
                 const Gap(12),
-                Text(
-                  l10n.homeReceivedWishes(completedWishes.length),
-                  style: AppTextStyles.smaller.copyWith(
-                    fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Text(
+                    l10n.homeReceivedWishes(completedWishes.length),
+                    style: AppTextStyles.smaller.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const Gap(8),
                 Expanded(
                   child: Text(
+                    // The repository sorts the last received first
                     formatRelativeDate(
                       l10n,
                       completedWishes.first.completedAt,

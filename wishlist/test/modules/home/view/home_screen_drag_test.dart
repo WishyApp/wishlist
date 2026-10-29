@@ -40,7 +40,14 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    verify(() => service.updateWishlistsOrder(any())).called(1);
+    final saved = verify(() => service.updateWishlistsOrder(captureAny()))
+        .captured
+        .single as IList<Wishlist>;
+    final names = saved.map((wishlist) => wishlist.name).toList();
+    expect(names, hasLength(10));
+    // Dropped lower than where it started
+    expect(names.indexOf('List 0'), greaterThan(0));
+    expect(names, containsAll([for (var i = 0; i < 10; i++) 'List $i']));
   });
 
   testWidgets('$HomeScreen scrolls without lifting a card on a quick swipe',
