@@ -436,10 +436,10 @@
       }
     }
   },
-  "homeCardAfterPartyTitle": "Tu as reçu des choses de ta liste ?",
+  "homeCardAfterPartyChristmasTitle": "Le Père Noël est passé ?",
+  "homeCardAfterPartyBirthdayTitle": "Tu as été gâté ?",
   "homeCardAfterPartyAction": "Cocher ce que j'ai reçu",
-  "homeCardAfterPartyNoListChristmas": "Noël est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.",
-  "homeCardAfterPartyNoListBirthday": "Ton anniversaire est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.",
+  "homeCardAfterPartyNoList": "Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.",
   "homeCardBookedReminderBirthdayOverline": "Rappel · {pseudo} fête son anniversaire {days, plural, =0{aujourd'hui} =1{demain} other{dans {days} jours}}",
   "@homeCardBookedReminderBirthdayOverline": {
     "placeholders": {
@@ -529,6 +529,8 @@
   "homeCardChristmasListAction": "Compléter",
   "homeCardChristmasNoListTitle": "Noël approche",
   "homeCardChristmasNoListAction": "Créer ma liste de Noël",
+  "homeCardChristmasDayTitle": "Joyeux Noël !",
+  "homeCardChristmasDayAction": "Voir ma liste",
   "homeCardOnboardingStep": "Étape {step} sur {total}",
   "@homeCardOnboardingStep": {
     "placeholders": {

@@ -149,7 +149,7 @@ void main() {
         find.text("Ton anniversaire, c'était il y a 3 jours"),
         findsOneWidget,
       );
-      expect(find.text('Tu as reçu des choses de ta liste ?'), findsOneWidget);
+      expect(find.text('Tu as été gâté ?'), findsOneWidget);
       await tapAndExpectPath(tester, "Cocher ce que j'ai reçu", '/wishlist/1');
     });
 
@@ -160,6 +160,7 @@ void main() {
       );
 
       expect(find.text("Noël, c'était hier"), findsOneWidget);
+      expect(find.text('Le Père Noël est passé ?'), findsOneWidget);
     });
 
     testWidgets('after the party without a wishlist has no button',
@@ -170,10 +171,10 @@ void main() {
       );
 
       expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.text('Tu as été gâté ?'), findsOneWidget);
       expect(
         find.text(
-          'Ton anniversaire est passé ! Ouvre ta liste ci-dessous pour '
-          'marquer ce que tu as reçu.',
+          'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.',
         ),
         findsOneWidget,
       );
@@ -187,10 +188,10 @@ void main() {
       );
 
       expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.text('Le Père Noël est passé ?'), findsOneWidget);
       expect(
         find.text(
-          'Noël est passé ! Ouvre ta liste ci-dessous pour marquer ce que '
-          'tu as reçu.',
+          'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.',
         ),
         findsOneWidget,
       );
@@ -351,6 +352,9 @@ void main() {
 
       expect(find.text("C'est Noël !"), findsOneWidget);
       expect(find.textContaining('dans 0'), findsNothing);
+      expect(find.text('Joyeux Noël !'), findsOneWidget);
+      expect(find.text('Ta liste « Noël »'), findsOneWidget);
+      await tapAndExpectPath(tester, 'Voir ma liste', '/wishlist/2');
     });
 
     testWidgets('Christmas without a list offers to create one',

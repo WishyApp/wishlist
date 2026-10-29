@@ -46,12 +46,18 @@ final christmasDef = def(
 );
 final onboardingDef = def('onboarding', params: {'optional_steps_hours': 48});
 
-Wishlist wishlist(int id, String name) {
+Wishlist wishlist(
+  int id,
+  String name, {
+  String owner = fakeCurrentUserId,
+  bool isClosed = false,
+}) {
   return Wishlist(
     id: id,
     createdAt: fakeCreatedAt,
     name: name,
-    idOwner: fakeCurrentUserId,
+    idOwner: owner,
+    isClosed: isClosed,
     color: fakeColorBlue,
     canOwnerSeeTakenWish: true,
     order: 0,
@@ -175,15 +181,17 @@ void main() {
   });
 
   group('afterPartyCards', () {
+    final holiday = wishlist(9, 'Vacances');
+
     List<HomeCardCandidate> build(
       DateTime at, {
       Birthday? mine,
-      List<Wishlist> wishlists = const [],
+      List<Wishlist>? wishlists,
       HomeCardDefinition? definition,
     }) {
       return afterPartyCards(
         myBirthday: mine,
-        wishlists: wishlists,
+        wishlists: wishlists ?? [holiday, wishlist(8, 'Maison')],
         userId: fakeCurrentUserId,
         definition: definition ?? afterPartyDef,
         christmas: christmasDef,
@@ -200,6 +208,30 @@ void main() {
       expect(content.occasion, AfterPartyOccasion.birthday);
       expect(content.daysAgo, 1);
       expect(content.wishlist, isNull);
+    });
+
+    test('without any wishlist there is no card, whatever the occasion', () {
+      expect(
+        build(
+          now,
+          mine: const Birthday(month: 10, day: 29),
+          wishlists: const [],
+        ),
+        isEmpty,
+      );
+      expect(
+        build(DateTime(2026, 12, 27, 9), wishlists: const []),
+        isEmpty,
+      );
+    });
+
+    test('closed or foreign wishlists do not count', () {
+      final closed = wishlist(1, 'Noël 2026', isClosed: true);
+      final foreign = wishlist(2, 'Noël 2026', owner: 'other');
+      expect(
+        build(DateTime(2026, 12, 27, 9), wishlists: [closed, foreign]),
+        isEmpty,
+      );
     });
 
     test('the birthday itself gives nothing', () {
@@ -643,10 +675,21 @@ void main() {
       );
     });
 
-    test('Christmas day itself still gives a card', () {
-      final cards = build(DateTime(2026, 12, 25, 9));
+    test('Christmas day gives a card when a Christmas wishlist is found', () {
+      final christmas = wishlist(2, 'Noël 2026');
+      final cards = build(DateTime(2026, 12, 25, 9), [christmas]);
 
-      expect((cards.single.content as Christmas).days, 0);
+      final content = cards.single.content as Christmas;
+      expect(content.days, 0);
+      expect(content.wishlist, christmas);
+    });
+
+    test('Christmas day without a Christmas wishlist gives nothing', () {
+      expect(build(DateTime(2026, 12, 25, 9)), isEmpty);
+      expect(
+        build(DateTime(2026, 12, 25, 9), [wishlist(1, 'Vacances')]),
+        isEmpty,
+      );
     });
 
     test('December 26 gives nothing', () {

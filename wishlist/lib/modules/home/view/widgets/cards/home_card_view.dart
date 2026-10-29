@@ -198,12 +198,10 @@ class HomeCardView extends ConsumerWidget {
           overline: occasion == AfterPartyOccasion.birthday
               ? l10n.homeCardAfterPartyBirthdayOverline(daysAgo)
               : l10n.homeCardAfterPartyChristmasOverline(daysAgo),
-          title: l10n.homeCardAfterPartyTitle,
-          body: wishlist == null
-              ? occasion == AfterPartyOccasion.birthday
-                  ? l10n.homeCardAfterPartyNoListBirthday
-                  : l10n.homeCardAfterPartyNoListChristmas
-              : null,
+          title: occasion == AfterPartyOccasion.birthday
+              ? l10n.homeCardAfterPartyBirthdayTitle
+              : l10n.homeCardAfterPartyChristmasTitle,
+          body: wishlist == null ? l10n.homeCardAfterPartyNoList : null,
           actionLabel: wishlist == null ? null : l10n.homeCardAfterPartyAction,
           onAction: wishlist == null
               ? null
@@ -286,6 +284,16 @@ class HomeCardView extends ConsumerWidget {
         title: l10n.homeCardChristmasNoListTitle,
         actionLabel: l10n.homeCardChristmasNoListAction,
         onAction: () => showCreateDialog(context, ref),
+        illustration: Assets.svg.noWishBoxHat,
+      );
+    }
+    if (days == 0) {
+      return _CardSpec(
+        overline: l10n.homeCardChristmasOverline(days),
+        title: l10n.homeCardChristmasDayTitle,
+        body: l10n.homeCardChristmasListTitleNoCount(wishlist.name),
+        actionLabel: l10n.homeCardChristmasDayAction,
+        onAction: () => WishlistRoute(wishlistId: wishlist.id).push(context),
         illustration: Assets.svg.noWishBoxHat,
       );
     }

@@ -419,10 +419,10 @@
       }
     }
   },
-  "homeCardAfterPartyTitle": "Did you get things from your list?",
+  "homeCardAfterPartyChristmasTitle": "Did Santa come by?",
+  "homeCardAfterPartyBirthdayTitle": "Were you spoiled?",
   "homeCardAfterPartyAction": "Tick what I received",
-  "homeCardAfterPartyNoListChristmas": "Christmas is over! Open your list below to mark what you received.",
-  "homeCardAfterPartyNoListBirthday": "Your birthday is over! Open your list below to mark what you received.",
+  "homeCardAfterPartyNoList": "Open the right list below to tick what you received.",
   "homeCardBookedReminderBirthdayOverline": "Reminder · {pseudo}'s birthday is {days, plural, =0{today} =1{tomorrow} other{in {days} days}}",
   "@homeCardBookedReminderBirthdayOverline": {
     "placeholders": {
@@ -512,6 +512,8 @@
   "homeCardChristmasListAction": "Complete it",
   "homeCardChristmasNoListTitle": "Christmas is coming",
   "homeCardChristmasNoListAction": "Create my Christmas list",
+  "homeCardChristmasDayTitle": "Merry Christmas!",
+  "homeCardChristmasDayAction": "See my list",
   "homeCardOnboardingStep": "Step {step} of {total}",
   "@homeCardOnboardingStep": {
     "placeholders": {

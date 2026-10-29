@@ -1060,18 +1060,17 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get homeCardAfterPartyTitle => 'Tu as reçu des choses de ta liste ?';
+  String get homeCardAfterPartyChristmasTitle => 'Le Père Noël est passé ?';
+
+  @override
+  String get homeCardAfterPartyBirthdayTitle => 'Tu as été gâté ?';
 
   @override
   String get homeCardAfterPartyAction => 'Cocher ce que j\'ai reçu';
 
   @override
-  String get homeCardAfterPartyNoListChristmas =>
-      'Noël est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.';
-
-  @override
-  String get homeCardAfterPartyNoListBirthday =>
-      'Ton anniversaire est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.';
+  String get homeCardAfterPartyNoList =>
+      'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.';
 
   @override
   String homeCardBookedReminderBirthdayOverline(String pseudo, int days) {
@@ -1172,6 +1171,12 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get homeCardChristmasNoListAction => 'Créer ma liste de Noël';
+
+  @override
+  String get homeCardChristmasDayTitle => 'Joyeux Noël !';
+
+  @override
+  String get homeCardChristmasDayAction => 'Voir ma liste';
 
   @override
   String homeCardOnboardingStep(int step, int total) {

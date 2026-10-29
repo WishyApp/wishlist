@@ -112,7 +112,8 @@ List<HomeCardCandidate> friendBirthdayCards({
 
 /// The day after the user's birthday or after Christmas, up to `days_after`
 /// days. The wishlist of Christmas is found by its name; the one of the
-/// birthday is the only wishlist, if there is just one.
+/// birthday is the only wishlist, if there is just one. Nothing is offered to
+/// a user who has no open wishlist of their own, as there is nothing to tick.
 List<HomeCardCandidate> afterPartyCards({
   required Birthday? myBirthday,
   required List<Wishlist> wishlists,
@@ -121,7 +122,8 @@ List<HomeCardCandidate> afterPartyCards({
   required HomeCardDefinition? christmas,
   required DateTime now,
 }) {
-  if (definition == null) {
+  if (definition == null ||
+      !wishlists.any((w) => w.idOwner == userId && !w.isClosed)) {
     return const [];
   }
   final today = _day(now);
@@ -308,7 +310,9 @@ List<HomeCardCandidate> friendAcceptedCards({
   ];
 }
 
-/// From the largest `reminder_days` before Christmas to the day itself.
+/// From the largest `reminder_days` before Christmas to the day itself. On
+/// the day, the card only wishes a merry Christmas to a user who has a
+/// Christmas wishlist: without one there is nothing to create or complete.
 List<HomeCardCandidate> christmasCards({
   required List<Wishlist> wishlists,
   required String userId,
@@ -324,14 +328,16 @@ List<HomeCardCandidate> christmasCards({
   if (days > _maxReminderDays(definition)) {
     return const [];
   }
+  final wishlist =
+      _christmasWishlist(wishlists, userId, definition, christmasDay);
+  if (days == 0 && wishlist == null) {
+    return const [];
+  }
   return [
     HomeCardCandidate(
       type: definition.key,
       stateKey: cardKey(definition.key, year: christmasDay.year),
-      content: Christmas(
-        days,
-        _christmasWishlist(wishlists, userId, definition, christmasDay),
-      ),
+      content: Christmas(days, wishlist),
       tone: definition.isHighlighted(eventOn: christmasDay, now: now)
           ? HomeCardTone.highlighted
           : HomeCardTone.light,

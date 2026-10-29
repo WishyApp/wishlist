@@ -1772,11 +1772,17 @@ abstract class AppLocalizations {
   /// **'{days, plural, =1{Noël, c\'était hier} other{Noël, c\'était il y a {days} jours}}'**
   String homeCardAfterPartyChristmasOverline(int days);
 
-  /// No description provided for @homeCardAfterPartyTitle.
+  /// No description provided for @homeCardAfterPartyChristmasTitle.
   ///
   /// In fr, this message translates to:
-  /// **'Tu as reçu des choses de ta liste ?'**
-  String get homeCardAfterPartyTitle;
+  /// **'Le Père Noël est passé ?'**
+  String get homeCardAfterPartyChristmasTitle;
+
+  /// No description provided for @homeCardAfterPartyBirthdayTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tu as été gâté ?'**
+  String get homeCardAfterPartyBirthdayTitle;
 
   /// No description provided for @homeCardAfterPartyAction.
   ///
@@ -1784,17 +1790,11 @@ abstract class AppLocalizations {
   /// **'Cocher ce que j\'ai reçu'**
   String get homeCardAfterPartyAction;
 
-  /// No description provided for @homeCardAfterPartyNoListChristmas.
+  /// No description provided for @homeCardAfterPartyNoList.
   ///
   /// In fr, this message translates to:
-  /// **'Noël est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.'**
-  String get homeCardAfterPartyNoListChristmas;
-
-  /// No description provided for @homeCardAfterPartyNoListBirthday.
-  ///
-  /// In fr, this message translates to:
-  /// **'Ton anniversaire est passé ! Ouvre ta liste ci-dessous pour marquer ce que tu as reçu.'**
-  String get homeCardAfterPartyNoListBirthday;
+  /// **'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.'**
+  String get homeCardAfterPartyNoList;
 
   /// No description provided for @homeCardBookedReminderBirthdayOverline.
   ///
@@ -1897,6 +1897,18 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Créer ma liste de Noël'**
   String get homeCardChristmasNoListAction;
+
+  /// No description provided for @homeCardChristmasDayTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Joyeux Noël !'**
+  String get homeCardChristmasDayTitle;
+
+  /// No description provided for @homeCardChristmasDayAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir ma liste'**
+  String get homeCardChristmasDayAction;
 
   /// No description provided for @homeCardOnboardingStep.
   ///
