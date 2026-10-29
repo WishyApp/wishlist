@@ -221,6 +221,7 @@ class ConsultWishRoute extends AuthenticatedRoute {
     this.showActions = true,
     this.quantityDisplay = WishQuantityDisplay.total,
     this.completedByUserId,
+    this.receivedOn,
   });
   final int wishlistId;
   final int wishId;
@@ -230,6 +231,10 @@ class ConsultWishRoute extends AuthenticatedRoute {
 
   /// See [ConsultWishScreen.completedByUserId]
   final String? completedByUserId;
+
+  /// The party day (`yyyy-MM-dd`) of the wishlist the wish was opened from, see
+  /// [WishlistRoute.receivedOn]
+  final String? receivedOn;
 
   /// Liste ordonnée des wishs à afficher. Retombe sur `[wishId]` si le
   /// paramètre `wish-ids` est absent (deep link) ou ne contient pas `wishId`.
@@ -246,6 +251,7 @@ class ConsultWishRoute extends AuthenticatedRoute {
       showActions: showActions,
       quantityDisplay: quantityDisplay,
       completedByUserId: completedByUserId,
+      receivedOn: parseReceivedOn(receivedOn),
     );
   }
 }

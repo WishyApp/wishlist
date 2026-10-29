@@ -375,6 +375,7 @@ class WishlistScreen extends ConsumerWidget {
                           wishlistId: wishlistId,
                           wishlistScreenData: data,
                           isMyWishlist: isMyWishlist,
+                          receivedOn: receivedOn,
                         ),
                         if (isMyWishlist)
                           WishlistFloatingActions(

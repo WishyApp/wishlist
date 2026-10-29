@@ -27,7 +27,7 @@ void main() {
   group('defaultReceivedDay', () {
     final wishCreated = [DateTime(2026, 11, 2)];
 
-    test('is today without a party day (today behaviour)', () {
+    test('is null without a party day (the dialog starts on today)', () {
       expect(
         defaultReceivedDay(
           receivedOn: null,
@@ -68,6 +68,20 @@ void main() {
           wishCreatedAts: [DateTime(2026, 11, 2), DateTime(2026, 12, 26, 9)],
         ),
         DateTime(2026, 12, 26),
+      );
+    });
+
+    test('compares the creation day in local time', () {
+      // A UTC instant (as parsed from the API): its day is the local one
+      final createdAt = DateTime.utc(2026, 12, 25, 23, 30);
+      final localDay = createdAt.toLocal();
+      expect(
+        defaultReceivedDay(
+          receivedOn: DateTime(2026, 12, 20),
+          now: today,
+          wishCreatedAts: [createdAt],
+        ),
+        DateTime(localDay.year, localDay.month, localDay.day),
       );
     });
 

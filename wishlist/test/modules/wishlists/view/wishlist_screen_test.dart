@@ -755,6 +755,119 @@ void main() {
     expect(find.byIcon(Icons.add), findsOneWidget);
   });
 
+  testWidgets('proposes the party day when marking a wish received from a card',
+      (tester) async {
+    registerFallbackValue(DateTime(2000));
+    final repository = _MockUserCompletedWishRepository();
+    when(
+      () => repository.markAsCompleted(
+        userId: any(named: 'userId'),
+        wishId: any(named: 'wishId'),
+        fromWishlistId: any(named: 'fromWishlistId'),
+        quantity: any(named: 'quantity'),
+        completedAt: any(named: 'completedAt'),
+      ),
+    ).thenAnswer((_) async {});
+
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 1, receivedOn: '2026-03-02').location,
+      overrides: [
+        ...wishlistScreenOverrides(
+          wishlistId: 1,
+          wishlist: fakeWishlist1,
+          wishes: fakeWishes,
+          currentUserId: fakeCurrentUserId,
+        ),
+        userCompletedWishRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await tester.longPress(find.text(fakeWish1.name));
+    await tester.pumpAndSettle();
+    await withClock(
+      Clock.fixed(_lateOnCompletionDay),
+      () => tester.tap(find.byIcon(Icons.check_circle_outline)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(PrimaryButton),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    // The party day, not today (the 5th)
+    verify(
+      () => repository.markAsCompleted(
+        userId: fakeCurrentUserId,
+        wishId: fakeWish1.id,
+        fromWishlistId: fakeWishlist1.id,
+        quantity: 1,
+        completedAt: DateTime(2026, 3, 2),
+      ),
+    ).called(1);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('proposes the party day from the detail of a wish of the list',
+      (tester) async {
+    registerFallbackValue(DateTime(2000));
+    final repository = _MockUserCompletedWishRepository();
+    when(
+      () => repository.markAsCompleted(
+        userId: any(named: 'userId'),
+        wishId: any(named: 'wishId'),
+        fromWishlistId: any(named: 'fromWishlistId'),
+        quantity: any(named: 'quantity'),
+        completedAt: any(named: 'completedAt'),
+      ),
+    ).thenAnswer((_) async {});
+
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 1, receivedOn: '2026-03-02').location,
+      overrides: [
+        ...wishlistScreenOverrides(
+          wishlistId: 1,
+          wishlist: fakeWishlist1,
+          wishes: fakeWishes,
+          currentUserId: fakeCurrentUserId,
+        ),
+        watchWishByIdOverride(fakeWish1.id, wish: fakeWish1),
+        userCompletedWishRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await tester.tap(find.text(fakeWish1.name));
+    await tester.pumpAndSettle();
+    await withClock(
+      Clock.fixed(_lateOnCompletionDay),
+      () =>
+          tester.tap(find.text(AppLocalizationsFr().markWishAsCompleted).last),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(PrimaryButton),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    verify(
+      () => repository.markAsCompleted(
+        userId: fakeCurrentUserId,
+        wishId: fakeWish1.id,
+        fromWishlistId: fakeWishlist1.id,
+        quantity: 1,
+        completedAt: DateTime(2026, 3, 2),
+      ),
+    ).called(1);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets(
       'completes a mixed selection on the picked day, naming each wish '
       'whose quantity is asked', (tester) async {

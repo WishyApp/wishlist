@@ -25,6 +25,7 @@ class ConsultWishScreen extends ConsumerStatefulWidget {
     this.showActions = true,
     this.quantityDisplay = WishQuantityDisplay.total,
     this.completedByUserId,
+    this.receivedOn,
   });
 
   final List<int> wishIds;
@@ -37,6 +38,10 @@ class ConsultWishScreen extends ConsumerStatefulWidget {
   /// Read directly rather than through the owner of the wishlist, which is
   /// unknown once the wishlist is archived.
   final String? completedByUserId;
+
+  /// The party day the wishlist was opened for: the day proposed by default
+  /// when marking a wish received.
+  final DateTime? receivedOn;
 
   @override
   ConsumerState<ConsultWishScreen> createState() => _ConsultWishScreenState();
@@ -173,6 +178,7 @@ class _ConsultWishScreenState extends ConsumerState<ConsultWishScreen> {
                               showActions:
                                   widget.showActions && isOwnershipKnown,
                               ownerReceivedQuantity: ownerReceivedQuantity,
+                              receivedOn: widget.receivedOn,
                             ),
                           ],
                         ),

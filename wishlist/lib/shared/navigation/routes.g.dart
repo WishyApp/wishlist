@@ -341,6 +341,7 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
                 _$WishQuantityDisplayEnumMap._$fromName) ??
             WishQuantityDisplay.total,
         completedByUserId: state.uri.queryParameters['completed-by-user-id'],
+        receivedOn: state.uri.queryParameters['received-on'],
       );
 
   String get location => GoRouteData.$location(
@@ -352,6 +353,7 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
             'quantity-display': _$WishQuantityDisplayEnumMap[quantityDisplay],
           if (completedByUserId != null)
             'completed-by-user-id': completedByUserId,
+          if (receivedOn != null) 'received-on': receivedOn,
         },
       );
 

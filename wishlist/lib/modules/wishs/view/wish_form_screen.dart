@@ -371,6 +371,9 @@ class _WishFormScreenState extends ConsumerState<WishFormScreen> {
               l10n.deleteWishSuccess,
               type: SnackBarType.success,
             );
+            // The `received-on` day of the list the wish was opened from is
+            // not carried here: it would have to go through the consult and
+            // edit routes
             WishlistRoute(wishlistId: widget.wishlistId).go(context);
           }
         } catch (e) {
