@@ -19,6 +19,7 @@ class FakeQuery extends Fake
   FakeQuery(this.rows);
   final PostgrestList rows;
   String? orderedBy;
+  bool? orderedAscending;
 
   @override
   PostgrestTransformBuilder<PostgrestList> order(
@@ -28,6 +29,7 @@ class FakeQuery extends Fake
     String? referencedTable,
   }) {
     orderedBy = column;
+    orderedAscending = ascending;
     return this;
   }
 
@@ -50,8 +52,16 @@ Map<String, dynamic> _row(String key, {String kind = 'computed'}) => {
 void main() {
   late MockSupabaseClient client;
   late MockQueryBuilder table;
+  late List<(String, Object)> reported;
+
+  SupabaseHomeCardRepository newRepository() => SupabaseHomeCardRepository(
+        client,
+        reportError: (key, error, stackTrace) => reported.add((key, error)),
+      );
 
   setUp(() {
+    reported = [];
+    SupabaseHomeCardRepository.resetReportedKeys();
     client = MockSupabaseClient();
     table = MockQueryBuilder();
     when(() => client.from('home_cards')).thenAnswer((_) => table);
@@ -62,11 +72,12 @@ void main() {
         FakeQuery([_row('christmas'), _row('home_stack', kind: 'settings')]);
     when(() => table.select()).thenAnswer((_) => query);
 
-    final cards = await SupabaseHomeCardRepository(client).getActiveCards();
+    final cards = await newRepository().getActiveCards();
 
     expect(cards.map((c) => c.key), ['christmas', 'home_stack']);
     expect(cards.last.kind, HomeCardKind.settings);
     expect(query.orderedBy, 'priority');
+    expect(query.orderedAscending, isTrue);
   });
 
   test('skips a malformed row and keeps the valid ones', () async {
@@ -78,8 +89,23 @@ void main() {
     ]);
     when(() => table.select()).thenAnswer((_) => query);
 
-    final cards = await SupabaseHomeCardRepository(client).getActiveCards();
+    final cards = await newRepository().getActiveCards();
 
     expect(cards.map((c) => c.key), ['good']);
+  });
+
+  test('reports a bad row once per key, with its key', () async {
+    final query = FakeQuery([
+      _row('good'),
+      {..._row('bad'), 'title': const <String>[]},
+    ]);
+    when(() => table.select()).thenAnswer((_) => query);
+    final repository = newRepository();
+
+    await repository.getActiveCards();
+    await repository.getActiveCards();
+    await newRepository().getActiveCards();
+
+    expect(reported.map((r) => r.$1), ['bad']);
   });
 }

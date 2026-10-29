@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS public.home_cards (
   enabled boolean NOT NULL DEFAULT true,
   priority smallint NOT NULL,
   params jsonb NOT NULL DEFAULT '{}',
-  event_at timestamptz,
+  -- Calendar day of the occasion (no time zone), starts_at / ends_at are instants.
+  event_on date,
   starts_at timestamptz,
   ends_at timestamptz,
   title jsonb,
@@ -66,6 +67,8 @@ BEGIN
     ALTER TABLE public.home_cards
       ADD CONSTRAINT home_cards_params_object CHECK (jsonb_typeof(params) = 'object');
   END IF;
+  -- Texts are objects whose values are all strings (language code -> text):
+  -- the app refuses a row with any other value, which would drop the card.
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'home_cards_texts_objects'
@@ -74,10 +77,26 @@ BEGIN
     ALTER TABLE public.home_cards
       ADD CONSTRAINT home_cards_texts_objects
       CHECK (
-        (title IS NULL OR jsonb_typeof(title) = 'object')
-        AND (body IS NULL OR jsonb_typeof(body) = 'object')
-        AND (cta_label IS NULL OR jsonb_typeof(cta_label) = 'object')
+        (title IS NULL OR (
+          jsonb_typeof(title) = 'object'
+          AND NOT jsonb_path_exists(title, '$.* ? (@.type() != "string")')))
+        AND (body IS NULL OR (
+          jsonb_typeof(body) = 'object'
+          AND NOT jsonb_path_exists(body, '$.* ? (@.type() != "string")')))
+        AND (cta_label IS NULL OR (
+          jsonb_typeof(cta_label) = 'object'
+          AND NOT jsonb_path_exists(cta_label, '$.* ? (@.type() != "string")')))
       );
+  END IF;
+  -- A button needs both its label and its route.
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'home_cards_cta_pair'
+      AND conrelid = 'public.home_cards'::regclass
+  ) THEN
+    ALTER TABLE public.home_cards
+      ADD CONSTRAINT home_cards_cta_pair
+      CHECK ((cta_label IS NULL) = (cta_route IS NULL));
   END IF;
   -- COALESCE: a NULL operand would make the CHECK pass instead of failing.
   IF NOT EXISTS (
@@ -90,7 +109,7 @@ BEGIN
       CHECK (
         kind <> 'editorial'
         OR COALESCE(
-          event_at IS NOT NULL
+          event_on IS NOT NULL
           AND starts_at IS NOT NULL
           AND ends_at IS NOT NULL
           AND ends_at > starts_at

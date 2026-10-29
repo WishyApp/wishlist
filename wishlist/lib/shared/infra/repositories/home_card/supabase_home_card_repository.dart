@@ -7,9 +7,37 @@ import 'package:wishlist/shared/infra/repositories/home_card/home_card_repositor
 import 'package:wishlist/shared/infra/utils/execute_safely.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 
+/// Reports a row that could not be parsed, with its key.
+typedef HomeCardErrorReporter = void Function(
+  String key,
+  Object error,
+  StackTrace stackTrace,
+);
+
 class SupabaseHomeCardRepository implements HomeCardRepository {
-  SupabaseHomeCardRepository(this._client);
+  SupabaseHomeCardRepository(
+    this._client, {
+    HomeCardErrorReporter reportError = _reportToSentry,
+  }) : _reportError = reportError;
   final SupabaseClient _client;
+  final HomeCardErrorReporter _reportError;
+
+  /// Keys already reported during this app session: a bad row stays bad for
+  /// every user and every refresh, one event is enough.
+  static final _reportedKeys = <String>{};
+
+  @visibleForTesting
+  static void resetReportedKeys() => _reportedKeys.clear();
+
+  static void _reportToSentry(String key, Object error, StackTrace stackTrace) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) => scope.setTag('home_card', key),
+      ),
+    );
+  }
 
   /// RLS already hides disabled rows and editorial cards outside their window.
   /// A row that cannot be parsed (hand-written data) is reported and skipped,
@@ -17,7 +45,10 @@ class SupabaseHomeCardRepository implements HomeCardRepository {
   @override
   Future<List<HomeCardDefinition>> getActiveCards() async {
     final rows = await executeSafely(
-      () => _client.from('home_cards').select().order('priority'),
+      () => _client
+          .from('home_cards')
+          .select()
+          .order('priority', ascending: true),
       errorMessage: 'Failed to load the home cards',
     );
     final cards = <HomeCardDefinition>[];
@@ -26,7 +57,10 @@ class SupabaseHomeCardRepository implements HomeCardRepository {
         cards.add(HomeCardDefinition.fromRow(row));
       } catch (e, stackTrace) {
         debugPrint('[Wishy home_cards] skipped row ${row['key']}: $e');
-        unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+        final key = '${row['key']}';
+        if (_reportedKeys.add(key)) {
+          _reportError(key, e, stackTrace);
+        }
       }
     }
     return cards;

@@ -13,7 +13,7 @@ class HomeCardDefinition {
     required this.kind,
     required this.priority,
     this.params = const {},
-    this.eventAt,
+    this.eventOn,
     this.startsAt,
     this.endsAt,
     this.title,
@@ -31,8 +31,8 @@ class HomeCardDefinition {
       key: row['key'] as String,
       kind: _parseKind(row['kind'] as String),
       priority: row['priority'] as int,
-      params: Map<String, dynamic>.from(row['params'] as Map? ?? const {}),
-      eventAt: _parseDate(row['event_at']),
+      params: Map.unmodifiable(row['params'] as Map? ?? const {}),
+      eventOn: _parseDay(row['event_on']),
       startsAt: _parseDate(row['starts_at']),
       endsAt: _parseDate(row['ends_at']),
       title: _parseTexts(row['title']),
@@ -53,8 +53,8 @@ class HomeCardDefinition {
   /// `home_cards` migration.
   final Map<String, dynamic> params;
 
-  /// Date of the occasion (editorial).
-  final DateTime? eventAt;
+  /// Calendar day of the occasion (editorial), a local `DateTime(y, m, d)`.
+  final DateTime? eventOn;
 
   /// Display window (editorial).
   final DateTime? startsAt;
@@ -71,12 +71,14 @@ class HomeCardDefinition {
   /// Name of an SVG of `assets/svg/`, without extension.
   final String? illustration;
 
-  /// The text in [languageCode], else in english, else in french, else null.
-  String? localized(Map<String, String>? texts, String languageCode) {
-    if (texts == null) {
-      return null;
-    }
-    return texts[languageCode] ?? texts['en'] ?? texts['fr'];
+  /// Texts in [languageCode], else in english, else in french, else null.
+  String? localizedTitle(String languageCode) => _pick(title, languageCode);
+  String? localizedBody(String languageCode) => _pick(body, languageCode);
+  String? localizedCtaLabel(String languageCode) =>
+      _pick(ctaLabel, languageCode);
+
+  static String? _pick(Map<String, String>? texts, String languageCode) {
+    return texts?[languageCode] ?? texts?['en'] ?? texts?['fr'];
   }
 
   int intParam(String name, int fallback) {
@@ -103,14 +105,14 @@ class HomeCardDefinition {
   }
 
   /// Start of the first reminder step after [dismissedAt]: `reminder_days`
-  /// days before [eventAt], then the day itself. Steps fall on local calendar
-  /// days, as the user sees them. Null once none is left. Used as the snooze
-  /// date of "Hide".
+  /// days before [eventOn], then the day itself. Steps are local calendar
+  /// days, built from the year, month and day of [eventOn]. Null once none is
+  /// left. Used as the snooze date of "Hide".
   DateTime? nextReminderAfter({
-    required DateTime eventAt,
+    required DateTime eventOn,
     required DateTime dismissedAt,
   }) {
-    final day = eventAt.toLocal();
+    final day = eventOn;
     final steps = [
       for (final days in intListParam('reminder_days'))
         DateTime(day.year, day.month, day.day - days),
@@ -124,12 +126,12 @@ class HomeCardDefinition {
     return null;
   }
 
-  /// Whether the local day of [eventAt] is today or at most `highlight_days`
+  /// Whether the day [eventOn] is today (local) or at most `highlight_days`
   /// days (default 7) ahead. Computed cards (birthday, Christmas) work out
   /// their own date.
-  bool isHighlighted({required DateTime eventAt, required DateTime now}) {
+  bool isHighlighted({required DateTime eventOn, required DateTime now}) {
     final today = now.toLocal();
-    final eventDay = eventAt.toLocal();
+    final eventDay = eventOn;
     // UTC constructors: whole days, immune to DST changes.
     final daysAway = DateTime.utc(eventDay.year, eventDay.month, eventDay.day)
         .difference(DateTime.utc(today.year, today.month, today.day))
@@ -142,6 +144,15 @@ class HomeCardDefinition {
         (throw FormatException('Unknown home card kind', name));
   }
 
+  /// `YYYY-MM-DD` to a local calendar day, with no time zone conversion.
+  static DateTime? _parseDay(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    final parts = (value as String).split('-').map(int.parse).toList();
+    return DateTime(parts[0], parts[1], parts[2]);
+  }
+
   static DateTime? _parseDate(Object? value) {
     return value == null ? null : DateTime.parse(value as String).toUtc();
   }
@@ -150,6 +161,8 @@ class HomeCardDefinition {
     if (value == null) {
       return null;
     }
-    return (value as Map).map((k, v) => MapEntry(k as String, v as String));
+    return Map.unmodifiable(
+      (value as Map).map((k, v) => MapEntry(k as String, v as String)),
+    );
   }
 }

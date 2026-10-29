@@ -120,14 +120,14 @@ La table `home_cards` pilote les cartes de l'écran d'accueil. L'écran d'accuei
 
 Les lignes `computed` règlent des cartes dont la logique reste dans l'app (`enabled`, `priority`, `params`). La ligne `home_stack` (`settings`) règle la pile, ce n'est pas une carte. Les seeds sont posés avec `ON CONFLICT DO NOTHING` : une migration ne réécrit jamais un réglage, une modification se fait à la main.
 
-Une carte éditoriale ponctuelle (occasion, annonce) se crée avec un `INSERT`, sans publier l'app. La contrainte `home_cards_editorial_complete` refuse une carte sans dates, sans titre fr et en, ou dont `ends_at` précède `starts_at`, ainsi qu'une `key` qui ne respecte pas `^[a-z0-9_]+$` (minuscules, chiffres, `_`) ou des `params`, `title`, `body`, `cta_label` qui ne sont pas des objets JSON.
+Une carte éditoriale ponctuelle (occasion, annonce) se crée avec un `INSERT`, sans publier l'app. `event_on` est un jour de calendrier (type `date`, sans fuseau : le 10 décembre reste le 10 décembre partout), `starts_at` et `ends_at` sont des instants. Les contraintes refusent une carte éditoriale sans date, sans titre fr et en, ou dont `ends_at` précède `starts_at` ; un `cta_label` sans `cta_route` (ou l'inverse) ; un `title`, `body` ou `cta_label` qui n'est pas un objet JSON dont toutes les valeurs sont des chaînes ; des `params` qui ne sont pas un objet ; et une `key` qui ne respecte pas `^[a-z0-9_]+$` (minuscules, chiffres, `_`).
 
 ```sql
 INSERT INTO public.home_cards
-  (key, kind, priority, event_at, starts_at, ends_at, title, body, cta_label, cta_route)
+  (key, kind, priority, event_on, starts_at, ends_at, title, body, cta_label, cta_route)
 VALUES (
   'new_feature_2026_12', 'editorial', 45,
-  '2026-12-10 00:00+01', '2026-12-03 00:00+01', '2026-12-10 23:59+01',
+  '2026-12-10', '2026-12-03 00:00+01', '2026-12-10 23:59+01',
   '{"fr": "Du nouveau dans Wishy", "en": "What''s new in Wishy"}',
   '{"fr": "Découvre les cartes de l''accueil.", "en": "Discover the home cards."}',
   '{"fr": "Voir", "en": "Take a look"}',
