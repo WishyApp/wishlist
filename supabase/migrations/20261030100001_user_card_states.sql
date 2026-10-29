@@ -7,9 +7,10 @@
 -- stale_wishlist:88, after_party:2026, christmas:2026.
 --
 -- A card is hidden when dismissed_at is set and snoozed_until is NULL or in
--- the future. A card dismissed without a snooze never comes back, and that
--- permanent mask cannot be turned into a snooze afterwards (a late "later"
--- must not undo a "hide"); "later" then "hide" does end permanent. The app
+-- the future. A card dismissed without a snooze never comes back. A mask is
+-- never shortened: a permanent mask stays permanent, and a snooze only moves
+-- later (a late "later" from a stale device must not bring a hidden card back);
+-- "later" then "hide" does end permanent. The app
 -- applies this rule, the table does not.
 --
 -- Rows accumulate (one per card occurrence), so purge_stale_card_states
@@ -107,7 +108,8 @@ END;
 $$;
 
 -- The current user dismissed the card. With p_snooze_until it comes back
--- after that date, without it never. A date in the past is accepted (the card
+-- after that date, without it never. A mask is never shortened (see the
+-- header): the later of the two dates wins. A date in the past is accepted (the card
 -- simply comes back); a non-finite one is refused.
 CREATE OR REPLACE FUNCTION public.dismiss_card(
   p_card_key text,
@@ -136,7 +138,8 @@ BEGIN
         snoozed_until = CASE
           WHEN public.user_card_states.dismissed_at IS NOT NULL
             AND public.user_card_states.snoozed_until IS NULL THEN NULL
-          ELSE p_snooze_until
+          WHEN p_snooze_until IS NULL THEN NULL
+          ELSE GREATEST(public.user_card_states.snoozed_until, p_snooze_until)
         END;
 END;
 $$;

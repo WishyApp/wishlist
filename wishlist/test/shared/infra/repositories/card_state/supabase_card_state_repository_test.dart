@@ -142,6 +142,17 @@ void main() {
       ).called(3);
     });
 
+    test('asks for a duplicated key once', () async {
+      final table = MockQueryBuilder();
+      final query = FakeRows([]);
+      when(() => client.from('user_card_states')).thenAnswer((_) => table);
+      when(() => table.select(any())).thenAnswer((_) => query);
+
+      await repository.getStates(['a:1', 'b:1', 'a:1']);
+
+      expect(query.filteredValues, ['a:1', 'b:1']);
+    });
+
     test('makes no request for an empty list', () async {
       final states = await repository.getStates(const []);
 

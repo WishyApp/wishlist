@@ -152,6 +152,17 @@ SELECT pg_temp.expect_true('snooze after a permanent mask keeps it permanent',
   (SELECT dismissed_at IS NOT NULL AND snoozed_until IS NULL
    FROM public.user_card_states WHERE card_key = 'permanent:1'));
 
+-- A mask is never shortened: a late "later" cannot bring a hidden card back sooner
+SELECT public.dismiss_card('long_mask:1', now() + interval '60 days');
+SELECT public.dismiss_card('long_mask:1', now() + interval '1 day');
+SELECT pg_temp.expect_true('a shorter snooze does not shorten the mask',
+  (SELECT snoozed_until > now() + interval '59 days'
+   FROM public.user_card_states WHERE card_key = 'long_mask:1'));
+SELECT public.dismiss_card('long_mask:1', now() + interval '90 days');
+SELECT pg_temp.expect_true('a longer snooze extends the mask',
+  (SELECT snoozed_until > now() + interval '89 days'
+   FROM public.user_card_states WHERE card_key = 'long_mask:1'));
+
 -- Non-finite dates are refused, a past date is accepted
 SELECT pg_temp.expect_denied('infinite snooze',
   $q$SELECT public.dismiss_card('infinite:1', 'infinity'::timestamptz)$q$);

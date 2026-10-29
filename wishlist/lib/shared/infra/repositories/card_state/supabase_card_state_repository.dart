@@ -16,7 +16,7 @@ class SupabaseCardStateRepository implements CardStateRepository {
   /// that the URL of a request stays short.
   @override
   Future<Map<String, CardState>> getStates(Iterable<String> cardKeys) async {
-    final keys = cardKeys.toList();
+    final keys = cardKeys.toSet().toList();
     if (keys.isEmpty) {
       return const {};
     }
