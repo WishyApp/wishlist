@@ -10,16 +10,30 @@ import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 /// Shares the "Ton année Wishy" picture. Behind a provider so that the page
 /// can be tested without the system share sheet.
 abstract class YearRecapSharer {
-  Future<void> share(BuildContext context, YearRecapData recap);
+  /// [sharePositionOrigin] is where the share sheet points to on an iPad:
+  /// the share button.
+  Future<void> share(
+    BuildContext context,
+    YearRecapData recap, {
+    Rect? sharePositionOrigin,
+  });
 }
 
 class SharePlusYearRecapSharer implements YearRecapSharer {
-  SharePlusYearRecapSharer(this._repository);
+  SharePlusYearRecapSharer(
+    this._repository, {
+    Future<void> Function(ShareParams params)? onShare,
+  }) : _onShare = onShare ?? SharePlus.instance.share;
 
   final YearRecapRepository _repository;
+  final Future<void> Function(ShareParams params) _onShare;
 
   @override
-  Future<void> share(BuildContext context, YearRecapData recap) async {
+  Future<void> share(
+    BuildContext context,
+    YearRecapData recap, {
+    Rect? sharePositionOrigin,
+  }) async {
     final l10n = context.l10n;
     final path = recap.profile.illustrationPath;
     final png = await renderYearRecapShareImage(
@@ -28,9 +42,10 @@ class SharePlusYearRecapSharer implements YearRecapSharer {
       l10n: l10n,
       illustrationUrl: path == null ? null : _repository.illustrationUrl(path),
     );
-    await SharePlus.instance.share(
+    await _onShare(
       ShareParams(
         text: l10n.yearRecapShareText('${recap.year}'),
+        sharePositionOrigin: sharePositionOrigin,
         files: [
           XFile.fromData(
             png,

@@ -21,6 +21,13 @@ import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 
+/// How the illustration of a profile is fetched. Behind a provider so that a
+/// test can make it fail.
+final yearRecapIllustrationProvider =
+    Provider.autoDispose.family<ImageProvider, String>(
+  (ref, url) => CachedNetworkImageProvider(url),
+);
+
 /// The page behind the card "Ton année Wishy". It loads its recap again
 /// (`yearRecapFactsProvider`): nothing is handed over by the route.
 class YearRecapScreen extends ConsumerWidget {
@@ -66,13 +73,21 @@ class _Recap extends ConsumerStatefulWidget {
 class _RecapState extends ConsumerState<_Recap> {
   bool _isSharing = false;
 
-  Future<void> _share() async {
+  /// [buttonContext] is the share button's own: its box is where the share
+  /// sheet points to on an iPad.
+  Future<void> _share(BuildContext buttonContext) async {
     if (_isSharing) {
       return;
     }
+    final box = buttonContext.findRenderObject() as RenderBox?;
+    final origin = box == null || !box.hasSize
+        ? null
+        : box.localToGlobal(Offset.zero) & box.size;
     setState(() => _isSharing = true);
     try {
-      await ref.read(yearRecapSharerProvider).share(context, widget.recap);
+      await ref
+          .read(yearRecapSharerProvider)
+          .share(context, widget.recap, sharePositionOrigin: origin);
     } catch (e) {
       if (mounted) {
         showGenericError(context, error: e);
@@ -124,11 +139,13 @@ class _RecapState extends ConsumerState<_Recap> {
             _Block(text: l10n.yearRecapMostGifted(friend)),
           ],
           const Gap(24),
-          PrimaryButton(
-            text: l10n.yearRecapShareButton,
-            onPressed: _isSharing ? null : _share,
-            isLoading: _isSharing,
-            style: BaseButtonStyle.large,
+          Builder(
+            builder: (buttonContext) => PrimaryButton(
+              text: l10n.yearRecapShareButton,
+              onPressed: _isSharing ? null : () => _share(buttonContext),
+              isLoading: _isSharing,
+              style: BaseButtonStyle.large,
+            ),
           ),
           const Gap(12),
           SecondaryButton(
@@ -172,10 +189,13 @@ class _ProfileBlock extends ConsumerWidget {
           ),
         ),
         const Gap(4),
-        Text(
-          l10n.yearRecapProfileTitle(key),
-          textAlign: TextAlign.center,
-          style: AppTextStyles.title,
+        Semantics(
+          header: true,
+          child: Text(
+            l10n.yearRecapProfileTitle(key),
+            textAlign: TextAlign.center,
+            style: AppTextStyles.title,
+          ),
         ),
         const Gap(16),
         SizedBox(
@@ -183,7 +203,14 @@ class _ProfileBlock extends ConsumerWidget {
           child: url == null
               ? const _GenericIllustration()
               : Image(
-                  image: CachedNetworkImageProvider(url),
+                  // Decoded at the size it is shown at, not the full picture
+                  image: ResizeImage.resizeIfNeeded(
+                    null,
+                    (_illustrationHeight *
+                            MediaQuery.devicePixelRatioOf(context))
+                        .ceil(),
+                    ref.watch(yearRecapIllustrationProvider(url)),
+                  ),
                   fit: BoxFit.contain,
                   // Nothing while it loads, the generic one if it fails
                   frameBuilder: (_, child, frame, wasSynchronouslyLoaded) =>

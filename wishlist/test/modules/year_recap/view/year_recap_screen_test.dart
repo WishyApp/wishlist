@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +28,7 @@ void main() {
     WidgetTester tester,
     YearRecapData recap, {
     WindowConfigData? windowConfig,
+    ImageProvider? illustration,
   }) async {
     await tester.pumpRouterApp(
       YearRecapRoute(year: 2026).location,
@@ -35,6 +38,9 @@ void main() {
         yearRecapFactsProvider.overrideWith((ref, year) async => recap),
         yearRecapRepositoryOverride(recap),
         yearRecapSharerProvider.overrideWithValue(sharer),
+        if (illustration != null)
+          yearRecapIllustrationProvider
+              .overrideWith((ref, url) => illustration),
       ],
     );
     await tester.pumpAndSettle();
@@ -199,6 +205,21 @@ void main() {
     expect(find.byType(SvgPicture), findsOneWidget);
   });
 
+  testWidgets('the profile title is a header for screen readers',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpRecap(tester, fullRecap);
+
+    expect(
+      tester.getSemantics(find.text('Le marathonien / La marathonienne')),
+      matchesSemantics(
+        isHeader: true,
+        label: 'Le marathonien / La marathonienne',
+      ),
+    );
+    handle.dispose();
+  });
+
   testWidgets('the share button shares the recap', (tester) async {
     await pumpRecap(tester, fullRecap);
 
@@ -206,6 +227,52 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(sharer.shared, [fullRecap]);
+  });
+
+  testWidgets('the share sheet points to the share button (iPad)',
+      (tester) async {
+    await pumpRecap(tester, fullRecap);
+
+    tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed!();
+    await tester.pumpAndSettle();
+
+    expect(sharer.origins, [tester.getRect(find.byType(PrimaryButton))]);
+  });
+
+  testWidgets('a second tap while sharing is ignored', (tester) async {
+    final gate = sharer.gate = Completer<void>();
+    await pumpRecap(tester, fullRecap);
+
+    final onPressed =
+        tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed!;
+    onPressed();
+    await tester.pump();
+    expect(
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNull,
+    );
+    // A tap that was already on its way
+    onPressed();
+    await tester.pump();
+    expect(sharer.shared, hasLength(1));
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNotNull,
+    );
+  });
+
+  testWidgets('the generic illustration replaces one that fails to load',
+      (tester) async {
+    await pumpRecap(
+      tester,
+      fakeYearRecap(illustrationPath: 'patient.png'),
+      illustration: FailingImageProvider(),
+    );
+
+    expect(find.byType(SvgPicture), findsOneWidget);
   });
 
   testWidgets('a failing share shows an error and the button comes back',
