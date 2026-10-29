@@ -161,6 +161,8 @@
   "cancelBooking": "Annuler ma réservation",
   "modifyBooking": "Modifier ma réservation",
   "modifyCompletedQuantity": "Modifier la quantité complétée",
+  "completedWishOptions": "Options du wish",
+  "modifyCompletionDate": "Modifier la date de complétion",
   "cancelBookingDialogTitle": "Annuler la réservation",
   "cancelBookingDialogExplanation": "Es-tu sûr de vouloir annuler cette réservation ?",
   "noDescription": "Aucune description",

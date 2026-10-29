@@ -501,6 +501,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get modifyCompletedQuantity => 'Modifier la quantité complétée';
 
   @override
+  String get completedWishOptions => 'Options du wish';
+
+  @override
+  String get modifyCompletionDate => 'Modifier la date de complétion';
+
+  @override
   String get cancelBookingDialogTitle => 'Annuler la réservation';
 
   @override

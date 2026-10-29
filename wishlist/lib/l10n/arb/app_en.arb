@@ -144,6 +144,8 @@
   "cancelBooking": "Cancel my booking",
   "modifyBooking": "Modify my booking",
   "modifyCompletedQuantity": "Modify completed quantity",
+  "completedWishOptions": "Wish options",
+  "modifyCompletionDate": "Change the completion date",
   "cancelBookingDialogTitle": "Cancel booking",
   "cancelBookingDialogExplanation": "Are you sure you want to cancel this booking?",
   "noDescription": "No description",

@@ -82,6 +82,24 @@ class SupabaseUserCompletedWishRepository
   }
 
   @override
+  Future<void> updateCompletionDate({
+    required String userId,
+    required int wishId,
+    required DateTime completedAt,
+  }) async {
+    return executeSafely(
+      () async {
+        await _client
+            .from(_tableName)
+            .update({'completed_at': _dateFormat.format(completedAt)})
+            .eq('user_id', userId)
+            .eq('wish_id', wishId);
+      },
+      errorMessage: 'Failed to update completion date',
+    );
+  }
+
+  @override
   Future<void> unmarkAsCompleted({
     required String userId,
     required int wishId,

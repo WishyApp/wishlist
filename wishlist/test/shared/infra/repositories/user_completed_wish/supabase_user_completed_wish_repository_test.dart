@@ -94,6 +94,22 @@ void main() {
     });
   });
 
+  test('SupabaseUserCompletedWishRepository.updateCompletionDate sets the day',
+      () async {
+    final fake = fakeClient();
+    await SupabaseUserCompletedWishRepository(fake.client).updateCompletionDate(
+      userId: 'me',
+      wishId: 7,
+      completedAt: DateTime(2025, 12, 24),
+    );
+
+    final update = fake.requests.single;
+    expect(update.method, 'PATCH');
+    expect(update.url.queryParameters['user_id'], 'eq.me');
+    expect(update.url.queryParameters['wish_id'], 'eq.7');
+    expect(jsonDecode(update.body), {'completed_at': '2025-12-24'});
+  });
+
   group('SupabaseUserCompletedWishRepository.getCompletedWishesByUser', () {
     test('reads the day of completion, the last completed first', () async {
       final requests = <http.Request>[];
