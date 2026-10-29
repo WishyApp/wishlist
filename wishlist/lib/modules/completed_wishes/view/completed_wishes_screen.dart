@@ -4,8 +4,8 @@ import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/completed_wishes/view/widgets/completed_wish_image.dart';
+import 'package:wishlist/modules/completed_wishes/view/widgets/completed_wish_options_bottom_sheet.dart';
 import 'package:wishlist/modules/completed_wishes/view/widgets/completed_wish_sort_bottom_sheet.dart';
-import 'package:wishlist/modules/completed_wishes/view/widgets/uncomplete_wish_bottom_sheet.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/models/completed_wish_sort_type.dart';
@@ -25,7 +25,8 @@ class CompletedWishesScreen extends ConsumerStatefulWidget {
   const CompletedWishesScreen({super.key, this.userId});
 
   /// The user whose completed wishes are shown, read-only: the current user's
-  /// ones, which can be uncompleted, when null.
+  /// ones, whose date and quantity can be changed and which can be
+  /// uncompleted, when null.
   final String? userId;
 
   @override
@@ -87,10 +88,11 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
           return _sort.order == SortOrder.ascending ? cmp : -cmp;
         });
       case CompletedWishSortType.completedAt:
-        result.sort((a, b) {
-          final cmp = a.completedAt.compareTo(b.completedAt);
-          return _sort.order == SortOrder.ascending ? cmp : -cmp;
-        });
+        // The list comes sorted by the repository, the last received first
+        // (the same day: the last one first completed first)
+        if (_sort.order == SortOrder.ascending) {
+          result = result.reversed.toList();
+        }
     }
     return result;
   }
@@ -158,6 +160,16 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
                             return _CompletedWishCard(
                               item: item,
                               userId: userId,
+                              // The screen's context (not the item's): the
+                              // dialogs open once the options sheet is
+                              // closed, when the card's can be unmounted
+                              onOptionsPressed: userId == null
+                                  ? () => showCompletedWishOptionsBottomSheet(
+                                        this.context,
+                                        ref,
+                                        item,
+                                      )
+                                  : null,
                             );
                           },
                         ),
@@ -237,14 +249,20 @@ class _SearchBar extends StatelessWidget {
 }
 
 class _CompletedWishCard extends StatelessWidget {
-  const _CompletedWishCard({required this.item, required this.userId});
+  const _CompletedWishCard({
+    required this.item,
+    required this.userId,
+    required this.onOptionsPressed,
+  });
 
   final CompletedWishWithDetails item;
 
   /// See [CompletedWishesScreen.userId]
   final String? userId;
 
-  bool get _canUncomplete => userId == null;
+  /// Opens the options of the wish: null for another user's wishes, which are
+  /// read-only.
+  final VoidCallback? onOptionsPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -320,12 +338,12 @@ class _CompletedWishCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (_canUncomplete) ...[
+              if (onOptionsPressed case final onOptionsPressed?) ...[
                 const Gap(8),
                 IconButton(
-                  icon: const Icon(Icons.undo, color: AppColors.makara),
-                  tooltip: l10n.unmarkWishAsCompleted,
-                  onPressed: () => showUncompleteWishBottomSheet(context, item),
+                  icon: const Icon(Icons.more_vert, color: AppColors.makara),
+                  tooltip: l10n.completedWishOptions,
+                  onPressed: onOptionsPressed,
                 ),
               ],
             ],

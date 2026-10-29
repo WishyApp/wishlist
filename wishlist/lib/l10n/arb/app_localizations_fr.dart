@@ -505,6 +505,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get modifyCompletedQuantity => 'Modifier la quantité complétée';
 
   @override
+  String get completedWishOptions => 'Options du wish';
+
+  @override
+  String get modifyCompletionDate => 'Modifier la date de complétion';
+
+  @override
   String get cancelBookingDialogTitle => 'Annuler la réservation';
 
   @override
@@ -754,10 +760,50 @@ class AppLocalizationsFr extends AppLocalizations {
   String get friendCompletedWishesTitle => 'Wishs complétés';
 
   @override
-  String get completeSelectedWishes => 'Compléter';
+  String get seeAllCompletedWishes => 'Tout voir';
 
   @override
-  String get seeAllCompletedWishes => 'Tout voir';
+  String completionDateDialogTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Quand les as-tu reçus ?',
+      one: 'Quand l\'as-tu reçu ?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String completionDateDialogExplanation(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Sélectionne la date à laquelle ces $count wishs t\'ont été offerts.',
+      one: 'Sélectionne la date à laquelle ce wish t\'a été offert.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get completeButton => 'Compléter';
+
+  @override
+  String get continueButton => 'Continuer';
+
+  @override
+  String wishesCompletedSnackBar(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Ajoutés à tes wishs complétés !',
+      one: 'Ajouté à tes wishs complétés !',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get snackBarSeeAction => 'Voir';
 
   @override
   String get relativeDateToday => 'Aujourd\'hui';
@@ -855,7 +901,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get wishlistExitSelection => 'Quitter la sélection';
 
   @override
-  String get wishlistSelectionComplete => 'Valider';
+  String get wishlistSelectionComplete => 'Compléter';
 
   @override
   String get wishlistSelectionMove => 'Déplacer';

@@ -505,6 +505,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modifyCompletedQuantity => 'Modify completed quantity';
 
   @override
+  String get completedWishOptions => 'Wish options';
+
+  @override
+  String get modifyCompletionDate => 'Change the completion date';
+
+  @override
   String get cancelBookingDialogTitle => 'Cancel booking';
 
   @override
@@ -752,10 +758,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get friendCompletedWishesTitle => 'Completed wishes';
 
   @override
-  String get completeSelectedWishes => 'Complete';
+  String get seeAllCompletedWishes => 'See all';
 
   @override
-  String get seeAllCompletedWishes => 'See all';
+  String completionDateDialogTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'When did you receive them?',
+      one: 'When did you receive it?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String completionDateDialogExplanation(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Select the date these $count wishes were given to you.',
+      one: 'Select the date this wish was given to you.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get completeButton => 'Complete';
+
+  @override
+  String get continueButton => 'Continue';
+
+  @override
+  String wishesCompletedSnackBar(int count) {
+    return 'Added to your completed wishes!';
+  }
+
+  @override
+  String get snackBarSeeAction => 'See';
 
   @override
   String get relativeDateToday => 'Today';

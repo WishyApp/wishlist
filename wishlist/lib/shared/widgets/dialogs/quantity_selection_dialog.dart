@@ -297,6 +297,10 @@ Future<void> _handleQuantitySelectionConfirm(
   }
 }
 
+/// Asks how many of [wish] were received, then completes them on the day of
+/// [completedAt], or with [isModifying], changes the completed quantity.
+/// The wish is named: several dialogs follow each other when completing a
+/// selection.
 Future<bool> showCompleteWishQuantityDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -304,7 +308,12 @@ Future<bool> showCompleteWishQuantityDialog(
   int initialQuantity = 1,
   bool isModifying = false,
   int alreadyCompletedQuantity = 0,
+  DateTime? completedAt,
 }) async {
+  assert(
+    isModifying || completedAt != null,
+    'A completion needs the day the wish was received',
+  );
   final l10n = context.l10n;
   var selectedQuantity = initialQuantity;
   final isValidNotifier = ValueNotifier<bool>(true);
@@ -313,17 +322,30 @@ Future<bool> showCompleteWishQuantityDialog(
   await showAppDialog(
     context,
     title: l10n.selectQuantityToComplete,
-    content: _QuantitySelectionDialogContent(
-      maxQuantity: isModifying
-          ? wish.quantity
-          : wish.quantity - alreadyCompletedQuantity,
-      initialQuantity: initialQuantity,
-      onQuantityChanged: (quantity) {
-        selectedQuantity = quantity;
-      },
-      onValidationChanged: (valid) {
-        isValidNotifier.value = valid;
-      },
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          wish.name,
+          style: AppTextStyles.small.copyWith(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const Gap(16),
+        _QuantitySelectionDialogContent(
+          maxQuantity: isModifying
+              ? wish.quantity
+              : wish.quantity - alreadyCompletedQuantity,
+          initialQuantity: initialQuantity,
+          onQuantityChanged: (quantity) {
+            selectedQuantity = quantity;
+          },
+          onValidationChanged: (valid) {
+            isValidNotifier.value = valid;
+          },
+        ),
+      ],
     ),
     confirmButtonLabel: l10n.confirmDialogConfirmButtonLabel,
     isConfirmEnabled: isValidNotifier,
@@ -337,9 +359,11 @@ Future<bool> showCompleteWishQuantityDialog(
               newQuantity: selectedQuantity,
             );
       } else {
-        await ref
-            .read(completedWishMutationsProvider.notifier)
-            .markAsCompleted(wish, quantity: selectedQuantity);
+        await ref.read(completedWishMutationsProvider.notifier).markAsCompleted(
+              wish,
+              quantity: selectedQuantity,
+              completedAt: completedAt!,
+            );
       }
       confirmed = true;
     },

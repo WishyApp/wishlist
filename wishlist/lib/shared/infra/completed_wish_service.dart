@@ -10,13 +10,18 @@ class CompletedWishService {
   final UserCompletedWishRepository _repository;
   final UserService _userService;
 
-  Future<void> markAsCompleted(Wish wish, {int quantity = 1}) async {
+  Future<void> markAsCompleted(
+    Wish wish, {
+    int quantity = 1,
+    required DateTime completedAt,
+  }) async {
     final userId = _userService.getCurrentUserId();
     await _repository.markAsCompleted(
       userId: userId,
       wishId: wish.id,
       fromWishlistId: wish.wishlistId,
       quantity: quantity,
+      completedAt: completedAt,
     );
   }
 
@@ -29,6 +34,18 @@ class CompletedWishService {
       userId: userId,
       wishId: wishId,
       newQuantity: newQuantity,
+    );
+  }
+
+  Future<void> updateCompletionDate({
+    required int wishId,
+    required DateTime completedAt,
+  }) async {
+    final userId = _userService.getCurrentUserId();
+    await _repository.updateCompletionDate(
+      userId: userId,
+      wishId: wishId,
+      completedAt: completedAt,
     );
   }
 

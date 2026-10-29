@@ -38,6 +38,7 @@ dependencies:
   app_links: ^6.3.2
   async_value_group: ^1.0.1
   cached_network_image: ^3.3.1
+  clock: ^1.1.2
   crypto: ^3.0.8
   cupertino_icons: ^1.0.6
   currency_formatter: ^2.2.1

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:adaptive_test/adaptive_test.dart';
+import 'package:clock/clock.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
+import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wish_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_selection_action_bar.dart';
@@ -41,6 +43,10 @@ import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
 import '../../../fixtures/mock_supabase.dart';
 import '../../../pump_app.dart';
+
+/// The day the completion tests run on, read by the date dialog from the clock
+final _completionDay = DateTime(2026, 3, 5);
+final _lateOnCompletionDay = DateTime(2026, 3, 5, 23, 59, 59);
 
 class _MockUserCompletedWishRepository extends Mock
     implements UserCompletedWishRepository {}
@@ -670,8 +676,11 @@ void main() {
     );
   });
 
-  testWidgets('completes the selected wish with its default quantity',
-      (tester) async {
+  testWidgets(
+      'completes the selected wish on the picked day with its default '
+      'quantity', (tester) async {
+    registerFallbackValue(DateTime(2000));
+    final l10n = AppLocalizationsFr();
     final repository = _MockUserCompletedWishRepository();
     when(
       () => repository.markAsCompleted(
@@ -679,6 +688,7 @@ void main() {
         wishId: any(named: 'wishId'),
         fromWishlistId: any(named: 'fromWishlistId'),
         quantity: any(named: 'quantity'),
+        completedAt: any(named: 'completedAt'),
       ),
     ).thenAnswer((_) async {});
 
@@ -698,8 +708,37 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 1));
     await tester.longPress(find.text(fakeWish1.name));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.check_circle_outline));
+    // The dialog takes the day from the clock: late, to catch a test that
+    // would read the real time
+    await withClock(
+      Clock.fixed(_lateOnCompletionDay),
+      () => tester.tap(find.byIcon(Icons.check_circle_outline)),
+    );
     await tester.pumpAndSettle();
+
+    // The day is asked first, for the one selected wish, named
+    expect(find.text(l10n.completionDateDialogExplanation(1)), findsOneWidget);
+    expect(find.text(fakeWish1.name), findsNWidgets(2));
+    verifyNever(
+      () => repository.markAsCompleted(
+        userId: any(named: 'userId'),
+        wishId: any(named: 'wishId'),
+        fromWishlistId: any(named: 'fromWishlistId'),
+        quantity: any(named: 'quantity'),
+        completedAt: any(named: 'completedAt'),
+      ),
+    );
+
+    // Today, picked by default
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(PrimaryButton),
+      ),
+    );
+    // Not settled: the snackbar would be gone
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     verify(
       () => repository.markAsCompleted(
@@ -707,9 +746,157 @@ void main() {
         wishId: fakeWish1.id,
         fromWishlistId: fakeWishlist1.id,
         quantity: 1,
+        completedAt: _completionDay,
       ),
     ).called(1);
+    expect(find.text(l10n.wishesCompletedSnackBar(1)), findsOneWidget);
+    expect(find.text(l10n.snackBarSeeAction), findsOneWidget);
+    await tester.pumpAndSettle();
     expect(find.byIcon(Icons.add), findsOneWidget);
+  });
+
+  testWidgets(
+      'completes a mixed selection on the picked day, naming each wish '
+      'whose quantity is asked', (tester) async {
+    registerFallbackValue(DateTime(2000));
+    final l10n = AppLocalizationsFr();
+    final repository = _MockUserCompletedWishRepository();
+    when(
+      () => repository.markAsCompleted(
+        userId: any(named: 'userId'),
+        wishId: any(named: 'wishId'),
+        fromWishlistId: any(named: 'fromWishlistId'),
+        quantity: any(named: 'quantity'),
+        completedAt: any(named: 'completedAt'),
+      ),
+    ).thenAnswer((_) async {});
+    final severalWish = fakeWish2.copyWith(quantity: 3);
+
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 1).location,
+      overrides: [
+        ...wishlistScreenOverrides(
+          wishlistId: 1,
+          wishlist: fakeWishlist1,
+          wishes: [fakeWish1, severalWish],
+          currentUserId: fakeCurrentUserId,
+        ),
+        userCompletedWishRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await tester.longPress(find.text(fakeWish1.name));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.wishlistSelectAll));
+    await tester.pumpAndSettle();
+    // The dialog takes the day from the clock: late, to catch a test that
+    // would read the real time
+    await withClock(
+      Clock.fixed(_lateOnCompletionDay),
+      () => tester.tap(find.byIcon(Icons.check_circle_outline)),
+    );
+    await tester.pumpAndSettle();
+
+    // A quantity follows: the day dialog continues
+    expect(find.text(l10n.completionDateDialogExplanation(2)), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text(l10n.continueButton),
+      ),
+      findsWidgets,
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(PrimaryButton),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The quantity dialog names its wish
+    expect(find.text(l10n.selectQuantityToComplete), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text(severalWish.name),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(PrimaryButton),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    for (final (wish, quantity) in [(fakeWish1, 1), (severalWish, 1)]) {
+      verify(
+        () => repository.markAsCompleted(
+          userId: fakeCurrentUserId,
+          wishId: wish.id,
+          fromWishlistId: fakeWishlist1.id,
+          quantity: quantity,
+          completedAt: _completionDay,
+        ),
+      ).called(1);
+    }
+    expect(find.text(l10n.wishesCompletedSnackBar(2)), findsOneWidget);
+
+    // "Voir" opens the completed wishes
+    await tester.tap(find.text(l10n.snackBarSeeAction));
+    await tester.pumpAndSettle();
+    expect(find.byType(CompletedWishesScreen), findsOneWidget);
+  });
+
+  testWidgets('completes nothing when the day is not picked', (tester) async {
+    final l10n = AppLocalizationsFr();
+    final repository = _MockUserCompletedWishRepository();
+
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 1).location,
+      overrides: [
+        ...wishlistScreenOverrides(
+          wishlistId: 1,
+          wishlist: fakeWishlist1,
+          wishes: fakeWishes,
+          currentUserId: fakeCurrentUserId,
+        ),
+        userCompletedWishRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await tester.longPress(find.text(fakeWish1.name));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.wishlistSelectAll));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.check_circle_outline));
+    await tester.pumpAndSettle();
+
+    // Several wishes: the plural, without a name
+    final count = fakeWishes.length;
+    expect(
+      find.text(l10n.completionDateDialogExplanation(count)),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(SecondaryButton),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    verifyZeroInteractions(repository);
+    expect(
+      find.text(l10n.completionDateDialogExplanation(count)),
+      findsNothing,
+    );
   });
 
   testWidgets('does not rebuild the screen root when typing in the search',

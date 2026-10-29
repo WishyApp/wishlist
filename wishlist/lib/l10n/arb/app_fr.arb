@@ -162,6 +162,8 @@
   "cancelBooking": "Annuler ma réservation",
   "modifyBooking": "Modifier ma réservation",
   "modifyCompletedQuantity": "Modifier la quantité complétée",
+  "completedWishOptions": "Options du wish",
+  "modifyCompletionDate": "Modifier la date de complétion",
   "cancelBookingDialogTitle": "Annuler la réservation",
   "cancelBookingDialogExplanation": "Es-tu sûr de vouloir annuler cette réservation ?",
   "noDescription": "Aucune description",
@@ -268,8 +270,34 @@
   "unmarkWishArchivedConfirmMessage": "Choisis une wishlist dans laquelle remettre ce wish.",
   "deletedWishlist": "Wishlist supprimée",
   "friendCompletedWishesTitle": "Wishs complétés",
-  "completeSelectedWishes": "Compléter",
   "seeAllCompletedWishes": "Tout voir",
+  "completionDateDialogTitle": "{count, plural, =1{Quand l'as-tu reçu ?} other{Quand les as-tu reçus ?}}",
+  "@completionDateDialogTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "completionDateDialogExplanation": "{count, plural, =1{Sélectionne la date à laquelle ce wish t'a été offert.} other{Sélectionne la date à laquelle ces {count} wishs t'ont été offerts.}}",
+  "@completionDateDialogExplanation": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "completeButton": "Compléter",
+  "continueButton": "Continuer",
+  "wishesCompletedSnackBar": "{count, plural, =1{Ajouté à tes wishs complétés !} other{Ajoutés à tes wishs complétés !}}",
+  "@wishesCompletedSnackBar": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "snackBarSeeAction": "Voir",
   "relativeDateToday": "Aujourd'hui",
   "relativeDateYesterday": "Hier",
   "relativeDateDaysAgo": "Il y a {count} jours",
@@ -334,7 +362,7 @@
   },
   "wishlistSelectAll": "Tout sélectionner",
   "wishlistExitSelection": "Quitter la sélection",
-  "wishlistSelectionComplete": "Valider",
+  "wishlistSelectionComplete": "Compléter",
   "wishlistSelectionMove": "Déplacer",
   "wishlistSelectionDelete": "Supprimer",
   "wishlistSettingsTitle": "Paramètres",

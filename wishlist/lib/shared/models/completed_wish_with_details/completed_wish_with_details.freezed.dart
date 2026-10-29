@@ -32,7 +32,9 @@ mixin _$CompletedWishWithDetails {
   String get ownerId => throw _privateConstructorUsedError;
   @JsonKey(name: 'owner_avatar_url')
   String? get ownerAvatarUrl => throw _privateConstructorUsedError;
-  @JsonKey(name: 'created_at')
+
+  /// The day the wish was received (local midnight)
+  @JsonKey(name: 'completed_at')
   DateTime get completedAt => throw _privateConstructorUsedError;
   @JsonKey(name: 'quantity')
   int get quantity => throw _privateConstructorUsedError;
@@ -60,7 +62,7 @@ abstract class $CompletedWishWithDetailsCopyWith<$Res> {
       @JsonKey(name: 'owner_pseudo') String ownerPseudo,
       @JsonKey(name: 'owner_id') String ownerId,
       @JsonKey(name: 'owner_avatar_url') String? ownerAvatarUrl,
-      @JsonKey(name: 'created_at') DateTime completedAt,
+      @JsonKey(name: 'completed_at') DateTime completedAt,
       @JsonKey(name: 'quantity') int quantity});
 }
 
@@ -142,7 +144,7 @@ abstract class _$$CompletedWishWithDetailsImplCopyWith<$Res>
       @JsonKey(name: 'owner_pseudo') String ownerPseudo,
       @JsonKey(name: 'owner_id') String ownerId,
       @JsonKey(name: 'owner_avatar_url') String? ownerAvatarUrl,
-      @JsonKey(name: 'created_at') DateTime completedAt,
+      @JsonKey(name: 'completed_at') DateTime completedAt,
       @JsonKey(name: 'quantity') int quantity});
 }
 
@@ -217,7 +219,7 @@ class _$CompletedWishWithDetailsImpl extends _CompletedWishWithDetails {
       @JsonKey(name: 'owner_pseudo') required this.ownerPseudo,
       @JsonKey(name: 'owner_id') required this.ownerId,
       @JsonKey(name: 'owner_avatar_url') this.ownerAvatarUrl,
-      @JsonKey(name: 'created_at') required this.completedAt,
+      @JsonKey(name: 'completed_at') required this.completedAt,
       @JsonKey(name: 'quantity') required this.quantity})
       : super._();
 
@@ -241,8 +243,10 @@ class _$CompletedWishWithDetailsImpl extends _CompletedWishWithDetails {
   @override
   @JsonKey(name: 'owner_avatar_url')
   final String? ownerAvatarUrl;
+
+  /// The day the wish was received (local midnight)
   @override
-  @JsonKey(name: 'created_at')
+  @JsonKey(name: 'completed_at')
   final DateTime completedAt;
   @override
   @JsonKey(name: 'quantity')
@@ -313,7 +317,7 @@ abstract class _CompletedWishWithDetails extends CompletedWishWithDetails {
           @JsonKey(name: 'owner_pseudo') required final String ownerPseudo,
           @JsonKey(name: 'owner_id') required final String ownerId,
           @JsonKey(name: 'owner_avatar_url') final String? ownerAvatarUrl,
-          @JsonKey(name: 'created_at') required final DateTime completedAt,
+          @JsonKey(name: 'completed_at') required final DateTime completedAt,
           @JsonKey(name: 'quantity') required final int quantity}) =
       _$CompletedWishWithDetailsImpl;
   const _CompletedWishWithDetails._() : super._();
@@ -338,8 +342,10 @@ abstract class _CompletedWishWithDetails extends CompletedWishWithDetails {
   @override
   @JsonKey(name: 'owner_avatar_url')
   String? get ownerAvatarUrl;
+
+  /// The day the wish was received (local midnight)
   @override
-  @JsonKey(name: 'created_at')
+  @JsonKey(name: 'completed_at')
   DateTime get completedAt;
   @override
   @JsonKey(name: 'quantity')

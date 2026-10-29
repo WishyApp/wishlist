@@ -968,6 +968,18 @@ abstract class AppLocalizations {
   /// **'Modifier la quantité complétée'**
   String get modifyCompletedQuantity;
 
+  /// No description provided for @completedWishOptions.
+  ///
+  /// In fr, this message translates to:
+  /// **'Options du wish'**
+  String get completedWishOptions;
+
+  /// No description provided for @modifyCompletionDate.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier la date de complétion'**
+  String get modifyCompletionDate;
+
   /// No description provided for @cancelBookingDialogTitle.
   ///
   /// In fr, this message translates to:
@@ -1394,17 +1406,47 @@ abstract class AppLocalizations {
   /// **'Wishs complétés'**
   String get friendCompletedWishesTitle;
 
-  /// No description provided for @completeSelectedWishes.
-  ///
-  /// In fr, this message translates to:
-  /// **'Compléter'**
-  String get completeSelectedWishes;
-
   /// No description provided for @seeAllCompletedWishes.
   ///
   /// In fr, this message translates to:
   /// **'Tout voir'**
   String get seeAllCompletedWishes;
+
+  /// No description provided for @completionDateDialogTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =1{Quand l\'as-tu reçu ?} other{Quand les as-tu reçus ?}}'**
+  String completionDateDialogTitle(int count);
+
+  /// No description provided for @completionDateDialogExplanation.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =1{Sélectionne la date à laquelle ce wish t\'a été offert.} other{Sélectionne la date à laquelle ces {count} wishs t\'ont été offerts.}}'**
+  String completionDateDialogExplanation(int count);
+
+  /// No description provided for @completeButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Compléter'**
+  String get completeButton;
+
+  /// No description provided for @continueButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer'**
+  String get continueButton;
+
+  /// No description provided for @wishesCompletedSnackBar.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =1{Ajouté à tes wishs complétés !} other{Ajoutés à tes wishs complétés !}}'**
+  String wishesCompletedSnackBar(int count);
+
+  /// No description provided for @snackBarSeeAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir'**
+  String get snackBarSeeAction;
 
   /// No description provided for @relativeDateToday.
   ///
@@ -1499,7 +1541,7 @@ abstract class AppLocalizations {
   /// No description provided for @wishlistSelectionComplete.
   ///
   /// In fr, this message translates to:
-  /// **'Valider'**
+  /// **'Compléter'**
   String get wishlistSelectionComplete;
 
   /// No description provided for @wishlistSelectionMove.

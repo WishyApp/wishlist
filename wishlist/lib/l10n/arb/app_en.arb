@@ -145,6 +145,8 @@
   "cancelBooking": "Cancel my booking",
   "modifyBooking": "Modify my booking",
   "modifyCompletedQuantity": "Modify completed quantity",
+  "completedWishOptions": "Wish options",
+  "modifyCompletionDate": "Change the completion date",
   "cancelBookingDialogTitle": "Cancel booking",
   "cancelBookingDialogExplanation": "Are you sure you want to cancel this booking?",
   "noDescription": "No description",
@@ -251,8 +253,34 @@
   "unmarkWishArchivedConfirmMessage": "Choose a wishlist in which to restore this wish.",
   "deletedWishlist": "Deleted wishlist",
   "friendCompletedWishesTitle": "Completed wishes",
-  "completeSelectedWishes": "Complete",
   "seeAllCompletedWishes": "See all",
+  "completionDateDialogTitle": "{count, plural, =1{When did you receive it?} other{When did you receive them?}}",
+  "@completionDateDialogTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "completionDateDialogExplanation": "{count, plural, =1{Select the date this wish was given to you.} other{Select the date these {count} wishes were given to you.}}",
+  "@completionDateDialogExplanation": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "completeButton": "Complete",
+  "continueButton": "Continue",
+  "wishesCompletedSnackBar": "Added to your completed wishes!",
+  "@wishesCompletedSnackBar": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "snackBarSeeAction": "See",
   "relativeDateToday": "Today",
   "relativeDateYesterday": "Yesterday",
   "relativeDateDaysAgo": "{count} days ago",
