@@ -234,6 +234,21 @@ void main() {
       );
     });
 
+    test('only my open wishlists count for the birthday one', () {
+      final open = wishlist(1, 'Vacances');
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [
+          open,
+          wishlist(2, 'Ancienne', isClosed: true),
+          wishlist(3, 'Autre', owner: 'other'),
+        ],
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, open);
+    });
+
     test('the birthday itself gives nothing', () {
       expect(build(now, mine: const Birthday(month: 10, day: 30)), isEmpty);
     });
@@ -690,6 +705,14 @@ void main() {
         build(DateTime(2026, 12, 25, 9), [wishlist(1, 'Vacances')]),
         isEmpty,
       );
+    });
+
+    test('December 24 without a Christmas wishlist still gives the card', () {
+      final content =
+          build(DateTime(2026, 12, 24, 9)).single.content as Christmas;
+
+      expect(content.days, 1);
+      expect(content.wishlist, isNull);
     });
 
     test('December 26 gives nothing', () {

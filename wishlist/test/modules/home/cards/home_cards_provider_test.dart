@@ -26,6 +26,7 @@ import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/card_state.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/profile.dart';
+import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
@@ -518,6 +519,7 @@ void main() {
 
   group('reloads', () {
     late BehaviorSubject<FriendsData> friendsStream;
+    late BehaviorSubject<List<Wishlist>> wishlistsStream;
     late ProviderContainer container;
 
     FriendsData friendsWith(String avatar, {bool second = true}) {
@@ -540,6 +542,8 @@ void main() {
       // Replays its last value: the provider may resubscribe.
       friendsStream = BehaviorSubject<FriendsData>();
       addTearDown(friendsStream.close);
+      wishlistsStream = BehaviorSubject.seeded([fakeWishlist1]);
+      addTearDown(wishlistsStream.close);
       container = ProviderContainer(
         overrides: [
           ...homeScreenOverrides(
@@ -549,6 +553,8 @@ void main() {
           ),
           friendshipsRealtimeProvider
               .overrideWith((ref) => friendsStream.stream),
+          wishlistsRealtimeProvider
+              .overrideWith((ref) => wishlistsStream.stream),
           currentUserBirthdayOverride(
             birthday: const Birthday(month: 1, day: 1),
           ),
@@ -578,6 +584,14 @@ void main() {
 
       verify(() => homeCards.getActiveCards()).called(1);
       verify(() => cardStates.getStates(any())).called(1);
+    });
+
+    test('closing a wishlist reloads the cards', () async {
+      wishlistsStream.add([fakeWishlist1.copyWith(isClosed: true)]);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await container.read(homeCardsProvider.future);
+
+      verify(() => cardStates.getStates(any())).called(2);
     });
 
     test('a new friend reloads the cards but not the definitions', () async {

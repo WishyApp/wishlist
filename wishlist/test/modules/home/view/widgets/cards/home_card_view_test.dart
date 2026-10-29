@@ -150,6 +150,12 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Tu as été gâté ?'), findsOneWidget);
+      expect(
+        find.text(
+          'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.',
+        ),
+        findsNothing,
+      );
       await tapAndExpectPath(tester, "Cocher ce que j'ai reçu", '/wishlist/1');
     });
 
@@ -161,6 +167,12 @@ void main() {
 
       expect(find.text("Noël, c'était hier"), findsOneWidget);
       expect(find.text('Le Père Noël est passé ?'), findsOneWidget);
+      expect(
+        find.text(
+          'Ouvre la bonne liste ci-dessous pour cocher ce que tu as reçu.',
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('after the party without a wishlist has no button',
@@ -344,6 +356,15 @@ void main() {
 
       expect(find.text('Noël dans 12 jours'), findsOneWidget);
       expect(find.text('Ta liste « Noël » a 2 wishs'), findsOneWidget);
+      await tapAndExpectPath(tester, 'Compléter', '/wishlist/2');
+    });
+
+    testWidgets('Christmas tomorrow is still the countdown, not the day',
+        (tester) async {
+      await pumpCard(tester, card(Christmas(1, fakeWishlist2)));
+
+      expect(find.text('Ta liste « Noël » a 2 wishs'), findsOneWidget);
+      expect(find.text("C'est Noël !"), findsNothing);
       await tapAndExpectPath(tester, 'Compléter', '/wishlist/2');
     });
 

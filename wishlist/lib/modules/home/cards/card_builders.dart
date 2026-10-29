@@ -112,8 +112,9 @@ List<HomeCardCandidate> friendBirthdayCards({
 
 /// The day after the user's birthday or after Christmas, up to `days_after`
 /// days. The wishlist of Christmas is found by its name; the one of the
-/// birthday is the only wishlist, if there is just one. Nothing is offered to
-/// a user who has no open wishlist of their own, as there is nothing to tick.
+/// birthday is the only open wishlist of the user, if there is just one.
+/// Nothing is offered to a user who has no open wishlist of their own, as
+/// there is nothing to tick.
 List<HomeCardCandidate> afterPartyCards({
   required Birthday? myBirthday,
   required List<Wishlist> wishlists,
@@ -122,8 +123,13 @@ List<HomeCardCandidate> afterPartyCards({
   required HomeCardDefinition? christmas,
   required DateTime now,
 }) {
-  if (definition == null ||
-      !wishlists.any((w) => w.idOwner == userId && !w.isClosed)) {
+  // Deliberately ignores endDate: a birthday list past its end date is
+  // exactly the one to tick.
+  final openOwn = [
+    for (final w in wishlists)
+      if (w.idOwner == userId && !w.isClosed) w,
+  ];
+  if (definition == null || openOwn.isEmpty) {
     return const [];
   }
   final today = _day(now);
@@ -142,7 +148,7 @@ List<HomeCardCandidate> afterPartyCards({
             content: AfterParty(
               AfterPartyOccasion.birthday,
               ago,
-              wishlists.length == 1 ? wishlists.single : null,
+              openOwn.length == 1 ? openOwn.single : null,
             ),
             eventAt: day,
           ),
