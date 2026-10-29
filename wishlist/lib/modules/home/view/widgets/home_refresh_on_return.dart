@@ -21,7 +21,7 @@ class HomeRefreshOnReturn extends ConsumerStatefulWidget {
 class _HomeRefreshOnReturnState extends ConsumerState<HomeRefreshOnReturn>
     with RouteAware {
   late final AppLifecycleListener _lifecycleListener;
-  ModalRoute<void>? _route;
+  PageRoute<void>? _route;
 
   @override
   void initState() {
@@ -38,7 +38,8 @@ class _HomeRefreshOnReturnState extends ConsumerState<HomeRefreshOnReturn>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final route = ModalRoute.of(context);
+    final modalRoute = ModalRoute.of(context);
+    final route = modalRoute is PageRoute<void> ? modalRoute : null;
     if (route != _route) {
       appRouteObserver.unsubscribe(this);
       _route = route;

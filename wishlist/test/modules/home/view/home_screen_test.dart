@@ -506,6 +506,25 @@ void main() {
       expect(cardLoads, 2);
     });
 
+    testWidgets('is not read again when a dialog over the home closes',
+        (tester) async {
+      await pumpHome(tester);
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+
+      unawaited(
+        showDialog<void>(
+          context: navigator.context,
+          builder: (_) => const Text('dialog'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      navigator.pop();
+      await tester.pumpAndSettle();
+
+      expect(reads, 1);
+      expect(cardLoads, 1);
+    });
+
     testWidgets('is read again when the app comes back to the foreground',
         (tester) async {
       await pumpHome(tester);
