@@ -145,6 +145,10 @@ UPDATE public.home_cards SET enabled = false, updated_at = now() WHERE key = 'ne
 UPDATE public.home_cards SET params = jsonb_set(params, '{highlight_days}', '3'), updated_at = now() WHERE key = 'christmas';
 ```
 
+## Purge annuelle des états de cartes
+
+La migration `20261030100001_user_card_states` crée le job pg_cron `purge-user-card-states` (le 2 janvier à 03:17 UTC), qui supprime les lignes de `user_card_states` inactives depuis plus d'un an. Exception : un masque définitif (carte masquée sans report) est conservé, sauf si sa clé finit par une année `@AAAA` déjà passée. Désactiver pg_cron depuis le dashboard supprime ce job : il ne reviendrait qu'en rejouant la migration.
+
 ## Tester en local
 
 Docker doit tourner.
