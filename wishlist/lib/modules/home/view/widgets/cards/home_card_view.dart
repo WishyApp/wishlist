@@ -292,14 +292,9 @@ class HomeCardView extends ConsumerWidget {
           // Hides the card for `snooze_days` days, like the cross
           onAction: onHide,
           secondaryLabel: l10n.homeCardStaleReview,
-          onSecondary: () async {
-            await WishlistRoute(wishlistId: wishlist.id).push(context);
-            // Wishes may have been added or edited: the list may not be stale
-            // anymore, and the cards only reload on a change of the wishlists
-            if (context.mounted) {
-              ref.invalidate(homeCardsProvider);
-            }
-          },
+          // The home reads the last activity again when it comes back
+          onSecondary: () =>
+              WishlistRoute(wishlistId: wishlist.id).push(context),
           illustration: Assets.svg.noWishFlashlight,
         );
       case YearRecap(:final facts):
