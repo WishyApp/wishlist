@@ -1,8 +1,6 @@
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wishlist/modules/completed_wishes/view/completed_wishes_screen.dart';
-import 'package:wishlist/modules/profile/view/edit_profile_screen.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
 import 'package:wishlist/modules/settings/widgets/settings_line.dart';
 import 'package:wishlist/shared/models/birthday.dart';
@@ -109,32 +107,16 @@ void main() {
     expect(find.byType(EditableAvatar), findsNothing);
   });
 
-  // Temporary lines, removed with the new home (header and received wishes
-  // row).
-  testWidgets('opens the edit profile page', (tester) async {
+  testWidgets('no longer holds the profile or the received wishes',
+      (tester) async {
     await tester.pumpRouterApp(
       SettingsRoute().location,
       overrides: settingsScreenOverrides(),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Modifier le profil'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(EditProfileScreen), findsOneWidget);
-  });
-
-  testWidgets('opens the completed wishes', (tester) async {
-    await tester.pumpRouterApp(
-      SettingsRoute().location,
-      overrides: settingsScreenOverrides(),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Mes wishs complétés'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(CompletedWishesScreen), findsOneWidget);
+    expect(find.text('Modifier le profil'), findsNothing);
+    expect(find.text('Mes wishs complétés'), findsNothing);
   });
 
   testWidgets('ends right above the home indicator', (tester) async {

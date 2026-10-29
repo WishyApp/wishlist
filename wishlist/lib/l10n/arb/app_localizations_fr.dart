@@ -745,9 +745,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get unmarkWishAsCompleted => 'Retirer des complétés';
 
   @override
-  String get settingsCompletedWishes => 'Mes wishs complétés';
-
-  @override
   String get unmarkWishConfirmTitle => 'Retirer des wishs complétés';
 
   @override

@@ -4,9 +4,11 @@ import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/home/view/home_screen.dart';
+import 'package:wishlist/modules/home/view/widgets/home_profile_header.dart';
 import 'package:wishlist/shared/infra/app_exception.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/navigation/floating_nav_bar_navigator.dart';
+import 'package:wishlist/shared/page_layout_empty/page_layout_empty.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 
 import '../../../fixtures/fake_data.dart';
@@ -71,6 +73,40 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.expectGolden<HomeScreen>(variant, suffix: 'error');
+  });
+
+  testWidgets('$HomeScreen shows the header above the wishlists',
+      (tester) async {
+    await tester.pumpApp(
+      const FloatingNavBarNavigator(
+        // ignore: avoid_redundant_argument_values
+        currentTab: FloatingNavBarTab.home,
+      ),
+      overrides: homeScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HomeProfileHeader), findsOneWidget);
+    expect(find.text('MonPseudo'), findsOneWidget);
+    expect(find.text('Mes wishlists'), findsOneWidget);
+    expect(find.text(fakeWishlists.first.name), findsWidgets);
+    expect(find.text('Pas encore de wishlist'), findsNothing);
+  });
+
+  testWidgets('$HomeScreen keeps the header without any wishlist',
+      (tester) async {
+    await tester.pumpApp(
+      const FloatingNavBarNavigator(
+        // ignore: avoid_redundant_argument_values
+        currentTab: FloatingNavBarTab.home,
+      ),
+      overrides: homeScreenOverrides(wishlists: []),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HomeProfileHeader), findsOneWidget);
+    expect(find.text('Pas encore de wishlist'), findsOneWidget);
+    expect(find.byType(PageLayoutEmpty), findsNothing);
   });
 
   testWidgets('$HomeScreen explains a network error and retries',

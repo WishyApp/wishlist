@@ -1382,12 +1382,6 @@ abstract class AppLocalizations {
   /// **'Retirer des complétés'**
   String get unmarkWishAsCompleted;
 
-  /// No description provided for @settingsCompletedWishes.
-  ///
-  /// In fr, this message translates to:
-  /// **'Mes wishs complétés'**
-  String get settingsCompletedWishes;
-
   /// No description provided for @unmarkWishConfirmTitle.
   ///
   /// In fr, this message translates to:

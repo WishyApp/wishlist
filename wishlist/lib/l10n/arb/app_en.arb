@@ -242,7 +242,6 @@
   "completedWishesEmptyTitle": "No completed wishes",
   "markWishAsCompleted": "Mark as completed",
   "unmarkWishAsCompleted": "Remove from completed",
-  "settingsCompletedWishes": "My completed wishes",
   "unmarkWishConfirmTitle": "Remove from completed",
   "unmarkWishConfirmMessage": "This wish will become visible again in the wishlist \"{wishlistName}\".",
   "@unmarkWishConfirmMessage": {
