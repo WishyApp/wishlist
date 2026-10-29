@@ -2,10 +2,10 @@ import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
-import 'package:wishlist/modules/settings/widgets/settings_line.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/widgets/avatar/editable_avatar.dart';
+import 'package:wishlist/shared/widgets/settings_line.dart';
 
 import '../../../fixtures/fake_providers.dart';
 import '../../../pump_app.dart';
@@ -36,7 +36,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.text('test@example.com'), findsNothing);
-    expect(find.text('Connecté avec'), findsNothing);
+    expect(find.text('Connecté en tant que'), findsNothing);
   });
 
   testWidgets('shows the current user email as an information line',
@@ -52,7 +52,7 @@ void main() {
       matching: find.byType(SettingsLine),
     );
     expect(
-      find.descendant(of: line, matching: find.text('Connecté avec')),
+      find.descendant(of: line, matching: find.text('Connecté en tant que')),
       findsOneWidget,
     );
     // Nothing to open: no arrow, no ripple

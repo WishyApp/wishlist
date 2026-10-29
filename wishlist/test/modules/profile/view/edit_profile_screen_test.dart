@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:adaptive_test/adaptive_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/profile/view/edit_profile_screen.dart';
 import 'package:wishlist/modules/settings/change_birthday/view/change_birthday_screen.dart';
 import 'package:wishlist/modules/settings/change_pseudo/view/change_pseudo_screen.dart';
@@ -134,5 +136,89 @@ void main() {
 
     expect(find.text('MonPseudo'), findsNothing);
     expect(find.text('—'), findsOneWidget);
+  });
+
+  testWidgets('goes back to the profile from a deep link to the birthday',
+      (tester) async {
+    await tester.pumpRouterApp(
+      ChangeBirthdayRoute().location,
+      overrides: settingsScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ChangeBirthdayScreen), findsOneWidget);
+
+    Navigator.of(tester.element(find.byType(ChangeBirthdayScreen))).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditProfileScreen), findsOneWidget);
+  });
+
+  testWidgets('goes back to the profile from a deep link to the pseudo',
+      (tester) async {
+    await tester.pumpRouterApp(
+      ChangePseudoRoute().location,
+      overrides: [
+        ...settingsScreenOverrides(),
+        ...changePseudoScreenOverrides(),
+      ],
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ChangePseudoScreen), findsOneWidget);
+
+    Navigator.of(tester.element(find.byType(ChangePseudoScreen))).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditProfileScreen), findsOneWidget);
+  });
+
+  testWidgets('keeps the profile routes under /profile', (tester) async {
+    expect(ChangePseudoRoute().location, '/profile/change-pseudo');
+    expect(ChangeBirthdayRoute().location, '/profile/change-birthday');
+  });
+
+  testWidgets('says what friends and list sharers can see', (tester) async {
+    await tester.pumpRouterApp(
+      EditProfileRoute().location,
+      overrides: settingsScreenOverrides(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        "Ton anniversaire n'est visible que par tes amis. Ta photo et ton "
+        'pseudo sont visibles par tes amis et par les personnes avec qui tu '
+        'partages une liste.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('ends right above the home indicator', (tester) async {
+    const inset = 34.0;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(400, 300);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpRouterApp(
+      EditProfileRoute().location,
+      overrides: settingsScreenOverrides(),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          padding: const EdgeInsets.only(bottom: inset),
+          viewPadding: const EdgeInsets.only(bottom: inset),
+        ),
+        child: child!,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final privacyNote = find.text(AppLocalizationsFr().editProfilePrivacy);
+    await tester.scrollUntilVisible(privacyNote, 100);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -2000));
+    await tester.pumpAndSettle();
+
+    // Clear of the home indicator and nothing more: no page padding stacked on
+    // the bottom inset.
+    expect(tester.getBottomLeft(privacyNote).dy, 300 - inset);
   });
 }

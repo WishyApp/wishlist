@@ -238,9 +238,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changePseudoSuccess => 'Pseudo changed successfully!';
 
   @override
-  String get settingsScreenBirthdayNotSet => 'Not set';
-
-  @override
   String get editProfileScreenTitle => 'Edit profile';
 
   @override
@@ -250,8 +247,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editProfileBirthday => 'Birthday';
 
   @override
+  String get editProfileBirthdayNotSet => 'Not set';
+
+  @override
   String get editProfilePrivacy =>
-      'Only your friends see your photo, username and birthday.';
+      'Your birthday is only visible to your friends. Your photo and pseudo are visible to your friends and to the people you share a list with.';
 
   @override
   String get changeBirthdayScreenTitle => 'Birthday';

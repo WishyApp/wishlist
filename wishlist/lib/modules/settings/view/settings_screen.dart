@@ -4,8 +4,6 @@ import 'package:gap/gap.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wishlist/l10n/l10n.dart';
-import 'package:wishlist/modules/settings/widgets/settings_line.dart';
-import 'package:wishlist/modules/settings/widgets/settings_section.dart';
 import 'package:wishlist/shared/infra/app_info_provider.dart';
 import 'package:wishlist/shared/infra/auth_service.dart';
 import 'package:wishlist/shared/infra/current_user_email_provider.dart';
@@ -16,6 +14,8 @@ import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/widgets/dialogs/confirm_dialog.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
+import 'package:wishlist/shared/widgets/settings_line.dart';
+import 'package:wishlist/shared/widgets/settings_section.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -76,81 +76,60 @@ class SettingsScreen extends ConsumerWidget {
     final appInfo = ref.watch(appInfoProvider);
     final hasPassword = ref.watch(currentUserHasPasswordProvider);
 
-    return PageLayout(
+    return PageLayout.scrolling(
       title: l10n.settingsScreenTitle,
-      // No bottom padding: the content scrolls under the home indicator and its
-      // SliverSafeArea keeps the last item clear of it, so the bottom inset is
-      // not stacked on a fixed margin. The minimum is for devices without an
-      // inset.
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: SafeArea(
-        bottom: false,
-        child: CustomScrollView(
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverSafeArea(
-              top: false,
-              left: false,
-              right: false,
-              minimum: const EdgeInsets.only(bottom: 16),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Gap(8),
-                    SettingsSection(
-                      title: l10n.settingsGeneral,
-                      children: [
-                        // Null in the frame after a sign-out, before the
-                        // redirect
-                        if (currentUserEmail != null)
-                          SettingsLine(
-                            title: l10n.settingsSignedInAs,
-                            value: currentUserEmail,
-                          ),
-                        if (hasPassword)
-                          SettingsLine(
-                            title: l10n.settingsScreenPasswordModify,
-                            onTap: () {
-                              ChangePasswordRoute().push(context);
-                            },
-                          ),
-                        SettingsLine(
-                          title: l10n.settingsScreenDeleteAccount,
-                          onTap: () {
-                            _onDeleteAccountTap(context, ref);
-                          },
-                        ),
-                      ],
-                    ),
-                    const Gap(16),
-                    SettingsSection(
-                      title: l10n.settingsAbout,
-                      children: [
-                        SettingsLine(
-                          title: l10n.settingsTermsOfUse,
-                          onTap: () => _onTermsOfUseTap(context),
-                        ),
-                        SettingsLine(
-                          title: l10n.settingsPrivacyPolicy,
-                          onTap: () => _onPrivacyPolicyTap(context),
-                        ),
-                      ],
-                    ),
-                    const Gap(24),
-                    PrimaryButton(
-                      text: l10n.settingsScreenDisconnect,
-                      onPressed: () => _onSignOutTap(context, ref),
-                      style: BaseButtonStyle.medium,
-                    ),
-                    const Gap(24),
-                    _AppVersionInfo(appInfo: appInfo),
-                  ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Gap(8),
+          SettingsSection(
+            title: l10n.settingsGeneral,
+            children: [
+              // Null in the frame after a sign-out, before the
+              // redirect
+              if (currentUserEmail != null)
+                SettingsLine(
+                  title: l10n.settingsSignedInAs,
+                  value: currentUserEmail,
                 ),
+              if (hasPassword)
+                SettingsLine(
+                  title: l10n.settingsScreenPasswordModify,
+                  onTap: () {
+                    ChangePasswordRoute().push(context);
+                  },
+                ),
+              SettingsLine(
+                title: l10n.settingsScreenDeleteAccount,
+                onTap: () {
+                  _onDeleteAccountTap(context, ref);
+                },
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          const Gap(16),
+          SettingsSection(
+            title: l10n.settingsAbout,
+            children: [
+              SettingsLine(
+                title: l10n.settingsTermsOfUse,
+                onTap: () => _onTermsOfUseTap(context),
+              ),
+              SettingsLine(
+                title: l10n.settingsPrivacyPolicy,
+                onTap: () => _onPrivacyPolicyTap(context),
+              ),
+            ],
+          ),
+          const Gap(24),
+          PrimaryButton(
+            text: l10n.settingsScreenDisconnect,
+            onPressed: () => _onSignOutTap(context, ref),
+            style: BaseButtonStyle.medium,
+          ),
+          const Gap(24),
+          _AppVersionInfo(appInfo: appInfo),
+        ],
       ),
     );
   }

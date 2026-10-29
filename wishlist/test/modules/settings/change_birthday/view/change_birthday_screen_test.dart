@@ -244,7 +244,7 @@ void main() {
       await flushSnackBar(tester);
 
       expect(find.text('14 mars'), findsNothing);
-      expect(find.text(l10n.settingsScreenBirthdayNotSet), findsOneWidget);
+      expect(find.text(l10n.editProfileBirthdayNotSet), findsOneWidget);
     });
 
     testWidgets(
