@@ -44,6 +44,12 @@
 --             the received quantity, so a gift received in December and
 --             corrected in January would change year. A partial receipt does
 --             not count.
+--             Product rule (Tanguy, 2026-10-29): a booking counts once the
+--             owner received at least the quantity this user booked, whatever
+--             the other bookers of the wish; two co-bookers of one unit each
+--             can both count it when one unit is received. It differs on
+--             purpose from isGiven in the app (all bookings received), used by
+--             the booked reminder card: do not align one on the other.
 --             bookings_total and last_minute_bookings follow the same rule
 --             on wishlists.
 --   longest awaited  the received wish with the longest wait, completed day
