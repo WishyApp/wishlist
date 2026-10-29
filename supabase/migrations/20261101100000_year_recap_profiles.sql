@@ -44,11 +44,10 @@
 --             on wishlists.
 --   longest awaited  the received wish with the longest wait, completed day
 --             minus creation day (Paris days), in the year.
--- Differences with the app, on purpose: the year is cut in Paris time, not in
--- the device time zone; the database sees every receipt, the app only the
--- ones its row level security lets through (they could differ for a booking
--- on a private wishlist, which the owner marks as received and the booker
--- cannot read: the app does not count it, the database does).
+-- Difference with the app, on purpose: the year is cut in Paris time, not in
+-- the device time zone. Receipts are the same on both sides: a booker can
+-- read the wishes they booked and their receipt, even on a private wishlist
+-- (can_read_wish).
 --
 -- last_minute_bookings uses the birthday of the wish owner only when the
 -- owner and the user are friends (accepted), the rule of can_read_birthday,
