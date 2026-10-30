@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/app_wave_pattern.dart';
+import 'package:wishlist/shared/widgets/share_icon_button.dart';
 
 class WishlistAppBar extends StatelessWidget implements PreferredSizeWidget {
   const WishlistAppBar({
@@ -10,7 +12,8 @@ class WishlistAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.wishlistTheme,
     required this.isMyWishlist,
     required this.canShareWishlist,
-    required this.onShare,
+    required this.shareParams,
+    required this.onShareError,
     required this.onSettings,
   });
 
@@ -22,8 +25,8 @@ class WishlistAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isMyWishlist;
   final bool canShareWishlist;
 
-  /// Gets the button's area: the iPad share sheet opens from it
-  final ValueChanged<Rect> onShare;
+  final ShareParams Function() shareParams;
+  final ValueChanged<Object> onShareError;
   final VoidCallback onSettings;
 
   @override
@@ -50,15 +53,9 @@ class WishlistAppBar extends StatelessWidget implements PreferredSizeWidget {
                   padding: EdgeInsets.only(
                     right: isMyWishlist ? 0 : 8,
                   ),
-                  child: Builder(
-                    builder: (buttonContext) => IconButton(
-                      icon: const Icon(Icons.share, size: 32),
-                      onPressed: () {
-                        final box =
-                            buttonContext.findRenderObject()! as RenderBox;
-                        onShare(box.localToGlobal(Offset.zero) & box.size);
-                      },
-                    ),
+                  child: ShareIconButton(
+                    params: shareParams,
+                    onError: onShareError,
                   ),
                 ),
               if (isMyWishlist)

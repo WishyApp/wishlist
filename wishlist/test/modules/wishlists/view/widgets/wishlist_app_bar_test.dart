@@ -1,34 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
+import 'package:wishlist/shared/widgets/share_icon_button.dart';
 
 import '../../../../pump_app.dart';
 
 void main() {
-  testWidgets('share passes the area of the button (iPad share sheet)', (
-    tester,
-  ) async {
-    Rect? origin;
-    await tester.pumpApp(
-      Scaffold(
+  Widget appBar({required bool canShare}) => Scaffold(
         appBar: WishlistAppBar(
           title: 'Noël',
           wishlistTheme: ThemeData(),
           isMyWishlist: true,
-          canShareWishlist: true,
-          onShare: (rect) => origin = rect,
+          canShareWishlist: canShare,
+          shareParams: () => ShareParams(text: 'Noël'),
+          onShareError: (_) {},
           onSettings: () {},
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.byIcon(Icons.share));
+  testWidgets('shows the share button when the wishlist can be shared', (
+    tester,
+  ) async {
+    await tester.pumpApp(appBar(canShare: true));
+    expect(find.byType(ShareIconButton), findsOneWidget);
+  });
 
-    final button = find.ancestor(
-      of: find.byIcon(Icons.share),
-      matching: find.byType(IconButton),
-    );
-    expect(origin, tester.getRect(button));
-    expect(origin!.isEmpty, isFalse);
+  testWidgets('hides the share button otherwise', (tester) async {
+    await tester.pumpApp(appBar(canShare: false));
+    expect(find.byType(ShareIconButton), findsNothing);
   });
 }
