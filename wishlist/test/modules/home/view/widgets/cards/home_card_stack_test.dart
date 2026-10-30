@@ -500,6 +500,40 @@ void main() {
     expect(find.text(_firstTitle), findsOneWidget);
   });
 
+  testWidgets('a card back after an undo, then after a reload, just shows',
+      (tester) async {
+    // Once sent, the loads do not have it, until it is back (the next day)
+    var sent = false;
+    await pump(tester, () async => sent ? cards.skip(1).toList() : cards);
+    final rest = tester.getTopLeft(_topCard).dx;
+    // Swiped, brought back, swiped again and sent
+    await tester.drag(find.text(_firstTitle), const Offset(500, 0));
+    await letItLeave(tester);
+    await tester.tap(find.text('Annuler'));
+    await tester.pumpAndSettle();
+    sent = true;
+    await tester.drag(find.text(_firstTitle), const Offset(500, 0));
+    await letItLeave(tester);
+    await finish(tester);
+    expect(find.text(_firstTitle), findsNothing);
+
+    sent = false;
+    ProviderScope.containerOf(tester.element(find.byType(HomeCardsSlot)))
+        .invalidate(homeCardsProvider);
+    // Up to the first frame that shows it again
+    for (var i = 0; i < 20 && find.text(_firstTitle).evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    // In place at once: it does not come in from the side of the undo
+    final card = find.ancestor(
+      of: find.text(_firstTitle),
+      matching: find.byType(HomeCardView),
+    );
+    expect(tester.getTopLeft(card).dx, moreOrLessEquals(rest, epsilon: 0.5));
+    await tester.pumpAndSettle();
+  });
+
   group('cards closed for good', () {
     final removal = HomeCardCandidate(
       type: 'booked_wish_removed',
@@ -987,10 +1021,21 @@ void main() {
           while (find.text(top).evaluate().isNotEmpty) {
             await tester.pump(const Duration(milliseconds: 16));
           }
+          // The slot is the pile and its margin at every frame: it neither
+          // cuts the cards nor leaves a gap under them
+          void expectSlotFollows() => expect(
+                tester.getSize(find.byType(HomeCardsSlot)).height,
+                moreOrLessEquals(
+                  tester.getSize(find.byType(HomeCardStack)).height + 16,
+                  epsilon: 0.5,
+                ),
+              );
           final heights = [drawn(next)];
+          expectSlotFollows();
           for (var i = 0; i < 30; i++) {
             await tester.pump(const Duration(milliseconds: 16));
             heights.add(drawn(next));
+            expectSlotFollows();
           }
 
           expect(heights.first, moreOrLessEquals(before, epsilon: 1));
@@ -1048,6 +1093,98 @@ void main() {
         expect(find.text('Carte masquée'), findsNothing);
         await finish(tester);
       });
+    });
+
+    testWidgets('a drag taken back by the system leaves the card there',
+        (tester) async {
+      await pump(tester, () async => cards);
+      final rest = tester.getTopLeft(_topCard).dx;
+      final card = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byType(HomeCardView),
+      );
+
+      // Past the threshold, then a call comes in: the pointer is cancelled
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text(_firstTitle)),
+      );
+      await gesture.moveBy(const Offset(-400, 0));
+      await tester.pump();
+      await gesture.cancel();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Carte masquée'), findsNothing);
+      expect(tester.getTopLeft(card).dx, moreOrLessEquals(rest, epsilon: 0.5));
+      verifyNever(
+        () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+      );
+    });
+
+    testWidgets('a card that cannot be swiped any more comes back mid-drag',
+        (tester) async {
+      var loads = 0;
+      final locked = HomeCardCandidate(
+        type: cards.first.type,
+        stateKey: cards.first.stateKey,
+        content: cards.first.content,
+        dismissable: false,
+      );
+      await pump(tester, () async {
+        loads++;
+        return loads == 1 ? cards : [locked, ...cards.skip(1)];
+      });
+      final rest = tester.getTopLeft(_topCard).dx;
+      final card = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byType(HomeCardView),
+      );
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text(_firstTitle)),
+      );
+      await gesture.moveBy(const Offset(-150, 0));
+      await tester.pump();
+      // A reload while the finger is on it: it cannot be hidden any more
+      ProviderScope.containerOf(tester.element(find.byType(HomeCardsSlot)))
+          .invalidate(homeCardsProvider);
+      await tester.pumpAndSettle();
+
+      expect(loads, 2);
+      expect(tester.getTopLeft(card).dx, moreOrLessEquals(rest, epsilon: 0.5));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.text('Carte masquée'), findsNothing);
+    });
+
+    testWidgets('with less motion, "Annuler" puts the card back at once',
+        (tester) async {
+      await tester.pumpApp(
+        Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: const Scaffold(
+              body: SafeArea(
+                child: SingleChildScrollView(child: HomeCardsSlot()),
+              ),
+            ),
+          ),
+        ),
+        overrides: overrides(() async => cards),
+      );
+      await tester.pumpAndSettle();
+      final rest = tester.getTopLeft(_topCard).dx;
+
+      await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+      await letItLeave(tester);
+      await tester.tap(find.text('Annuler'));
+      await tester.pump();
+
+      final card = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byType(HomeCardView),
+      );
+      expect(tester.getTopLeft(card).dx, moreOrLessEquals(rest, epsilon: 0.5));
+      await finish(tester);
     });
 
     testWidgets('a leaving card cannot be tapped', (tester) async {

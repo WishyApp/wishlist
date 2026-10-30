@@ -27,15 +27,41 @@ class HomeCardsSlot extends ConsumerStatefulWidget {
   ConsumerState<HomeCardsSlot> createState() => _HomeCardsSlotState();
 }
 
-class _HomeCardsSlotState extends ConsumerState<HomeCardsSlot> {
+class _HomeCardsSlotState extends ConsumerState<HomeCardsSlot>
+    with SingleTickerProviderStateMixin {
   /// An error snack-bar of this slot is on screen (or about to be): several
   /// sends failing at once (offline) tell the user once, not once per card.
   var _errorVisible = false;
 
-  /// The last card swiped away: when it comes back on top ("Undo", a failed
-  /// send), it comes back from the side it left by. Kept here: the stack is
-  /// gone while no card is left.
-  ({String key, HomeCardSwipe swipe})? _lastSwiped;
+  /// The card brought back by "Undo" and the side it left by: it comes back
+  /// from there. Read by the next build only: a card back for another reason
+  /// (a reload, the next day) just shows. Kept here: the stack is gone while
+  /// no card is left.
+  ({String key, HomeCardSwipe swipe})? _undone;
+
+  /// Whether the slot was empty at the last build.
+  bool? _wasEmpty;
+
+  /// The slot grows when cards come, shrinks when the last one goes. From
+  /// one card to the next, the pile animates its own height: the slot
+  /// follows it exactly.
+  late final AnimationController _appear = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 200),
+    value: 1,
+  );
+
+  /// The height the slot had when it started to grow or shrink.
+  double? _appearFrom;
+
+  /// The height of the slot as last drawn.
+  var _height = 0.0;
+
+  @override
+  void dispose() {
+    _appear.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,20 +94,33 @@ class _HomeCardsSlotState extends ConsumerState<HomeCardsSlot> {
       for (final card in cards ?? const <HomeCardCandidate>[])
         if (!removed.contains(card.stateKey)) card,
     ];
-    // The height animates when the last card goes, when an undo brings one
-    // back, and when the next card is not as tall as the one it replaces.
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 200),
-      alignment: Alignment.topCenter,
-      child: visible.isEmpty
+    final empty = visible.isEmpty;
+    // Not on the first build: the slot does not grow when the home opens
+    if (_wasEmpty != null && _wasEmpty != empty) {
+      _appearFrom = _height;
+      _appear.forward(from: 0);
+    }
+    _wasEmpty = empty;
+    final returning = _undone;
+    _undone = null;
+    return AnimatedBuilder(
+      animation: _appear,
+      builder: (context, child) => _ResizedFrom(
+        from: _appearFrom,
+        progress: Curves.easeInOut.transform(_appear.value),
+        // Not a state change: only read when the slot starts to resize
+        onHeight: (height) => _height = height,
+        child: child,
+      ),
+      child: empty
           ? const SizedBox(width: double.infinity)
           : Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: HomeCardStack(
                 cards: visible,
-                lastSwiped: _lastSwiped,
-                onSwiped: (key, swipe) =>
-                    setState(() => _lastSwiped = (key: key, swipe: swipe)),
+                returning: returning,
+                onUndo: (key, swipe) =>
+                    setState(() => _undone = (key: key, swipe: swipe)),
               ),
             ),
     );
@@ -96,17 +135,18 @@ class HomeCardStack extends ConsumerStatefulWidget {
   const HomeCardStack({
     super.key,
     required this.cards,
-    this.lastSwiped,
-    this.onSwiped,
+    this.returning,
+    this.onUndo,
   });
 
   final List<HomeCardCandidate> cards;
 
-  /// The last card swiped away: back on top, it comes in from that side.
-  final ({String key, HomeCardSwipe swipe})? lastSwiped;
+  /// A card just brought back by "Undo": on top, it comes in from the side
+  /// it left by.
+  final ({String key, HomeCardSwipe swipe})? returning;
 
-  /// A card was swiped away (by the gesture, the cross or an action).
-  final void Function(String key, HomeCardSwipe swipe)? onSwiped;
+  /// "Undo" was tapped for a card swiped away to this side.
+  final void Function(String key, HomeCardSwipe swipe)? onUndo;
 
   @override
   ConsumerState<HomeCardStack> createState() => _HomeCardStackState();
@@ -169,8 +209,7 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
         (state == null || state == AppLifecycleState.resumed);
   }
 
-  /// Swipes [card] away; false if it already was.
-  bool _swipe(HomeCardCandidate card, HomeCardSwipe swipe) {
+  void _swipe(HomeCardCandidate card, HomeCardSwipe swipe) {
     final l10n = context.l10n;
     final actions = ref.read(homeCardActionsProvider.notifier);
     final key = card.stateKey;
@@ -180,9 +219,8 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
     // Already off the screen (a double tap on the cross): the first swipe has
     // its snack-bar, a second one would have an "Undo" that does nothing.
     if (!actions.swipe(card, swipe, autoCommit: !keepOpen)) {
-      return false;
+      return;
     }
-    widget.onSwiped?.call(key, swipe);
     final close = showAppSnackBar(
       context,
       swipe == HomeCardSwipe.hide
@@ -194,14 +232,16 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
       duration: homeCardUndoDuration,
       autoClose: !keepOpen,
       actionLabel: l10n.cancelButton,
-      onAction: () => actions.undo(key),
+      onAction: () {
+        widget.onUndo?.call(key, swipe);
+        actions.undo(key);
+      },
       // The card is sent when the snack-bar closes, so "Undo" is never offered
       // once it was sent.
       onClosed: () => actions.commit(key),
     );
     // Anything else that sends the card (lifecycle, leaving) closes it too
     actions.attachCloser(key, close);
-    return true;
   }
 
   /// Whether swiping right makes sense: a card closed for good (an alert, the
@@ -235,7 +275,7 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
     final top = cards.first;
     final l10n = context.l10n;
     final canPostpone = _canPostpone(top);
-    final last = widget.lastSwiped;
+    final returning = widget.returning;
 
     final view = HomeCardView(
       card: top,
@@ -249,8 +289,7 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
         if (top.dismissable) HomeCardSwipe.hide,
         if (top.dismissable && canPostpone) HomeCardSwipe.later,
       },
-      // Only read when the pile of this card is created: it comes back
-      enterFrom: last?.key == top.stateKey ? last!.swipe : null,
+      enterFrom: returning?.key == top.stateKey ? returning!.swipe : null,
       fromHeight: _topHeight,
       // Not a state change: only read by the next pile
       onHeight: (height) => _topHeight = height,
@@ -329,11 +368,12 @@ class _SwipePile extends StatefulWidget {
   /// The swipes the top card allows: none, it does not move.
   final Set<HomeCardSwipe> directions;
 
-  /// The card left by this side. False: the swipe did not happen (the card
-  /// was already swiped away), it comes back.
-  final bool Function(HomeCardSwipe swipe) onSwiped;
+  /// The card left by this side. If it was already swiped away (the cross
+  /// just before), it stays out until the next build takes it away.
+  final ValueChanged<HomeCardSwipe> onSwiped;
 
-  /// The top card comes in from this side (it was swiped away by it).
+  /// The top card comes in from this side (it was swiped away by it). Read
+  /// when the pile is created.
   final HomeCardSwipe? enterFrom;
 
   /// The height of the card that was on top before: the top card starts at
@@ -365,6 +405,10 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
   /// A drag was taken: only its own update, end or cancel move the card.
   var _dragging = false;
 
+  /// The system took the pointer back (a call, a system gesture): the drag
+  /// ends as if released, but the user did not let the card go.
+  var _pointerCancelled = false;
+
   /// The card comes back ("Undo"): a drag now would start from the side and
   /// leave again at once.
   var _entering = false;
@@ -390,6 +434,28 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
         null => 0,
       },
     );
+    _resize = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+      value: _fromHeight == null ? 1 : 0,
+    );
+  }
+
+  var _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) {
+      return;
+    }
+    _started = true;
+    // Less motion: in place at once
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _offset.value = 0;
+      _resize.value = 1;
+      return;
+    }
     if (widget.enterFrom != null) {
       _entering = true;
       _offset
@@ -400,11 +466,18 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
           )
           .whenCompleteOrCancel(() => _entering = false);
     }
-    _resize = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-      value: _fromHeight == null ? 1 : 0,
-    )..forward();
+    _resize.forward();
+  }
+
+  @override
+  void didUpdateWidget(_SwipePile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The card cannot be swiped any more (a reload): its drag detector goes
+    // without an end, the card would stay where the finger left it.
+    if (widget.directions.isEmpty && _dragging) {
+      _dragging = false;
+      _settle();
+    }
   }
 
   @override
@@ -464,6 +537,10 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
       return;
     }
     _dragging = false;
+    if (_pointerCancelled) {
+      _settle();
+      return;
+    }
     final value = _offset.value;
     final velocity = (details.primaryVelocity ?? 0) * _screenSign;
     final flung = velocity.abs() > _flingVelocity &&
@@ -476,8 +553,8 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
     }
   }
 
-  /// The drag was taken by something else (the page scrolls): the card does
-  /// not leave, whatever its position.
+  /// The touch was taken by something else before it became a drag (the page
+  /// scrolls): the card does not leave, whatever its position.
   void _onCancel() {
     if (!_dragging) {
       return;
@@ -498,9 +575,8 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
-    if (mounted && !widget.onSwiped(side)) {
-      setState(() => _leaving = false);
-      _settle();
+    if (mounted) {
+      widget.onSwiped(side);
     }
   }
 
@@ -568,13 +644,18 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
       child: widget.directions.isEmpty
           ? pile
           : LayoutBuilder(
-              builder: (context, constraints) => GestureDetector(
-                onHorizontalDragStart: _onStart,
-                onHorizontalDragUpdate: (details) =>
-                    _onUpdate(details, constraints.maxWidth),
-                onHorizontalDragEnd: _onEnd,
-                onHorizontalDragCancel: _onCancel,
-                child: pile,
+              builder: (context, constraints) => Listener(
+                // Before the drag recognizer, which ends the drag on it
+                onPointerDown: (_) => _pointerCancelled = false,
+                onPointerCancel: (_) => _pointerCancelled = true,
+                child: GestureDetector(
+                  onHorizontalDragStart: _onStart,
+                  onHorizontalDragUpdate: (details) =>
+                      _onUpdate(details, constraints.maxWidth),
+                  onHorizontalDragEnd: _onEnd,
+                  onHorizontalDragCancel: _onCancel,
+                  child: pile,
+                ),
               ),
             ),
     );
@@ -583,9 +664,9 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
 
 /// Its child at a height going from [from] to the child's own as [progress]
 /// goes from 0 to 1: taller than its own, the child is stretched (the
-/// background of a card fills it); shorter, it overflows and is clipped by
-/// the parent. As a card behind the top one is drawn, so that one taking the
-/// top place does not change.
+/// background of a card fills it); shorter, it is cut at the bottom. For the
+/// top card, as a card behind it is drawn, so that one taking the top place
+/// does not change; for the slot, as it grows or shrinks.
 class _ResizedFrom extends SingleChildRenderObjectWidget {
   const _ResizedFrom({
     required this.from,
@@ -642,22 +723,69 @@ class _RenderResizedFrom extends RenderProxyBox {
     }
   }
 
+  /// The height drawn for a child of height [own].
+  double _heightFor(double own) {
+    final from = _from;
+    return from == null || _progress >= 1
+        ? own
+        : lerpDouble(from, own, _progress)!;
+  }
+
   @override
   void performLayout() {
     final child = this.child!;
     final free = constraints.copyWith(minHeight: 0);
     child.layout(free, parentUsesSize: true);
     final own = child.size.height;
-    final from = _from;
-    final height = from == null || _progress >= 1
-        ? own
-        : lerpDouble(from, own, _progress)!;
+    final height = _heightFor(own);
     if (height > own) {
-      child.layout(free.copyWith(minHeight: height), parentUsesSize: true);
+      child.layout(
+        free.copyWith(minHeight: min(height, constraints.maxHeight)),
+        parentUsesSize: true,
+      );
     }
     size = constraints.constrain(Size(child.size.width, height));
     onHeight(size.height);
   }
+
+  final _clip = LayerHandle<ClipRectLayer>();
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final child = this.child;
+    if (child != null && child.size.height > size.height) {
+      _clip.layer = context.pushClipRect(
+        needsCompositing,
+        offset,
+        Offset.zero & size,
+        super.paint,
+        oldLayer: _clip.layer,
+      );
+    } else {
+      _clip.layer = null;
+      super.paint(context, offset);
+    }
+  }
+
+  @override
+  void dispose() {
+    _clip.layer = null;
+    super.dispose();
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final own = child!.getDryLayout(constraints.copyWith(minHeight: 0));
+    return constraints.constrain(Size(own.width, _heightFor(own.height)));
+  }
+
+  @override
+  double computeMinIntrinsicHeight(double width) =>
+      _heightFor(super.computeMinIntrinsicHeight(width));
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      _heightFor(super.computeMaxIntrinsicHeight(width));
 }
 
 /// The top card: a shadow while it moves, and the swipe it would do written
