@@ -95,10 +95,15 @@ class _HomeCardsSlotState extends ConsumerState<HomeCardsSlot>
         if (!removed.contains(card.stateKey)) card,
     ];
     final empty = visible.isEmpty;
-    // Not on the first build: the slot does not grow when the home opens
+    // Not at the first build: cards already loaded show at once. Cards that
+    // finish loading after it grow the slot, as when one comes back.
     if (_wasEmpty != null && _wasEmpty != empty) {
       _appearFrom = _height;
-      _appear.forward(from: 0);
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _appear.value = 1;
+      } else {
+        _appear.forward(from: 0);
+      }
     }
     _wasEmpty = empty;
     final returning = _undone;
@@ -119,8 +124,12 @@ class _HomeCardsSlotState extends ConsumerState<HomeCardsSlot>
               child: HomeCardStack(
                 cards: visible,
                 returning: returning,
-                onUndo: (key, swipe) =>
-                    setState(() => _undone = (key: key, swipe: swipe)),
+                // The snack-bar can outlive the slot (the home was left)
+                onUndo: (key, swipe) {
+                  if (mounted) {
+                    setState(() => _undone = (key: key, swipe: swipe));
+                  }
+                },
               ),
             ),
     );
@@ -158,6 +167,10 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
   /// The height of the top card as last drawn: the next one on top starts
   /// from it.
   double? _topHeight;
+
+  /// How far the cards behind showed under the top card at the last build:
+  /// the next pile starts from it, as from [_topHeight].
+  double? _drop;
 
   @override
   void initState() {
@@ -282,6 +295,11 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
       onHide: () => _swipe(top, HomeCardSwipe.hide),
     );
 
+    final behind = cards.skip(1).take(_behindRest.length).toList();
+    final fromDrop = _drop;
+    // Not a state change: only read by the next pile
+    _drop = behind.isEmpty ? 0 : _behindRest[behind.length - 1].drop;
+
     return _SwipePile(
       // One state per card: the next card never inherits the drag
       key: ValueKey(top.stateKey),
@@ -291,26 +309,28 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
       },
       enterFrom: returning?.key == top.stateKey ? returning!.swipe : null,
       fromHeight: _topHeight,
+      fromDrop: fromDrop,
       // Not a state change: only read by the next pile
       onHeight: (height) => _topHeight = height,
       onSwiped: (swipe) => _swipe(top, swipe),
       behind: [
-        for (final card in cards.skip(1).take(_behindRest.length))
-          HomeCardView(card: card, onHide: () {}),
+        for (final card in behind) HomeCardView(card: card, onHide: () {}),
       ],
-      top: top.dismissable
-          ? Semantics(
-              // The swipes, for those who cannot do the gesture
-              customSemanticsActions: {
+      // Always there: a card that cannot be swiped any more (a reload) keeps
+      // its state
+      top: Semantics(
+        // The swipes, for those who cannot do the gesture
+        customSemanticsActions: top.dismissable
+            ? {
                 if (canPostpone)
                   CustomSemanticsAction(label: l10n.homeCardLater): () =>
                       _swipe(top, HomeCardSwipe.later),
                 CustomSemanticsAction(label: l10n.homeCardHide): () =>
                     _swipe(top, HomeCardSwipe.hide),
-              },
-              child: view,
-            )
-          : view,
+              }
+            : null,
+        child: view,
+      ),
     );
   }
 }
@@ -357,6 +377,7 @@ class _SwipePile extends StatefulWidget {
     required this.onSwiped,
     this.enterFrom,
     this.fromHeight,
+    this.fromDrop,
     required this.onHeight,
   });
 
@@ -381,6 +402,10 @@ class _SwipePile extends StatefulWidget {
   /// other. Read when the pile is created, as [enterFrom].
   final double? fromHeight;
 
+  /// How far the cards behind showed under the top card before: as the
+  /// height of the top card, it goes from there to the one of this pile.
+  final double? fromDrop;
+
   /// The top card was laid out at this height.
   final ValueChanged<double> onHeight;
 
@@ -397,6 +422,7 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
   late final AnimationController _resize;
 
   late final double? _fromHeight = widget.fromHeight;
+  late final double? _fromDrop = widget.fromDrop;
 
   /// Where the finger took the card, in widths, before the resistance of a
   /// forbidden side.
@@ -408,6 +434,23 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
   /// The system took the pointer back (a call, a system gesture): the drag
   /// ends as if released, but the user did not let the card go.
   var _pointerCancelled = false;
+
+  /// The pointer that can drag the card: the one put down while no drag was
+  /// under way. Another finger neither cancels nor revives its drag.
+  int? _dragPointer;
+
+  void _onPointerDown(PointerDownEvent event) {
+    if (!_dragging) {
+      _dragPointer = event.pointer;
+      _pointerCancelled = false;
+    }
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (event.pointer == _dragPointer) {
+      _pointerCancelled = true;
+    }
+  }
 
   /// The card comes back ("Undo"): a drag now would start from the side and
   /// leave again at once.
@@ -585,79 +628,79 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
     final behind = widget.behind;
     final still = MediaQuery.disableAnimationsOf(context);
     final sign = _screenSign;
-    final pile = LayoutBuilder(
+    final drop = behind.isEmpty ? 0.0 : _behindRest[behind.length - 1].drop;
+    final swipeable = widget.directions.isNotEmpty;
+    return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        return AnimatedBuilder(
-          animation: Listenable.merge([_offset, _resize]),
-          builder: (context, _) {
-            final value = _offset.value;
-            // The cards behind only move up for a side the card can go to
-            final progress = _allows(value)
-                ? (value.abs() / _fullTravel).clamp(0.0, 1.0)
-                : 0.0;
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                for (var i = behind.length - 1; i >= 0; i--)
-                  Positioned.fill(
-                    child: _BehindCard(
-                      depth: i,
-                      progress: progress,
-                      child: behind[i],
-                    ),
+        // The same tree whether the card can be swiped or not: one that
+        // cannot any more (a reload) keeps its state, only the callbacks go
+        return Listener(
+          // Before the drag recognizer, which ends the drag on a cancel
+          onPointerDown: swipeable ? _onPointerDown : null,
+          onPointerCancel: swipeable ? _onPointerCancel : null,
+          child: GestureDetector(
+            onHorizontalDragStart: swipeable ? _onStart : null,
+            onHorizontalDragUpdate:
+                swipeable ? (details) => _onUpdate(details, width) : null,
+            onHorizontalDragEnd: swipeable ? _onEnd : null,
+            onHorizontalDragCancel: swipeable ? _onCancel : null,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_offset, _resize]),
+              builder: (context, _) {
+                final value = _offset.value;
+                final resized = Curves.easeOutCubic.transform(_resize.value);
+                // The cards behind only move up for a side the card can go to
+                final progress = _allows(value)
+                    ? (value.abs() / _fullTravel).clamp(0.0, 1.0)
+                    : 0.0;
+                final fromDrop = _fromDrop;
+                return Padding(
+                  // The bottom of the cards behind, under the top card
+                  padding: EdgeInsets.only(
+                    bottom: fromDrop == null
+                        ? drop
+                        : lerpDouble(fromDrop, drop, resized)!,
                   ),
-                Transform.translate(
-                  offset: Offset(value * width * sign, 0),
-                  child: Transform.rotate(
-                    angle: still ? 0 : value * sign * _maxTilt,
-                    alignment: _tiltPivot,
-                    child: IgnorePointer(
-                      ignoring: _leaving,
-                      child: _TopCard(
-                        offset: value,
-                        side: _allows(value) ? _sideOf(value) : null,
-                        child: _ResizedFrom(
-                          from: _fromHeight,
-                          progress: Curves.easeOutCubic.transform(
-                            _resize.value,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      for (var i = behind.length - 1; i >= 0; i--)
+                        Positioned.fill(
+                          child: _BehindCard(
+                            depth: i,
+                            progress: progress,
+                            child: behind[i],
                           ),
-                          onHeight: widget.onHeight,
-                          child: widget.top,
+                        ),
+                      Transform.translate(
+                        offset: Offset(value * width * sign, 0),
+                        child: Transform.rotate(
+                          angle: still ? 0 : value * sign * _maxTilt,
+                          alignment: _tiltPivot,
+                          child: IgnorePointer(
+                            ignoring: _leaving,
+                            child: _TopCard(
+                              offset: value,
+                              side: _allows(value) ? _sideOf(value) : null,
+                              child: _ResizedFrom(
+                                from: _fromHeight,
+                                progress: resized,
+                                onHeight: widget.onHeight,
+                                child: widget.top,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ),
-              ],
-            );
-          },
+                );
+              },
+            ),
+          ),
         );
       },
-    );
-
-    return Padding(
-      // The bottom of the cards behind, under the top card
-      padding: EdgeInsets.only(
-        bottom: behind.isEmpty ? 0 : _behindRest[behind.length - 1].drop,
-      ),
-      child: widget.directions.isEmpty
-          ? pile
-          : LayoutBuilder(
-              builder: (context, constraints) => Listener(
-                // Before the drag recognizer, which ends the drag on it
-                onPointerDown: (_) => _pointerCancelled = false,
-                onPointerCancel: (_) => _pointerCancelled = true,
-                child: GestureDetector(
-                  onHorizontalDragStart: _onStart,
-                  onHorizontalDragUpdate: (details) =>
-                      _onUpdate(details, constraints.maxWidth),
-                  onHorizontalDragEnd: _onEnd,
-                  onHorizontalDragCancel: _onCancel,
-                  child: pile,
-                ),
-              ),
-            ),
     );
   }
 }
@@ -757,7 +800,13 @@ class _RenderResizedFrom extends RenderProxyBox {
       _clip.layer = context.pushClipRect(
         needsCompositing,
         offset,
-        Offset.zero & size,
+        // Only what goes past the bottom: shadows and a tilted card stay
+        Rect.fromLTRB(
+          -size.width,
+          -size.height,
+          size.width * 2,
+          size.height,
+        ),
         super.paint,
         oldLayer: _clip.layer,
       );

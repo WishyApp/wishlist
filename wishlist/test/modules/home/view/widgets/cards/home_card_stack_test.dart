@@ -1144,16 +1144,45 @@ void main() {
       );
       await gesture.moveBy(const Offset(-150, 0));
       await tester.pump();
+      final before = tester.element(card);
       // A reload while the finger is on it: it cannot be hidden any more
       ProviderScope.containerOf(tester.element(find.byType(HomeCardsSlot)))
           .invalidate(homeCardsProvider);
       await tester.pumpAndSettle();
 
       expect(loads, 2);
+      // The same card, not a new one: it keeps its state
+      expect(tester.element(card), same(before));
       expect(tester.getTopLeft(card).dx, moreOrLessEquals(rest, epsilon: 0.5));
       await gesture.up();
       await tester.pumpAndSettle();
       expect(find.text('Carte masquée'), findsNothing);
+    });
+
+    testWidgets('with less motion, the slot goes at once with its last card',
+        (tester) async {
+      await tester.pumpApp(
+        Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: const Scaffold(
+              body: SafeArea(
+                child: SingleChildScrollView(child: HomeCardsSlot()),
+              ),
+            ),
+          ),
+        ),
+        overrides: overrides(() async => cards.take(1).toList()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+      while (find.text(_firstTitle).evaluate().isNotEmpty) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(tester.getSize(find.byType(HomeCardsSlot)).height, 0);
+      await finish(tester);
     });
 
     testWidgets('with less motion, "Annuler" puts the card back at once',
@@ -1184,6 +1213,83 @@ void main() {
         matching: find.byType(HomeCardView),
       );
       expect(tester.getTopLeft(card).dx, moreOrLessEquals(rest, epsilon: 0.5));
+      await finish(tester);
+    });
+
+    testWidgets('another finger does not change how the drag ends',
+        (tester) async {
+      await pump(tester, () async => cards);
+
+      final card = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byType(HomeCardView),
+      );
+      final drag = await tester.startGesture(
+        tester.getCenter(find.text(_firstTitle)),
+      );
+      await drag.moveBy(const Offset(-350, 0));
+      await tester.pump();
+      // A second finger on the card, taken back by the system
+      final other = await tester.startGesture(
+        tester.getTopRight(card) + const Offset(-60, 60),
+      );
+      await other.cancel();
+      await drag.up();
+      await letItLeave(tester);
+
+      expect(find.text('Carte masquée'), findsOneWidget);
+      await finish(tester);
+    });
+
+    testWidgets('the pile with one card less behind does not jump',
+        (tester) async {
+      await pump(tester, () async => cards);
+      double slot() => tester.getSize(find.byType(HomeCardsSlot)).height;
+
+      await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+      final heights = [slot()];
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        heights.add(slot());
+      }
+
+      // The bottom of the cards behind goes up by 9 px, over several frames
+      expect(heights.first - heights.last, moreOrLessEquals(9, epsilon: 0.5));
+      for (var i = 1; i < heights.length; i++) {
+        expect((heights[i] - heights[i - 1]).abs(), lessThan(3));
+      }
+      await finish(tester);
+    });
+
+    testWidgets('"Annuler" once the home is left does nothing', (tester) async {
+      var shown = true;
+      late StateSetter setShown;
+      await tester.pumpApp(
+        StatefulBuilder(
+          builder: (context, setState) {
+            setShown = setState;
+            return Scaffold(
+              body: SafeArea(
+                child: SingleChildScrollView(
+                  child: shown ? const HomeCardsSlot() : const SizedBox(),
+                ),
+              ),
+            );
+          },
+        ),
+        overrides: overrides(() async => cards),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+      await letItLeave(tester);
+      // The slot goes, its snack-bar is still there for a moment
+      setShown(() => shown = false);
+      await tester.pump();
+      await tester.tap(find.text('Annuler'), warnIfMissed: false);
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
       await finish(tester);
     });
 
