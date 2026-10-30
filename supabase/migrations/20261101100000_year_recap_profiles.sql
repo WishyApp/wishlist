@@ -24,6 +24,8 @@
 --                      Dec 25 or the owner's birthday
 --   organise           wishes received on Dec 25 or own birthday      always
 --   minimaliste        none: default, chosen when no other profile reaches a score of 1
+--                      (hard-coded as the default: its row, enabled, threshold,
+--                      weight and sort, has no effect; only illustration_path is used)
 --
 -- score = stat * weight / threshold (multiplied first: 1 * 3 / 3 is exactly 1).
 -- The best score wins, a tie goes to the smaller sort. Under 1, minimaliste.
@@ -39,11 +41,16 @@
 --             Christmas archives it, the gifts stay offered), whose owner's
 --             receipt (user_completed_wishs of the owner of the wishlist) has
 --             a quantity >= the booked quantity and a completed_at in the
---             year (a Paris day, fixed when the wish was first marked
---             received). Not updated_at: it moves with every correction of
---             the received quantity, so a gift received in December and
---             corrected in January would change year. A partial receipt does
---             not count.
+--             year (a Paris day), and a booking made on or before the day of
+--             the receipt (a booking made after it is not a gift for that
+--             receipt). Not updated_at: it moves with every correction of the
+--             received quantity. A partial receipt does not count.
+--             completed_at is NOT fixed at the first reception: the app keeps
+--             the most recent day when another unit is received later, and
+--             the owner can edit it. Accepted limitation: for a wish of
+--             quantity > 1, a later reception can move a gift to the next year.
+--             Old self-bookings of an owner on his own wishes are ignored
+--             everywhere (t.user_id <> wl.id_owner).
 --             Product rule (Tanguy, 2026-10-29): a booking counts once the
 --             owner received at least the quantity this user booked, whatever
 --             the other bookers of the wish; two co-bookers of one unit each
@@ -60,18 +67,26 @@
 -- (can_read_wish).
 --
 -- last_minute_bookings uses the birthday of the wish owner only when the
--- owner and the user are friends (accepted), the rule of can_read_birthday,
--- evaluated for p_user and not auth.uid(). Without it a user could book a
+-- owner and the user are friends (accepted), the rule of can_read_birthday
+-- (shared helper can_user_read_birthday), evaluated for p_user and not
+-- auth.uid(). Without it a user could book a
 -- stranger's public wish, move wish_taken_by_user.created_at (client
 -- writable) and bisect the birthday through the stat. A non-friend's booking
 -- counts for Christmas only. created_at being client writable, the stat can
 -- be gamed by its own user (dernier_moment): acceptable, it is a game.
 --
 -- new_friends uses friendships.updated_at of accepted friendships: the table
--- has no acceptance date, and updated_at is only set by the trigger
--- friendships_before_update, i.e. when the status changes (pending to
--- accepted, or later to blocked and back). A friendship accepted in the year
--- and changed again later is counted by its last change.
+-- has no acceptance date. The trigger friendships_before_update sets
+-- updated_at on every change of the row, not only of the status, so a
+-- friendship accepted in the year and changed again later is counted by its
+-- last change. Friendships accepted before that trigger existed (~2026-10-20)
+-- kept the date of the request. Accepted limitation: new_friends is
+-- approximate.
+--
+-- most_gifted_friend (returned by get_my_year_recap, top level): pseudo of the
+-- owner to whom the user offered the most wishes in the year (same set as
+-- offered / max_offered_same_friend); NULL when nothing was offered or when
+-- two friends tie for first place.
 --
 -- The stat functions are internal (no EXECUTE for clients): they compute for
 -- any user. Only get_my_year_recap is public, and only for auth.uid().
@@ -89,9 +104,6 @@ CREATE TABLE IF NOT EXISTS public.year_recap_profiles (
   CONSTRAINT year_recap_profiles_threshold_positive CHECK (threshold > 0),
   CONSTRAINT year_recap_profiles_weight_positive CHECK (weight > 0)
 );
-
-ALTER TABLE public.year_recap_profiles
-  ADD COLUMN IF NOT EXISTS illustration_path text;
 
 ALTER TABLE public.year_recap_profiles ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.year_recap_profiles FROM PUBLIC, anon, authenticated;
@@ -114,6 +126,8 @@ INSERT INTO public.year_recap_profiles (key, threshold, sort) VALUES
   ('ami_fidele', 3, 70),
   ('dernier_moment', 0.5, 80),
   ('organise', 3, 90),
+  -- minimaliste: the default profile, hard-coded in year_recap_pick_profile.
+  -- Its threshold and sort are placeholders, enabled and weight have no effect.
   ('minimaliste', 1, 100)
 ON CONFLICT (key) DO NOTHING;
 
@@ -142,6 +156,39 @@ BEGIN
     WHERE id = 'year-recap-illustrations';
   END IF;
 END $$;
+
+-- Same rule as can_read_birthday, for any reader: the reader is the owner, or
+-- an accepted friend. Internal (no EXECUTE for clients): it tells it for any
+-- pair of users. can_read_birthday calls it with auth.uid().
+CREATE OR REPLACE FUNCTION public.can_user_read_birthday(p_reader uuid, p_owner uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+  SELECT
+    p_owner = p_reader
+    -- No friendship gives NULL: coalesce keeps the result a plain boolean
+    OR COALESCE(public.friendship_status_between(p_reader, p_owner) = 'accepted', false);
+$$;
+
+REVOKE ALL ON FUNCTION public.can_user_read_birthday(uuid, uuid) FROM PUBLIC, anon, authenticated;
+
+-- Redefined as in 20261023120000, delegating to the shared helper. Same
+-- signature, attributes and grants.
+CREATE OR REPLACE FUNCTION public.can_read_birthday(p_profile_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT public.can_user_read_birthday((SELECT auth.uid()), p_profile_id);
+$$;
+
+REVOKE ALL ON FUNCTION public.can_read_birthday(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.can_read_birthday(uuid) TO authenticated;
 
 -- Day of month/day in a year, February 29 becoming February 28 in a common
 -- year (a birthday has no year, see profile_birthdays).
@@ -183,6 +230,7 @@ DECLARE
   v_max_same_friend integer;
   v_bookings_total integer;
   v_last_minute integer;
+  v_most_gifted text;
   v_party_received integer;
 BEGIN
   IF p_user IS NULL OR p_year IS NULL OR p_year NOT BETWEEN 2000 AND 2100 THEN
@@ -241,15 +289,25 @@ BEGIN
     JOIN public.wishlists wl ON wl.id = w.wishlist_id
     LEFT JOIN public.user_completed_wishs r ON r.wish_id = t.wish_id AND r.user_id = wl.id_owner
     LEFT JOIN public.profile_birthdays ob ON ob.profile_id = wl.id_owner
-      AND public.friendship_status_between(p_user, wl.id_owner) = 'accepted'
+      AND public.can_user_read_birthday(p_user, wl.id_owner)
     WHERE t.user_id = p_user
+      -- old self-bookings of an owner on his own wishes are not gifts
+      AND t.user_id <> wl.id_owner
   ), offered AS (
     SELECT b.id_owner
     FROM bookings b
     WHERE b.received_quantity >= b.quantity
       AND b.received_on BETWEEN v_start AND v_end
+      -- booked after the reception: not a gift for it
+      AND b.booked_on <= b.received_on
   ), offered_by_friend AS (
     SELECT o.id_owner, count(*) AS n FROM offered o GROUP BY o.id_owner
+  ), top_friend AS (
+    -- NULL pseudo when the first place is shared
+    SELECT CASE WHEN count(*) = 1 THEN max(p.pseudo) END AS pseudo
+    FROM offered_by_friend f
+    JOIN public.profiles p ON p.id = f.id_owner
+    WHERE f.n = (SELECT max(n) FROM offered_by_friend)
   ), booked_in_year AS (
     SELECT b.*
     FROM bookings b
@@ -263,8 +321,9 @@ BEGIN
       WHERE (v_xmas - b.booked_on) BETWEEN 0 AND 3
          OR (b.owner_month IS NOT NULL AND (
                (public.year_recap_birthday_in(b.owner_month, b.owner_day, p_year) - b.booked_on) BETWEEN 0 AND 3
-            OR (public.year_recap_birthday_in(b.owner_month, b.owner_day, p_year + 1) - b.booked_on) BETWEEN 0 AND 3)))
-  INTO v_offered, v_max_same_friend, v_bookings_total, v_last_minute;
+            OR (public.year_recap_birthday_in(b.owner_month, b.owner_day, p_year + 1) - b.booked_on) BETWEEN 0 AND 3))),
+    (SELECT t.pseudo FROM top_friend t)
+  INTO v_offered, v_max_same_friend, v_bookings_total, v_last_minute, v_most_gifted;
 
   SELECT count(*)
   INTO v_wishes_added
@@ -292,7 +351,9 @@ BEGIN
     'last_minute_share',
       CASE WHEN v_bookings_total = 0 THEN 0
            ELSE round(v_last_minute::numeric / v_bookings_total, 4) END,
-    'received_on_party_day', v_party_received
+    'received_on_party_day', v_party_received,
+    -- internal: get_my_year_recap moves it out of stats
+    'most_gifted_friend', v_most_gifted
   );
 END $$;
 
@@ -352,7 +413,8 @@ $$;
 REVOKE ALL ON FUNCTION public.year_recap_pick_profile(jsonb) FROM PUBLIC, anon, authenticated;
 
 -- Public entry point: the recap of the current user.
--- Returns {"year": 2026, "stats": {...year_recap_stats...}, "profile": {"key": "...", "score": 1.5, "illustration_path": null}}.
+-- Returns {"year": 2026, "stats": {...year_recap_stats...}, "most_gifted_friend": "pseudo" | null,
+--          "profile": {"key": "...", "score": 1.5, "illustration_path": null}}.
 -- p_year defaults to the current year in Paris when null.
 CREATE OR REPLACE FUNCTION public.get_my_year_recap(p_year integer DEFAULT NULL)
 RETURNS jsonb
@@ -374,7 +436,8 @@ BEGIN
   v_profile := public.year_recap_pick_profile(v_stats);
   RETURN jsonb_build_object(
     'year', v_year,
-    'stats', v_stats,
+    'stats', v_stats - 'most_gifted_friend',
+    'most_gifted_friend', v_stats -> 'most_gifted_friend',
     'profile', v_profile || jsonb_build_object(
       'illustration_path',
       (SELECT p.illustration_path FROM public.year_recap_profiles p WHERE p.key = v_profile ->> 'key')

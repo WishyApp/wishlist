@@ -106,7 +106,8 @@ RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
   w bigint := pg_temp.mk_wish(owner_n);
 BEGIN
-  PERFORM pg_temp.book(booker_n, w);
+  -- booked before the reception (the same instant at the earliest)
+  PERFORM pg_temp.book(booker_n, w, least('2026-02-10T10:00:00Z'::timestamptz, received_at));
   PERFORM pg_temp.receive(owner_n, w, (received_at AT TIME ZONE 'Europe/Paris')::date, 1, received_at);
 END $$;
 
@@ -257,7 +258,7 @@ BEGIN
   PERFORM pg_temp.offer(13, 90, '2025-12-31T23:30:00Z');
   PERFORM pg_temp.offer(13, 90, '2026-12-31T23:30:00Z');
   PERFORM pg_temp.expect_eq('offered at the year boundaries', pg_temp.st(13) ->> 'offered', '1');
-  PERFORM pg_temp.expect_eq('bookings of the year', pg_temp.st(13) ->> 'bookings_total', '3');
+  PERFORM pg_temp.expect_eq('bookings of the year (the Dec 31 22:30 UTC one is a 2025 booking)', pg_temp.st(13) ->> 'bookings_total', '2');
 END $$;
 
 -- the year of an offered gift is the day the owner received it (completed_at),
@@ -269,7 +270,7 @@ DECLARE
   w1 bigint := pg_temp.mk_wish(90);
   w2 bigint := pg_temp.mk_wish(90);
 BEGIN
-  PERFORM pg_temp.book(32, w1);
+  PERFORM pg_temp.book(32, w1, '2025-12-01T10:00:00Z');
   PERFORM pg_temp.book(32, w2);
   PERFORM pg_temp.receive(90, w1, '2025-12-28', 1, '2026-01-05T10:00:00Z');
   PERFORM pg_temp.receive(90, w2, '2026-12-30', 1, '2027-01-03T10:00:00Z');
@@ -313,6 +314,59 @@ BEGIN
   PERFORM pg_temp.book(27, w);
   PERFORM pg_temp.receive(98, w, '2026-05-10');
   PERFORM pg_temp.expect_eq('receipt of another user: not offered', pg_temp.st(27) ->> 'offered', '0');
+END $$;
+
+-- a booking made after the reception is not offered: quantity 3 wish, one unit
+-- received on 2026-03-01, user 41 books on 2026-11-20
+DO $$
+DECLARE
+  w bigint := pg_temp.mk_wish(60, '2026-01-05T10:00:00Z', 3);
+BEGIN
+  PERFORM pg_temp.receive(60, w, '2026-03-01', 1);
+  PERFORM pg_temp.book(41, w, '2026-11-20T10:00:00Z');
+  PERFORM pg_temp.expect_eq('booked after the reception: not offered', pg_temp.st(41) ->> 'offered', '0');
+  PERFORM pg_temp.expect_eq('booked after the reception: still a booking', pg_temp.st(41) ->> 'bookings_total', '1');
+  PERFORM pg_temp.expect_eq('booked after the reception: no ami fidele stat', pg_temp.st(41) ->> 'max_offered_same_friend', '0');
+  -- booked the same day as the reception: offered
+  PERFORM pg_temp.book(42, w, '2026-03-01T10:00:00Z');
+  PERFORM pg_temp.expect_eq('booked the day of the reception: offered', pg_temp.st(42) ->> 'offered', '1');
+END $$;
+
+-- old self-bookings of the owner on his own wishes are ignored everywhere
+DO $$
+DECLARE
+  w bigint := pg_temp.mk_wish(43);
+BEGIN
+  PERFORM pg_temp.book(43, w, '2026-12-24T10:00:00Z');
+  PERFORM pg_temp.receive(43, w, '2026-12-25');
+  PERFORM pg_temp.expect_eq('self-booking: not offered', pg_temp.st(43) ->> 'offered', '0');
+  PERFORM pg_temp.expect_eq('self-booking: not a booking', pg_temp.st(43) ->> 'bookings_total', '0');
+  PERFORM pg_temp.expect_eq('self-booking: not last minute', pg_temp.st(43) ->> 'last_minute_bookings', '0');
+  PERFORM pg_temp.expect_eq('self-booking: no ami fidele stat', pg_temp.st(43) ->> 'max_offered_same_friend', '0');
+  PERFORM pg_temp.expect_eq('self-booking: no most gifted friend', pg_temp.st(43) ->> 'most_gifted_friend', NULL);
+  PERFORM pg_temp.expect_eq('self-booking: the wish is still received', pg_temp.st(43) ->> 'received', '1');
+END $$;
+
+-- most_gifted_friend: single top friend (pseudo yr_61: 2 wishes vs 1)
+DO $$
+BEGIN
+  PERFORM pg_temp.offer(44, 61);
+  PERFORM pg_temp.offer(44, 61);
+  PERFORM pg_temp.offer(44, 62);
+  PERFORM pg_temp.expect_eq('most gifted friend: single top friend', pg_temp.st(44) ->> 'most_gifted_friend', 'yr_61');
+  -- a tie for first place: null
+  PERFORM pg_temp.offer(44, 62);
+  PERFORM pg_temp.expect_eq('most gifted friend: tie is null', pg_temp.st(44) ->> 'most_gifted_friend', NULL);
+  PERFORM pg_temp.expect_eq('most gifted friend: tie, ami fidele stat unchanged', pg_temp.st(44) ->> 'max_offered_same_friend', '2');
+  -- the tie is broken
+  PERFORM pg_temp.offer(44, 62);
+  PERFORM pg_temp.expect_eq('most gifted friend: tie broken', pg_temp.st(44) ->> 'most_gifted_friend', 'yr_62');
+  -- nothing offered (a booking of the year not received): null
+  PERFORM pg_temp.book(45, pg_temp.mk_wish(63));
+  PERFORM pg_temp.expect_eq('most gifted friend: none offered', pg_temp.st(45) ->> 'most_gifted_friend', NULL);
+  -- a gift of another year is not counted
+  PERFORM pg_temp.offer(46, 64, '2025-05-10T10:00:00Z');
+  PERFORM pg_temp.expect_eq('most gifted friend: other year ignored', pg_temp.st(46) ->> 'most_gifted_friend', NULL);
 END $$;
 
 -- equilibriste: offered 2, received 2
@@ -591,6 +645,11 @@ BEGIN
   PERFORM pg_temp.expect_eq('rpc: stats keys',
     (SELECT string_agg(k, ',' ORDER BY k) FROM jsonb_object_keys(r -> 'stats') k),
     'bookings_total,last_minute_bookings,last_minute_share,longest_awaited,max_offered_same_friend,new_friends,offered,received,received_on_party_day,wishes_added');
+  PERFORM pg_temp.expect_eq('rpc: most_gifted_friend is a top level key, null here',
+    (r -> 'most_gifted_friend')::text, 'null');
+  PERFORM pg_temp.expect_eq('rpc: top level keys',
+    (SELECT string_agg(k, ',' ORDER BY k) FROM jsonb_object_keys(r) k),
+    'most_gifted_friend,profile,stats,year');
   PERFORM pg_temp.expect_eq('rpc: profile keys',
     (SELECT string_agg(k, ',' ORDER BY k) FROM jsonb_object_keys(r -> 'profile') k),
     'illustration_path,key,score');
@@ -602,11 +661,18 @@ SELECT pg_temp.expect_eq('rpc: null illustration path is explicit null',
 SELECT pg_temp.expect_eq('rpc: default year is the current Paris year',
   public.get_my_year_recap() ->> 'year', extract(year FROM public.paris_today())::text);
 
+SELECT pg_temp.act_as(pg_temp.uid(44));
+SELECT pg_temp.expect_eq('rpc: most gifted friend pseudo',
+  public.get_my_year_recap(2026) ->> 'most_gifted_friend', 'yr_62');
+SELECT pg_temp.expect_eq('rpc: stats no longer carry most_gifted_friend',
+  (public.get_my_year_recap(2026) -> 'stats' ? 'most_gifted_friend')::text, 'false');
 SELECT pg_temp.act_as(pg_temp.uid(1));
 SELECT pg_temp.expect_denied('authenticated cannot call year_recap_stats',
   $q$SELECT public.year_recap_stats(auth.uid(), 2026)$q$);
 SELECT pg_temp.expect_denied('authenticated cannot call year_recap_pick_profile',
   $q$SELECT public.year_recap_pick_profile('{}'::jsonb)$q$);
+SELECT pg_temp.expect_denied('authenticated cannot call can_user_read_birthday',
+  $q$SELECT public.can_user_read_birthday(gen_random_uuid(), gen_random_uuid())$q$);
 SELECT pg_temp.expect_denied('authenticated cannot call year_recap_birthday_in',
   $q$SELECT public.year_recap_birthday_in(2, 29, 2026)$q$);
 SELECT pg_temp.expect_denied('authenticated cannot insert profiles',

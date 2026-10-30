@@ -36,7 +36,7 @@ SELECT 'profile' AS section, profile AS name, users::numeric AS v1, pct AS v2,
        NULL::numeric AS v3, NULL::numeric AS v4, NULL::numeric AS v5, NULL::numeric AS v6
 FROM per_profile
 UNION ALL
--- Percentiles of each stat: v1 = p50, v2 = p75, v3 = p90, v4 = p95, v5 = max, v6 = users above 0
+-- Percentiles of each stat (NULL = meaningless for the user, ignored by percentile_cont): v1 = p50, v2 = p75, v3 = p90, v4 = p95, v5 = max, v6 = users above 0
 SELECT 'stat', m.name,
        percentile_cont(0.5) WITHIN GROUP (ORDER BY m.value)::numeric,
        percentile_cont(0.75) WITHIN GROUP (ORDER BY m.value)::numeric,
@@ -48,13 +48,13 @@ FROM recap r
 CROSS JOIN LATERAL (VALUES
   ('received', (r.stats ->> 'received')::numeric),
   ('offered', (r.stats ->> 'offered')::numeric),
-  ('longest_awaited_days', COALESCE((r.stats -> 'longest_awaited' ->> 'days')::numeric, 0)),
+  ('longest_awaited_days', (r.stats -> 'longest_awaited' ->> 'days')::numeric),
   ('wishes_added', (r.stats ->> 'wishes_added')::numeric),
   ('new_friends', (r.stats ->> 'new_friends')::numeric),
   ('max_offered_same_friend', (r.stats ->> 'max_offered_same_friend')::numeric),
   ('last_minute_bookings', (r.stats ->> 'last_minute_bookings')::numeric),
   ('bookings_total', (r.stats ->> 'bookings_total')::numeric),
-  ('last_minute_share', (r.stats ->> 'last_minute_share')::numeric),
+  ('last_minute_share', CASE WHEN (r.stats ->> 'bookings_total')::int > 0 THEN (r.stats ->> 'last_minute_share')::numeric END),
   ('received_on_party_day', (r.stats ->> 'received_on_party_day')::numeric)
 ) AS m(name, value)
 GROUP BY m.name
