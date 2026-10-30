@@ -170,7 +170,18 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
     }
     final userId = ref.read(currentUserIdProvider);
     if (userId != null) {
-      ref.read(staleCardsDayStoreProvider).markDismissed(userId, now);
+      // The stale cards of the stack the user swipes in: the reload under way
+      // may belong to another day.
+      ref.read(staleCardsDayStoreProvider).markDismissed(
+        userId,
+        now,
+        stackKeys: [
+          for (final shown in ref.read(homeCardsProvider).valueOrNull ??
+              const <HomeCardCandidate>[])
+            if (shown.isQueue) shown.stateKey,
+          card.stateKey,
+        ],
+      );
     }
   }
 

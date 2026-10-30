@@ -804,8 +804,9 @@ void main() {
 
     test('a swipe not sent yet already blocks the refill', () async {
       await loadFourLists();
-      // List 2 was hidden and sent, list 3 was swiped and is still waiting
-      // for the snack-bar to close: the reload sees only the first one.
+      // List 2 was hidden and sent; list 3 was swiped and is still waiting
+      // for the snack-bar to close: the server still shows it, and the reload
+      // must not let the list 4 take its place.
       dayStore.markDismissed(fakeCurrentUserId, now);
       when(() => cardStates.getStates(any())).thenAnswer(
         (_) async => {staleKey(2): hiddenState(2, now)},
@@ -813,6 +814,7 @@ void main() {
 
       final cards = await loadFourLists();
 
+      expect(keys(cards), [staleKey(3), staleKey(1)]);
       expect(keys(cards), isNot(contains(staleKey(4))));
     });
 

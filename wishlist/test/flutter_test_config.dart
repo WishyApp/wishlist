@@ -28,8 +28,9 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   AdaptiveTestConfiguration.instance.setDeviceVariants(defaultDeviceConfigs);
 
-  // No platform channel in tests: the preferences live in memory
-  SharedPreferences.setMockInitialValues({});
+  // No platform channel in tests: the preferences live in memory, empty for
+  // each test
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   await loadFonts();
 

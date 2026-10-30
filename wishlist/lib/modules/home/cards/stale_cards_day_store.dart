@@ -19,9 +19,10 @@ class StaleCardsDay {
 
 /// The stale cards of the day, kept on the device (not on the server: it must
 /// be updated at the moment of the swipe, whatever the network does, and
-/// follow the clock of the phone). A card of another user or another local day
-/// is forgotten. Per device: another device may show another stale card the
-/// same day.
+/// follow the clock of the phone). One state per user, for the latest local
+/// day seen: a new day forgets everything, a call about an earlier day (a
+/// build that started before midnight) is ignored. Per device: another device
+/// may show another stale card the same day.
 ///
 /// The memory is the truth, the preferences only carry it across launches.
 class StaleCardsDayStore {
@@ -33,10 +34,10 @@ class StaleCardsDayStore {
 
   final Future<SharedPreferences> Function()? _prefs;
   Future<void>? _loading;
-  String? _userId;
-  String? _date;
-  final _shown = <String>{};
-  var _dismissed = false;
+
+  /// The latest local day seen, as `yyyymmdd`.
+  int? _date;
+  final _days = <String, ({Set<String> shown, bool dismissed})>{};
 
   /// Reads the saved state once; to await before the first `dayOf`.
   Future<void> load() => _loading ??= _load();
@@ -48,47 +49,79 @@ class StaleCardsDayStore {
         return;
       }
       final json = jsonDecode(raw) as Map<String, dynamic>;
-      _userId = json['userId'] as String?;
-      _date = json['date'] as String?;
-      _shown.addAll((json['shown'] as List).cast<String>());
-      _dismissed = json['dismissed'] as bool;
+      final date = json['date'] as int;
+      final days = {
+        for (final entry in (json['users'] as Map<String, dynamic>).entries)
+          entry.key: (
+            shown: ((entry.value as Map<String, dynamic>)['shown'] as List)
+                .cast<String>()
+                .toSet(),
+            dismissed:
+                (entry.value as Map<String, dynamic>)['dismissed'] as bool,
+          ),
+      };
+      // Only when everything was read
+      _date = date;
+      _days.addAll(days);
     } on Object catch (e) {
       debugPrint('[Wishy stale cards] could not read the day: $e');
     }
   }
 
-  /// The state of [userId] on the local day of [now].
+  /// The state of [userId] on the local day of [now]; empty, and never
+  /// blocking, for a day before the latest one seen.
   StaleCardsDay dayOf(String userId, DateTime now) {
-    _enter(userId, now);
-    return StaleCardsDay(shownKeys: {..._shown}, dismissed: _dismissed);
+    if (!_enter(now)) {
+      return const StaleCardsDay();
+    }
+    final day = _days[userId];
+    return day == null
+        ? const StaleCardsDay()
+        : StaleCardsDay(shownKeys: {...day.shown}, dismissed: day.dismissed);
   }
 
   /// The user hid or postponed a stale card: effective at once.
-  void markDismissed(String userId, DateTime now) {
-    _enter(userId, now);
-    _dismissed = true;
+  /// [stackKeys] are the stale cards of the stack the user swiped in, kept as
+  /// shown that day: the stack on screen may be older than the day of [now].
+  void markDismissed(
+    String userId,
+    DateTime now, {
+    Iterable<String> stackKeys = const [],
+  }) {
+    if (!_enter(now)) {
+      return;
+    }
+    final day = _days[userId];
+    _days[userId] = (shown: {...?day?.shown, ...stackKeys}, dismissed: true);
     unawaited(_save());
   }
 
   /// [keys] are in the stack of the day.
   void addShown(String userId, DateTime now, Iterable<String> keys) {
-    _enter(userId, now);
-    final before = _shown.length;
-    _shown.addAll(keys);
-    if (_shown.length != before) {
+    if (!_enter(now)) {
+      return;
+    }
+    final day = _days[userId];
+    final shown = {...?day?.shown, ...keys};
+    if (day == null || shown.length != day.shown.length) {
+      _days[userId] = (shown: shown, dismissed: day?.dismissed ?? false);
       unawaited(_save());
     }
   }
 
-  void _enter(String userId, DateTime now) {
+  /// False when [now] is before the latest day seen: nothing may change.
+  bool _enter(DateTime now) {
     final local = now.toLocal();
-    final date = '${local.year}-${local.month}-${local.day}';
-    if (_userId != userId || _date != date) {
-      _userId = userId;
-      _date = date;
-      _shown.clear();
-      _dismissed = false;
+    final date = local.year * 10000 + local.month * 100 + local.day;
+    final current = _date;
+    if (current != null && date < current) {
+      return false;
     }
+    if (current != date) {
+      _date = date;
+      _days.clear();
+    }
+    return true;
   }
 
   Future<void> _save() async {
@@ -97,10 +130,14 @@ class StaleCardsDayStore {
       await (await _prefs?.call())?.setString(
         _key,
         jsonEncode({
-          'userId': _userId,
           'date': _date,
-          'shown': _shown.toList(),
-          'dismissed': _dismissed,
+          'users': {
+            for (final entry in _days.entries)
+              entry.key: {
+                'shown': entry.value.shown.toList(),
+                'dismissed': entry.value.dismissed,
+              },
+          },
         }),
       );
     } on Object catch (e) {

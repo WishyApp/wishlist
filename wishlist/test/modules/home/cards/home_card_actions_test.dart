@@ -101,6 +101,7 @@ void main() {
     ) body, {
     List<HomeCardDefinition>? definitions,
     List<Override> extra = const [],
+    List<HomeCardCandidate> cards = const [],
   }) {
     fakeAsync((async) {
       final container = ProviderContainer(
@@ -111,7 +112,7 @@ void main() {
           bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
           homeCardsProvider.overrideWith((ref) async {
             homeCardsLoads++;
-            return const [];
+            return cards;
           }),
           homeCardDefinitionsProvider.overrideWith(
             (ref) async => {
@@ -416,6 +417,12 @@ void main() {
   });
 
   group('a stale card', () {
+    final staleCard2 = HomeCardCandidate(
+      type: 'stale_wishlist',
+      stateKey: 'stale_wishlist:2',
+      content: StaleWishlist(fakeWishlist2, 4),
+      isQueue: true,
+    );
     final staleCard = HomeCardCandidate(
       type: 'stale_wishlist',
       stateKey: 'stale_wishlist:1',
@@ -455,6 +462,27 @@ void main() {
         });
       });
     }
+
+    test('swiped keeps the stale cards of the stack on screen as shown', () {
+      run(
+        (async, actions, container) {
+          container.read(homeCardsProvider);
+          async.flushMicrotasks();
+
+          actions.swipe(staleCard, HomeCardSwipe.hide);
+
+          expect(
+            store.dayOf(fakeCurrentUserId, now).shownKeys,
+            {'stale_wishlist:1', 'stale_wishlist:2'},
+          );
+        },
+        extra: [
+          supabaseClientOverride(userId: fakeCurrentUserId),
+          staleCardsDayStoreProvider.overrideWithValue(store),
+        ],
+        cards: [staleCard, staleCard2],
+      );
+    });
 
     test('dismissed at once blocks them too', () {
       runStale((async, actions) {
