@@ -266,15 +266,16 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     },
     const <int, DateTime>{},
   );
-  // The recap calls get_my_year_recap only in its month: nothing heavy is kept
-  // alive the rest of the year.
+  // The recap calls get_my_year_recap only in its window: nothing heavy is
+  // kept alive the rest of the year.
   final yearRecapFuture = _orElse<YearRecapData?>(
     'year recap',
     () async {
       final definitions = await definitionsFuture;
-      return !isYearRecapMonth(definitions['year_recap'], now)
+      final year = yearRecapYear(definitions['year_recap'], now);
+      return year == null
           ? null
-          : await ref.watch(yearRecapFactsProvider(now.toLocal().year).future);
+          : await ref.watch(yearRecapFactsProvider(year).future);
     },
     null,
   );

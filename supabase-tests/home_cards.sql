@@ -54,7 +54,9 @@ INSERT INTO pg_temp.expected_seeds VALUES
   ('onboarding', 'computed', 18, '{"optional_steps_hours": 48}'),
   ('booked_reminder', 'computed', 20, '{"days_before": 14}'),
   ('booked_wish_removed', 'computed', 25, '{}'),
-  ('year_recap', 'computed', 28, '{"month": 12}'),
+  ('year_recap', 'computed', 28,
+   -- Same window as the migration 20261102100000 and card_builders.dart.
+   '{"month": 0, "start": [12, 26], "end": [1, 15]}'),
   ('friend_birthday', 'computed', 30, '{"reminder_days": [30, 7], "highlight_days": 7}'),
   ('friend_accepted', 'computed', 35, '{"days": 7}'),
   ('christmas', 'computed', 40,

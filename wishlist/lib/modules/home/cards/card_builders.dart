@@ -534,34 +534,75 @@ List<HomeCardCandidate> staleWishlistCandidates({
   ];
 }
 
-/// Whether [now] is in the `month` of the definition of the recap (December):
-/// the only time its facts are worth loading.
-bool isYearRecapMonth(HomeCardDefinition? definition, DateTime now) {
-  return definition != null &&
-      now.toLocal().month == definition.intParam('month', 12);
+/// The window of the recap at [now], null outside it: from `start` to `end`
+/// of the definition, both [month, day] and included, December 26 to
+/// January 15 by default, so that the gifts of Christmas are in the recap. It
+/// is the recap of the year that ends: from July on the current year, before
+/// July the one before (on January 10, 2027, the recap of 2026). The `month`
+/// param is only read by the versions before 1.1.1 (see the migration
+/// 20261102100000_year_recap_after_christmas).
+({int year, DateTime lastDay})? _yearRecapWindow(
+  HomeCardDefinition? definition,
+  DateTime now,
+) {
+  if (definition == null) {
+    return null;
+  }
+  (int, int) param(String name, (int, int) fallback) {
+    final value = definition.intListParam(name);
+    return value.length == 2 ? (value[0], value[1]) : fallback;
+  }
+
+  final (startMonth, startDay) = param('start', (12, 26));
+  final (endMonth, endDay) = param('end', (1, 15));
+  final local = now.toLocal();
+  final start = startMonth * 100 + startDay;
+  final end = endMonth * 100 + endDay;
+  final today = local.month * 100 + local.day;
+  final inside = start <= end
+      ? today >= start && today <= end
+      : today >= start || today <= end;
+  if (!inside) {
+    return null;
+  }
+  return (
+    year: local.month >= 7 ? local.year : local.year - 1,
+    // The next end day, this year or the next one
+    lastDay: DateTime(
+      today <= end ? local.year : local.year + 1,
+      endMonth,
+      endDay,
+    ),
+  );
 }
 
-/// "Ton année Wishy": only in the `month` of the definition (December), and
-/// only when the user received or gave at least one wish that year.
+/// The year whose recap is shown at [now], null outside its window: the only
+/// time its facts are worth loading.
+int? yearRecapYear(HomeCardDefinition? definition, DateTime now) =>
+    _yearRecapWindow(definition, now)?.year;
+
+/// "Ton année Wishy": only in the window of the definition (December 26 to
+/// January 15), and only when the user received or gave at least one wish in
+/// the year of the recap.
 List<HomeCardCandidate> yearRecapCards({
   required YearRecapData recap,
   required HomeCardDefinition? definition,
   required DateTime now,
 }) {
+  final window = _yearRecapWindow(definition, now);
   if (definition == null ||
-      !isYearRecapMonth(definition, now) ||
+      window == null ||
       recap.stats.received + recap.stats.offered == 0) {
     return const [];
   }
-  final local = now.toLocal();
   return [
     HomeCardCandidate(
       type: definition.key,
       stateKey: cardKey(definition.key, year: recap.year),
       content: YearRecap(recap),
       tone: HomeCardTone.dark,
-      // Gone after the last day of its month.
-      lastDay: DateTime(local.year, local.month + 1, 0),
+      // Gone after the last day of its window.
+      lastDay: window.lastDay,
     ),
   ];
 }
