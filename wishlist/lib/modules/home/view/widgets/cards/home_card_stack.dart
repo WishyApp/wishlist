@@ -540,7 +540,8 @@ class _TopCard extends StatelessWidget {
               Positioned.fill(
                 child: IgnorePointer(
                   child: ColoredBox(
-                    color: side == HomeCardSwipe.later
+                    // Hiding is for good: the stronger colour
+                    color: side == HomeCardSwipe.hide
                         ? AppColors.primary.withValues(alpha: 0.18 * shown)
                         : AppColors.darkGrey.withValues(alpha: 0.10 * shown),
                   ),
