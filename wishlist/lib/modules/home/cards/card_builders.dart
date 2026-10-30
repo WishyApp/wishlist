@@ -6,6 +6,7 @@ import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/card_state.dart';
+import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/utils/occasion_wishlist_utils.dart';
@@ -434,14 +435,162 @@ List<HomeCardCandidate> onboardingCards({
   return const [];
 }
 
+/// Every open wishlist untouched for `stale_days` days or more, the one idle
+/// the longest first (then by id). [lastActivity] is by wishlist id; a list
+/// missing from it, or closed, is ignored.
+List<HomeCardCandidate> staleWishlistCandidates({
+  required List<Wishlist> wishlists,
+  required Map<int, DateTime> lastActivity,
+  required HomeCardDefinition? definition,
+  required DateTime now,
+}) {
+  if (definition == null) {
+    return const [];
+  }
+  final today = _day(now);
+  final staleDays = definition.intParam('stale_days', 90);
+  final stale = <({Wishlist wishlist, int idle, DateTime activity})>[];
+  for (final wishlist in wishlists) {
+    final activity = lastActivity[wishlist.id];
+    if (activity == null || wishlist.isClosed) {
+      continue;
+    }
+    final idle = _daysBetween(activity.toLocal(), today);
+    if (idle >= staleDays) {
+      stale.add((wishlist: wishlist, idle: idle, activity: activity));
+    }
+  }
+  stale.sort((a, b) {
+    final byIdle = b.idle.compareTo(a.idle);
+    return byIdle != 0 ? byIdle : a.wishlist.id.compareTo(b.wishlist.id);
+  });
+  return [
+    for (final entry in stale)
+      HomeCardCandidate(
+        type: definition.key,
+        stateKey: cardKey(definition.key, id: entry.wishlist.id),
+        content: StaleWishlist(entry.wishlist, entry.idle ~/ 30),
+        eventAt: entry.activity,
+      ),
+  ];
+}
+
+/// The first of the stale [candidates] (see `staleWishlistCandidates`, idle
+/// the longest first) whose card is not hidden by its state at [now]. One card
+/// at a time: hiding it makes room for the next list.
+List<HomeCardCandidate> staleWishlistCards({
+  required List<HomeCardCandidate> candidates,
+  required Map<String, CardState> states,
+  required DateTime now,
+}) {
+  for (final candidate in candidates) {
+    if (!(states[candidate.stateKey]?.isHidden(now) ?? false)) {
+      return [candidate];
+    }
+  }
+  return const [];
+}
+
+/// What was received (`completedAt`) and given during [year]. A booking counts
+/// as given once the owner marked at least the booked quantity as received
+/// (`receivedAt` in [year]), even if other bookings of the wish are not.
+YearRecapFacts yearRecapFacts({
+  required List<CompletedWishWithDetails> received,
+  required List<BookedWishWithDetails> bookings,
+  required int year,
+}) {
+  final receivedInYear = [
+    for (final wish in received)
+      if (wish.completedAt.toLocal().year == year) wish,
+  ];
+  // Differs on purpose from `BookedWishWithDetails.isGiven` (every booking of
+  // the wish received, used by the booked reminder card): here the owner only
+  // has to have received what this user booked, whatever the other bookers
+  // did. Do not align the two.
+  final offeredInYear = [
+    for (final booking in bookings)
+      if (booking.receivedAt?.toLocal().year == year &&
+          booking.receivedQuantity >= booking.bookedQuantity)
+        booking,
+  ];
+  CompletedWishWithDetails? longestAwaited;
+  for (final wish in receivedInYear) {
+    if (longestAwaited == null ||
+        wish.wish.createdAt.isBefore(longestAwaited.wish.createdAt)) {
+      longestAwaited = wish;
+    }
+  }
+  final givenByOwner = <String, int>{};
+  final pseudos = <String, String>{};
+  for (final booking in offeredInYear) {
+    givenByOwner.update(booking.ownerId, (n) => n + 1, ifAbsent: () => 1);
+    pseudos[booking.ownerId] = booking.ownerPseudo;
+  }
+  final most = givenByOwner.values.fold(0, max);
+  final top = [
+    for (final entry in givenByOwner.entries)
+      if (entry.value == most) entry.key,
+  ];
+  return YearRecapFacts(
+    year: year,
+    receivedCount: receivedInYear.length,
+    offeredCount: offeredInYear.length,
+    longestAwaited: longestAwaited,
+    mostGiftedFriendPseudo: top.length == 1 ? pseudos[top.single] : null,
+  );
+}
+
+/// Whether [now] is in the `month` of the definition of the recap (December):
+/// the only time its facts are worth loading.
+bool isYearRecapMonth(HomeCardDefinition? definition, DateTime now) {
+  return definition != null &&
+      now.toLocal().month == definition.intParam('month', 12);
+}
+
+/// "Ton année Wishy": only in the `month` of the definition (December), and
+/// only when the user received or gave at least one wish that year.
+List<HomeCardCandidate> yearRecapCards({
+  required YearRecapFacts facts,
+  required HomeCardDefinition? definition,
+  required DateTime now,
+}) {
+  if (definition == null ||
+      !isYearRecapMonth(definition, now) ||
+      facts.receivedCount + facts.offeredCount == 0) {
+    return const [];
+  }
+  final local = now.toLocal();
+  return [
+    HomeCardCandidate(
+      type: definition.key,
+      stateKey: cardKey(definition.key, year: facts.year),
+      content: YearRecap(facts),
+      tone: HomeCardTone.dark,
+      // Gone after the last day of its month.
+      lastDay: DateTime(local.year, local.month + 1, 0),
+    ),
+  ];
+}
+
 /// When a card dismissed with "Hide" at [now] comes back: the next reminder
 /// step when its definition has `reminder_days` (friend birthday, Christmas),
-/// null (never) for the others.
+/// `snooze_days` days later for a stale wishlist, null (never) for the others.
 DateTime? hideUntil(
   HomeCardCandidate card,
   Map<String, HomeCardDefinition> definitions,
   DateTime now,
 ) {
+  if (card.type == 'stale_wishlist') {
+    final days = definitions[card.type]?.intParam('snooze_days', 60) ?? 60;
+    final local = now.toLocal();
+    return DateTime(
+      local.year,
+      local.month,
+      local.day + days,
+      local.hour,
+      local.minute,
+    );
+  }
   final eventAt = card.eventAt;
   final definition = definitions[card.type];
   if (eventAt == null ||

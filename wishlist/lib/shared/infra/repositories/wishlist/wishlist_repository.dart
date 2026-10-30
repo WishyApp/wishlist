@@ -17,4 +17,8 @@ abstract class WishlistRepository {
   Future<Wishlist> updateWishlist(Wishlist wishlist);
 
   Future<void> deleteWishlist(int wishlistId);
+
+  /// The most recent activity (creation, wishes added or changed) of each
+  /// open wishlist of the current user, by wishlist id.
+  Future<Map<int, DateTime>> getLastActivityByWishlist();
 }

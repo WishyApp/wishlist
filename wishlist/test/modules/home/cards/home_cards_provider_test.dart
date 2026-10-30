@@ -9,8 +9,10 @@ import 'package:mocktail/mocktail.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/modules/home/cards/wishlists_last_activity_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
+import 'package:wishlist/shared/infra/completed_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
 import 'package:wishlist/shared/infra/friendships_realtime_provider.dart';
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository.dart';
@@ -21,6 +23,8 @@ import 'package:wishlist/shared/infra/repositories/friendship/friendship_reposit
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository.dart';
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
+import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository.dart';
+import 'package:wishlist/shared/infra/repositories/user_completed_wish/user_completed_wish_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_repository.dart';
 import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_repository_provider.dart';
 import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
@@ -30,8 +34,10 @@ import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/card_state.dart';
+import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/profile.dart';
+import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
 import '../../../fixtures/fake_data.dart';
@@ -46,6 +52,9 @@ class MockBookedWishRemovalRepository extends Mock
     implements BookedWishRemovalRepository {}
 
 class MockWishlistRepository extends Mock implements WishlistRepository {}
+
+class MockUserCompletedWishRepository extends Mock
+    implements UserCompletedWishRepository {}
 
 HomeCardDefinition def(
   String key,
@@ -78,6 +87,8 @@ final seeds = [
     'highlight_days': 7,
     'keywords': ['noel', 'christmas', 'xmas'],
   }),
+  def('stale_wishlist', 60, {'stale_days': 90, 'snooze_days': 60}),
+  def('year_recap', 28, {'month': 12}),
 ];
 
 void main() {
@@ -109,13 +120,13 @@ void main() {
         .thenAnswer((_) => Stream.value(const []));
   });
 
-  Future<List<HomeCardCandidate>> load({
+  ProviderContainer containerFor({
     DateTime? at,
     Map<String, Birthday> birthdays = const {},
     Birthday? myBirthday = const Birthday(month: 1, day: 1),
     bool hasAvatar = true,
     List<Override> extra = const [],
-  }) async {
+  }) {
     final container = ProviderContainer(
       overrides: [
         ...homeScreenOverrides(
@@ -140,7 +151,23 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    return container.read(homeCardsProvider.future);
+    return container;
+  }
+
+  Future<List<HomeCardCandidate>> load({
+    DateTime? at,
+    Map<String, Birthday> birthdays = const {},
+    Birthday? myBirthday = const Birthday(month: 1, day: 1),
+    bool hasAvatar = true,
+    List<Override> extra = const [],
+  }) {
+    return containerFor(
+      at: at,
+      birthdays: birthdays,
+      myBirthday: myBirthday,
+      hasAvatar: hasAvatar,
+      extra: extra,
+    ).read(homeCardsProvider.future);
   }
 
   Birthday tomorrow({DateTime? from}) {
@@ -641,6 +668,349 @@ void main() {
       );
 
       expect(cards.single.stateKey, 'onboarding:firstFriend');
+    });
+  });
+
+  group('stale wishlist', () {
+    late MockWishlistRepository wishlistRepository;
+
+    setUp(() {
+      wishlistRepository = MockWishlistRepository();
+    });
+
+    Future<List<HomeCardCandidate>> loadWithActivity() => load(
+          extra: [
+            wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+          ],
+        );
+
+    test('the list idle the longest gives a card', () async {
+      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+        (_) async => {
+          fakeWishlist1.id: DateTime(2026, 7, 2),
+          fakeWishlist2.id: DateTime(2026, 5, 2),
+          fakeWishlist3.id: DateTime(2026, 10, 2),
+        },
+      );
+
+      final cards = await loadWithActivity();
+
+      expect(cards.single.type, 'stale_wishlist');
+      expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist2.id}');
+    });
+
+    test('the last activity is fetched while the other sources load', () async {
+      // The accepted requests only answer once the activity was asked for:
+      // loaded one after the other, the stack would never come.
+      final activityAsked = Completer<void>();
+      when(() => friendships.getRecentlyAcceptedRequests(any())).thenAnswer(
+        (_) async {
+          await activityAsked.future;
+          return const [];
+        },
+      );
+      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+        (_) async {
+          activityAsked.complete();
+          return {fakeWishlist1.id: DateTime(2026, 5, 2)};
+        },
+      );
+
+      final cards = await loadWithActivity().timeout(
+        const Duration(seconds: 2),
+      );
+
+      expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist1.id}');
+    });
+
+    test('a snoozed list makes room for the next oldest one', () async {
+      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+        (_) async => {
+          fakeWishlist1.id: DateTime(2026, 7, 2),
+          fakeWishlist2.id: DateTime(2026, 5, 2),
+          fakeWishlist3.id: DateTime(2026, 6, 2),
+        },
+      );
+      final key = 'stale_wishlist:${fakeWishlist2.id}';
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {
+          key: CardState(
+            cardKey: key,
+            shownCount: 1,
+            dismissedAt: now,
+            snoozedUntil: now.add(const Duration(days: 30)),
+          ),
+        },
+      );
+
+      final cards = await loadWithActivity();
+
+      expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist3.id}');
+    });
+
+    test('the last activity unavailable only loses this card', () async {
+      when(() => wishlistRepository.getLastActivityByWishlist())
+          .thenThrow(Exception('offline'));
+
+      final cards = await load(
+        birthdays: {fakeFriendUserId1: tomorrow()},
+        extra: [
+          wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+        ],
+      );
+
+      expect(cards.single.type, 'friend_birthday');
+    });
+
+    group('its own provider', () {
+      setUp(() {
+        when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+          (_) async => {fakeWishlist1.id: DateTime(2026, 5, 2)},
+        );
+      });
+
+      ProviderContainer homeContainer() => containerFor(
+            extra: [
+              wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+            ],
+          );
+
+      test('a reload of the cards does not ask it again', () async {
+        final container = homeContainer();
+        final subscription = container.listen(
+          homeCardsProvider,
+          (_, __) {},
+        );
+        addTearDown(subscription.close);
+        await container.read(homeCardsProvider.future);
+
+        // What a swipe or a change of bookings does
+        container.invalidate(homeCardsProvider);
+        final cards = await container.read(homeCardsProvider.future);
+
+        expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist1.id}');
+        verify(() => wishlistRepository.getLastActivityByWishlist()).called(1);
+      });
+
+      test('invalidating it reloads the cards from a fresh read', () async {
+        final container = homeContainer();
+        final subscription = container.listen(
+          homeCardsProvider,
+          (_, __) {},
+        );
+        addTearDown(subscription.close);
+        expect(
+          (await container.read(homeCardsProvider.future)).single.stateKey,
+          'stale_wishlist:${fakeWishlist1.id}',
+        );
+        // The user touched the list since: it is not stale anymore
+        when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+          (_) async => {fakeWishlist1.id: now},
+        );
+
+        container.invalidate(wishlistsLastActivityProvider);
+        final cards = await container.read(homeCardsProvider.future);
+
+        expect(cards.where((card) => card.type == 'stale_wishlist'), isEmpty);
+        verify(() => wishlistRepository.getLastActivityByWishlist()).called(2);
+      });
+    });
+
+    test('is not asked when the card type is disabled', () async {
+      when(() => homeCards.getActiveCards()).thenAnswer(
+        (_) async => [
+          for (final seed in seeds)
+            if (seed.key != 'stale_wishlist') seed,
+        ],
+      );
+
+      await loadWithActivity();
+
+      verifyNever(() => wishlistRepository.getLastActivityByWishlist());
+    });
+  });
+
+  group('year recap', () {
+    CompletedWishWithDetails received(
+      DateTime completedAt, {
+      DateTime? createdAt,
+    }) {
+      return CompletedWishWithDetails(
+        wish: Wish(
+          id: completedAt.month,
+          createdAt: createdAt ?? completedAt,
+          name: 'Casque',
+          description: '',
+          quantity: 1,
+          wishlistId: 1,
+          updatedBy: fakeFriendUserId1,
+          updatedAt: fakeUpdatedAt,
+        ),
+        fromWishlistId: 1,
+        fromWishlistName: 'Liste',
+        ownerPseudo: 'Alice',
+        ownerId: fakeFriendUserId1,
+        completedAt: completedAt,
+        quantity: 1,
+      );
+    }
+
+    late MockUserCompletedWishRepository completedRepository;
+    var realtimeListened = false;
+
+    setUp(() {
+      completedRepository = MockUserCompletedWishRepository();
+      realtimeListened = false;
+      when(() => completedRepository.getCompletedWishesByUser(any()))
+          .thenAnswer(
+        (_) async => [
+          received(DateTime(2026, 3, 4), createdAt: DateTime(2024, 6, 2)),
+          received(DateTime(2026, 8, 9)),
+        ].toIList(),
+      );
+    });
+
+    Future<List<HomeCardCandidate>> loadAll(DateTime at) => load(
+          at: at,
+          extra: [
+            userCompletedWishRepositoryProvider
+                .overrideWithValue(completedRepository),
+            // The live stream is the heavy one: the home must never listen
+            completedWishesRealtimeProvider.overrideWith((ref) {
+              realtimeListened = true;
+              return Stream.value(const IListConst([]));
+            }),
+          ],
+        );
+
+    // Christmas cards share the stack in December: look at the recap only
+    Future<List<HomeCardCandidate>> loadRecap(DateTime at) async => [
+          for (final card in await loadAll(at))
+            if (card.type == 'year_recap') card,
+        ];
+
+    test('the recap is read while the other sources load', () async {
+      // The accepted requests only answer once the received wishes were
+      // asked for: loaded one after the other, the stack would never come.
+      final recapAsked = Completer<void>();
+      when(() => friendships.getRecentlyAcceptedRequests(any())).thenAnswer(
+        (_) async {
+          await recapAsked.future;
+          return const [];
+        },
+      );
+      when(() => completedRepository.getCompletedWishesByUser(any()))
+          .thenAnswer((_) async {
+        if (!recapAsked.isCompleted) {
+          recapAsked.complete();
+        }
+        return [
+          received(DateTime(2026, 3, 4), createdAt: DateTime(2024, 6, 2)),
+          received(DateTime(2026, 8, 9)),
+        ].toIList();
+      });
+
+      final cards = await loadRecap(DateTime(2026, 12, 10, 9)).timeout(
+        const Duration(seconds: 2),
+      );
+
+      expect(cards, hasLength(1));
+    });
+
+    test('in December, a dark card with what was received and given', () async {
+      final cards = await loadRecap(DateTime(2026, 12, 10, 9));
+
+      expect(cards.single.type, 'year_recap');
+      expect(cards.single.tone, HomeCardTone.dark);
+      expect(cards.single.stateKey, 'year_recap@2026');
+      final facts = (cards.single.content as YearRecap).facts;
+      expect(facts.receivedCount, 2);
+      expect(facts.offeredCount, 0);
+      expect(facts.longestAwaited?.wish.createdAt, DateTime(2024, 6, 2));
+    });
+
+    test('the bookings received this year count as offered', () async {
+      final booking = BookedWishWithDetails(
+        wish: fakeWish1,
+        bookedQuantity: 1,
+        wishlistName: 'Liste',
+        ownerPseudo: 'Alice',
+        ownerId: fakeFriendUserId1,
+        receivedQuantity: 1,
+        receivedAt: DateTime(2026, 5, 2),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          ...homeScreenOverrides(
+            now: DateTime(2026, 12, 10, 9),
+            overrideHomeCards: false,
+            bookedWishes: [booking].toIList(),
+          ),
+          currentUserBirthdayOverride(
+            birthday: const Birthday(month: 1, day: 1),
+          ),
+          watchCurrentUserProfileOverride(
+            profile: Profile(
+              id: fakeCurrentUserId,
+              pseudo: 'MonPseudo',
+              avatarUrl: 'https://example.com/me.png',
+            ),
+          ),
+          homeCardRepositoryProvider.overrideWithValue(homeCards),
+          cardStateRepositoryProvider.overrideWithValue(cardStates),
+          friendshipRepositoryProvider.overrideWithValue(friendships),
+          bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
+          userCompletedWishRepositoryProvider
+              .overrideWithValue(completedRepository),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final cards = [
+        for (final card in await container.read(homeCardsProvider.future))
+          if (card.type == 'year_recap') card,
+      ];
+
+      final facts = (cards.single.content as YearRecap).facts;
+      expect(facts.offeredCount, 1);
+      expect(facts.mostGiftedFriendPseudo, 'Alice');
+    });
+
+    test('outside December nothing is fetched nor listened to', () async {
+      final cards = await loadRecap(DateTime(2026, 11, 30, 23));
+
+      expect(cards, isEmpty);
+      verifyNever(() => completedRepository.getCompletedWishesByUser(any()));
+      expect(realtimeListened, isFalse);
+    });
+
+    test('in December the live stream is still not listened to', () async {
+      await loadRecap(DateTime(2026, 12, 10, 9));
+
+      expect(realtimeListened, isFalse);
+    });
+
+    test('nothing without any activity in the year', () async {
+      when(() => completedRepository.getCompletedWishesByUser(any()))
+          .thenAnswer((_) async => const IListConst([]));
+
+      expect(await loadRecap(DateTime(2026, 12, 10, 9)), isEmpty);
+    });
+
+    test('the received wishes unavailable only loses this card', () async {
+      when(() => completedRepository.getCompletedWishesByUser(any()))
+          .thenThrow(Exception('offline'));
+
+      final cards = await load(
+        at: DateTime(2026, 12, 20, 9),
+        birthdays: {fakeFriendUserId1: const Birthday(month: 12, day: 21)},
+        extra: [
+          userCompletedWishRepositoryProvider
+              .overrideWithValue(completedRepository),
+        ],
+      );
+
+      expect(cards.map((c) => c.type), contains('friend_birthday'));
     });
   });
 

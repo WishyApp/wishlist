@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/home/cards/card_builders.dart';
 import 'package:wishlist/modules/home/cards/card_selection.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/home/cards/wishlists_last_activity_provider.dart';
+import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/current_user_birthday_provider.dart';
@@ -244,6 +246,36 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     true,
   );
 
+  // The two slow reads only depend on the definitions (and the wishlists):
+  // they start as soon as those are there, in parallel with the sources
+  // above, and are awaited after them (a record `.wait` takes 9 futures at
+  // most). Their failure is caught here, it only loses their cards. The last
+  // activity has its own provider, so that a reload of the cards (swipe,
+  // booking change) does not ask it again.
+  final lastActivityFuture = _orElse<Map<int, DateTime>>(
+    'wishlists last activity',
+    () async {
+      final definitions = await definitionsFuture;
+      final wishlists = await wishlistsFuture;
+      return definitions['stale_wishlist'] == null || wishlists.isEmpty
+          ? const <int, DateTime>{}
+          : await ref.watch(wishlistsLastActivityProvider.future);
+    },
+    const <int, DateTime>{},
+  );
+  // The recap reads the received wishes once, and only in its month: nothing
+  // heavy is kept alive the rest of the year.
+  final yearRecapFuture = _orElse<YearRecapFacts?>(
+    'year recap',
+    () async {
+      final definitions = await definitionsFuture;
+      return !isYearRecapMonth(definitions['year_recap'], now)
+          ? null
+          : await ref.watch(yearRecapFactsProvider(now.toLocal().year).future);
+    },
+    null,
+  );
+
   final (
     definitions,
     wishlists,
@@ -269,6 +301,8 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   final sentRequests = friendsData?.pendingFriends.length ?? 0;
   final myBirthday = myBirthdayState.birthday;
   final hasBirthday = !myBirthdayState.known || myBirthday != null;
+  final lastActivity = await lastActivityFuture;
+  final yearRecap = await yearRecapFuture;
 
   final candidates = [
     ...friendBirthdayCards(
@@ -309,14 +343,35 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
       definition: definitions['christmas'],
       now: now,
     ),
+    if (yearRecap != null)
+      ...yearRecapCards(
+        facts: yearRecap,
+        definition: definitions['year_recap'],
+        now: now,
+      ),
   ];
 
   // The onboarding card needs the states of its optional steps, which are
   // fetched with the others in one go.
+  // The stale lists too: the oldest one whose card is not snoozed is kept.
+  final staleCandidates = staleWishlistCandidates(
+    wishlists: wishlists,
+    lastActivity: lastActivity,
+    definition: definitions['stale_wishlist'],
+    now: now,
+  );
   final states = await cardStateRepository.getStates([
     for (final candidate in candidates) candidate.stateKey,
+    for (final candidate in staleCandidates) candidate.stateKey,
     ..._onboardingStateKeys,
   ]);
+  candidates.addAll(
+    staleWishlistCards(
+      candidates: staleCandidates,
+      states: states,
+      now: now,
+    ),
+  );
   candidates.addAll(
     onboardingCards(
       wishlistCount: wishlists.length,

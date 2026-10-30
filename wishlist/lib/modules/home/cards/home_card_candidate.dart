@@ -3,6 +3,7 @@ import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
+import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
 /// How a card looks: white with an orange button, orange for what is close,
@@ -86,6 +87,45 @@ final class Onboarding extends HomeCardContent {
   const Onboarding(this.step);
 
   final OnboardingStep step;
+}
+
+final class StaleWishlist extends HomeCardContent {
+  const StaleWishlist(this.wishlist, this.monthsIdle);
+
+  final Wishlist wishlist;
+
+  /// Whole months (of 30 days) without activity.
+  final int monthsIdle;
+}
+
+final class YearRecap extends HomeCardContent {
+  const YearRecap(this.facts);
+
+  final YearRecapFacts facts;
+}
+
+/// What the user received and gave during [year]: the card and the recap
+/// page are both built from it.
+@immutable
+class YearRecapFacts {
+  const YearRecapFacts({
+    required this.year,
+    required this.receivedCount,
+    required this.offeredCount,
+    this.longestAwaited,
+    this.mostGiftedFriendPseudo,
+  });
+
+  final int year;
+  final int receivedCount;
+  final int offeredCount;
+
+  /// The wish received this year that was created the earliest.
+  final CompletedWishWithDetails? longestAwaited;
+
+  /// The friend who was given the most wishes, null on a tie or when nothing
+  /// was given.
+  final String? mostGiftedFriendPseudo;
 }
 
 /// A card that could be shown now, before the user's states and the stack

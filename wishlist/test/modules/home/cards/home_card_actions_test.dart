@@ -134,6 +134,28 @@ void main() {
     });
   }
 
+  test('dismissNow hides for good at once, without waiting for a snack-bar',
+      () {
+    run((async, actions, container) {
+      actions.dismissNow(photoCard());
+
+      expect(container.read(homeCardActionsProvider), {'onboarding:photo'});
+      async.flushMicrotasks();
+      verify(() => cardStates.dismiss('onboarding:photo')).called(1);
+      expect(homeCardsLoads, greaterThan(0));
+
+      // Nothing more is sent later, nor by a second call
+      actions.dismissNow(photoCard());
+      async.elapse(const Duration(seconds: 10));
+      verifyNever(
+        () => cardStates.dismiss(
+          'onboarding:photo',
+          snoozeUntil: any(named: 'snoozeUntil'),
+        ),
+      );
+    });
+  });
+
   test('hide is sent for good by the fallback timer', () {
     run((async, actions, container) {
       actions.swipe(photoCard(), HomeCardSwipe.hide);

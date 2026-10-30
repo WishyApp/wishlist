@@ -1,17 +1,26 @@
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/view/widgets/cards/home_card_view.dart';
+import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository.dart';
+import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
+import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
+import 'package:wishlist/shared/models/wish/wish.dart';
+import 'package:wishlist/shared/theme/colors.dart';
 
 import '../../../../../fixtures/fake_data.dart';
 import '../../../../../fixtures/fake_providers.dart';
 import '../../../../../pump_app.dart';
+
+class MockCardStateRepository extends Mock implements CardStateRepository {}
 
 HomeCardCandidate card(
   HomeCardContent content, {
@@ -24,6 +33,27 @@ HomeCardCandidate card(
     content: content,
     tone: tone,
     dismissable: dismissable,
+  );
+}
+
+CompletedWishWithDetails completed({required DateTime createdAt}) {
+  return CompletedWishWithDetails(
+    wish: Wish(
+      id: 5,
+      createdAt: createdAt,
+      name: 'Casque',
+      description: '',
+      quantity: 1,
+      wishlistId: 1,
+      updatedBy: fakeFriendUserId1,
+      updatedAt: fakeUpdatedAt,
+    ),
+    fromWishlistId: 1,
+    fromWishlistName: 'Liste',
+    ownerPseudo: 'Alice',
+    ownerId: fakeFriendUserId1,
+    completedAt: fakeNow,
+    quantity: 1,
   );
 }
 
@@ -42,12 +72,22 @@ BookedWishRemoval removal({String pseudo = 'Alice'}) {
 
 void main() {
   var hidden = 0;
-  setUp(() => hidden = 0);
+  late MockCardStateRepository cardStates;
+  setUp(() {
+    hidden = 0;
+    cardStates = MockCardStateRepository();
+    when(() => cardStates.recordShown(any())).thenAnswer((_) async {});
+    when(
+      () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+    ).thenAnswer((_) async {});
+    when(() => cardStates.getStates(any())).thenAnswer((_) async => const {});
+  });
 
   Future<void> pumpCard(
     WidgetTester tester,
     HomeCardCandidate candidate, {
     WindowConfigData? windowConfig,
+    List<Override> overrides = const [],
   }) async {
     await tester.pumpRouterApp(
       '/card',
@@ -79,9 +119,11 @@ void main() {
       ],
       overrides: [
         ...homeScreenOverrides(now: fakeNow),
+        cardStateRepositoryProvider.overrideWithValue(cardStates),
         watchWishsFromWishlistProvider.overrideWith(
           (ref, id) => Stream.value(fakeWishes.toIList()),
         ),
+        ...overrides,
       ],
     );
     await tester.pumpAndSettle();
@@ -398,6 +440,134 @@ void main() {
       expect(find.text('Créer une wishlist'), findsOneWidget);
     });
 
+    testWidgets('a stale wishlist asks if it is still up to date',
+        (tester) async {
+      await pumpCard(
+        tester,
+        card(StaleWishlist(fakeWishlist1, 3)),
+      );
+
+      expect(find.text('Pas touchée depuis 3 mois'), findsOneWidget);
+      expect(
+        find.text('« Anniversaire » est toujours à jour ?'),
+        findsOneWidget,
+      );
+      expect(find.text("Oui, c'est bon"), findsOneWidget);
+      expect(find.text('La revoir'), findsOneWidget);
+    });
+
+    testWidgets("'Oui, c'est bon' hides the card like the cross",
+        (tester) async {
+      await pumpCard(tester, card(StaleWishlist(fakeWishlist1, 3)));
+
+      await tester.tap(find.text("Oui, c'est bon"));
+
+      expect(hidden, 1);
+    });
+
+    testWidgets('"La revoir" opens the wishlist', (tester) async {
+      await pumpCard(tester, card(StaleWishlist(fakeWishlist1, 3)));
+
+      await tapAndExpectPath(
+        tester,
+        'La revoir',
+        '/wishlist/${fakeWishlist1.id}',
+      );
+      expect(hidden, 0);
+    });
+
+    testWidgets('the year recap shows the numbers on a dark card',
+        (tester) async {
+      await pumpCard(
+        tester,
+        card(
+          const YearRecap(
+            YearRecapFacts(year: 2026, receivedCount: 3, offeredCount: 2),
+          ),
+          tone: HomeCardTone.dark,
+        ),
+      );
+
+      expect(find.text('Ton année Wishy 2026'), findsOneWidget);
+      expect(find.text('3 wishs reçus, 2 offerts'), findsOneWidget);
+      expect(find.textContaining("qui t'attendait"), findsNothing);
+      final decoration = tester
+          .widget<DecoratedBox>(
+            find
+                .descendant(
+                  of: find.byType(HomeCardView),
+                  matching: find.byType(DecoratedBox),
+                )
+                .first,
+          )
+          .decoration as BoxDecoration;
+      expect(decoration.color, AppColors.darkGrey);
+    });
+
+    testWidgets('the year recap tells of a wish that waited since last year',
+        (tester) async {
+      await pumpCard(
+        tester,
+        card(
+          YearRecap(
+            YearRecapFacts(
+              year: 2026,
+              receivedCount: 1,
+              offeredCount: 1,
+              longestAwaited: completed(createdAt: DateTime(2024, 6, 2)),
+            ),
+          ),
+          tone: HomeCardTone.dark,
+        ),
+      );
+
+      expect(
+        find.text("Et Casque qui t'attendait depuis 2024"),
+        findsOneWidget,
+      );
+      expect(find.text('1 wish reçu, 1 offert'), findsOneWidget);
+    });
+
+    testWidgets('the year recap says nothing of a wish created this year',
+        (tester) async {
+      await pumpCard(
+        tester,
+        card(
+          YearRecap(
+            YearRecapFacts(
+              year: 2026,
+              receivedCount: 1,
+              offeredCount: 0,
+              longestAwaited: completed(createdAt: DateTime(2026, 2, 2)),
+            ),
+          ),
+          tone: HomeCardTone.dark,
+        ),
+      );
+
+      expect(find.textContaining("qui t'attendait"), findsNothing);
+    });
+
+    testWidgets('"Découvrir" opens the recap and hides the card for good',
+        (tester) async {
+      await pumpCard(
+        tester,
+        card(
+          const YearRecap(
+            YearRecapFacts(year: 2026, receivedCount: 3, offeredCount: 2),
+          ),
+          tone: HomeCardTone.dark,
+        ),
+      );
+
+      await tapAndExpectPath(tester, 'Découvrir', '/year-recap/2026');
+
+      verify(() => cardStates.dismiss('test')).called(1);
+      // Without a snack-bar to undo it
+      expect(find.byType(SnackBar), findsNothing);
+      expect(hidden, 0);
+    });
+
     testWidgets('onboarding step 1 opens the create dialog', (tester) async {
       await pumpCard(
         tester,
@@ -498,12 +668,25 @@ void main() {
   });
 
   group('golden', () {
-    for (final tone in [HomeCardTone.light, HomeCardTone.highlighted]) {
+    for (final tone in HomeCardTone.values) {
       testAdaptiveWidgets('$HomeCardView golden test ${tone.name}',
           (tester, variant) async {
         await pumpCard(
           tester,
-          card(BookedWishRemoved(removal(), canOpenList: true), tone: tone),
+          card(
+            tone == HomeCardTone.dark
+                ? YearRecap(
+                    YearRecapFacts(
+                      year: 2026,
+                      receivedCount: 3,
+                      offeredCount: 2,
+                      longestAwaited:
+                          completed(createdAt: DateTime(2024, 6, 2)),
+                    ),
+                  )
+                : BookedWishRemoved(removal(), canOpenList: true),
+            tone: tone,
+          ),
           windowConfig: variant,
         );
 
