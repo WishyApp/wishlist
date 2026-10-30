@@ -372,5 +372,266 @@
   "wishlistSettingsOwnerOnly": "Only the owner of this wishlist can change its settings",
   "homeMyWishlists": "My wishlists",
   "homeNoWishlist": "No wishlist yet",
-  "homeReceivedWishes": "{count, plural, =1 {1 wish received} other {{count} wishes received}}"
+  "homeReceivedWishes": "{count, plural, =1 {1 wish received} other {{count} wishes received}}",
+  "homeCardHide": "Hide",
+  "homeCardLater": "Later",
+  "homeCardHidden": "Card hidden",
+  "homeCardPostponed": "{days, plural, =1{Postponed to tomorrow} other{Postponed for {days} days}}",
+  "@homeCardPostponed": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardFriendBirthdayTodayOverline": "It's today!",
+  "homeCardFriendBirthdayTodayTitle": "Happy birthday to {pseudo}",
+  "@homeCardFriendBirthdayTodayTitle": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardSeeTheirList": "See their list",
+  "homeCardFriendBirthdaySoonTitle": "{pseudo}'s birthday",
+  "@homeCardFriendBirthdaySoonTitle": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardSeeTheirWishlists": "See their wishlists",
+  "homeCardAfterPartyBirthdayOverline": "{days, plural, =1{Your birthday was yesterday} other{Your birthday was {days} days ago}}",
+  "@homeCardAfterPartyBirthdayOverline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardAfterPartyChristmasOverline": "{days, plural, =1{Christmas was yesterday} other{Christmas was {days} days ago}}",
+  "@homeCardAfterPartyChristmasOverline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardAfterPartyChristmasTitle": "Did Santa come by?",
+  "homeCardAfterPartyBirthdayTitle": "Were you spoiled?",
+  "homeCardAfterPartyAction": "Tick what I received",
+  "homeCardAfterPartyNoList": "Open the right list below to tick what you received.",
+  "homeCardBookedReminderBirthdayOverline": "Reminder · {pseudo}'s birthday is {days, plural, =0{today} =1{tomorrow} other{in {days} days}}",
+  "@homeCardBookedReminderBirthdayOverline": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardBookedReminderChristmasOverline": "Reminder · {days, plural, =0{it's Christmas today} =1{Christmas is tomorrow} other{Christmas is in {days} days}}",
+  "@homeCardBookedReminderChristmasOverline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardBookedReminderTitle": "You booked {wish}",
+  "@homeCardBookedReminderTitle": {
+    "placeholders": {
+      "wish": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardSeeTheWish": "See the wish",
+  "homeCardRemovedOverline": "A change at {pseudo}'s",
+  "@homeCardRemovedOverline": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardRemovedOverlineNoPseudo": "A change in a wishlist",
+  "homeCardRemovedTitle": "{pseudo} removed {wish}, which you had booked",
+  "@homeCardRemovedTitle": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      },
+      "wish": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardRemovedTitleNoPseudo": "A wish you had booked was removed",
+  "homeCardRemovedBody": "If you already bought it, you can still give it. If not, their list has other ideas.",
+  "homeCardRemovedBodyNoList": "If you already bought it, you can still give it.",
+  "homeCardAcceptedTitle": "{pseudo} accepted your request",
+  "@homeCardAcceptedTitle": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardChristmasOverline": "{days, plural, =0{The big day} =1{Christmas is tomorrow} other{Christmas is in {days} days}}",
+  "@homeCardChristmasOverline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardChristmasListTitle": "{count, plural, =0{Your list \"{name}\" is empty} =1{Your list \"{name}\" has 1 wish} other{Your list \"{name}\" has {count} wishes}}",
+  "@homeCardChristmasListTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardChristmasListTitleNoCount": "Your list \"{name}\"",
+  "@homeCardChristmasListTitleNoCount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardChristmasListAction": "Complete it",
+  "homeCardChristmasNoListTitle": "Christmas is coming",
+  "homeCardChristmasNoListAction": "Create my Christmas list",
+  "homeCardChristmasDayTitle": "Did Santa read your list?",
+  "homeCardChristmasDayAction": "See my list",
+  "homeCardOnboardingStep": "Step {step} of {total}",
+  "@homeCardOnboardingStep": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardOnboardingWishlistTitle": "Create your first wishlist",
+  "homeCardOnboardingWishlistAction": "Create a wishlist",
+  "homeCardOnboardingFriendTitle": "Add a friend",
+  "homeCardOnboardingFriendAction": "Add a friend",
+  "homeCardOnboardingBirthdayTitle": "Add your birthday",
+  "homeCardOnboardingBirthdayAction": "Add",
+  "homeCardOnboardingPhotoTitle": "Add a photo",
+  "homeCardOnboardingPhotoAction": "Choose a photo",
+  "homeCardStaleOverline": "Untouched for {months, plural, =1{1 month} other{{months} months}}",
+  "@homeCardStaleOverline": {
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardStaleTitle": "Is \"{name}\" still up to date?",
+  "@homeCardStaleTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardStaleConfirm": "Yes, it's fine",
+  "homeCardStaleReview": "Review it",
+  "homeCardYearRecapOverline": "Your Wishy year {year}",
+  "@homeCardYearRecapOverline": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardYearRecapTitle": "{received}, {offered}",
+  "@homeCardYearRecapTitle": {
+    "placeholders": {
+      "received": {
+        "type": "String"
+      },
+      "offered": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardYearRecapOffered": "{count, plural, =1{1 given} other{{count} given}}",
+  "@homeCardYearRecapOffered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardYearRecapAwaited": "And {wish}, which had been waiting for you since {year}",
+  "@homeCardYearRecapAwaited": {
+    "placeholders": {
+      "wish": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardYearRecapAction": "Discover",
+  "yearRecapScreenTitle": "Your Wishy year {year}",
+  "@yearRecapScreenTitle": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapReceived": "{count, plural, =1{1 wish received} other{{count} wishes received}}",
+  "@yearRecapReceived": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapOffered": "{count, plural, =1{1 wish given} other{{count} wishes given}}",
+  "@yearRecapOffered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapLongestAwaited": "Most awaited: {wish}, on your list since {date}",
+  "@yearRecapLongestAwaited": {
+    "placeholders": {
+      "wish": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapMostGifted": "Your most spoiled friend: {pseudo}",
+  "@yearRecapMostGifted": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapBack": "Back"
 }
