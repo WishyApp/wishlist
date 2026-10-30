@@ -492,8 +492,10 @@ List<HomeCardCandidate> onboardingCards({
 }
 
 /// Every open wishlist untouched for `stale_days` days or more, the one idle
-/// the longest first (then by id). [lastActivity] is by wishlist id; a list
-/// missing from it, or closed, is ignored.
+/// the longest first (then by id). They are the cards of a queue: they fill
+/// the slots the more urgent cards leave, and dismissing one makes no other
+/// come in until tomorrow (see `selectHomeCards`). [lastActivity] is by
+/// wishlist id; a list missing from it, or closed, is ignored.
 List<HomeCardCandidate> staleWishlistCandidates({
   required List<Wishlist> wishlists,
   required Map<int, DateTime> lastActivity,
@@ -527,24 +529,9 @@ List<HomeCardCandidate> staleWishlistCandidates({
         stateKey: cardKey(definition.key, id: entry.wishlist.id),
         content: StaleWishlist(entry.wishlist, entry.idle ~/ 30),
         eventAt: entry.activity,
+        isQueue: true,
       ),
   ];
-}
-
-/// The first of the stale [candidates] (see `staleWishlistCandidates`, idle
-/// the longest first) whose card is not hidden by its state at [now]. One card
-/// at a time: hiding it makes room for the next list.
-List<HomeCardCandidate> staleWishlistCards({
-  required List<HomeCardCandidate> candidates,
-  required Map<String, CardState> states,
-  required DateTime now,
-}) {
-  for (final candidate in candidates) {
-    if (!(states[candidate.stateKey]?.isHidden(now) ?? false)) {
-      return [candidate];
-    }
-  }
-  return const [];
 }
 
 /// Whether [now] is in the `month` of the definition of the recap (December):

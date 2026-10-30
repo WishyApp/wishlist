@@ -354,7 +354,8 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
 
   // The onboarding card needs the states of its optional steps, which are
   // fetched with the others in one go.
-  // The stale lists too: the oldest one whose card is not snoozed is kept.
+  // The stale lists too, all of them: the selection keeps the oldest ones the
+  // other cards leave room for.
   final staleCandidates = staleWishlistCandidates(
     wishlists: wishlists,
     lastActivity: lastActivity,
@@ -366,13 +367,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     for (final candidate in staleCandidates) candidate.stateKey,
     ..._onboardingStateKeys,
   ]);
-  candidates.addAll(
-    staleWishlistCards(
-      candidates: staleCandidates,
-      states: states,
-      now: now,
-    ),
-  );
+  candidates.addAll(staleCandidates);
   candidates.addAll(
     onboardingCards(
       wishlistCount: wishlists.length,

@@ -680,19 +680,78 @@ void main() {
           ],
         );
 
-    test('the list idle the longest gives a card', () async {
+    test('every idle list gives a card, the one idle the longest first',
+        () async {
       when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
         (_) async => {
           fakeWishlist1.id: DateTime(2026, 7, 2),
           fakeWishlist2.id: DateTime(2026, 5, 2),
-          fakeWishlist3.id: DateTime(2026, 10, 2),
+          fakeWishlist3.id: DateTime(2026, 6, 2),
         },
       );
 
       final cards = await loadWithActivity();
 
-      expect(cards.single.type, 'stale_wishlist');
-      expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist2.id}');
+      expect(cards.map((card) => card.stateKey), [
+        'stale_wishlist:${fakeWishlist2.id}',
+        'stale_wishlist:${fakeWishlist3.id}',
+        'stale_wishlist:${fakeWishlist1.id}',
+      ]);
+    });
+
+    test('two more urgent cards leave one slot to the oldest list', () async {
+      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+        (_) async => {
+          fakeWishlist1.id: DateTime(2026, 7, 2),
+          fakeWishlist2.id: DateTime(2026, 5, 2),
+          fakeWishlist3.id: DateTime(2026, 6, 2),
+        },
+      );
+
+      final cards = await load(
+        birthdays: {
+          fakeFriendUserId1: tomorrow(),
+          fakeFriendUserId2: tomorrow(),
+        },
+        extra: [
+          wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+        ],
+      );
+
+      expect(cards.map((card) => card.type), [
+        'friend_birthday',
+        'friend_birthday',
+        'stale_wishlist',
+      ]);
+      expect(cards.last.stateKey, 'stale_wishlist:${fakeWishlist2.id}');
+    });
+
+    test('a card dismissed today is not replaced by the next list', () async {
+      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+        (_) async => {
+          fakeWishlist1.id: DateTime(2026, 7, 2),
+          fakeWishlist2.id: DateTime(2026, 5, 2),
+          fakeWishlist3.id: DateTime(2026, 6, 2),
+        },
+      );
+      final key = 'stale_wishlist:${fakeWishlist2.id}';
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {
+          key: CardState(
+            cardKey: key,
+            shownCount: 1,
+            dismissedAt: now,
+            snoozedUntil: now.add(const Duration(days: 60)),
+          ),
+        },
+      );
+
+      final cards = await loadWithActivity();
+
+      expect(cards.map((card) => card.stateKey), [
+        'stale_wishlist:${fakeWishlist3.id}',
+        'stale_wishlist:${fakeWishlist1.id}',
+      ]);
     });
 
     test('the last activity is fetched while the other sources load', () async {
@@ -719,7 +778,7 @@ void main() {
       expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist1.id}');
     });
 
-    test('a snoozed list makes room for the next oldest one', () async {
+    test('a list dismissed yesterday does not block today', () async {
       when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
         (_) async => {
           fakeWishlist1.id: DateTime(2026, 7, 2),
@@ -728,20 +787,24 @@ void main() {
         },
       );
       final key = 'stale_wishlist:${fakeWishlist2.id}';
+      final yesterday = DateTime(2026, 10, 27, 23, 30);
       when(() => cardStates.getStates(any())).thenAnswer(
         (_) async => {
           key: CardState(
             cardKey: key,
             shownCount: 1,
-            dismissedAt: now,
-            snoozedUntil: now.add(const Duration(days: 30)),
+            dismissedAt: yesterday,
+            snoozedUntil: yesterday.add(const Duration(days: 60)),
           ),
         },
       );
 
       final cards = await loadWithActivity();
 
-      expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist3.id}');
+      expect(cards.map((card) => card.stateKey), [
+        'stale_wishlist:${fakeWishlist3.id}',
+        'stale_wishlist:${fakeWishlist1.id}',
+      ]);
     });
 
     test('the last activity unavailable only loses this card', () async {

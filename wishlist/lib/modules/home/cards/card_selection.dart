@@ -11,7 +11,13 @@ import 'package:wishlist/shared/models/home_card_definition.dart';
 /// a card shown `maxShows` times already. Sorts by the `priority` of the
 /// definition (smaller first), then by the `eventAt` closest to [now], past or
 /// future (none last), so that the most recent past event comes first, then
-/// by state key so that the order is stable.
+/// by state key so that the order is stable. Among the cards of a queue
+/// (`isQueue`) the oldest event comes first instead.
+///
+/// No refill: a card of a queue dismissed on the local day of [now] leaves its
+/// slot empty until tomorrow. The stack is first computed as if these cards
+/// were not hidden (the one the user saw before dismissing), then they are
+/// removed from it.
 List<HomeCardCandidate> selectHomeCards({
   required List<HomeCardCandidate> candidates,
   required Map<String, HomeCardDefinition> definitions,
@@ -19,10 +25,20 @@ List<HomeCardCandidate> selectHomeCards({
   required int maxCards,
   required DateTime now,
 }) {
+  final dismissedToday = {
+    for (final card in candidates)
+      if (card.isQueue && _isDismissedToday(states[card.stateKey], now))
+        card.stateKey,
+  };
+  final seen = dismissedToday.isEmpty
+      ? states
+      : {
+          for (final entry in states.entries)
+            if (!dismissedToday.contains(entry.key)) entry.key: entry.value,
+        };
   final kept = [
     for (final card in candidates)
-      if (definitions.containsKey(card.type) && _isShown(card, states, now))
-        card,
+      if (definitions.containsKey(card.type) && _isShown(card, seen, now)) card,
   ]..sort((a, b) {
       final byPriority = definitions[a.type]!.priority.compareTo(
             definitions[b.type]!.priority,
@@ -30,10 +46,26 @@ List<HomeCardCandidate> selectHomeCards({
       if (byPriority != 0) {
         return byPriority;
       }
-      final byEvent = _compareEvents(a.eventAt, b.eventAt, now);
+      final aEvent = a.eventAt;
+      final bEvent = b.eventAt;
+      final byEvent = a.isQueue && b.isQueue && aEvent != null && bEvent != null
+          ? aEvent.compareTo(bEvent)
+          : _compareEvents(aEvent, bEvent, now);
       return byEvent != 0 ? byEvent : a.stateKey.compareTo(b.stateKey);
     });
-  return kept.take(max(0, maxCards)).toList();
+  return [
+    for (final card in kept.take(max(0, maxCards)))
+      if (!dismissedToday.contains(card.stateKey)) card,
+  ];
+}
+
+bool _isDismissedToday(CardState? state, DateTime now) {
+  final dismissedAt = state?.dismissedAt?.toLocal();
+  final today = now.toLocal();
+  return dismissedAt != null &&
+      dismissedAt.year == today.year &&
+      dismissedAt.month == today.month &&
+      dismissedAt.day == today.day;
 }
 
 bool _isShown(

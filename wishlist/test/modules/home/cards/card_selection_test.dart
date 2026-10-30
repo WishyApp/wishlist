@@ -12,6 +12,7 @@ HomeCardCandidate candidate(
   DateTime? eventAt,
   bool dismissable = true,
   int? maxShows,
+  bool isQueue = false,
 }) {
   return HomeCardCandidate(
     type: type,
@@ -20,6 +21,7 @@ HomeCardCandidate candidate(
     eventAt: eventAt,
     dismissable: dismissable,
     maxShows: maxShows,
+    isQueue: isQueue,
   );
 }
 
@@ -181,5 +183,104 @@ void main() {
       ),
       ['a-yesterday', 'a-future', 'a-old'],
     );
+  });
+
+  group('a queue of cards (the stale lists)', () {
+    final today = DateTime(2026, 10, 30, 10);
+    final queueDefs = {
+      'a': definition('a', 10),
+      'b': definition('b', 20),
+      'q': definition('q', 60),
+    };
+
+    // q1 is the oldest, q4 the most recent.
+    List<HomeCardCandidate> queue() => [
+          for (var i = 4; i >= 1; i--)
+            candidate(
+              'q',
+              'q$i',
+              eventAt: DateTime(2026, 1, i),
+              isQueue: true,
+            ),
+        ];
+
+    List<String> run(
+      List<HomeCardCandidate> candidates, {
+      Map<String, CardState> states = const {},
+      DateTime? at,
+    }) {
+      return selectHomeCards(
+        candidates: candidates,
+        definitions: queueDefs,
+        states: states,
+        maxCards: 3,
+        now: at ?? today,
+      ).map((card) => card.stateKey).toList();
+    }
+
+    CardState dismissed(String key, DateTime at) => CardState(
+          cardKey: key,
+          shownCount: 1,
+          dismissedAt: at,
+          snoozedUntil: DateTime(2026, 12, 29),
+        );
+
+    test('three cards of the queue, the oldest event first', () {
+      expect(run(queue().sublist(1)), ['q1', 'q2', 'q3']);
+    });
+
+    test('they fill the slots left by the more urgent cards', () {
+      expect(
+        run([candidate('a', 'a1'), candidate('b', 'b1'), ...queue()]),
+        ['a1', 'b1', 'q1'],
+      );
+      expect(run([candidate('a', 'a1'), ...queue()]), ['a1', 'q1', 'q2']);
+    });
+
+    test('a card dismissed today leaves its slot empty, no refill', () {
+      expect(
+        run(
+          queue(),
+          states: {'q2': dismissed('q2', DateTime(2026, 10, 30, 8))},
+        ),
+        ['q1', 'q3'],
+      );
+    });
+
+    test('the next day the fourth card comes in', () {
+      final states = {'q2': dismissed('q2', DateTime(2026, 10, 30, 8))};
+
+      expect(
+        run(queue(), states: states, at: DateTime(2026, 10, 31, 0, 1)),
+        ['q1', 'q3', 'q4'],
+      );
+    });
+
+    test('a card dismissed yesterday does not block today', () {
+      expect(
+        run(
+          queue(),
+          states: {'q2': dismissed('q2', DateTime(2026, 10, 29, 23, 59))},
+        ),
+        ['q1', 'q3', 'q4'],
+      );
+    });
+
+    test('a dismissal of the queue does not affect the other cards', () {
+      expect(
+        run(
+          [candidate('a', 'a1'), candidate('b', 'b1'), ...queue()],
+          states: {'q1': dismissed('q1', DateTime(2026, 10, 30, 8))},
+        ),
+        ['a1', 'b1'],
+      );
+      expect(
+        run(
+          [candidate('a', 'a1'), candidate('b', 'b1'), ...queue()],
+          states: {'a1': dismissed('a1', DateTime(2026, 10, 30, 8))},
+        ),
+        ['b1', 'q1', 'q2'],
+      );
+    });
   });
 }

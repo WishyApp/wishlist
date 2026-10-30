@@ -1234,21 +1234,16 @@ void main() {
     });
   });
 
-  group('staleWishlistCards', () {
+  group('staleWishlistCandidates', () {
     List<HomeCardCandidate> build(
       List<Wishlist> wishlists,
       Map<int, DateTime> lastActivity, {
       HomeCardDefinition? definition,
-      Map<String, CardState> states = const {},
     }) {
-      return staleWishlistCards(
-        candidates: staleWishlistCandidates(
-          wishlists: wishlists,
-          lastActivity: lastActivity,
-          definition: definition ?? staleDef,
-          now: now,
-        ),
-        states: states,
+      return staleWishlistCandidates(
+        wishlists: wishlists,
+        lastActivity: lastActivity,
+        definition: definition ?? staleDef,
         now: now,
       );
     }
@@ -1262,6 +1257,7 @@ void main() {
       expect(cards.single.type, 'stale_wishlist');
       expect(cards.single.stateKey, 'stale_wishlist:1');
       expect(cards.single.tone, HomeCardTone.light);
+      expect(cards.single.isQueue, isTrue);
       final content = cards.single.content as StaleWishlist;
       expect(content.wishlist.id, 1);
       expect(content.monthsIdle, 3);
@@ -1272,31 +1268,17 @@ void main() {
       expect(build([wishlist(1, 'A')], {1: daysAgo(85)}), isEmpty);
     });
 
-    test('only the oldest of two idle lists gives a card', () {
+    test('every idle list gives a card, the oldest first', () {
       final cards = build(
         [wishlist(1, 'A'), wishlist(2, 'B'), wishlist(3, 'C')],
         {1: daysAgo(120), 2: daysAgo(400), 3: daysAgo(100)},
       );
 
-      expect(cards.single.stateKey, 'stale_wishlist:2');
-      expect((cards.single.content as StaleWishlist).monthsIdle, 13);
-    });
-
-    test('a snoozed list makes room for the next oldest one', () {
-      final cards = build(
-        [wishlist(1, 'A'), wishlist(2, 'B'), wishlist(3, 'C')],
-        {1: daysAgo(120), 2: daysAgo(400), 3: daysAgo(100)},
-        states: {
-          'stale_wishlist:2': CardState(
-            cardKey: 'stale_wishlist:2',
-            shownCount: 1,
-            dismissedAt: now,
-            snoozedUntil: now.add(const Duration(days: 30)),
-          ),
-        },
+      expect(
+        cards.map((card) => card.stateKey),
+        ['stale_wishlist:2', 'stale_wishlist:1', 'stale_wishlist:3'],
       );
-
-      expect(cards.single.stateKey, 'stale_wishlist:1');
+      expect((cards.first.content as StaleWishlist).monthsIdle, 13);
     });
 
     test('two lists idle the same day: the smaller id comes first', () {
@@ -1305,7 +1287,7 @@ void main() {
         {5: daysAgo(200), 4: daysAgo(200)},
       );
 
-      expect(cards.single.stateKey, 'stale_wishlist:4');
+      expect(cards.first.stateKey, 'stale_wishlist:4');
     });
 
     test('a list without a known activity is ignored', () {
@@ -1320,18 +1302,15 @@ void main() {
     });
 
     test('a disabled type gives nothing', () {
-      final cards = staleWishlistCards(
-        candidates: staleWishlistCandidates(
+      expect(
+        staleWishlistCandidates(
           wishlists: [wishlist(1, 'A')],
           lastActivity: {1: daysAgo(200)},
           definition: null,
           now: now,
         ),
-        states: const {},
-        now: now,
+        isEmpty,
       );
-
-      expect(cards, isEmpty);
     });
   });
 
@@ -1434,14 +1413,10 @@ void main() {
     });
 
     test('a stale wishlist comes back in 60 days', () {
-      final cards = staleWishlistCards(
-        candidates: staleWishlistCandidates(
-          wishlists: [wishlist(1, 'A')],
-          lastActivity: {1: on(2026, 1, 1)},
-          definition: staleDef,
-          now: now,
-        ),
-        states: const {},
+      final cards = staleWishlistCandidates(
+        wishlists: [wishlist(1, 'A')],
+        lastActivity: {1: on(2026, 1, 1)},
+        definition: staleDef,
         now: now,
       );
 
