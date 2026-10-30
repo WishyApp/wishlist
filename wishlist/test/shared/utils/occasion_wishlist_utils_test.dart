@@ -41,6 +41,18 @@ void main() {
       )?.name;
     }
 
+    test('an age is not a year without twoDigitYears', () {
+      Wishlist? find({required bool twoDigitYears}) => findOccasionWishlist(
+            wishlists: [_wishlist(1, 'Anniv 25 ans')],
+            keywords: const ['anniv'],
+            userId: fakeCurrentUserId,
+            occasionDate: DateTime(2026, 10, 29),
+            twoDigitYears: twoDigitYears,
+          );
+      expect(find(twoDigitYears: false), isNotNull);
+      expect(find(twoDigitYears: true), isNull);
+    });
+
     final cases = <String, (List<String>, String?)>{
       'matches a name with the right year': (['Noël 2026'], 'Noël 2026'),
       'matches a keyword inside a sentence': (

@@ -49,7 +49,8 @@ INSERT INTO pg_temp.expected_seeds VALUES
   ('home_stack', 'settings', 0, '{"max_cards": 3, "later_days": 1}'),
   ('friend_birthday_today', 'computed', 10, '{}'),
   ('after_party', 'computed', 15,
-   '{"days_after": 7, "birthday_keywords": ["anniv", "anniversaire", "birthday", "bday"]}'),
+   -- Same defaults as the migration 20261031100001 and card_builders.dart.
+   '{"days_after": 7, "birthday_keywords": ["anniv", "anniversaire", "birthday", "bday"], "birthday_exclude_keywords": ["mariage", "wedding"]}'),
   ('onboarding', 'computed', 18, '{"optional_steps_hours": 48}'),
   ('booked_reminder', 'computed', 20, '{"days_before": 14}'),
   ('booked_wish_removed', 'computed', 25, '{}'),
@@ -89,6 +90,10 @@ BEGIN
   IF (SELECT params->'birthday_keywords' FROM public.home_cards WHERE key = 'after_party')
      IS DISTINCT FROM '["anniv", "anniversaire", "birthday", "bday"]'::jsonb THEN
     RAISE EXCEPTION 'FAIL after_party birthday_keywords';
+  END IF;
+  IF (SELECT params->'birthday_exclude_keywords' FROM public.home_cards WHERE key = 'after_party')
+     IS DISTINCT FROM '["mariage", "wedding"]'::jsonb THEN
+    RAISE EXCEPTION 'FAIL after_party birthday_exclude_keywords';
   END IF;
   IF (SELECT params->'keywords' FROM public.home_cards WHERE key = 'christmas')
      IS DISTINCT FROM '["noel", "christmas", "xmas"]'::jsonb THEN

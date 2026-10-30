@@ -26,8 +26,21 @@ const onboardingPhotoKey = 'onboarding:photo';
 /// Words that name the Christmas wishlist when `christmas` has none.
 const _defaultChristmasKeywords = ['noel', 'christmas', 'xmas'];
 
-/// Used when the `birthday_keywords` param of `after_party` is absent.
+/// Used when the `birthday_keywords` param of `after_party` has no valid word.
+/// Same defaults in the migration 20261031100001 and in
+/// supabase-tests/home_cards.sql: keep the three in sync.
 const _defaultBirthdayKeywords = ['anniv', 'anniversaire', 'birthday', 'bday'];
+
+/// Lists with such a word are never the birthday list (a wedding anniversary).
+/// Used when `birthday_exclude_keywords` has no valid word; same sync rule.
+const _defaultBirthdayExcludeKeywords = ['mariage', 'wedding'];
+
+List<String> _keywordsOrDefault(
+  List<String> configured,
+  List<String> defaults,
+) {
+  return validKeywords(configured).isEmpty ? defaults : configured;
+}
 
 DateTime _day(DateTime now) {
   final local = now.toLocal();
@@ -76,7 +89,8 @@ Wishlist? _christmasWishlist(
 }
 
 /// The only open wishlist, unless its name is that of an occasion (a birthday
-/// of another year, Christmas): the matcher rejected it for a reason.
+/// of another year, Christmas, an excluded one such as a wedding): the matcher
+/// rejected it for a reason.
 Wishlist? _singleOtherList(List<Wishlist> openOwn, List<String> keywords) {
   if (openOwn.length != 1 || nameHasKeyword(openOwn.single.name, keywords)) {
     return null;
@@ -164,11 +178,21 @@ List<HomeCardCandidate> afterPartyCards({
   }
   final today = _day(now);
   final daysAfter = definition.intParam('days_after', 7);
-  final configuredKeywords = definition.stringListParam('birthday_keywords');
-  final birthdayKeywords = configuredKeywords.isEmpty
-      ? _defaultBirthdayKeywords
-      : configuredKeywords;
-  final christmasKeywords = christmas?.stringListParam('keywords') ?? const [];
+  final birthdayKeywords = _keywordsOrDefault(
+    definition.stringListParam('birthday_keywords'),
+    _defaultBirthdayKeywords,
+  );
+  final excludeKeywords = _keywordsOrDefault(
+    definition.stringListParam('birthday_exclude_keywords'),
+    _defaultBirthdayExcludeKeywords,
+  );
+  final christmasKeywords = _christmasKeywords(christmas);
+  // Excluded lists are not candidates; a single match is proposed, several
+  // matches give no button rather than a wrong list.
+  final birthdayCandidates = [
+    for (final w in openOwn)
+      if (!nameHasKeyword(w.name, excludeKeywords)) w,
+  ];
   final cards = <HomeCardCandidate>[];
 
   if (myBirthday != null) {
@@ -184,15 +208,17 @@ List<HomeCardCandidate> afterPartyCards({
               AfterPartyOccasion.birthday,
               ago,
               findOccasionWishlist(
-                    wishlists: wishlists,
+                    wishlists: birthdayCandidates,
                     userId: userId,
                     keywords: birthdayKeywords,
                     occasionDate: day,
+                    twoDigitYears: false,
                   ) ??
-                  _singleOtherList(
-                    openOwn,
-                    [...birthdayKeywords, ...christmasKeywords],
-                  ),
+                  _singleOtherList(openOwn, [
+                    ...birthdayKeywords,
+                    ...excludeKeywords,
+                    ...christmasKeywords,
+                  ]),
             ),
             eventAt: day,
             lastDay: DateTime(day.year, day.month, day.day + daysAfter),

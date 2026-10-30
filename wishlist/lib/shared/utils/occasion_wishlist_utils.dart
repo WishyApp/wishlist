@@ -22,6 +22,8 @@ final _yearPattern = RegExp(r'^20[0-9]{2}$');
 ///    ("Noël 26"); other 2-digit numbers ("Top 10") are not years. If the name
 ///    contains years and none is the year of [occasionDate], the wishlist is
 ///    discarded.
+///    With [twoDigitYears] false (birthdays, where "25" is an age), only
+///    4-digit years are years.
 /// 4. Choice: exactly one wishlist with the right year wins; if none has the
 ///    right year, exactly one wishlist without any year wins; otherwise null
 ///    (two wishlists with the right year never fall back to one without).
@@ -30,6 +32,7 @@ Wishlist? findOccasionWishlist({
   required List<String> keywords,
   required String userId,
   required DateTime occasionDate,
+  bool twoDigitYears = true,
 }) {
   final normalizedKeywords = _normalizedKeywords(keywords);
   final year = occasionDate.year;
@@ -53,7 +56,9 @@ Wishlist? findOccasionWishlist({
       if (_yearPattern.hasMatch(word)) {
         hasYear = true;
         hasRightYear |= int.parse(word) == year;
-      } else if (word.length == 2 && RegExp(r'^[0-9]+$').hasMatch(word)) {
+      } else if (twoDigitYears &&
+          word.length == 2 &&
+          RegExp(r'^[0-9]+$').hasMatch(word)) {
         final number = int.parse(word);
         if (number == shortYear) {
           hasYear = true;
@@ -102,20 +107,7 @@ List<String> _words(String text) => _wordPattern
     .map((match) => match.group(0)!)
     .toList();
 
-Set<String> _normalizedKeywords(List<String> keywords) {
-  final normalized = <String>{};
-  for (final keyword in keywords) {
-    final words = _words(keyword);
-    if (words.length == 1) {
-      normalized.add(words.single);
-    }
-  }
-  return normalized;
-}
-
-/// Whether one of the words of [name] is one of [keywords], with the same
-/// normalization as [findOccasionWishlist] (the year is not looked at).
-bool nameHasKeyword(String name, List<String> keywords) {
-  final normalized = _normalizedKeywords(keywords);
-  return _words(name).any(normalized.contains);
-}
+/// The [keywords] that [findOccasionWishlist] and [nameHasKeyword] would
+/// actually use: one normalized word each, invalid entries dropped.
+List<String> validKeywords(List<String> keywords) =>
+    _normalizedKeywords(keywords).toList();

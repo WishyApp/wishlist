@@ -481,6 +481,77 @@ void main() {
       }
     });
 
+    group('birthday list matching', () {
+      AfterParty partyOf(
+        List<Wishlist> lists, {
+        Map<String, Object?> extra = const {},
+      }) =>
+          build(
+            now,
+            mine: const Birthday(month: 10, day: 29),
+            wishlists: lists,
+            definition: def(
+              'after_party',
+              params: {'days_after': 7, ...extra},
+            ),
+          ).single.content as AfterParty;
+
+      test('an age is not read as a year', () {
+        final anniv = wishlist(1, 'Anniv 25 ans');
+        expect(partyOf([anniv, wishlist(2, 'Maison')]).wishlist, anniv);
+        expect(partyOf([anniv]).wishlist, anniv);
+      });
+
+      test('a wedding list is excluded', () {
+        final anniv = wishlist(1, 'Anniv 2026');
+        final wedding = wishlist(2, 'Anniversaire de mariage 2026');
+        expect(partyOf([anniv, wedding]).wishlist, anniv);
+      });
+
+      test('a wedding list alone is never proposed', () {
+        expect(
+          partyOf([wishlist(1, 'Anniversaire de mariage')]).wishlist,
+          isNull,
+        );
+        expect(partyOf([wishlist(1, 'Mariage')]).wishlist, isNull);
+      });
+
+      test('two matching lists give no button', () {
+        expect(
+          partyOf([wishlist(1, 'Anniv'), wishlist(2, 'Anniversaire')]).wishlist,
+          isNull,
+        );
+      });
+
+      test('a single match gives the button', () {
+        final anniv = wishlist(2, 'Anniversaire');
+        expect(partyOf([wishlist(1, 'Maison'), anniv]).wishlist, anniv);
+      });
+
+      test('exclude keywords come from the params', () {
+        final cards = partyOf(
+          [wishlist(1, 'Anniv enfant'), wishlist(2, 'Anniv 2026')],
+          extra: {
+            'birthday_exclude_keywords': ['enfant'],
+          },
+        );
+        expect(cards.wishlist?.id, 2);
+      });
+
+      test('only invalid keyword entries fall back to the defaults', () {
+        final anniv = wishlist(1, 'Anniv 2026');
+        final wedding = wishlist(2, 'Mariage 2026');
+        final cards = partyOf(
+          [anniv, wedding],
+          extra: {
+            'birthday_keywords': ['mon anniv'],
+            'birthday_exclude_keywords': ['mon mariage'],
+          },
+        );
+        expect(cards.wishlist, anniv);
+      });
+    });
+
     test('a birthday in December still counts in January, with its year', () {
       final cards = build(
         DateTime(2027, 1, 2, 9),
