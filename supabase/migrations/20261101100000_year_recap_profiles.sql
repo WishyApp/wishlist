@@ -43,7 +43,8 @@
 --             a quantity >= the booked quantity and a completed_at in the
 --             year (a Paris day), and a booking made on or before the day of
 --             the receipt (a booking made after it is not a gift for that
---             receipt). Not updated_at: it moves with every correction of the
+--             receipt; a booking without a date is not offered). Not
+--             updated_at: it moves with every correction of the
 --             received quantity. A partial receipt does not count.
 --             completed_at is NOT fixed at the first reception: the app keeps
 --             the most recent day when another unit is received later, and
