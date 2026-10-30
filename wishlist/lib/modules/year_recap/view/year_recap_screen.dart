@@ -19,6 +19,7 @@ import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
 import 'package:wishlist/shared/utils/retry_providers_extension.dart';
+import 'package:wishlist/shared/utils/share_utils.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 
 /// How the illustration of a profile is fetched. Behind a provider so that a
@@ -88,10 +89,8 @@ class _RecapState extends ConsumerState<_Recap> {
     if (_isSharing) {
       return;
     }
-    final box = buttonContext.findRenderObject() as RenderBox?;
-    final origin = box == null || !box.hasSize
-        ? null
-        : box.localToGlobal(Offset.zero) & box.size;
+    // Read before the async render: the button is still there
+    final origin = shareOriginOf(buttonContext);
     setState(() => _isSharing = true);
     try {
       await ref

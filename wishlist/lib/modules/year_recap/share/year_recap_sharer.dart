@@ -6,6 +6,7 @@ import 'package:wishlist/modules/year_recap/share/year_recap_share_renderer.dart
 import 'package:wishlist/shared/infra/repositories/year_recap/year_recap_repository.dart';
 import 'package:wishlist/shared/infra/repositories/year_recap/year_recap_repository_provider.dart';
 import 'package:wishlist/shared/models/year_recap/year_recap.dart';
+import 'package:wishlist/shared/utils/share_utils.dart';
 
 /// Shares the "Ton année Wishy" picture. Behind a provider so that the page
 /// can be tested without the system share sheet.
@@ -20,13 +21,9 @@ abstract class YearRecapSharer {
 }
 
 class SharePlusYearRecapSharer implements YearRecapSharer {
-  SharePlusYearRecapSharer(
-    this._repository, {
-    Future<void> Function(ShareParams params)? onShare,
-  }) : _onShare = onShare ?? SharePlus.instance.share;
+  SharePlusYearRecapSharer(this._repository);
 
   final YearRecapRepository _repository;
-  final Future<void> Function(ShareParams params) _onShare;
 
   @override
   Future<void> share(
@@ -42,7 +39,12 @@ class SharePlusYearRecapSharer implements YearRecapSharer {
       l10n: l10n,
       illustrationUrl: path == null ? null : _repository.illustrationUrl(path),
     );
-    await _onShare(
+    // The page may have closed during the render
+    if (!context.mounted) {
+      return;
+    }
+    await shareFrom(
+      context,
       ShareParams(
         text: l10n.yearRecapShareText('${recap.year}'),
         sharePositionOrigin: sharePositionOrigin,

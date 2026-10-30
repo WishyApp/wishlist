@@ -223,7 +223,9 @@ void main() {
     tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed!();
     await tester.pumpAndSettle();
 
-    expect(sharer.origins, [tester.getRect(find.byType(PrimaryButton))]);
+    final button = tester.getRect(find.byType(PrimaryButton));
+    expect(sharer.origins, [button]);
+    expect(sharer.origins.single!.isEmpty, isFalse);
   });
 
   testWidgets('a second tap while sharing is ignored', (tester) async {
