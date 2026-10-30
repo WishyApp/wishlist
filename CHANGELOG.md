@@ -26,6 +26,7 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 - En sélection, l'action de complétion s'appelle « Compléter » au lieu de « Valider »
 - « Continuer avec Google » explique que la connexion a besoin de Safari quand il est bloqué sur l'iPhone, au lieu d'une erreur générique
 - Une erreur passagère du serveur pendant la vérification de la version est réessayée au lieu d'être remontée
+- **Android** : dans « Wishs complétés » et le choix de la wishlist à l'ajout d'un wish, le dernier élément de la liste n'est plus caché par la barre de navigation
 
 ## [1.0.0] - 2026-10-28
 
