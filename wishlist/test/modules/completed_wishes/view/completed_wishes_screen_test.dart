@@ -55,11 +55,13 @@ void main() {
     WidgetTester tester,
     List<CompletedWishWithDetails> items, {
     Stream<IList<CompletedWishWithDetails>>? receipts,
+    TransitionBuilder? builder,
   }) async {
     final repository = _MockUserCompletedWishRepository();
     // A router: the dialogs close through it
     await tester.pumpRouterApp(
       '/',
+      builder: builder,
       routes: [
         GoRoute(
           path: '/',
@@ -79,6 +81,25 @@ void main() {
     await tester.pumpAndSettle();
     return repository;
   }
+
+  testWidgets('keep the last item above the system navigation bar',
+      (tester) async {
+    await pumpScreen(
+      tester,
+      [completed(1, name: 'Plaid')],
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          viewPadding: const EdgeInsets.only(bottom: 48),
+        ),
+        child: child!,
+      ),
+    );
+
+    final list = tester.widget<ListView>(find.byType(ListView));
+    expect((list.padding! as EdgeInsets).bottom, 32 + 48);
+    // Lets the list's animation timer finish
+    await tester.pump(const Duration(seconds: 1));
+  });
 
   group('options of a completed wish', () {
     testWidgets('offer the date, the quantity and the removal', (tester) async {
