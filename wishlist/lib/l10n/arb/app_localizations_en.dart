@@ -1279,7 +1279,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get yearRecapBack => 'Back';
 
   @override
-  String get yearRecapProfileIntro => 'This year, I was';
+  String yearRecapProfileIntro(String year) {
+    return 'In $year, I was';
+  }
 
   @override
   String get yearRecapShareButton => 'Share my year';

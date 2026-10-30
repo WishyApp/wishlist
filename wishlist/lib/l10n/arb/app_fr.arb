@@ -651,7 +651,14 @@
     }
   },
   "yearRecapBack": "Retour",
-  "yearRecapProfileIntro": "Cette année, j'étais",
+  "yearRecapProfileIntro": "En {year}, j'étais",
+  "@yearRecapProfileIntro": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
   "yearRecapShareButton": "Partager mon année",
   "yearRecapShareImageHeader": "Mon année {year}",
   "@yearRecapShareImageHeader": {

@@ -176,7 +176,7 @@ void main() {
           fakeYearRecap(stats: entry.value.$1, profile: entry.key),
         );
 
-        expect(find.text("Cette année, j'étais"), findsOneWidget);
+        expect(find.text("En 2026, j'étais"), findsOneWidget);
         for (final text in entry.value.$2) {
           // The figures of a block below may say the same
           expect(find.text(text), findsWidgets, reason: text);

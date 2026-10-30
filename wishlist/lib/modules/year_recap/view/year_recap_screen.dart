@@ -160,7 +160,7 @@ class _RecapState extends ConsumerState<_Recap> {
   }
 }
 
-/// "Cette année, j'étais" and the profile: title, illustration, tagline and
+/// "En 2026, j'étais" and the profile: title, illustration, tagline and
 /// the figures behind it.
 class _ProfileBlock extends ConsumerWidget {
   const _ProfileBlock({required this.recap});
@@ -182,7 +182,7 @@ class _ProfileBlock extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          l10n.yearRecapProfileIntro,
+          l10n.yearRecapProfileIntro('${recap.year}'),
           textAlign: TextAlign.center,
           style: AppTextStyles.small.copyWith(
             fontWeight: FontWeight.w600,
