@@ -2,6 +2,20 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.1.1] - 2026-10-30
+
+### Nouvelles fonctionnalités
+
+- **Ton année Wishy** arrive après Noël : la carte s'affiche du 26 décembre au 15 janvier, avec le récap de l'année qui se termine, cadeaux de Noël compris. L'écran et l'image à partager disent « En 2026, j'étais » plutôt que « Cette année, j'étais »
+
+### À savoir
+
+- La 1.1.0 n'affiche plus la carte « Ton année Wishy » : il faut la 1.1.1 pour voir son récap
+
+### CI/CD
+
+- Le build Android de la CD utilise Java 17, l'image Ubuntu de GitHub étant passée à Java 25
+
 ## [1.1.0] - 2026-10-30
 
 ### Nouvelles fonctionnalités
