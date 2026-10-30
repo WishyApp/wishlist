@@ -6,6 +6,7 @@ import 'package:wishlist/app/version_gate/app_update_required_screen.dart';
 import 'package:wishlist/app/version_gate/update_text_variant.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/shared/infra/app_update_service.dart';
+import 'package:wishlist/shared/infra/in_app_updater.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/widgets/dialogs/app_dialog.dart';
@@ -78,6 +79,16 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
     ref.read(appUpdateUrlLauncherProvider)(url);
   }
 
+  /// Play in-app update when available (Android, switch on), else the store
+  /// page.
+  void _update(AppUpdateMode mode, String? url) {
+    runAppUpdate(
+      updater: ref.read(inAppUpdaterProvider),
+      mode: mode,
+      openStore: url == null ? null : () => _openStore(url),
+    );
+  }
+
   /// Once per app session, over the router's Navigator (this widget is above
   /// it, so its own context cannot show a dialog). Skipped silently while that
   /// Navigator does not exist yet: the next check tries again.
@@ -122,7 +133,9 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
         cancelButtonLabel: l10n.updateLaterButton,
         onCancel: () {},
         // No confirm button without a store page
-        onConfirm: url == null ? null : () async => _openStore(url),
+        onConfirm: url == null
+            ? null
+            : () async => _update(AppUpdateMode.flexible, url),
       ),
     );
   }
@@ -158,7 +171,8 @@ class _AppVersionGateState extends ConsumerState<AppVersionGate>
       final url = decision.updateUrl;
       return AppUpdateRequiredScreen(
         platform: ref.read(appUpdatePlatformProvider),
-        onUpdate: url == null ? null : () => _openStore(url),
+        onUpdate:
+            url == null ? null : () => _update(AppUpdateMode.immediate, url),
       );
     }
     return widget.child;

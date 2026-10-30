@@ -65,6 +65,7 @@ dependencies:
   image_cropper: ^11.0.0
   image_picker: ^1.1.2
   implicitly_animated_list: ^2.3.0
+  in_app_update: ^4.2.5
   intl: any
   json_annotation: ^4.9.0
   like_button: ^2.0.5
