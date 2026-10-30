@@ -1,4 +1,3 @@
-import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -6,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/completed_wishes/view/widgets/wishes_completed_snack_bar.dart';
-import 'package:wishlist/modules/wishlists/view/default_received_day.dart';
 import 'package:wishlist/modules/wishs/view/widgets/consult_box_shadow.dart';
 import 'package:wishlist/modules/wishs/view/widgets/scrollable_content_with_indicator.dart';
 import 'package:wishlist/shared/infra/completed_wish_mutations_provider.dart';
@@ -142,11 +140,7 @@ class ConsultWishInfoContainer extends ConsumerWidget {
       context,
       title: l10n.completionDateDialogTitle(1),
       explanation: l10n.completionDateDialogExplanation(1),
-      initialValue: defaultReceivedDay(
-        receivedOn: receivedOn,
-        now: clock.now(),
-        wishCreatedAts: [wish.createdAt],
-      ),
+      initialValue: receivedOn,
       confirmButtonLabel:
           needsQuantity ? l10n.continueButton : l10n.completeButton,
     );

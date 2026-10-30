@@ -811,6 +811,72 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('keeps the party day for a wish added after it', (tester) async {
+    registerFallbackValue(DateTime(2000));
+    final repository = _MockUserCompletedWishRepository();
+    when(
+      () => repository.markAsCompleted(
+        userId: any(named: 'userId'),
+        wishId: any(named: 'wishId'),
+        fromWishlistId: any(named: 'fromWishlistId'),
+        quantity: any(named: 'quantity'),
+        completedAt: any(named: 'completedAt'),
+      ),
+    ).thenAnswer((_) async {});
+
+    await tester.pumpRouterApp(
+      WishlistRoute(wishlistId: 1, receivedOn: '2026-03-02').location,
+      overrides: [
+        ...wishlistScreenOverrides(
+          wishlistId: 1,
+          wishlist: fakeWishlist1,
+          wishes: [
+            Wish(
+              id: fakeWish1.id,
+              createdAt: DateTime(2026, 3, 4, 10),
+              name: fakeWish1.name,
+              description: fakeWish1.description,
+              quantity: 1,
+              wishlistId: fakeWish1.wishlistId,
+              updatedBy: fakeCurrentUserId,
+              updatedAt: DateTime(2026, 3, 4, 10),
+            ),
+          ],
+          currentUserId: fakeCurrentUserId,
+        ),
+        userCompletedWishRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await tester.longPress(find.text(fakeWish1.name));
+    await tester.pumpAndSettle();
+    await withClock(
+      Clock.fixed(_lateOnCompletionDay),
+      () => tester.tap(find.byIcon(Icons.check_circle_outline)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(PrimaryButton),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    // The party day, although the wish was added after it
+    verify(
+      () => repository.markAsCompleted(
+        userId: fakeCurrentUserId,
+        wishId: fakeWish1.id,
+        fromWishlistId: fakeWishlist1.id,
+        quantity: 1,
+        completedAt: DateTime(2026, 3, 2),
+      ),
+    ).called(1);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('proposes the party day from the detail of a wish of the list',
       (tester) async {
     registerFallbackValue(DateTime(2000));

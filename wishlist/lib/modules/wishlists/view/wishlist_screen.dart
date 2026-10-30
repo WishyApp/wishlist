@@ -1,4 +1,3 @@
-import 'package:clock/clock.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +7,6 @@ import 'package:wishlist/app/config/deeplink_config.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/completed_wishes/view/widgets/wishes_completed_snack_bar.dart';
 import 'package:wishlist/modules/wishlists/infra/wishlist_screen_data_realtime_provider.dart';
-import 'package:wishlist/modules/wishlists/view/default_received_day.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/move_wishes_dialog.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_app_bar.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_floating_actions.dart';
@@ -162,11 +160,7 @@ class WishlistScreen extends ConsumerWidget {
       title: l10n.completionDateDialogTitle(count),
       explanation: l10n.completionDateDialogExplanation(count),
       wishName: count == 1 ? selectedWishs.single.name : null,
-      initialValue: defaultReceivedDay(
-        receivedOn: receivedOn,
-        now: clock.now(),
-        wishCreatedAts: selectedWishs.map((w) => w.createdAt),
-      ),
+      initialValue: receivedOn,
       confirmButtonLabel: selectedWishs.any((w) => w.quantity > 1)
           ? l10n.continueButton
           : l10n.completeButton,
