@@ -27,10 +27,12 @@ Future<Uint8List> renderYearRecapShareImage({
   @visibleForTesting ImageProvider Function(String url) illustrationProvider =
       CachedNetworkImageProvider.new,
 }) async {
-  // Both are in the image cache once resolved: the logo then paints at once
-  await precacheImage(Assets.logo.wishyLogo.provider(), context);
-  final illustration =
-      await _loadIllustration(illustrationUrl, illustrationProvider);
+  // In parallel: neither waits for the other. The logo is in the image cache
+  // once resolved, it then paints at once.
+  final (_, illustration) = await (
+    precacheImage(Assets.logo.wishyLogo.provider(), context),
+    _loadIllustration(illustrationUrl, illustrationProvider),
+  ).wait;
   try {
     return await renderWidgetToPng(
       YearRecapShareImage(
@@ -52,7 +54,18 @@ Future<ui.Image> _loadIllustration(
 ) async {
   if (url != null) {
     try {
-      return await _resolve(providerFor(url), _illustrationTimeout);
+      return await _resolve(
+        // Decoded at the size it is drawn at, not the full picture. Only the
+        // height is given: the width follows, the picture is not distorted.
+        ResizeImage.resizeIfNeeded(
+          null,
+          (YearRecapShareImage.illustrationHeight *
+                  YearRecapShareImage.pixelRatio)
+              .ceil(),
+          providerFor(url),
+        ),
+        _illustrationTimeout,
+      );
     } catch (_) {
       // The generic illustration is shown instead
     }
@@ -72,6 +85,18 @@ Future<ui.Image> _resolve(ImageProvider provider, Duration timeout) {
     timer?.cancel();
     stream.removeListener(listener);
   }
+
+  // After the timeout the stream may still fail: a silent listener keeps that
+  // late error from being reported as a Flutter error (we already fell back).
+  // It goes away with the stream's first image or error.
+  late final ImageStreamListener lateListener;
+  lateListener = ImageStreamListener(
+    (info, _) {
+      info.dispose();
+      stream.removeListener(lateListener);
+    },
+    onError: (_, __) => stream.removeListener(lateListener),
+  );
 
   listener = ImageStreamListener(
     (info, _) {
@@ -96,7 +121,11 @@ Future<ui.Image> _resolve(ImageProvider provider, Duration timeout) {
     if (!completer.isCompleted) {
       completer.completeError(TimeoutException('Illustration', timeout));
     }
-    done();
+    // Swapped, not removed: the stream always has a listener for its error
+    stream
+      ..addListener(lateListener)
+      ..removeListener(listener);
+    timer?.cancel();
   });
   stream.addListener(listener);
   return completer.future;
