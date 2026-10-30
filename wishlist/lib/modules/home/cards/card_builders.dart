@@ -6,6 +6,7 @@ import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/card_state.dart';
+import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/utils/occasion_wishlist_utils.dart';
@@ -16,9 +17,14 @@ import 'package:wishlist/shared/utils/occasion_wishlist_utils.dart';
 // local calendar days, counted on UTC dates so that a daylight saving change
 // never shifts them.
 
-const _optionalWindowKey = 'onboarding:optional_window';
-const _birthdayStepKey = 'onboarding:birthday';
-const _photoStepKey = 'onboarding:photo';
+/// Keys of the onboarding card states that decide its optional steps. The
+/// start of the window is the `lastShownAt` of [onboardingOptionalWindowKey].
+const onboardingOptionalWindowKey = 'onboarding:optional_window';
+const onboardingBirthdayKey = 'onboarding:birthday';
+const onboardingPhotoKey = 'onboarding:photo';
+
+/// Words that name the Christmas wishlist when `christmas` has none.
+const _defaultChristmasKeywords = ['noel', 'christmas', 'xmas'];
 
 DateTime _day(DateTime now) {
   final local = now.toLocal();
@@ -46,6 +52,12 @@ int _maxReminderDays(HomeCardDefinition definition) {
   return definition.intListParam('reminder_days').fold(0, max);
 }
 
+// The after-party list must not depend on the countdown card being enabled.
+List<String> _christmasKeywords(HomeCardDefinition? christmas) {
+  final keywords = christmas?.stringListParam('keywords') ?? const <String>[];
+  return keywords.isEmpty ? _defaultChristmasKeywords : keywords;
+}
+
 Wishlist? _christmasWishlist(
   List<Wishlist> wishlists,
   String userId,
@@ -55,7 +67,7 @@ Wishlist? _christmasWishlist(
   return findOccasionWishlist(
     wishlists: wishlists,
     userId: userId,
-    keywords: christmas?.stringListParam('keywords') ?? const [],
+    keywords: _christmasKeywords(christmas),
     occasionDate: occasionDate,
   );
 }
@@ -90,6 +102,7 @@ List<HomeCardCandidate> friendBirthdayCards({
             content: FriendBirthdayToday(friend),
             tone: HomeCardTone.highlighted,
             eventAt: eventDay,
+            lastDay: eventDay,
           ),
         );
       }
@@ -103,6 +116,9 @@ List<HomeCardCandidate> friendBirthdayCards({
               ? HomeCardTone.highlighted
               : HomeCardTone.light,
           eventAt: eventDay,
+          // The day itself is another card (`friend_birthday_today`, another
+          // key): this one ends the day before.
+          lastDay: DateTime(eventDay.year, eventDay.month, eventDay.day - 1),
         ),
       );
     }
@@ -152,6 +168,7 @@ List<HomeCardCandidate> afterPartyCards({
               partyDay: day,
             ),
             eventAt: day,
+            lastDay: DateTime(day.year, day.month, day.day + daysAfter),
           ),
         );
         break;
@@ -174,6 +191,7 @@ List<HomeCardCandidate> afterPartyCards({
             partyDay: christmasDay,
           ),
           eventAt: christmasDay,
+          lastDay: DateTime(year, 12, 25 + daysAfter),
         ),
       );
       break;
@@ -182,13 +200,16 @@ List<HomeCardCandidate> afterPartyCards({
   return cards;
 }
 
-/// Wishes still to give whose owner has their birthday, or Christmas comes,
-/// within `days_before` days. The closest occasion wins, the birthday on a tie.
+/// Wishes still to give, within `days_before` days of their occasion. The
+/// wishlist decides the occasion: a name with a Christmas keyword (see
+/// `keywords` of [christmas]) is for Christmas, any other list is for the
+/// birthday of its owner when the app knows it, and has no reminder otherwise.
 /// The key carries the occasion.
 List<HomeCardCandidate> bookedReminderCards({
   required List<BookedWishWithDetails> bookings,
   required Map<String, Birthday> birthdays,
   required HomeCardDefinition? definition,
+  required HomeCardDefinition? christmas,
   required DateTime now,
 }) {
   if (definition == null) {
@@ -196,6 +217,7 @@ List<HomeCardCandidate> bookedReminderCards({
   }
   final today = _day(now);
   final daysBefore = definition.intParam('days_before', 14);
+  final keywords = _christmasKeywords(christmas);
   final christmasDay = _nextChristmas(today);
   final christmasDays = _daysBetween(today, christmasDay);
   final cards = <HomeCardCandidate>[];
@@ -204,25 +226,25 @@ List<HomeCardCandidate> bookedReminderCards({
     if (booking.isGiven) {
       continue;
     }
-    final birthday = birthdays[booking.ownerId];
-    final birthdayDays = birthday?.daysUntil(now);
-
-    ReminderOccasion? occasion;
-    int? days;
-    if (birthdayDays != null && birthdayDays <= daysBefore) {
-      occasion = ReminderOccasion.ownerBirthday;
-      days = birthdayDays;
-    }
-    if (christmasDays <= daysBefore && (days == null || christmasDays < days)) {
+    final ReminderOccasion occasion;
+    final int days;
+    final DateTime eventDay;
+    if (nameHasKeyword(booking.wishlistName, keywords)) {
       occasion = ReminderOccasion.christmas;
       days = christmasDays;
+      eventDay = christmasDay;
+    } else {
+      final birthdayDays = birthdays[booking.ownerId]?.daysUntil(now);
+      if (birthdayDays == null) {
+        continue;
+      }
+      occasion = ReminderOccasion.ownerBirthday;
+      days = birthdayDays;
+      eventDay = _birthdayDay(today, days);
     }
-    if (occasion == null || days == null) {
+    if (days > daysBefore) {
       continue;
     }
-    final eventDay = occasion == ReminderOccasion.christmas
-        ? christmasDay
-        : _birthdayDay(today, days);
     final occasionName =
         occasion == ReminderOccasion.christmas ? 'christmas' : 'birthday';
     cards.add(
@@ -237,6 +259,7 @@ List<HomeCardCandidate> bookedReminderCards({
         ),
         content: BookedReminder(booking, occasion, days),
         eventAt: eventDay,
+        lastDay: eventDay,
       ),
     );
   }
@@ -311,7 +334,13 @@ List<HomeCardCandidate> friendAcceptedCards({
       if (now.difference(request.acceptedAt) <= window)
         HomeCardCandidate(
           type: definition.key,
-          stateKey: cardKey(definition.key, id: request.friend.user.id),
+          // The year lets a later re-acceptance show again, and the purge of
+          // the states drop this one.
+          stateKey: cardKey(
+            definition.key,
+            id: request.friend.user.id,
+            year: request.acceptedAt.toLocal().year,
+          ),
           content: FriendAccepted(request.friend, request.acceptedAt),
           eventAt: request.acceptedAt,
         ),
@@ -353,6 +382,7 @@ List<HomeCardCandidate> christmasCards({
           ? HomeCardTone.highlighted
           : HomeCardTone.light,
       eventAt: christmasDay,
+      lastDay: christmasDay,
     ),
   ];
 }
@@ -391,36 +421,184 @@ List<HomeCardCandidate> onboardingCards({
     return [card(OnboardingStep.firstFriend, dismissable: false)];
   }
 
-  final windowStart = states[_optionalWindowKey]?.lastShownAt;
+  final windowStart = states[onboardingOptionalWindowKey]?.lastShownAt;
   final windowHours = definition.intParam('optional_steps_hours', 48);
   if (windowStart != null &&
       now.difference(windowStart) >= Duration(hours: windowHours)) {
     return const [];
   }
   bool isHidden(String key) => states[key]?.isHidden(now) ?? false;
-  if (!hasBirthday && !isHidden(_birthdayStepKey)) {
+  if (!hasBirthday && !isHidden(onboardingBirthdayKey)) {
     return [card(OnboardingStep.birthday, dismissable: true)];
   }
-  if (!hasAvatar && !isHidden(_photoStepKey)) {
+  if (!hasAvatar && !isHidden(onboardingPhotoKey)) {
     return [card(OnboardingStep.photo, dismissable: true)];
   }
   return const [];
 }
 
+/// Every open wishlist untouched for `stale_days` days or more, the one idle
+/// the longest first (then by id). [lastActivity] is by wishlist id; a list
+/// missing from it, or closed, is ignored.
+List<HomeCardCandidate> staleWishlistCandidates({
+  required List<Wishlist> wishlists,
+  required Map<int, DateTime> lastActivity,
+  required HomeCardDefinition? definition,
+  required DateTime now,
+}) {
+  if (definition == null) {
+    return const [];
+  }
+  final today = _day(now);
+  final staleDays = definition.intParam('stale_days', 90);
+  final stale = <({Wishlist wishlist, int idle, DateTime activity})>[];
+  for (final wishlist in wishlists) {
+    final activity = lastActivity[wishlist.id];
+    if (activity == null || wishlist.isClosed) {
+      continue;
+    }
+    final idle = _daysBetween(activity.toLocal(), today);
+    if (idle >= staleDays) {
+      stale.add((wishlist: wishlist, idle: idle, activity: activity));
+    }
+  }
+  stale.sort((a, b) {
+    final byIdle = b.idle.compareTo(a.idle);
+    return byIdle != 0 ? byIdle : a.wishlist.id.compareTo(b.wishlist.id);
+  });
+  return [
+    for (final entry in stale)
+      HomeCardCandidate(
+        type: definition.key,
+        stateKey: cardKey(definition.key, id: entry.wishlist.id),
+        content: StaleWishlist(entry.wishlist, entry.idle ~/ 30),
+        eventAt: entry.activity,
+      ),
+  ];
+}
+
+/// The first of the stale [candidates] (see `staleWishlistCandidates`, idle
+/// the longest first) whose card is not hidden by its state at [now]. One card
+/// at a time: hiding it makes room for the next list.
+List<HomeCardCandidate> staleWishlistCards({
+  required List<HomeCardCandidate> candidates,
+  required Map<String, CardState> states,
+  required DateTime now,
+}) {
+  for (final candidate in candidates) {
+    if (!(states[candidate.stateKey]?.isHidden(now) ?? false)) {
+      return [candidate];
+    }
+  }
+  return const [];
+}
+
+/// What was received (`completedAt`) and given during [year]. A booking counts
+/// as given once the owner marked at least the booked quantity as received
+/// (`receivedAt` in [year]), even if other bookings of the wish are not.
+YearRecapFacts yearRecapFacts({
+  required List<CompletedWishWithDetails> received,
+  required List<BookedWishWithDetails> bookings,
+  required int year,
+}) {
+  final receivedInYear = [
+    for (final wish in received)
+      if (wish.completedAt.toLocal().year == year) wish,
+  ];
+  // Differs on purpose from `BookedWishWithDetails.isGiven` (every booking of
+  // the wish received, used by the booked reminder card): here the owner only
+  // has to have received what this user booked, whatever the other bookers
+  // did. Do not align the two.
+  final offeredInYear = [
+    for (final booking in bookings)
+      if (booking.receivedAt?.toLocal().year == year &&
+          booking.receivedQuantity >= booking.bookedQuantity)
+        booking,
+  ];
+  CompletedWishWithDetails? longestAwaited;
+  for (final wish in receivedInYear) {
+    if (longestAwaited == null ||
+        wish.wish.createdAt.isBefore(longestAwaited.wish.createdAt)) {
+      longestAwaited = wish;
+    }
+  }
+  final givenByOwner = <String, int>{};
+  final pseudos = <String, String>{};
+  for (final booking in offeredInYear) {
+    givenByOwner.update(booking.ownerId, (n) => n + 1, ifAbsent: () => 1);
+    pseudos[booking.ownerId] = booking.ownerPseudo;
+  }
+  final most = givenByOwner.values.fold(0, max);
+  final top = [
+    for (final entry in givenByOwner.entries)
+      if (entry.value == most) entry.key,
+  ];
+  return YearRecapFacts(
+    year: year,
+    receivedCount: receivedInYear.length,
+    offeredCount: offeredInYear.length,
+    longestAwaited: longestAwaited,
+    mostGiftedFriendPseudo: top.length == 1 ? pseudos[top.single] : null,
+  );
+}
+
+/// Whether [now] is in the `month` of the definition of the recap (December):
+/// the only time its facts are worth loading.
+bool isYearRecapMonth(HomeCardDefinition? definition, DateTime now) {
+  return definition != null &&
+      now.toLocal().month == definition.intParam('month', 12);
+}
+
+/// "Ton année Wishy": only in the `month` of the definition (December), and
+/// only when the user received or gave at least one wish that year.
+List<HomeCardCandidate> yearRecapCards({
+  required YearRecapFacts facts,
+  required HomeCardDefinition? definition,
+  required DateTime now,
+}) {
+  if (definition == null ||
+      !isYearRecapMonth(definition, now) ||
+      facts.receivedCount + facts.offeredCount == 0) {
+    return const [];
+  }
+  final local = now.toLocal();
+  return [
+    HomeCardCandidate(
+      type: definition.key,
+      stateKey: cardKey(definition.key, year: facts.year),
+      content: YearRecap(facts),
+      tone: HomeCardTone.dark,
+      // Gone after the last day of its month.
+      lastDay: DateTime(local.year, local.month + 1, 0),
+    ),
+  ];
+}
+
 /// When a card dismissed with "Hide" at [now] comes back: the next reminder
-/// step for a friend birthday or Christmas, null (never) for the others.
+/// step when its definition has `reminder_days` (friend birthday, Christmas),
+/// `snooze_days` days later for a stale wishlist, null (never) for the others.
 DateTime? hideUntil(
   HomeCardCandidate card,
   Map<String, HomeCardDefinition> definitions,
   DateTime now,
 ) {
+  if (card.type == 'stale_wishlist') {
+    final days = definitions[card.type]?.intParam('snooze_days', 60) ?? 60;
+    final local = now.toLocal();
+    return DateTime(
+      local.year,
+      local.month,
+      local.day + days,
+      local.hour,
+      local.minute,
+    );
+  }
   final eventAt = card.eventAt;
+  final definition = definitions[card.type];
   if (eventAt == null ||
-      (card.type != 'friend_birthday' && card.type != 'christmas')) {
+      definition == null ||
+      definition.intListParam('reminder_days').isEmpty) {
     return null;
   }
-  return definitions[card.type]?.nextReminderAfter(
-    eventOn: eventAt,
-    dismissedAt: now,
-  );
+  return definition.nextReminderAfter(eventOn: eventAt, dismissedAt: now);
 }

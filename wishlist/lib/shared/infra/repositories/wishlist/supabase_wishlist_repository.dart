@@ -126,4 +126,21 @@ class SupabaseWishlistRepository implements WishlistRepository {
       errorMessage: 'Failed to delete wishlist',
     );
   }
+
+  @override
+  Future<Map<int, DateTime>> getLastActivityByWishlist() {
+    return executeSafely(
+      () async {
+        final rows = await _client.rpc<List<dynamic>>(
+          'get_my_wishlists_last_activity',
+        );
+        return {
+          for (final row in rows.cast<Map<String, dynamic>>())
+            row['wishlist_id'] as int:
+                DateTime.parse(row['last_activity_at'] as String),
+        };
+      },
+      errorMessage: 'Failed to get the last activity of the wishlists',
+    );
+  }
 }

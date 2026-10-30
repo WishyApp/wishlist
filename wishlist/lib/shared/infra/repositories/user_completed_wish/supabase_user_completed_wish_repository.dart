@@ -217,8 +217,12 @@ class SupabaseUserCompletedWishRepository
     return executeSafely(
       () async {
         // The same inner joins as [getCompletedWishesByUser], on their ids
-        // only: the rows that are counted are the ones the list shows.
-        final response = await _client.from(_tableName).select('''
+        // only: the rows that are counted are the ones the list shows. The
+        // count is exact (not capped by the API max rows) and only the latest
+        // row is downloaded, for its date.
+        final response = await _client
+            .from(_tableName)
+            .select('''
                completed_at,
                wishs!inner(
                  id,
@@ -227,14 +231,18 @@ class SupabaseUserCompletedWishRepository
                    profiles!inner(id)
                  )
                )
-            ''').eq('user_id', userId).order('completed_at', ascending: false);
+            ''')
+            .eq('user_id', userId)
+            .order('completed_at', ascending: false)
+            .limit(1)
+            .count(CountOption.exact);
 
         return ReceivedWishesSummary(
-          count: response.length,
+          count: response.count,
           // A day ('2026-10-29'): parsed as local midnight
-          latestCompletedAt: response.isEmpty
+          latestCompletedAt: response.data.isEmpty
               ? null
-              : DateTime.parse(response.first['completed_at'] as String),
+              : DateTime.parse(response.data.first['completed_at'] as String),
         );
       },
       errorMessage: 'Failed to get received wishes summary',

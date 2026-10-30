@@ -19,6 +19,7 @@ import 'package:wishlist/modules/wishs/view/screens/add_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/edit_wish_screen.dart';
 import 'package:wishlist/modules/wishs/view/wish_form_screen.dart';
+import 'package:wishlist/modules/year_recap/view/year_recap_screen.dart';
 import 'package:wishlist/shared/models/wish_prefill_data/wish_prefill_data.dart';
 import 'package:wishlist/shared/navigation/authenticated_route.dart';
 import 'package:wishlist/shared/navigation/floating_nav_bar_navigator.dart';
@@ -62,6 +63,10 @@ part 'routes.g.dart';
     // Wishes received by the current user
     TypedGoRoute<CompletedWishesRoute>(
       path: 'completed-wishes',
+    ),
+    // "Ton année Wishy" recap
+    TypedGoRoute<YearRecapRoute>(
+      path: 'year-recap/:year',
     ),
     // Wishlist et ses sous-routes
     TypedGoRoute<WishlistRoute>(
@@ -305,6 +310,17 @@ class CompletedWishesRoute extends AuthenticatedRoute {
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) =>
       const CompletedWishesScreen();
+}
+
+class YearRecapRoute extends AuthenticatedRoute {
+  YearRecapRoute({required this.year});
+
+  final int year;
+
+  @override
+  Widget buildScreen(BuildContext context, GoRouterState state) {
+    return YearRecapScreen(year: year);
+  }
 }
 
 class FriendDetailsRoute extends AuthenticatedRoute {

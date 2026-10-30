@@ -205,9 +205,12 @@ void main() {
   });
 
   group('SupabaseUserCompletedWishRepository.getReceivedWishesSummary', () {
+    /// [rows] is what PostgREST sends back (the page asked for) and [total]
+    /// the exact count of its Content-Range header.
     Future<(ReceivedWishesSummary, List<http.Request>)> summary(
-      List<Map<String, dynamic>> rows,
-    ) async {
+      List<Map<String, dynamic>> rows, {
+      required int total,
+    }) async {
       final requests = <http.Request>[];
       final client = SupabaseClient(
         'https://example.supabase.co',
@@ -217,7 +220,11 @@ void main() {
           return http.Response(
             jsonEncode(rows),
             200,
-            headers: {'content-type': 'application/json'},
+            headers: {
+              'content-type': 'application/json',
+              'content-range':
+                  rows.isEmpty ? '*/$total' : '0-${rows.length - 1}/$total',
+            },
             request: req,
           );
         }),
@@ -229,16 +236,21 @@ void main() {
       return (result, requests);
     }
 
-    test('counts the rows of the user and gives the latest day', () async {
-      final (result, requests) = await summary([
-        {'completed_at': '2026-03-05', 'wishs': <String, dynamic>{}},
-        {'completed_at': '2026-03-01', 'wishs': <String, dynamic>{}},
-        {'completed_at': '2026-02-10', 'wishs': <String, dynamic>{}},
-      ]);
+    test('gives the exact count, beyond the rows downloaded', () async {
+      final (result, requests) = await summary(
+        [
+          {'completed_at': '2026-03-05', 'wishs': <String, dynamic>{}},
+        ],
+        total: 1500,
+      );
 
-      expect(result.count, 3);
+      expect(result.count, 1500);
       expect(result.latestCompletedAt, DateTime(2026, 3, 5));
-      final query = requests.single.url.queryParameters;
+      final request = requests.single;
+      expect(request.headers['Prefer'], contains('count=exact'));
+      // Only the latest row is downloaded, not every received wish
+      final query = request.url.queryParameters;
+      expect(query['limit'], '1');
       expect(query['user_id'], 'eq.me');
       expect(query['order'], 'completed_at.desc.nullslast');
       // The same inner joins as the full list, so the same rows are counted
@@ -248,7 +260,7 @@ void main() {
     });
 
     test('is empty without any row', () async {
-      final (result, _) = await summary([]);
+      final (result, _) = await summary([], total: 0);
 
       expect(result, const ReceivedWishesSummary.empty());
       expect(result.latestCompletedAt, isNull);
