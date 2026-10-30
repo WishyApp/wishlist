@@ -11,6 +11,7 @@ import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
+import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
@@ -296,8 +297,8 @@ class HomeCardView extends ConsumerWidget {
               WishlistRoute(wishlistId: wishlist.id).push(context),
           illustration: Assets.svg.noWishFlashlight,
         );
-      case YearRecap(:final facts):
-        return _yearRecapSpec(context, ref, facts);
+      case YearRecap(:final recap):
+        return _yearRecapSpec(context, ref, recap);
       case Onboarding(:final step):
         return _onboardingSpec(context, ref, step);
     }
@@ -306,26 +307,26 @@ class HomeCardView extends ConsumerWidget {
   _CardSpec _yearRecapSpec(
     BuildContext context,
     WidgetRef ref,
-    YearRecapFacts facts,
+    YearRecapData recap,
   ) {
     final l10n = context.l10n;
-    final awaited = facts.longestAwaited;
+    final awaited = recap.stats.longestAwaited;
     // Only a wish that waited since a previous year is worth a sentence.
-    final waitingSince = awaited?.wish.createdAt.toLocal().year;
+    final waitingSince = awaited?.createdOn.year;
     return _CardSpec(
-      overline: l10n.homeCardYearRecapOverline('${facts.year}'),
+      overline: l10n.homeCardYearRecapOverline('${recap.year}'),
       title: l10n.homeCardYearRecapTitle(
-        l10n.yearRecapReceived(facts.receivedCount),
-        l10n.homeCardYearRecapOffered(facts.offeredCount),
+        l10n.yearRecapReceived(recap.stats.received),
+        l10n.homeCardYearRecapOffered(recap.stats.offered),
       ),
       body: awaited == null ||
               waitingSince == null ||
-              waitingSince >= facts.year
+              waitingSince >= recap.year
           ? null
-          : l10n.homeCardYearRecapAwaited(awaited.wish.name, '$waitingSince'),
+          : l10n.homeCardYearRecapAwaited(awaited.wishName, '$waitingSince'),
       actionLabel: l10n.homeCardYearRecapAction,
       onAction: () {
-        YearRecapRoute(year: facts.year).push(context);
+        YearRecapRoute(year: recap.year).push(context);
         // Seen: hidden for good, without a snack-bar to undo it
         ref.read(homeCardActionsProvider.notifier).dismissNow(card);
       },

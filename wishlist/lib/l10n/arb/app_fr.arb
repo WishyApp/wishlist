@@ -650,5 +650,123 @@
       }
     }
   },
-  "yearRecapBack": "Retour"
+  "yearRecapBack": "Retour",
+  "yearRecapProfileIntro": "Cette année, j'étais",
+  "yearRecapShareButton": "Partager mon année",
+  "yearRecapShareImageHeader": "Mon année {year}",
+  "@yearRecapShareImageHeader": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapShareFooter": "Et toi, t'es qui ?",
+  "yearRecapShareText": "Mon année Wishy {year} · wishy-app.fr",
+  "@yearRecapShareText": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapProfilePatientTitle": "Le marathonien / La marathonienne",
+  "yearRecapProfilePatientTagline": "Je l'ai voulu. J'ai attendu. Je l'ai eu.",
+  "yearRecapProfilePereNoelDiscretTitle": "Le Père Noël / La Mère Noël",
+  "yearRecapProfilePereNoelDiscretTagline": "Personne ne sait que c'était moi.",
+  "yearRecapProfileGateTitle": "Le gâté / La gâtée",
+  "yearRecapProfileGateTagline": "J'ai été très sage. Enfin, je crois.",
+  "yearRecapProfileEquilibristeTitle": "L'équilibriste",
+  "yearRecapProfileEquilibristeTagline": "Donnant, donnant.",
+  "yearRecapProfileReveurTitle": "Le rêveur / La rêveuse",
+  "yearRecapProfileReveurTagline": "Rêver, c'est gratuit.",
+  "yearRecapProfileRassembleurTitle": "Le rassembleur / La rassembleuse",
+  "yearRecapProfileRassembleurTagline": "Plus on est de fous, plus on offre.",
+  "yearRecapProfileAmiFideleTitle": "L'ami fidèle / L'amie fidèle",
+  "yearRecapProfileAmiFideleTagline": "Cette personne se reconnaîtra.",
+  "yearRecapProfileDernierMomentTitle": "Le roi / La reine du dernier moment",
+  "yearRecapProfileDernierMomentTagline": "Je travaille mieux sous pression.",
+  "yearRecapProfileOrganiseTitle": "L'organisé / L'organisée",
+  "yearRecapProfileOrganiseTagline": "Papier cadeau à peine déchiré, liste déjà à jour.",
+  "yearRecapProfileMinimalisteTitle": "Le minimaliste / La minimaliste",
+  "yearRecapProfileMinimalisteTagline": "Peu, mais bien.",
+  "yearRecapReceivedShort": "{count, plural, =0{0 reçu} =1{1 reçu} other{{count} reçus}}",
+  "@yearRecapReceivedShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapStatPatient": "{days, plural, =0{0 jour} =1{1 jour} other{{days} jours}} pour {wish}",
+  "@yearRecapStatPatient": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "wish": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapStatPatientShare": "{days, plural, =0{0 jour d'attente} =1{1 jour d'attente} other{{days} jours d'attente}}",
+  "@yearRecapStatPatientShare": {
+    "description": "Figure of the patient profile on the share image: it never names the wish",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapStatOfferedReceived": "{offered}, {received}",
+  "@yearRecapStatOfferedReceived": {
+    "placeholders": {
+      "offered": {
+        "type": "String"
+      },
+      "received": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapStatReveur": "{count, plural, =0{0 wish ajouté} =1{1 wish ajouté} other{{count} wishs ajoutés}}",
+  "@yearRecapStatReveur": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapStatRassembleur": "{count, plural, =0{0 nouvel ami} =1{1 nouvel ami} other{{count} nouveaux amis}}",
+  "@yearRecapStatRassembleur": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapStatAmiFidele": "{count, plural, =0{0 cadeau pour la même personne} =1{1 cadeau pour la même personne} other{{count} cadeaux pour la même personne}}",
+  "@yearRecapStatAmiFidele": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapStatDernierMoment": "{count, plural, =0{0 cadeau réservé au dernier moment} =1{1 cadeau réservé au dernier moment} other{{count} cadeaux réservés au dernier moment}}",
+  "@yearRecapStatDernierMoment": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapStatOrganise": "{count, plural, =0{0 wish coché le jour J} =1{1 wish coché le jour J} other{{count} wishs cochés le jour J}}",
+  "@yearRecapStatOrganise": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }
