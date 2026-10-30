@@ -7,7 +7,7 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 ### Nouvelles fonctionnalités
 
 - **Nouvel accueil** : en haut, ta photo et ton pseudo, avec « Modifier le profil » ; en dessous, le nombre de wishs reçus et la date du dernier, qui mène à « Mes wishs complétés ». Sans wishlist, l'accueil garde l'en-tête au-dessus d'un bloc « Pas encore de wishlist »
-- **Page « Modifier le profil »** : photo, pseudo et anniversaire quittent les Réglages pour leur propre page
+- **Page « Modifier le profil »** : photo, pseudo et anniversaire quittent les Réglages pour leur propre page, qui précise que le pseudo et la photo sont visibles par tous
 - **Cartes du moment** sur l'accueil, en pile : glisser à gauche pour masquer une carte, à droite pour la revoir le lendemain. Selon le moment :
   - l'anniversaire d'un ami qui approche, puis le jour J ;
   - Noël qui approche, avec ta liste de Noël, puis « C'est le grand jour » le 25 décembre ;
