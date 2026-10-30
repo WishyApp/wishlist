@@ -31,6 +31,12 @@ class MockBookedWishRemovalRepository extends Mock
 
 const _firstTitle = 'Alice a accepté ta demande';
 
+/// The card on top: the ones behind it cannot be touched.
+final _topCard = find.byType(HomeCardView).hitTestable();
+
+/// The cross of the card on top.
+final _cross = find.byTooltip('Masquer').hitTestable();
+
 void main() {
   late MockCardStateRepository cardStates;
   late MockBookedWishRemovalRepository removals;
@@ -114,24 +120,27 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows the first card and two edges behind it', (tester) async {
+  testWidgets('shows the first card and the next two behind it',
+      (tester) async {
     await pump(tester, () async => cards);
 
-    expect(find.text(_firstTitle), findsOneWidget);
-    expect(find.text('Ajoute ton anniversaire'), findsNothing);
-    expect(find.byType(HomeCardEdge), findsNWidgets(2));
+    expect(find.text(_firstTitle).hitTestable(), findsOneWidget);
+    expect(find.byType(HomeCardView), findsNWidgets(3));
+    // Behind the top card: neither touched nor read
+    expect(find.text('Ajoute ton anniversaire').hitTestable(), findsNothing);
+    expect(find.bySemanticsLabel('Ajoute ton anniversaire'), findsNothing);
   });
 
-  testWidgets('one card behind it has one edge', (tester) async {
+  testWidgets('one card behind it', (tester) async {
     await pump(tester, () async => cards.take(2).toList());
 
-    expect(find.byType(HomeCardEdge), findsOneWidget);
+    expect(find.byType(HomeCardView), findsNWidgets(2));
   });
 
-  testWidgets('a single card has no edge', (tester) async {
+  testWidgets('a single card has none behind it', (tester) async {
     await pump(tester, () async => cards.take(1).toList());
 
-    expect(find.byType(HomeCardEdge), findsNothing);
+    expect(find.byType(HomeCardView), findsOneWidget);
   });
 
   testWidgets('shows nothing while loading and on error', (tester) async {
@@ -173,7 +182,7 @@ void main() {
     expect(find.text(_firstTitle), findsNothing);
     expect(find.text('Ajoute ton anniversaire'), findsOneWidget);
     expect(find.text('Carte masquée'), findsOneWidget);
-    expect(find.byType(HomeCardEdge), findsOneWidget);
+    expect(find.byType(HomeCardView), findsNWidgets(2));
     // Nothing is sent before the end of the snack-bar
     verifyNever(
       () => cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
@@ -197,11 +206,11 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 500));
 
-    // The height ends at the one of the next card (no edge behind it), and
+    // The height ends at the one of the next card (none behind it), and
     // never went below it on the way
     final settled = tester.getSize(find.byType(HomeCardsSlot)).height;
     expect(find.text('Ajoute ton anniversaire'), findsOneWidget);
-    expect(find.byType(HomeCardEdge), findsNothing);
+    expect(find.byType(HomeCardView), findsOneWidget);
     expect(settled, greaterThan(100));
     expect(lowest, greaterThanOrEqualTo(settled));
   });
@@ -257,7 +266,7 @@ void main() {
   testWidgets('the cross hides the card like a swipe', (tester) async {
     await pump(tester, () async => cards);
 
-    await tester.tap(find.byTooltip('Masquer'));
+    await tester.tap(_cross);
     await letItLeave(tester);
 
     expect(find.text('Carte masquée'), findsOneWidget);
@@ -371,8 +380,8 @@ void main() {
     await pump(tester, () async => cards);
 
     // No frame between the two taps: the card is still in the tree
-    await tester.tap(find.byTooltip('Masquer'));
-    await tester.tap(find.byTooltip('Masquer'));
+    await tester.tap(_cross);
+    await tester.tap(_cross);
     await letItLeave(tester);
 
     expect(find.text('Carte masquée'), findsOneWidget);
@@ -412,7 +421,7 @@ void main() {
     // Two swipes, the second card is on top once the first one is gone
     await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
     await letItLeave(tester);
-    await tester.drag(find.byType(HomeCardView), const Offset(-500, 0));
+    await tester.drag(_topCard, const Offset(-500, 0));
     await letItLeave(tester);
     await tester.pump(const Duration(seconds: 5));
     await tester.pump();
@@ -428,7 +437,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
     // Once it is gone, a new failure tells the user again
-    await tester.drag(find.byType(HomeCardView), const Offset(-500, 0));
+    await tester.drag(_topCard, const Offset(-500, 0));
     await letItLeave(tester);
     await tester.pump(const Duration(seconds: 5));
     await tester.pump();
@@ -530,7 +539,7 @@ void main() {
         expect(find.byType(HomeCardView), findsOneWidget);
         expect(find.textContaining('Reportée'), findsNothing);
 
-        await tester.drag(find.byType(HomeCardView), const Offset(-500, 0));
+        await tester.drag(_topCard, const Offset(-500, 0));
         await letItLeave(tester);
         expect(find.text('Carte masquée'), findsOneWidget);
         await finish(tester);
@@ -767,72 +776,145 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
-  group('swipe slot', () {
-    testWidgets('the swiped card and its backgrounds are clipped to the slot',
-        (tester) async {
-      await pump(tester, () async => cards);
+  group('swipe', () {
+    /// The top edge of the card on top: its two corners, as drawn.
+    (Offset, Offset) topEdge(WidgetTester tester, Finder card) =>
+        (tester.getTopLeft(card), tester.getTopRight(card));
 
-      final clip = find.ancestor(
-        of: find.byType(Dismissible),
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is ClipRRect &&
-              widget.borderRadius == BorderRadius.circular(22),
-        ),
+    testWidgets('the card tilts to the side it is dragged to', (tester) async {
+      await pump(tester, () async => cards);
+      final card = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byType(HomeCardView),
       );
-      expect(clip, findsOneWidget);
-      // The card is flat inside the slot: its own corners would show the
-      // background as a block next to it
-      expect(tester.widget<HomeCardView>(find.byType(HomeCardView)).flat, true);
+
+      final gesture = await tester.startGesture(tester.getCenter(card));
+      await gesture.moveBy(const Offset(120, 0));
+      await tester.pump();
+      var (left, right) = topEdge(tester, card);
+      expect(right.dy, greaterThan(left.dy));
+
+      await gesture.moveBy(const Offset(-240, 0));
+      await tester.pump();
+      (left, right) = topEdge(tester, card);
+      expect(right.dy, lessThan(left.dy));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+      (left, right) = topEdge(tester, card);
+      expect(right.dy, moreOrLessEquals(left.dy, epsilon: 0.5));
     });
 
-    testWidgets('the slot draws the outline over the card and the background',
+    testWidgets('with less motion, the card slides without tilting',
         (tester) async {
-      await pump(tester, () async => cards);
-
-      final outline = tester.widget<DecoratedBox>(
-        find
-            .ancestor(
-              of: find.byType(ClipRRect),
-              matching: find.byType(DecoratedBox),
-            )
-            .first,
-      );
-      expect(outline.position, DecorationPosition.foreground);
-      final decoration = outline.decoration as BoxDecoration;
-      expect(decoration.borderRadius, BorderRadius.circular(22));
-      expect(decoration.border, isNotNull);
-    });
-
-    testWidgets('the edges stay outside of the clip', (tester) async {
-      await pump(tester, () async => cards);
-
-      expect(
-        find.descendant(
-          of: find.byType(ClipRRect),
-          matching: find.byType(HomeCardEdge),
-        ),
-        findsNothing,
-      );
-    });
-
-    testWidgets('a card that cannot be hidden keeps its own shape',
-        (tester) async {
-      await pump(
-        tester,
-        () async => [
-          const HomeCardCandidate(
-            type: 'onboarding',
-            stateKey: 'onboarding:firstWishlist',
-            content: Onboarding(OnboardingStep.firstWishlist),
-            dismissable: false,
+      await tester.pumpApp(
+        Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: const Scaffold(
+              body: SafeArea(
+                child: SingleChildScrollView(child: HomeCardsSlot()),
+              ),
+            ),
           ),
-        ],
+        ),
+        overrides: overrides(() async => cards),
+      );
+      await tester.pumpAndSettle();
+      final card = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byType(HomeCardView),
+      );
+      final before = tester.getTopLeft(card);
+
+      final gesture = await tester.startGesture(tester.getCenter(card));
+      await gesture.moveBy(const Offset(120, 0));
+      await tester.pump();
+      final (left, right) = topEdge(tester, card);
+      expect(left.dx, greaterThan(before.dx));
+      expect(right.dy, moreOrLessEquals(left.dy, epsilon: 0.5));
+
+      await gesture.up();
+      await finish(tester);
+    });
+
+    testWidgets('the next card comes up and grows as the top one goes',
+        (tester) async {
+      await pump(tester, () async => cards);
+      final top = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byType(HomeCardView),
+      );
+      final next = find.ancestor(
+        of: find.text('Ajoute ton anniversaire'),
+        matching: find.byType(HomeCardView),
+      );
+      double width(Finder card) =>
+          tester.getTopRight(card).dx - tester.getTopLeft(card).dx;
+
+      // At rest it is narrower, its bottom shows under the top card
+      final atRest = width(next);
+      expect(atRest, lessThan(width(top)));
+      expect(
+        tester.getBottomLeft(next).dy,
+        greaterThan(tester.getBottomLeft(top).dy),
       );
 
+      final gesture = await tester.startGesture(tester.getCenter(top));
+      await gesture.moveBy(const Offset(-150, 0));
+      await tester.pump();
+      expect(width(next), greaterThan(atRest));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(width(next), moreOrLessEquals(atRest, epsilon: 0.5));
+    });
+
+    testWidgets('a card that cannot be postponed resists to the right',
+        (tester) async {
+      // Closed for good: it can only be hidden
+      await pump(tester, () async => [cards[1]]);
+      final card = find.byType(HomeCardView);
+      final before = tester.getTopLeft(card);
+
+      final gesture = await tester.startGesture(tester.getCenter(card));
+      await gesture.moveBy(const Offset(300, 0));
+      await tester.pump();
+      final moved = tester.getTopLeft(card).dx - before.dx;
+      expect(moved, greaterThan(0));
+      // Far less than the drag
+      expect(moved, lessThan(100));
+      expect(find.text('Plus tard'), findsNothing);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
       expect(
-        tester.widget<HomeCardView>(find.byType(HomeCardView)).flat,
-        false,
+        tester.getTopLeft(card).dx,
+        moreOrLessEquals(before.dx, epsilon: 0.5),
+      );
+      expect(find.text('Reportée à demain'), findsNothing);
+    });
+
+    testWidgets('"Annuler" brings the card back from the side it left by',
+        (tester) async {
+      await pump(tester, () async => cards);
+
+      await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+      await letItLeave(tester);
+      final rest = tester.getTopLeft(_topCard);
+      await tester.tap(find.text('Annuler'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final card = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byType(HomeCardView),
+      );
+      expect(tester.getTopLeft(card).dx, lessThan(rest.dx));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(card).dx,
+        moreOrLessEquals(rest.dx, epsilon: 0.5),
       );
     });
 
