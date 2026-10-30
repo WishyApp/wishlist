@@ -14,10 +14,13 @@ import 'package:wishlist/shared/models/home_card_definition.dart';
 /// by state key so that the order is stable. Among the cards of a queue
 /// (`isQueue`) the oldest event comes first instead.
 ///
-/// No refill: a card of a queue dismissed on the local day of [now] leaves its
-/// slot empty until tomorrow. The stack is first computed as if these cards
-/// were not hidden (the one the user saw before dismissing), then they are
-/// removed from it.
+/// No refill: once a card of a queue was dismissed on the local day of [now],
+/// only the cards of the queue already shown that day (`lastShownAt`, recorded
+/// by the provider for each card of the stack) may be in the stack: the queue
+/// may shrink until tomorrow, never gain a card. The dismissed cards leave
+/// their slot empty: the stack is computed as if they were not hidden, then
+/// they are removed. Limit: a dismissed card whose list is gone is no
+/// candidate, so its dismissal is not seen.
 List<HomeCardCandidate> selectHomeCards({
   required List<HomeCardCandidate> candidates,
   required Map<String, HomeCardDefinition> definitions,
@@ -38,7 +41,12 @@ List<HomeCardCandidate> selectHomeCards({
         };
   final kept = [
     for (final card in candidates)
-      if (definitions.containsKey(card.type) && _isShown(card, seen, now)) card,
+      if (definitions.containsKey(card.type) &&
+          _isShown(card, seen, now) &&
+          (dismissedToday.isEmpty ||
+              !card.isQueue ||
+              _isToday(states[card.stateKey]?.lastShownAt, now)))
+        card,
   ]..sort((a, b) {
       final byPriority = definitions[a.type]!.priority.compareTo(
             definitions[b.type]!.priority,
@@ -60,12 +68,16 @@ List<HomeCardCandidate> selectHomeCards({
 }
 
 bool _isDismissedToday(CardState? state, DateTime now) {
-  final dismissedAt = state?.dismissedAt?.toLocal();
+  return _isToday(state?.dismissedAt, now);
+}
+
+bool _isToday(DateTime? date, DateTime now) {
+  final local = date?.toLocal();
   final today = now.toLocal();
-  return dismissedAt != null &&
-      dismissedAt.year == today.year &&
-      dismissedAt.month == today.month &&
-      dismissedAt.day == today.day;
+  return local != null &&
+      local.year == today.year &&
+      local.month == today.month &&
+      local.day == today.day;
 }
 
 bool _isShown(

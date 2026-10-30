@@ -221,9 +221,15 @@ void main() {
     CardState dismissed(String key, DateTime at) => CardState(
           cardKey: key,
           shownCount: 1,
+          lastShownAt: at,
           dismissedAt: at,
           snoozedUntil: DateTime(2026, 12, 29),
         );
+
+    CardState shown(String key, DateTime at) =>
+        CardState(cardKey: key, shownCount: 1, lastShownAt: at);
+
+    final morning = DateTime(2026, 10, 30, 8);
 
     test('three cards of the queue, the oldest event first', () {
       expect(run(queue().sublist(1)), ['q1', 'q2', 'q3']);
@@ -241,14 +247,22 @@ void main() {
       expect(
         run(
           queue(),
-          states: {'q2': dismissed('q2', DateTime(2026, 10, 30, 8))},
+          states: {
+            'q1': shown('q1', morning),
+            'q2': dismissed('q2', morning),
+            'q3': shown('q3', morning),
+          },
         ),
         ['q1', 'q3'],
       );
     });
 
     test('the next day the fourth card comes in', () {
-      final states = {'q2': dismissed('q2', DateTime(2026, 10, 30, 8))};
+      final states = {
+        'q1': shown('q1', morning),
+        'q2': dismissed('q2', morning),
+        'q3': shown('q3', morning),
+      };
 
       expect(
         run(queue(), states: states, at: DateTime(2026, 10, 31, 0, 1)),
@@ -257,12 +271,62 @@ void main() {
     });
 
     test('a card dismissed yesterday does not block today', () {
+      final yesterday = DateTime(2026, 10, 29, 23, 59);
+
+      expect(
+        run(queue(), states: {'q2': dismissed('q2', yesterday)}),
+        ['q1', 'q3', 'q4'],
+      );
+    });
+
+    test('a card dismissed today lets only the cards shown today stay', () {
+      // q1 and q3 were in the stack this morning, q4 was not
       expect(
         run(
           queue(),
-          states: {'q2': dismissed('q2', DateTime(2026, 10, 29, 23, 59))},
+          states: {
+            'q2': dismissed('q2', morning),
+            'q3': shown('q3', morning),
+            'q4': shown('q4', DateTime(2026, 10, 29, 9)),
+          },
         ),
-        ['q1', 'q3', 'q4'],
+        ['q3'],
+      );
+    });
+
+    test('a more urgent card dismissed later does not let a new card in', () {
+      // Stack [a1, b1, q1]; q1 dismissed, then a1: q2 must not come in.
+      expect(
+        run(
+          [candidate('a', 'a1'), candidate('b', 'b1'), ...queue()],
+          states: {
+            'a1': dismissed('a1', morning),
+            'b1': shown('b1', morning),
+            'q1': dismissed('q1', morning),
+          },
+        ),
+        ['b1'],
+      );
+    });
+
+    test('a card that is not stale anymore does not let a new one in', () {
+      // Stack [q1, q2, q3]; q1 and q2 dismissed, then q2 left the queue
+      // (the user added a wish): q4 must not come in.
+      final candidates = [
+        for (final card in queue())
+          if (card.stateKey != 'q2') card,
+      ];
+
+      expect(
+        run(
+          candidates,
+          states: {
+            'q1': dismissed('q1', morning),
+            'q2': dismissed('q2', morning),
+            'q3': shown('q3', morning),
+          },
+        ),
+        ['q3'],
       );
     });
 
@@ -270,14 +334,14 @@ void main() {
       expect(
         run(
           [candidate('a', 'a1'), candidate('b', 'b1'), ...queue()],
-          states: {'q1': dismissed('q1', DateTime(2026, 10, 30, 8))},
+          states: {'q1': dismissed('q1', morning)},
         ),
         ['a1', 'b1'],
       );
       expect(
         run(
           [candidate('a', 'a1'), candidate('b', 'b1'), ...queue()],
-          states: {'a1': dismissed('a1', DateTime(2026, 10, 30, 8))},
+          states: {'a1': dismissed('a1', morning)},
         ),
         ['b1', 'q1', 'q2'],
       );

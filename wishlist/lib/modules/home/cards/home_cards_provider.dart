@@ -26,6 +26,7 @@ import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
+import 'package:wishlist/shared/models/card_state.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/models/year_recap/year_recap.dart';
@@ -110,6 +111,10 @@ void _recomputeOnNewDay(Ref ref, DateTime Function() clock, DateTime now) {
 /// started: recomputes close to each other all see no state yet.
 final _optionalWindowRecordedProvider = Provider<Set<String>>((ref) => {});
 
+/// The stale cards recorded as shown, per user, card and local day (see
+/// `_recordStaleShown`): recomputes close to each other record once.
+final _staleShownRecordedProvider = Provider<Set<String>>((ref) => {});
+
 Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) {
@@ -118,6 +123,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   // Captured here: callbacks run outside the build, where `ref` must not be
   // used to read.
   final recordedWindows = ref.watch(_optionalWindowRecordedProvider);
+  final recordedStale = ref.watch(_staleShownRecordedProvider);
   final cardStateRepository = ref.watch(cardStateRepositoryProvider);
   final friendshipRepository = ref.watch(friendshipRepositoryProvider);
   final wishlistRepository = ref.watch(wishlistRepositoryProvider);
@@ -407,7 +413,56 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
       ),
     );
   }
+  _recordStaleShown(
+    cards: cards,
+    states: states,
+    repository: cardStateRepository,
+    recorded: recordedStale,
+    userId: userId,
+    now: now,
+  );
   return cards;
+}
+
+/// Records every stale card of the stack as shown, once per local day: the
+/// selection lets only the stale cards shown today stay once one was
+/// dismissed (see `selectHomeCards`). One request per card, only for a card
+/// whose `lastShownAt` is not today.
+void _recordStaleShown({
+  required List<HomeCardCandidate> cards,
+  required Map<String, CardState> states,
+  required CardStateRepository repository,
+  required Set<String> recorded,
+  required String userId,
+  required DateTime now,
+}) {
+  final today = now.toLocal();
+  for (final card in cards) {
+    if (!card.isQueue) {
+      continue;
+    }
+    final last = states[card.stateKey]?.lastShownAt?.toLocal();
+    if (last != null &&
+        last.year == today.year &&
+        last.month == today.month &&
+        last.day == today.day) {
+      continue;
+    }
+    final tag = '$userId|${card.stateKey}|${today.year}-${today.month}-'
+        '${today.day}';
+    if (!recorded.add(tag)) {
+      continue;
+    }
+    unawaited(() async {
+      try {
+        await repository.recordShown(card.stateKey);
+      } catch (e) {
+        // A later recompute may try again.
+        recorded.remove(tag);
+        debugPrint('[Wishy home cards] could not record ${card.stateKey}: $e');
+      }
+    }());
+  }
 }
 
 Future<Set<int>> _loadRemovalsWithOpenList(

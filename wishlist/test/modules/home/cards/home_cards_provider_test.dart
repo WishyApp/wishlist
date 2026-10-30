@@ -726,32 +726,113 @@ void main() {
       expect(cards.last.stateKey, 'stale_wishlist:${fakeWishlist2.id}');
     });
 
-    test('a card dismissed today is not replaced by the next list', () async {
+    // Four idle lists, the idle-longest first: 2, 3, 1, 4. The stack shows the
+    // first three.
+    final fourthWishlist = Wishlist(
+      id: 4,
+      createdAt: fakeCreatedAt,
+      name: 'Voyage',
+      idOwner: fakeCurrentUserId,
+      color: fakeColorPurple,
+      order: 3,
+      updatedBy: fakeCurrentUserId,
+      updatedAt: fakeUpdatedAt,
+    );
+
+    Future<List<HomeCardCandidate>> loadFourLists() {
       when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
         (_) async => {
           fakeWishlist1.id: DateTime(2026, 7, 2),
           fakeWishlist2.id: DateTime(2026, 5, 2),
           fakeWishlist3.id: DateTime(2026, 6, 2),
+          fourthWishlist.id: DateTime(2026, 7, 20),
         },
       );
-      final key = 'stale_wishlist:${fakeWishlist2.id}';
+      return load(
+        extra: [
+          wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+          wishlistsRealtimeOverride(
+            wishlists: [...fakeWishlists, fourthWishlist],
+          ),
+        ],
+      );
+    }
+
+    String staleKey(int id) => 'stale_wishlist:$id';
+
+    CardState shownAt(int id, DateTime at) =>
+        CardState(cardKey: staleKey(id), shownCount: 1, lastShownAt: at);
+
+    CardState dismissedAt(int id, DateTime at) => CardState(
+          cardKey: staleKey(id),
+          shownCount: 1,
+          lastShownAt: at,
+          dismissedAt: at,
+          snoozedUntil: at.add(const Duration(days: 60)),
+        );
+
+    test('a card dismissed today is not replaced by the next list', () async {
+      final morning = DateTime(2026, 10, 28, 8);
       when(() => cardStates.getStates(any())).thenAnswer(
         (_) async => {
-          key: CardState(
-            cardKey: key,
-            shownCount: 1,
-            dismissedAt: now,
-            snoozedUntil: now.add(const Duration(days: 60)),
-          ),
+          staleKey(2): dismissedAt(2, morning),
+          staleKey(3): shownAt(3, morning),
+          staleKey(1): shownAt(1, morning),
         },
       );
 
-      final cards = await loadWithActivity();
+      final cards = await loadFourLists();
 
-      expect(cards.map((card) => card.stateKey), [
-        'stale_wishlist:${fakeWishlist3.id}',
-        'stale_wishlist:${fakeWishlist1.id}',
-      ]);
+      expect(cards.map((card) => card.stateKey), [staleKey(3), staleKey(1)]);
+    });
+
+    test('a list dismissed yesterday does not block today', () async {
+      final yesterday = DateTime(2026, 10, 27, 23, 30);
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {staleKey(2): dismissedAt(2, yesterday)},
+      );
+
+      final cards = await loadFourLists();
+
+      expect(
+        cards.map((card) => card.stateKey),
+        [staleKey(3), staleKey(1), staleKey(4)],
+      );
+    });
+
+    test('the stale cards of the stack are recorded as shown', () async {
+      await loadFourLists();
+      await pumpEventQueue();
+
+      verify(() => cardStates.recordShown(staleKey(2))).called(1);
+      verify(() => cardStates.recordShown(staleKey(3))).called(1);
+      verify(() => cardStates.recordShown(staleKey(1))).called(1);
+      verifyNever(() => cardStates.recordShown(staleKey(4)));
+    });
+
+    test('a stale card already recorded today is not recorded again', () async {
+      final morning = DateTime(2026, 10, 28, 8);
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {
+          staleKey(2): shownAt(2, morning),
+          staleKey(3): shownAt(3, DateTime(2026, 10, 27, 9)),
+        },
+      );
+
+      await loadFourLists();
+      await pumpEventQueue();
+
+      verifyNever(() => cardStates.recordShown(staleKey(2)));
+      verify(() => cardStates.recordShown(staleKey(3))).called(1);
+      verify(() => cardStates.recordShown(staleKey(1))).called(1);
+    });
+
+    test('a failing record of a stale card does not break the stack', () async {
+      when(() => cardStates.recordShown(any())).thenThrow(Exception('offline'));
+
+      final cards = await loadFourLists();
+
+      expect(cards, hasLength(3));
     });
 
     test('the last activity is fetched while the other sources load', () async {
@@ -776,35 +857,6 @@ void main() {
       );
 
       expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist1.id}');
-    });
-
-    test('a list dismissed yesterday does not block today', () async {
-      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
-        (_) async => {
-          fakeWishlist1.id: DateTime(2026, 7, 2),
-          fakeWishlist2.id: DateTime(2026, 5, 2),
-          fakeWishlist3.id: DateTime(2026, 6, 2),
-        },
-      );
-      final key = 'stale_wishlist:${fakeWishlist2.id}';
-      final yesterday = DateTime(2026, 10, 27, 23, 30);
-      when(() => cardStates.getStates(any())).thenAnswer(
-        (_) async => {
-          key: CardState(
-            cardKey: key,
-            shownCount: 1,
-            dismissedAt: yesterday,
-            snoozedUntil: yesterday.add(const Duration(days: 60)),
-          ),
-        },
-      );
-
-      final cards = await loadWithActivity();
-
-      expect(cards.map((card) => card.stateKey), [
-        'stale_wishlist:${fakeWishlist3.id}',
-        'stale_wishlist:${fakeWishlist1.id}',
-      ]);
     });
 
     test('the last activity unavailable only loses this card', () async {
