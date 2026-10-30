@@ -33,9 +33,14 @@ class WishlistScreen extends ConsumerWidget {
   const WishlistScreen({
     super.key,
     required this.wishlistId,
+    this.receivedOn,
   });
 
   final int wishlistId;
+
+  /// The party day the list was opened for (after-party card): proposed by
+  /// default as received date.
+  final DateTime? receivedOn;
 
   Future<void> _deleteSelectedWishs(
     BuildContext context,
@@ -155,6 +160,7 @@ class WishlistScreen extends ConsumerWidget {
       title: l10n.completionDateDialogTitle(count),
       explanation: l10n.completionDateDialogExplanation(count),
       wishName: count == 1 ? selectedWishs.single.name : null,
+      initialValue: receivedOn,
       confirmButtonLabel: selectedWishs.any((w) => w.quantity > 1)
           ? l10n.continueButton
           : l10n.completeButton,
@@ -349,6 +355,7 @@ class WishlistScreen extends ConsumerWidget {
                           wishlistId: wishlistId,
                           wishlistScreenData: data,
                           isMyWishlist: isMyWishlist,
+                          receivedOn: receivedOn,
                         ),
                         if (isMyWishlist)
                           WishlistFloatingActions(

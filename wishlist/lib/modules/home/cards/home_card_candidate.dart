@@ -41,10 +41,18 @@ final class FriendBirthdaySoon extends HomeCardContent {
 }
 
 final class AfterParty extends HomeCardContent {
-  const AfterParty(this.occasion, this.daysAgo, this.wishlist);
+  const AfterParty(
+    this.occasion,
+    this.daysAgo,
+    this.wishlist, {
+    required this.partyDay,
+  });
 
   final AfterPartyOccasion occasion;
   final int daysAgo;
+
+  /// The day of the party (local midnight): December 25 or the birthday.
+  final DateTime partyDay;
 
   /// The wishlist of the occasion, if it could be told which one.
   final Wishlist? wishlist;

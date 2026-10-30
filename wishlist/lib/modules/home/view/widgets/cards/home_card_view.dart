@@ -7,6 +7,7 @@ import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/friends/view/widgets/add_friend_bottom_sheet.dart';
 import 'package:wishlist/modules/home/cards/home_card_actions.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/wishlists/view/default_received_day.dart';
 import 'package:wishlist/modules/wishs/view/screens/consult_wish_screen.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
@@ -211,7 +212,12 @@ class HomeCardView extends ConsumerWidget {
           onAction: () => FriendDetailsRoute(id).push(context),
           illustration: Assets.svg.birthday,
         );
-      case AfterParty(:final occasion, :final daysAgo, :final wishlist):
+      case AfterParty(
+          :final occasion,
+          :final daysAgo,
+          :final wishlist,
+          :final partyDay,
+        ):
         return _CardSpec(
           overline: occasion == AfterPartyOccasion.birthday
               ? l10n.homeCardAfterPartyBirthdayOverline(daysAgo)
@@ -223,7 +229,10 @@ class HomeCardView extends ConsumerWidget {
           actionLabel: wishlist == null ? null : l10n.homeCardAfterPartyAction,
           onAction: wishlist == null
               ? null
-              : () => WishlistRoute(wishlistId: wishlist.id).push(context),
+              : () => WishlistRoute(
+                    wishlistId: wishlist.id,
+                    receivedOn: formatReceivedOn(partyDay),
+                  ).push(context),
           illustration: Assets.svg.noWishBoxHat,
         );
       case BookedReminder(:final booking, :final occasion, :final days):

@@ -276,10 +276,14 @@ extension $YearRecapRouteExtension on YearRecapRoute {
 extension $WishlistRouteExtension on WishlistRoute {
   static WishlistRoute _fromState(GoRouterState state) => WishlistRoute(
         wishlistId: int.parse(state.pathParameters['wishlistId']!),
+        receivedOn: state.uri.queryParameters['received-on'],
       );
 
   String get location => GoRouteData.$location(
         '/wishlist/${Uri.encodeComponent(wishlistId.toString())}',
+        queryParams: {
+          if (receivedOn != null) 'received-on': receivedOn,
+        },
       );
 
   void go(BuildContext context) => context.go(location);
@@ -360,6 +364,7 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
                 _$WishQuantityDisplayEnumMap._$fromName) ??
             WishQuantityDisplay.total,
         completedByUserId: state.uri.queryParameters['completed-by-user-id'],
+        receivedOn: state.uri.queryParameters['received-on'],
       );
 
   String get location => GoRouteData.$location(
@@ -371,6 +376,7 @@ extension $ConsultWishRouteExtension on ConsultWishRoute {
             'quantity-display': _$WishQuantityDisplayEnumMap[quantityDisplay],
           if (completedByUserId != null)
             'completed-by-user-id': completedByUserId,
+          if (receivedOn != null) 'received-on': receivedOn,
         },
       );
 

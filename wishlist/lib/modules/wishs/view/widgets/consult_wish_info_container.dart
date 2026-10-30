@@ -31,12 +31,17 @@ class ConsultWishInfoContainer extends ConsumerWidget {
     required this.ownerReceivedQuantity,
     this.isMyWishlist = false,
     this.showActions = true,
+    this.receivedOn,
   });
 
   final Wish wish;
   final String descriptionText;
   final bool isMyWishlist;
   final bool showActions;
+
+  /// The party day the wishlist was opened for, proposed by default when
+  /// marking the wish received (today when null).
+  final DateTime? receivedOn;
 
   /// Quantité de ce wish déjà reçue par le propriétaire de la wishlist, ou
   /// null tant que ses réceptions ne sont pas connues : elle vaudrait 0 à
@@ -135,6 +140,7 @@ class ConsultWishInfoContainer extends ConsumerWidget {
       context,
       title: l10n.completionDateDialogTitle(1),
       explanation: l10n.completionDateDialogExplanation(1),
+      initialValue: receivedOn,
       confirmButtonLabel:
           needsQuantity ? l10n.continueButton : l10n.completeButton,
     );

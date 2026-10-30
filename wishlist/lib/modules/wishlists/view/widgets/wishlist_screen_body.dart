@@ -2,6 +2,7 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/wishlists/infra/wishlist_screen_data_realtime_provider.dart';
+import 'package:wishlist/modules/wishlists/view/default_received_day.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_search_bar.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_selection_card.dart';
 import 'package:wishlist/modules/wishlists/view/widgets/wishlist_stats_card.dart';
@@ -22,6 +23,7 @@ class WishlistScreenBody extends ConsumerWidget {
     required this.wishlistId,
     required this.wishlistScreenData,
     required this.isMyWishlist,
+    this.receivedOn,
   });
 
   static const Duration _cardsFadeDuration = Duration(milliseconds: 250);
@@ -29,6 +31,9 @@ class WishlistScreenBody extends ConsumerWidget {
   final int wishlistId;
   final WishlistScreenData wishlistScreenData;
   final bool isMyWishlist;
+
+  /// The party day the list was opened for, handed to the wish detail
+  final DateTime? receivedOn;
 
   void _onTapWish(
     BuildContext context,
@@ -52,6 +57,7 @@ class WishlistScreenBody extends ConsumerWidget {
       wish.wishlistId,
       wish.id,
       wishIds: wishIds,
+      receivedOn: receivedOn == null ? null : formatReceivedOn(receivedOn!),
       quantityDisplay: cardType == WishlistStatsCardType.pending
           ? WishQuantityDisplay.pending
           : WishQuantityDisplay.booked,

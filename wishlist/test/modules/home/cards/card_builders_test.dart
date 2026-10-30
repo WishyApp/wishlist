@@ -237,6 +237,8 @@ void main() {
       expect(content.occasion, AfterPartyOccasion.birthday);
       expect(content.daysAgo, 1);
       expect(content.wishlist, isNull);
+      expect(content.partyDay, DateTime(2026, 10, 29));
+
       // days_after: 7 days after the party, the day of it included
       expect(cards.single.lastDay, DateTime(2026, 11, 5));
     });
@@ -520,6 +522,7 @@ void main() {
       expect(content.occasion, AfterPartyOccasion.christmas);
       expect(content.daysAgo, 2);
       expect(content.wishlist, christmas);
+      expect(content.partyDay, DateTime(2026, 12, 25));
       // days_after: 7 days after Christmas, the day of it included
       expect(cards.single.lastDay, DateTime(2027));
     });

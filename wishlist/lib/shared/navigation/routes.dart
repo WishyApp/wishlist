@@ -12,6 +12,7 @@ import 'package:wishlist/modules/settings/change_birthday/view/change_birthday_s
 import 'package:wishlist/modules/settings/change_password/view/change_password_screen.dart';
 import 'package:wishlist/modules/settings/change_pseudo/view/change_pseudo_screen.dart';
 import 'package:wishlist/modules/settings/view/settings_screen.dart';
+import 'package:wishlist/modules/wishlists/view/default_received_day.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_screen.dart';
 import 'package:wishlist/modules/wishlists/view/wishlist_settings_screen.dart';
 import 'package:wishlist/modules/wishs/view/screens/add_wish_screen.dart';
@@ -147,14 +148,20 @@ class BirthdayStepRoute extends AuthenticatedRoute {
 class WishlistRoute extends AuthenticatedRoute {
   WishlistRoute({
     required this.wishlistId,
+    this.receivedOn,
   });
 
   final int wishlistId;
+
+  /// The party day (`yyyy-MM-dd`) of the after-party card that opened the
+  /// list: the day proposed by default when marking a wish received.
+  final String? receivedOn;
 
   @override
   Widget buildScreen(BuildContext context, GoRouterState state) {
     return WishlistScreen(
       wishlistId: wishlistId,
+      receivedOn: parseReceivedOn(receivedOn),
     );
   }
 }
@@ -219,6 +226,7 @@ class ConsultWishRoute extends AuthenticatedRoute {
     this.showActions = true,
     this.quantityDisplay = WishQuantityDisplay.total,
     this.completedByUserId,
+    this.receivedOn,
   });
   final int wishlistId;
   final int wishId;
@@ -228,6 +236,10 @@ class ConsultWishRoute extends AuthenticatedRoute {
 
   /// See [ConsultWishScreen.completedByUserId]
   final String? completedByUserId;
+
+  /// The party day (`yyyy-MM-dd`) of the wishlist the wish was opened from, see
+  /// [WishlistRoute.receivedOn]
+  final String? receivedOn;
 
   /// Liste ordonnée des wishs à afficher. Retombe sur `[wishId]` si le
   /// paramètre `wish-ids` est absent (deep link) ou ne contient pas `wishId`.
@@ -244,6 +256,7 @@ class ConsultWishRoute extends AuthenticatedRoute {
       showActions: showActions,
       quantityDisplay: quantityDisplay,
       completedByUserId: completedByUserId,
+      receivedOn: parseReceivedOn(receivedOn),
     );
   }
 }

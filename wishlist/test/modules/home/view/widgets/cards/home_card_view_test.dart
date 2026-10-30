@@ -163,7 +163,14 @@ void main() {
     testWidgets('after the birthday, opens the wishlist', (tester) async {
       await pumpCard(
         tester,
-        card(AfterParty(AfterPartyOccasion.birthday, 3, fakeWishlist1)),
+        card(
+          AfterParty(
+            AfterPartyOccasion.birthday,
+            3,
+            fakeWishlist1,
+            partyDay: DateTime(2026, 3, 4),
+          ),
+        ),
       );
 
       expect(
@@ -178,12 +185,20 @@ void main() {
         findsNothing,
       );
       await tapAndExpectPath(tester, "Cocher ce que j'ai reçu", '/wishlist/1');
+      expect(find.text('query received-on=2026-03-04'), findsOneWidget);
     });
 
     testWidgets('after Christmas yesterday, singular', (tester) async {
       await pumpCard(
         tester,
-        card(AfterParty(AfterPartyOccasion.christmas, 1, fakeWishlist2)),
+        card(
+          AfterParty(
+            AfterPartyOccasion.christmas,
+            1,
+            fakeWishlist2,
+            partyDay: DateTime(2026, 12, 25),
+          ),
+        ),
       );
 
       expect(find.text("Noël, c'était hier"), findsOneWidget);
@@ -200,7 +215,14 @@ void main() {
         (tester) async {
       await pumpCard(
         tester,
-        card(const AfterParty(AfterPartyOccasion.birthday, 2, null)),
+        card(
+          AfterParty(
+            AfterPartyOccasion.birthday,
+            2,
+            null,
+            partyDay: DateTime(2026, 3, 4),
+          ),
+        ),
       );
 
       expect(find.byType(ElevatedButton), findsNothing);
@@ -217,7 +239,14 @@ void main() {
         (tester) async {
       await pumpCard(
         tester,
-        card(const AfterParty(AfterPartyOccasion.christmas, 2, null)),
+        card(
+          AfterParty(
+            AfterPartyOccasion.christmas,
+            2,
+            null,
+            partyDay: DateTime(2026, 12, 25),
+          ),
+        ),
       );
 
       expect(find.byType(ElevatedButton), findsNothing);
