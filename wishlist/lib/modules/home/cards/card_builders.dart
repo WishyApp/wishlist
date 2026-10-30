@@ -101,6 +101,7 @@ List<HomeCardCandidate> friendBirthdayCards({
             content: FriendBirthdayToday(friend),
             tone: HomeCardTone.highlighted,
             eventAt: eventDay,
+            lastDay: eventDay,
           ),
         );
       }
@@ -114,6 +115,9 @@ List<HomeCardCandidate> friendBirthdayCards({
               ? HomeCardTone.highlighted
               : HomeCardTone.light,
           eventAt: eventDay,
+          // The day itself is another card (`friend_birthday_today`, another
+          // key): this one ends the day before.
+          lastDay: DateTime(eventDay.year, eventDay.month, eventDay.day - 1),
         ),
       );
     }
@@ -123,7 +127,9 @@ List<HomeCardCandidate> friendBirthdayCards({
 
 /// The day after the user's birthday or after Christmas, up to `days_after`
 /// days. The wishlist of Christmas is found by its name; the one of the
-/// birthday is the only wishlist, if there is just one.
+/// birthday is the only open wishlist of the user, if there is just one.
+/// Nothing is offered to a user who has no open wishlist of their own, as
+/// there is nothing to tick.
 List<HomeCardCandidate> afterPartyCards({
   required Birthday? myBirthday,
   required List<Wishlist> wishlists,
@@ -132,7 +138,13 @@ List<HomeCardCandidate> afterPartyCards({
   required HomeCardDefinition? christmas,
   required DateTime now,
 }) {
-  if (definition == null) {
+  // Deliberately ignores endDate: a birthday list past its end date is
+  // exactly the one to tick.
+  final openOwn = [
+    for (final w in wishlists)
+      if (w.idOwner == userId && !w.isClosed) w,
+  ];
+  if (definition == null || openOwn.isEmpty) {
     return const [];
   }
   final today = _day(now);
@@ -151,9 +163,10 @@ List<HomeCardCandidate> afterPartyCards({
             content: AfterParty(
               AfterPartyOccasion.birthday,
               ago,
-              wishlists.length == 1 ? wishlists.single : null,
+              openOwn.length == 1 ? openOwn.single : null,
             ),
             eventAt: day,
+            lastDay: DateTime(day.year, day.month, day.day + daysAfter),
           ),
         );
         break;
@@ -175,6 +188,7 @@ List<HomeCardCandidate> afterPartyCards({
             _christmasWishlist(wishlists, userId, christmas, christmasDay),
           ),
           eventAt: christmasDay,
+          lastDay: DateTime(year, 12, 25 + daysAfter),
         ),
       );
       break;
@@ -242,16 +256,48 @@ List<HomeCardCandidate> bookedReminderCards({
         ),
         content: BookedReminder(booking, occasion, days),
         eventAt: eventDay,
+        lastDay: eventDay,
       ),
     );
   }
   return cards;
 }
 
-/// One alert per wish a friend removed after the user booked it.
+/// The ids of the [removals] whose owner's list can still be opened: the owner
+/// is still one of [friendIds] and [publicWishlists] (by owner id) holds an
+/// open wishlist with the name the wish had. Closed, past its end date, or
+/// absent (archived, deleted, no longer public) means not open.
+Set<int> removalsWithOpenList({
+  required List<BookedWishRemoval> removals,
+  required Set<String> friendIds,
+  required Map<String, List<Wishlist>> publicWishlists,
+  required DateTime now,
+}) {
+  final today = _day(now);
+  bool isOpen(Wishlist wishlist) {
+    final end = wishlist.endDate?.toLocal();
+    return !wishlist.isClosed &&
+        (end == null ||
+            !DateTime(end.year, end.month, end.day).isBefore(today));
+  }
+
+  return {
+    for (final removal in removals)
+      if (friendIds.contains(removal.ownerId) &&
+          (publicWishlists[removal.ownerId] ?? const []).any(
+            (wishlist) =>
+                wishlist.name == removal.wishlistName && isOpen(wishlist),
+          ))
+        removal.id,
+  };
+}
+
+/// One alert per wish a friend removed after the user booked it. The alert
+/// offers the owner's list only for the ids of [withOpenList].
 List<HomeCardCandidate> bookedWishRemovedCards({
   required List<BookedWishRemoval> removals,
   required HomeCardDefinition? definition,
+  required Set<int> withOpenList,
 }) {
   if (definition == null) {
     return const [];
@@ -261,7 +307,10 @@ List<HomeCardCandidate> bookedWishRemovedCards({
       HomeCardCandidate(
         type: definition.key,
         stateKey: cardKey(definition.key, id: removal.id),
-        content: BookedWishRemoved(removal),
+        content: BookedWishRemoved(
+          removal,
+          canOpenList: withOpenList.contains(removal.id),
+        ),
         eventAt: removal.removedAt,
       ),
   ];
@@ -295,7 +344,10 @@ List<HomeCardCandidate> friendAcceptedCards({
   ];
 }
 
-/// From the largest `reminder_days` before Christmas to the day itself.
+/// From the largest `reminder_days` before Christmas to the day itself. On
+/// the day, the card asks if Santa read the list: it is kept without a
+/// Christmas wishlist as long as the user owns an open one (no button then),
+/// and dropped for a user with nothing to show.
 List<HomeCardCandidate> christmasCards({
   required List<Wishlist> wishlists,
   required String userId,
@@ -311,18 +363,23 @@ List<HomeCardCandidate> christmasCards({
   if (days > _maxReminderDays(definition)) {
     return const [];
   }
+  final wishlist =
+      _christmasWishlist(wishlists, userId, definition, christmasDay);
+  if (days == 0 &&
+      wishlist == null &&
+      !wishlists.any((w) => w.idOwner == userId && !w.isClosed)) {
+    return const [];
+  }
   return [
     HomeCardCandidate(
       type: definition.key,
       stateKey: cardKey(definition.key, year: christmasDay.year),
-      content: Christmas(
-        days,
-        _christmasWishlist(wishlists, userId, definition, christmasDay),
-      ),
+      content: Christmas(days, wishlist),
       tone: definition.isHighlighted(eventOn: christmasDay, now: now)
           ? HomeCardTone.highlighted
           : HomeCardTone.light,
       eventAt: christmasDay,
+      lastDay: christmasDay,
     ),
   ];
 }

@@ -46,12 +46,18 @@ final christmasDef = def(
 );
 final onboardingDef = def('onboarding', params: {'optional_steps_hours': 48});
 
-Wishlist wishlist(int id, String name) {
+Wishlist wishlist(
+  int id,
+  String name, {
+  String owner = fakeCurrentUserId,
+  bool isClosed = false,
+}) {
   return Wishlist(
     id: id,
     createdAt: fakeCreatedAt,
     name: name,
-    idOwner: fakeCurrentUserId,
+    idOwner: owner,
+    isClosed: isClosed,
     color: fakeColorBlue,
     canOwnerSeeTakenWish: true,
     order: 0,
@@ -108,10 +114,26 @@ void main() {
       expect(cards.single.tone, HomeCardTone.light);
       expect(cards.single.dismissable, isTrue);
       expect(cards.single.eventAt, DateTime(2026, 11, 29));
+      // The day itself gives the "today" card, under another key
+      expect(cards.single.lastDay, DateTime(2026, 11, 28));
       expect(cards.single.stateKey, 'friend_birthday:$friendId@2026');
       final content = cards.single.content as FriendBirthdaySoon;
       expect(content.days, 30);
       expect(content.friend, friend);
+    });
+
+    test('the day before, "Later" has nowhere to go: it is the last day', () {
+      final cards = build(now, inDays(1));
+
+      final today = DateTime(now.year, now.month, now.day);
+      expect(cards.single.type, 'friend_birthday');
+      expect(cards.single.lastDay, today);
+      // later_days = 1 comes back on the birthday, a different card
+      expect(
+        DateTime(today.year, today.month, today.day + 1)
+            .isAfter(cards.single.lastDay!),
+        isTrue,
+      );
     });
 
     test('7 days ahead gives a highlighted card', () {
@@ -132,6 +154,8 @@ void main() {
       expect(cards.single.tone, HomeCardTone.highlighted);
       expect(cards.single.stateKey, 'friend_birthday_today:$friendId@2026');
       expect(cards.single.content, isA<FriendBirthdayToday>());
+      // Today is the only day: nothing to postpone to
+      expect(cards.single.lastDay, cards.single.eventAt);
     });
 
     test('a friend without a visible birthday gives nothing', () {
@@ -175,15 +199,17 @@ void main() {
   });
 
   group('afterPartyCards', () {
+    final holiday = wishlist(9, 'Vacances');
+
     List<HomeCardCandidate> build(
       DateTime at, {
       Birthday? mine,
-      List<Wishlist> wishlists = const [],
+      List<Wishlist>? wishlists,
       HomeCardDefinition? definition,
     }) {
       return afterPartyCards(
         myBirthday: mine,
-        wishlists: wishlists,
+        wishlists: wishlists ?? [holiday, wishlist(8, 'Maison')],
         userId: fakeCurrentUserId,
         definition: definition ?? afterPartyDef,
         christmas: christmasDef,
@@ -200,6 +226,47 @@ void main() {
       expect(content.occasion, AfterPartyOccasion.birthday);
       expect(content.daysAgo, 1);
       expect(content.wishlist, isNull);
+      // days_after: 7 days after the party, the day of it included
+      expect(cards.single.lastDay, DateTime(2026, 11, 5));
+    });
+
+    test('without any wishlist there is no card, whatever the occasion', () {
+      expect(
+        build(
+          now,
+          mine: const Birthday(month: 10, day: 29),
+          wishlists: const [],
+        ),
+        isEmpty,
+      );
+      expect(
+        build(DateTime(2026, 12, 27, 9), wishlists: const []),
+        isEmpty,
+      );
+    });
+
+    test('closed or foreign wishlists do not count', () {
+      final closed = wishlist(1, 'Noël 2026', isClosed: true);
+      final foreign = wishlist(2, 'Noël 2026', owner: 'other');
+      expect(
+        build(DateTime(2026, 12, 27, 9), wishlists: [closed, foreign]),
+        isEmpty,
+      );
+    });
+
+    test('only my open wishlists count for the birthday one', () {
+      final open = wishlist(1, 'Vacances');
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [
+          open,
+          wishlist(2, 'Ancienne', isClosed: true),
+          wishlist(3, 'Autre', owner: 'other'),
+        ],
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, open);
     });
 
     test('the birthday itself gives nothing', () {
@@ -253,6 +320,8 @@ void main() {
       expect(content.occasion, AfterPartyOccasion.christmas);
       expect(content.daysAgo, 2);
       expect(content.wishlist, christmas);
+      // days_after: 7 days after Christmas, the day of it included
+      expect(cards.single.lastDay, DateTime(2027));
     });
 
     test('without the Christmas definition, the default keywords apply', () {
@@ -385,6 +454,7 @@ void main() {
       expect(content.occasion, ReminderOccasion.ownerBirthday);
       expect(content.booking, fakeBookedWish1);
       expect(cards.single.eventAt, date);
+      expect(cards.single.lastDay, date);
     });
 
     test('an owner born in 20 days with days_before = 14 gives nothing', () {
@@ -431,6 +501,8 @@ void main() {
         cards.single.stateKey,
         'booked_reminder:${wish.wish.id}-christmas@2026',
       );
+      expect(cards.single.eventAt, DateTime(2026, 12, 25));
+      expect(cards.single.lastDay, DateTime(2026, 12, 25));
     });
 
     test('a wish on a Christmas list far from Christmas gives nothing', () {
@@ -564,6 +636,7 @@ void main() {
       final cards = bookedWishRemovedCards(
         removals: [removal(1), removal(2, ownerPseudo: '')],
         definition: removedDef,
+        withOpenList: {2},
       );
 
       expect(cards.map((c) => c.stateKey), [
@@ -576,13 +649,70 @@ void main() {
         'Alice',
       );
       expect(cards.first.eventAt, DateTime.utc(2026, 10, 29));
+      expect((cards.first.content as BookedWishRemoved).canOpenList, isFalse);
+      expect((cards.last.content as BookedWishRemoved).canOpenList, isTrue);
     });
 
     test('a disabled type gives no card', () {
       expect(
-        bookedWishRemovedCards(removals: [removal(1)], definition: null),
+        bookedWishRemovedCards(
+          removals: [removal(1)],
+          definition: null,
+          withOpenList: {1},
+        ),
         isEmpty,
       );
+    });
+  });
+
+  group('removalsWithOpenList', () {
+    final open = wishlist(1, 'Liste');
+
+    // The public wishlists of the owner, [friend] or not.
+    Set<int> build(List<Wishlist> lists, {bool friend = true}) {
+      return removalsWithOpenList(
+        removals: [removal(1)],
+        friendIds: friend ? const {'owner'} : const {},
+        publicWishlists: {'owner': lists},
+        now: now,
+      );
+    }
+
+    test('a friend with an open wishlist keeps the button', () {
+      expect(build([open]), {1});
+    });
+
+    test('an end date today or later is still open', () {
+      expect(build([open.copyWith(endDate: DateTime(2026, 10, 30))]), {1});
+    });
+
+    test('someone who is no longer a friend loses the button', () {
+      expect(build([open], friend: false), isEmpty);
+    });
+
+    test('a closed wishlist loses the button', () {
+      expect(build([open.copyWith(isClosed: true)]), isEmpty);
+    });
+
+    test('an end date in the past loses the button', () {
+      expect(build([open.copyWith(endDate: DateTime(2026, 10, 29))]), isEmpty);
+    });
+
+    test('a wishlist no longer visible (archived, private) loses it', () {
+      expect(build(const []), isEmpty);
+      expect(
+        removalsWithOpenList(
+          removals: [removal(1)],
+          friendIds: const {'owner'},
+          publicWishlists: const {},
+          now: now,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('another open wishlist is not the one of the wish', () {
+      expect(build([wishlist(2, 'Autre')]), isEmpty);
     });
   });
 
@@ -650,6 +780,7 @@ void main() {
       expect(cards.single.tone, HomeCardTone.light);
       expect(cards.single.stateKey, 'christmas@2026');
       expect(cards.single.eventAt, DateTime(2026, 12, 25));
+      expect(cards.single.lastDay, DateTime(2026, 12, 25));
       expect((cards.single.content as Christmas).days, 29);
     });
 
@@ -660,10 +791,44 @@ void main() {
       );
     });
 
-    test('Christmas day itself still gives a card', () {
-      final cards = build(DateTime(2026, 12, 25, 9));
+    test('Christmas day gives a card when a Christmas wishlist is found', () {
+      final christmas = wishlist(2, 'Noël 2026');
+      final cards = build(DateTime(2026, 12, 25, 9), [christmas]);
 
-      expect((cards.single.content as Christmas).days, 0);
+      final content = cards.single.content as Christmas;
+      expect(content.days, 0);
+      expect(content.wishlist, christmas);
+    });
+
+    test(
+        'Christmas day without a Christmas list but an open one still gives it',
+        () {
+      final cards = build(DateTime(2026, 12, 25, 9), [wishlist(1, 'Vacances')]);
+
+      final content = cards.single.content as Christmas;
+      expect(content.days, 0);
+      expect(content.wishlist, isNull);
+    });
+
+    test('Christmas day without an open own wishlist gives nothing', () {
+      final day = DateTime(2026, 12, 25, 9);
+      expect(build(day), isEmpty);
+      expect(
+        build(day, [wishlist(1, 'Vacances', isClosed: true)]),
+        isEmpty,
+      );
+      expect(
+        build(day, [wishlist(1, 'Vacances', owner: 'other')]),
+        isEmpty,
+      );
+    });
+
+    test('December 24 without a Christmas wishlist still gives the card', () {
+      final content =
+          build(DateTime(2026, 12, 24, 9)).single.content as Christmas;
+
+      expect(content.days, 1);
+      expect(content.wishlist, isNull);
     });
 
     test('December 26 gives nothing', () {

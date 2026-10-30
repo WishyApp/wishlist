@@ -21,6 +21,8 @@ import 'package:wishlist/shared/infra/repositories/friendship/friendship_reposit
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository.dart';
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_repository.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_repository_provider.dart';
 import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
@@ -30,6 +32,7 @@ import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with
 import 'package:wishlist/shared/models/card_state.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/profile.dart';
+import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 
 import '../../../fixtures/fake_data.dart';
 import '../../../fixtures/fake_providers.dart';
@@ -41,6 +44,8 @@ class MockCardStateRepository extends Mock implements CardStateRepository {}
 
 class MockBookedWishRemovalRepository extends Mock
     implements BookedWishRemovalRepository {}
+
+class MockWishlistRepository extends Mock implements WishlistRepository {}
 
 HomeCardDefinition def(
   String key,
@@ -116,6 +121,7 @@ void main() {
         ...homeScreenOverrides(
           birthdays: birthdays,
           now: at ?? now,
+          overrideHomeCards: false,
           bookedWishes: fakeBookedWishes.clear(),
         ),
         currentUserBirthdayOverride(birthday: myBirthday),
@@ -297,6 +303,117 @@ void main() {
     expect(cards.map((c) => c.type), ['booked_wish_removed']);
   });
 
+  group('removal alert button', () {
+    late MockWishlistRepository wishlistRepository;
+
+    setUp(() {
+      wishlistRepository = MockWishlistRepository();
+      when(() => removals.watchPending()).thenAnswer(
+        (_) => Stream.value([
+          BookedWishRemoval(
+            id: 1,
+            ownerId: fakeFriendUserId1,
+            ownerPseudo: 'Alice',
+            wishId: 9,
+            wishName: 'Casque',
+            quantity: 1,
+            wishlistName: 'Noël',
+            removedAt: now,
+          ),
+        ]),
+      );
+    });
+
+    Future<bool> canOpenList() async {
+      final cards = await load(
+        extra: [
+          wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+        ],
+      );
+      return (cards.single.content as BookedWishRemoved).canOpenList;
+    }
+
+    test('is offered to a friend whose wishlist is open', () async {
+      when(() => wishlistRepository.getPublicWishlistsByUser(any())).thenAnswer(
+        (_) async => [
+          fakeWishlist1.copyWith(
+            name: 'Noël',
+            endDate: DateTime(2026, 12, 31),
+          ),
+        ].lock,
+      );
+
+      expect(await canOpenList(), isTrue);
+    });
+
+    test('is not offered when the wishlist is closed', () async {
+      when(() => wishlistRepository.getPublicWishlistsByUser(any())).thenAnswer(
+        (_) async => [
+          fakeWishlist1.copyWith(
+            name: 'Noël',
+            endDate: DateTime(2026, 12, 31),
+            isClosed: true,
+          ),
+        ].lock,
+      );
+
+      expect(await canOpenList(), isFalse);
+    });
+
+    test('is not offered when the wishlists cannot be loaded', () async {
+      when(() => wishlistRepository.getPublicWishlistsByUser(any()))
+          .thenThrow(Exception('boom'));
+
+      expect(await canOpenList(), isFalse);
+    });
+
+    test('is only lost by the owner whose wishlists cannot be loaded',
+        () async {
+      BookedWishRemoval removalOf(int id, String ownerId) => BookedWishRemoval(
+            id: id,
+            ownerId: ownerId,
+            ownerPseudo: 'Ami $id',
+            wishId: id,
+            wishName: 'Casque',
+            quantity: 1,
+            wishlistName: 'Noël',
+            removedAt: now,
+          );
+      when(() => removals.watchPending()).thenAnswer(
+        (_) => Stream.value([
+          removalOf(1, fakeFriendUserId1),
+          removalOf(2, fakeFriendUserId2),
+        ]),
+      );
+      when(
+        () => wishlistRepository.getPublicWishlistsByUser(fakeFriendUserId1),
+      ).thenThrow(Exception('boom'));
+      when(
+        () => wishlistRepository.getPublicWishlistsByUser(fakeFriendUserId2),
+      ).thenAnswer(
+        (_) async => [
+          fakeWishlist1.copyWith(
+            name: 'Noël',
+            endDate: DateTime(2026, 12, 31),
+          ),
+        ].lock,
+      );
+
+      final cards = await load(
+        extra: [
+          wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+        ],
+      );
+
+      final canOpen = {
+        for (final card in cards)
+          (card.content as BookedWishRemoved).removal.ownerId:
+              (card.content as BookedWishRemoved).canOpenList,
+      };
+      expect(canOpen, {fakeFriendUserId1: false, fakeFriendUserId2: true});
+    });
+  });
+
   group('onboarding window', () {
     test('is recorded once when an optional step is first offered', () async {
       final cards = await load(myBirthday: null);
@@ -409,6 +526,7 @@ void main() {
 
   group('reloads', () {
     late BehaviorSubject<FriendsData> friendsStream;
+    late BehaviorSubject<List<Wishlist>> wishlistsStream;
     late ProviderContainer container;
 
     FriendsData friendsWith(String avatar, {bool second = true}) {
@@ -431,14 +549,19 @@ void main() {
       // Replays its last value: the provider may resubscribe.
       friendsStream = BehaviorSubject<FriendsData>();
       addTearDown(friendsStream.close);
+      wishlistsStream = BehaviorSubject.seeded([fakeWishlist1]);
+      addTearDown(wishlistsStream.close);
       container = ProviderContainer(
         overrides: [
           ...homeScreenOverrides(
             now: now,
+            overrideHomeCards: false,
             bookedWishes: fakeBookedWishes.clear(),
           ),
           friendshipsRealtimeProvider
               .overrideWith((ref) => friendsStream.stream),
+          wishlistsRealtimeProvider
+              .overrideWith((ref) => wishlistsStream.stream),
           currentUserBirthdayOverride(
             birthday: const Birthday(month: 1, day: 1),
           ),
@@ -468,6 +591,14 @@ void main() {
 
       verify(() => homeCards.getActiveCards()).called(1);
       verify(() => cardStates.getStates(any())).called(1);
+    });
+
+    test('closing a wishlist reloads the cards', () async {
+      wishlistsStream.add([fakeWishlist1.copyWith(isClosed: true)]);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await container.read(homeCardsProvider.future);
+
+      verify(() => cardStates.getStates(any())).called(2);
     });
 
     test('a new friend reloads the cards but not the definitions', () async {
@@ -531,7 +662,10 @@ void main() {
     ProviderContainer containerWithClock(DateTime Function() clock) {
       final container = ProviderContainer(
         overrides: [
-          ...homeScreenOverrides(bookedWishes: fakeBookedWishes.clear()),
+          ...homeScreenOverrides(
+            bookedWishes: fakeBookedWishes.clear(),
+            overrideHomeCards: false,
+          ),
           clockProvider.overrideWithValue(clock),
           currentUserBirthdayOverride(
             birthday: const Birthday(month: 1, day: 1),
@@ -652,7 +786,7 @@ void main() {
     ) {
       final container = ProviderContainer(
         overrides: [
-          ...homeScreenOverrides(now: christmasWeek),
+          ...homeScreenOverrides(now: christmasWeek, overrideHomeCards: false),
           bookedWishesRealtimeProvider.overrideWith((ref) => stream),
           currentUserBirthdayOverride(
             birthday: const Birthday(month: 1, day: 1),
@@ -729,6 +863,7 @@ void main() {
         ...homeScreenOverrides(
           now: now,
           bookedWishes: fakeBookedWishes.clear(),
+          overrideHomeCards: false,
         ),
         currentUserBirthdayOverride(),
         watchCurrentUserProfileOverride(
@@ -762,6 +897,7 @@ void main() {
         ...homeScreenOverrides(
           now: now,
           bookedWishes: fakeBookedWishes.clear(),
+          overrideHomeCards: false,
         ),
         currentUserBirthdayOverride(),
         watchCurrentUserProfileOverride(

@@ -17,6 +17,7 @@ import 'package:wishlist/shared/infra/repositories/card_state/card_state_reposit
 import 'package:wishlist/shared/infra/repositories/friendship/friendship_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/home_card/home_card_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
+import 'package:wishlist/shared/infra/repositories/wishlist/wishlist_repository_provider.dart';
 import 'package:wishlist/shared/infra/visible_birthdays_provider.dart';
 import 'package:wishlist/shared/infra/wishlists_realtime_provider.dart';
 import 'package:wishlist/shared/models/app_user.dart';
@@ -116,6 +117,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   final recordedWindows = ref.watch(_optionalWindowRecordedProvider);
   final cardStateRepository = ref.watch(cardStateRepositoryProvider);
   final friendshipRepository = ref.watch(friendshipRepositoryProvider);
+  final wishlistRepository = ref.watch(wishlistRepositoryProvider);
 
   // Everything is loaded at once: the cards wait for the slowest source, not
   // for the sum of them. The loads of the sources that only feed some cards
@@ -126,7 +128,10 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   final wishlistsFuture = () async {
     await ref.watch(
       wishlistsRealtimeProvider.selectAsync(
-        (list) => [for (final w in list) (id: w.id, name: w.name)].toIList(),
+        (list) => [
+          for (final w in list)
+            (id: w.id, name: w.name, owner: w.idOwner, isClosed: w.isClosed),
+        ].toIList(),
       ),
     );
     return _valueOf(wishlistsRealtimeProvider, ref) ?? const <Wishlist>[];
@@ -179,6 +184,30 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     },
     const <BookedWishRemoval>[],
   );
+  // The owner's list is only offered while the user is still their friend and
+  // the wishlist is open: their public wishlists are fetched for that, a
+  // failure leaves only the alerts of that owner without the button.
+  final removalsWithListFuture = () async {
+    final removals = await removalsFuture;
+    if (removals.isEmpty) {
+      return (removals: removals, withList: const <int>{});
+    }
+    final withList = await _orElse<Set<int>>(
+      'removed wishes lists',
+      () async {
+        final friends =
+            (await friendsDataFuture)?.friends ?? const IListConst<AppUser>([]);
+        return _loadRemovalsWithOpenList(
+          wishlistRepository.getPublicWishlistsByUser,
+          removals,
+          {for (final friend in friends) friend.user.id},
+          now,
+        );
+      },
+      const <int>{},
+    );
+    return (removals: removals, withList: withList);
+  }();
   final acceptedFuture = _orElse<List<({AppUser friend, DateTime acceptedAt})>>(
     'accepted requests',
     () async {
@@ -221,7 +250,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     friendsData,
     birthdays,
     bookings,
-    removals,
+    (:removals, withList: removalsWithList),
     accepted,
     myBirthdayState,
     hasAvatar,
@@ -231,7 +260,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     friendsDataFuture,
     birthdaysFuture,
     bookingsFuture,
-    removalsFuture,
+    removalsWithListFuture,
     acceptedFuture,
     myBirthdayFuture,
     hasAvatarFuture,
@@ -267,6 +296,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     ...bookedWishRemovedCards(
       removals: removals,
       definition: definitions['booked_wish_removed'],
+      withOpenList: removalsWithList,
     ),
     ...friendAcceptedCards(
       accepted: accepted,
@@ -327,6 +357,41 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     );
   }
   return cards;
+}
+
+Future<Set<int>> _loadRemovalsWithOpenList(
+  Future<IList<Wishlist>> Function(String) load,
+  List<BookedWishRemoval> removals,
+  Set<String> friendIds,
+  DateTime now,
+) async {
+  final owners = {
+    for (final removal in removals)
+      if (friendIds.contains(removal.ownerId)) removal.ownerId,
+  };
+  // In parallel, and an owner whose wishlists cannot be loaded is simply
+  // missing: their alerts lose the button, the others keep it.
+  final loaded = await Future.wait([
+    for (final owner in owners)
+      () async {
+        try {
+          return MapEntry(owner, (await load(owner)).toList());
+        } catch (e) {
+          debugPrint('[Wishy home cards] wishlists of $owner failed: $e');
+          return null;
+        }
+      }(),
+  ]);
+  final wishlists = {
+    for (final entry in loaded)
+      if (entry != null) entry.key: entry.value,
+  };
+  return removalsWithOpenList(
+    removals: removals,
+    friendIds: friendIds,
+    publicWishlists: wishlists,
+    now: now,
+  );
 }
 
 Future<List<({AppUser friend, DateTime acceptedAt})>> _loadAccepted(

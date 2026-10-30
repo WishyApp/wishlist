@@ -58,10 +58,14 @@ final class BookedReminder extends HomeCardContent {
 }
 
 final class BookedWishRemoved extends HomeCardContent {
-  const BookedWishRemoved(this.removal);
+  const BookedWishRemoved(this.removal, {required this.canOpenList});
 
   /// Carries the pseudo of the owner (empty when they had none).
   final BookedWishRemoval removal;
+
+  /// Whether the owner's list can still be opened: the user is still their
+  /// friend and the wishlist is open. Otherwise the card only informs.
+  final bool canOpenList;
 }
 
 final class FriendAccepted extends HomeCardContent {
@@ -94,6 +98,7 @@ class HomeCardCandidate {
     required this.content,
     this.tone = HomeCardTone.light,
     this.eventAt,
+    this.lastDay,
     this.dismissable = true,
     this.maxShows,
   });
@@ -108,6 +113,11 @@ class HomeCardCandidate {
 
   /// The day of the occasion, to sort cards of the same priority.
   final DateTime? eventAt;
+
+  /// The last local day the card is still built, null when there is no end in
+  /// sight. A card that would be gone by the day it is postponed to is not
+  /// offered "Later": it would act as a hide.
+  final DateTime? lastDay;
 
   /// False when the card cannot be hidden (the first onboarding steps).
   final bool dismissable;
