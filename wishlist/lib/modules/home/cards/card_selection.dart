@@ -14,38 +14,23 @@ import 'package:wishlist/shared/models/home_card_definition.dart';
 /// by state key so that the order is stable. Among the cards of a queue
 /// (`isQueue`) the oldest event comes first instead.
 ///
-/// No refill: once a card of a queue was dismissed on the local day of [now],
-/// only the cards of the queue already shown that day (`lastShownAt`, recorded
-/// by the provider for each card of the stack) may be in the stack: the queue
-/// may shrink until tomorrow, never gain a card. The dismissed cards leave
-/// their slot empty: the stack is computed as if they were not hidden, then
-/// they are removed. Limit: a dismissed card whose list is gone is no
-/// candidate, so its dismissal is not seen.
+/// With [queueKeys], the cards of a queue whose state key is not in it are
+/// dropped: the queue may shrink, never gain a card (see `StaleCardsDay`).
 List<HomeCardCandidate> selectHomeCards({
   required List<HomeCardCandidate> candidates,
   required Map<String, HomeCardDefinition> definitions,
   required Map<String, CardState> states,
   required int maxCards,
   required DateTime now,
+  Set<String>? queueKeys,
 }) {
-  final dismissedToday = {
-    for (final card in candidates)
-      if (card.isQueue && _isDismissedToday(states[card.stateKey], now))
-        card.stateKey,
-  };
-  final seen = dismissedToday.isEmpty
-      ? states
-      : {
-          for (final entry in states.entries)
-            if (!dismissedToday.contains(entry.key)) entry.key: entry.value,
-        };
   final kept = [
     for (final card in candidates)
       if (definitions.containsKey(card.type) &&
-          _isShown(card, seen, now) &&
-          (dismissedToday.isEmpty ||
+          _isShown(card, states, now) &&
+          (queueKeys == null ||
               !card.isQueue ||
-              _isToday(states[card.stateKey]?.lastShownAt, now)))
+              queueKeys.contains(card.stateKey)))
         card,
   ]..sort((a, b) {
       final byPriority = definitions[a.type]!.priority.compareTo(
@@ -61,23 +46,7 @@ List<HomeCardCandidate> selectHomeCards({
           : _compareEvents(aEvent, bEvent, now);
       return byEvent != 0 ? byEvent : a.stateKey.compareTo(b.stateKey);
     });
-  return [
-    for (final card in kept.take(max(0, maxCards)))
-      if (!dismissedToday.contains(card.stateKey)) card,
-  ];
-}
-
-bool _isDismissedToday(CardState? state, DateTime now) {
-  return _isToday(state?.dismissedAt, now);
-}
-
-bool _isToday(DateTime? date, DateTime now) {
-  final local = date?.toLocal();
-  final today = now.toLocal();
-  return local != null &&
-      local.year == today.year &&
-      local.month == today.month &&
-      local.day == today.day;
+  return kept.take(max(0, maxCards)).toList();
 }
 
 bool _isShown(

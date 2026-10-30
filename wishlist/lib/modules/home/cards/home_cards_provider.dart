@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/home/cards/card_builders.dart';
 import 'package:wishlist/modules/home/cards/card_selection.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/home/cards/stale_cards_day_store.dart';
 import 'package:wishlist/modules/home/cards/wishlists_last_activity_provider.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
@@ -26,7 +27,6 @@ import 'package:wishlist/shared/models/app_user.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
-import 'package:wishlist/shared/models/card_state.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
 import 'package:wishlist/shared/models/year_recap/year_recap.dart';
@@ -111,10 +111,6 @@ void _recomputeOnNewDay(Ref ref, DateTime Function() clock, DateTime now) {
 /// started: recomputes close to each other all see no state yet.
 final _optionalWindowRecordedProvider = Provider<Set<String>>((ref) => {});
 
-/// The stale cards recorded as shown, per user, card and local day (see
-/// `_recordStaleShown`): recomputes close to each other record once.
-final _staleShownRecordedProvider = Provider<Set<String>>((ref) => {});
-
 Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) {
@@ -123,7 +119,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   // Captured here: callbacks run outside the build, where `ref` must not be
   // used to read.
   final recordedWindows = ref.watch(_optionalWindowRecordedProvider);
-  final recordedStale = ref.watch(_staleShownRecordedProvider);
+  final dayStore = ref.watch(staleCardsDayStoreProvider);
   final cardStateRepository = ref.watch(cardStateRepositoryProvider);
   final friendshipRepository = ref.watch(friendshipRepositoryProvider);
   final wishlistRepository = ref.watch(wishlistRepositoryProvider);
@@ -387,6 +383,11 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     ),
   );
 
+  // Once the user hid a stale card today, no stale list that was not already
+  // in the stack today comes in before tomorrow (the state is kept on this
+  // device, see `StaleCardsDayStore`).
+  await dayStore.load();
+  final day = dayStore.dayOf(userId, now);
   final cards = selectHomeCards(
     candidates: candidates,
     definitions: definitions,
@@ -394,7 +395,12 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     maxCards: definitions[_stackKey]?.intParam('max_cards', _defaultMaxCards) ??
         _defaultMaxCards,
     now: now,
+    queueKeys: day.dismissed ? day.shownKeys : null,
   );
+  dayStore.addShown(userId, now, [
+    for (final card in cards)
+      if (card.isQueue) card.stateKey,
+  ]);
 
   // The optional onboarding steps stop 48 hours after they were first shown.
   // Only the top card is really in front of the user: record the start of the
@@ -413,56 +419,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
       ),
     );
   }
-  _recordStaleShown(
-    cards: cards,
-    states: states,
-    repository: cardStateRepository,
-    recorded: recordedStale,
-    userId: userId,
-    now: now,
-  );
   return cards;
-}
-
-/// Records every stale card of the stack as shown, once per local day: the
-/// selection lets only the stale cards shown today stay once one was
-/// dismissed (see `selectHomeCards`). One request per card, only for a card
-/// whose `lastShownAt` is not today.
-void _recordStaleShown({
-  required List<HomeCardCandidate> cards,
-  required Map<String, CardState> states,
-  required CardStateRepository repository,
-  required Set<String> recorded,
-  required String userId,
-  required DateTime now,
-}) {
-  final today = now.toLocal();
-  for (final card in cards) {
-    if (!card.isQueue) {
-      continue;
-    }
-    final last = states[card.stateKey]?.lastShownAt?.toLocal();
-    if (last != null &&
-        last.year == today.year &&
-        last.month == today.month &&
-        last.day == today.day) {
-      continue;
-    }
-    final tag = '$userId|${card.stateKey}|${today.year}-${today.month}-'
-        '${today.day}';
-    if (!recorded.add(tag)) {
-      continue;
-    }
-    unawaited(() async {
-      try {
-        await repository.recordShown(card.stateKey);
-      } catch (e) {
-        // A later recompute may try again.
-        recorded.remove(tag);
-        debugPrint('[Wishy home cards] could not record ${card.stateKey}: $e');
-      }
-    }());
-  }
 }
 
 Future<Set<int>> _loadRemovalsWithOpenList(

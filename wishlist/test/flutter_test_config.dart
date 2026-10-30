@@ -5,6 +5,7 @@ import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_custom.dart';
 import 'package:intl/date_symbols.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final defaultDeviceConfigs = {
   iPhone8,
@@ -26,6 +27,9 @@ double get _goldenThreshold {
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   AdaptiveTestConfiguration.instance.setDeviceVariants(defaultDeviceConfigs);
+
+  // No platform channel in tests: the preferences live in memory
+  SharedPreferences.setMockInitialValues({});
 
   await loadFonts();
 
