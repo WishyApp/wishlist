@@ -2057,8 +2057,8 @@ abstract class AppLocalizations {
   /// No description provided for @yearRecapProfileIntro.
   ///
   /// In fr, this message translates to:
-  /// **'Cette année, j\'étais'**
-  String get yearRecapProfileIntro;
+  /// **'En {year}, j\'étais'**
+  String yearRecapProfileIntro(String year);
 
   /// No description provided for @yearRecapShareButton.
   ///

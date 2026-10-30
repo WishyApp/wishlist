@@ -70,7 +70,7 @@ class YearRecapShareImage extends StatelessWidget {
               ),
               const SizedBox(height: 36),
               Text(
-                l10n.yearRecapProfileIntro,
+                l10n.yearRecapProfileIntro('${recap.year}'),
                 style: _style(16, FontWeight.w600, AppColors.makara),
               ),
               const SizedBox(height: 6),

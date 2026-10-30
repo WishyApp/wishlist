@@ -52,7 +52,7 @@ void main() {
     );
 
     expect(find.text('Mon année 2026'), findsOneWidget);
-    expect(find.text("Cette année, j'étais"), findsOneWidget);
+    expect(find.text("En 2026, j'étais"), findsOneWidget);
     expect(find.text('Le marathonien / La marathonienne'), findsOneWidget);
     expect(
       find.text("Je l'ai voulu. J'ai attendu. Je l'ai eu."),

@@ -54,7 +54,14 @@ final staleDef = def(
 /// A local day, for dates the analyzer would flag for their default parts.
 DateTime on(int year, int month, int day) => DateTime(year, month, day);
 
-final yearRecapDef = def('year_recap', params: {'month': 12});
+final yearRecapDef = def(
+  'year_recap',
+  params: {
+    'month': 0,
+    'start': [12, 26],
+    'end': [1, 15],
+  },
+);
 final onboardingDef = def('onboarding', params: {'optional_steps_hours': 48});
 
 Wishlist wishlist(
@@ -1314,47 +1321,124 @@ void main() {
     });
   });
 
+  group('yearRecapYear', () {
+    test('from December 26, the year that ends', () {
+      expect(yearRecapYear(yearRecapDef, DateTime(2026, 12, 26)), 2026);
+      expect(yearRecapYear(yearRecapDef, DateTime(2026, 12, 31, 23)), 2026);
+    });
+
+    test('until January 15, still the year before', () {
+      expect(yearRecapYear(yearRecapDef, DateTime(2027)), 2026);
+      expect(yearRecapYear(yearRecapDef, DateTime(2027, 1, 15, 23)), 2026);
+    });
+
+    test('nothing before Christmas is over nor after the window', () {
+      expect(yearRecapYear(yearRecapDef, DateTime(2026, 12)), isNull);
+      expect(yearRecapYear(yearRecapDef, DateTime(2026, 12, 25, 23)), isNull);
+      expect(yearRecapYear(yearRecapDef, DateTime(2027, 1, 16)), isNull);
+      expect(yearRecapYear(yearRecapDef, DateTime(2027, 6)), isNull);
+    });
+
+    test('without start and end, the default window', () {
+      // The params of 1.1.0, before the migration
+      final old = def('year_recap', params: {'month': 12});
+
+      expect(yearRecapYear(old, DateTime(2026, 12, 10)), isNull);
+      expect(yearRecapYear(old, DateTime(2026, 12, 28)), 2026);
+      expect(yearRecapYear(old, DateTime(2027, 1, 15)), 2026);
+    });
+
+    test('a window in January only, for the year before', () {
+      final january = def(
+        'year_recap',
+        params: {
+          'start': [1, 2],
+          'end': [1, 31],
+        },
+      );
+
+      expect(yearRecapYear(january, DateTime(2027, 1, 10)), 2026);
+      expect(yearRecapYear(january, DateTime(2027)), isNull);
+      expect(yearRecapYear(january, DateTime(2026, 12, 28)), isNull);
+    });
+
+    test('a window in December only, for the year that ends', () {
+      final december = def(
+        'year_recap',
+        params: {
+          'start': [12, 1],
+          'end': [12, 31],
+        },
+      );
+
+      expect(yearRecapYear(december, DateTime(2026, 12, 10)), 2026);
+      expect(yearRecapYear(december, DateTime(2026, 11, 30)), isNull);
+      expect(yearRecapYear(december, DateTime(2027)), isNull);
+    });
+
+    test('a disabled type has no window', () {
+      expect(yearRecapYear(null, DateTime(2026, 12, 28)), isNull);
+    });
+  });
+
   group('yearRecapCards', () {
-    final december = DateTime(2026, 12, 10, 9);
+    final afterChristmas = DateTime(2026, 12, 27, 9);
     final recap = fakeYearRecap(
       stats: const YearRecapStats(received: 3, offered: 2),
     );
 
-    test('a dark card on December 10 with received and offered wishes', () {
+    test('a dark card on December 27 with received and offered wishes', () {
       final cards = yearRecapCards(
         recap: recap,
         definition: yearRecapDef,
-        now: december,
+        now: afterChristmas,
       );
 
       expect(cards.single.type, 'year_recap');
       expect(cards.single.stateKey, 'year_recap@2026');
       expect(cards.single.tone, HomeCardTone.dark);
       expect((cards.single.content as YearRecap).recap, recap);
-      // Gone after December: "Later" past the 31st would act as a hide.
-      expect(cards.single.lastDay, DateTime(2026, 12, 31));
+      // Gone after January 15: "Later" past it would act as a hide.
+      expect(cards.single.lastDay, DateTime(2027, 1, 15));
     });
 
-    test('nothing in November', () {
+    test('in January, the same card for the year that ended', () {
+      final cards = yearRecapCards(
+        recap: recap,
+        definition: yearRecapDef,
+        now: DateTime(2027, 1, 10, 9),
+      );
+
+      // Same key as in December: a card hidden then stays hidden
+      expect(cards.single.stateKey, 'year_recap@2026');
+      expect(cards.single.lastDay, DateTime(2027, 1, 15));
+    });
+
+    test('nothing before Christmas is over', () {
       expect(
         yearRecapCards(
           recap: recap,
           definition: yearRecapDef,
-          now: DateTime(2026, 11, 30, 23),
+          now: DateTime(2026, 12, 25, 23),
         ),
         isEmpty,
       );
     });
 
-    test('the month comes from the definition', () {
-      expect(
-        yearRecapCards(
-          recap: recap,
-          definition: def('year_recap', params: {'month': 11}),
-          now: DateTime(2026, 11, 30),
+    test('the window comes from the definition', () {
+      final cards = yearRecapCards(
+        recap: recap,
+        definition: def(
+          'year_recap',
+          params: {
+            'start': [12, 1],
+            'end': [12, 31],
+          },
         ),
-        hasLength(1),
+        now: DateTime(2026, 12, 10),
       );
+
+      expect(cards.single.lastDay, DateTime(2026, 12, 31));
     });
 
     test('nothing without any activity in the year', () {
@@ -1362,7 +1446,7 @@ void main() {
         yearRecapCards(
           recap: fakeYearRecap(),
           definition: yearRecapDef,
-          now: december,
+          now: afterChristmas,
         ),
         isEmpty,
       );
@@ -1370,7 +1454,7 @@ void main() {
 
     test('a disabled type gives nothing', () {
       expect(
-        yearRecapCards(recap: recap, definition: null, now: december),
+        yearRecapCards(recap: recap, definition: null, now: afterChristmas),
         isEmpty,
       );
     });

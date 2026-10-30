@@ -85,7 +85,11 @@ final seeds = [
     'keywords': ['noel', 'christmas', 'xmas'],
   }),
   def('stale_wishlist', 60, {'stale_days': 90, 'snooze_days': 60}),
-  def('year_recap', 28, {'month': 12}),
+  def('year_recap', 28, {
+    'month': 0,
+    'start': [12, 26],
+    'end': [1, 15],
+  }),
 ];
 
 void main() {
@@ -1005,7 +1009,7 @@ void main() {
           ],
         );
 
-    // Christmas cards share the stack in December: look at the recap only
+    // Other cards share the stack: look at the recap only
     Future<List<HomeCardCandidate>> loadRecap(DateTime at) async => [
           for (final card in await loadAll(at))
             if (card.type == 'year_recap') card,
@@ -1028,15 +1032,16 @@ void main() {
         return fakeYearRecap(stats: const YearRecapStats(received: 2));
       });
 
-      final cards = await loadRecap(DateTime(2026, 12, 10, 9)).timeout(
+      final cards = await loadRecap(DateTime(2026, 12, 27, 9)).timeout(
         const Duration(seconds: 2),
       );
 
       expect(cards, hasLength(1));
     });
 
-    test('in December, a dark card with what was received and given', () async {
-      final cards = await loadRecap(DateTime(2026, 12, 10, 9));
+    test('after Christmas, a dark card with what was received and given',
+        () async {
+      final cards = await loadRecap(DateTime(2026, 12, 27, 9));
 
       expect(cards.single.type, 'year_recap');
       expect(cards.single.tone, HomeCardTone.dark);
@@ -1049,16 +1054,25 @@ void main() {
       verify(() => recapRepository.getMyYearRecap(2026));
     });
 
-    test('outside December nothing is fetched nor listened to', () async {
-      final cards = await loadRecap(DateTime(2026, 11, 30, 23));
+    test('in January, the recap of the year that ended', () async {
+      final cards = await loadRecap(DateTime(2027, 1, 10, 9));
+
+      expect(cards.single.stateKey, 'year_recap@2026');
+      verify(() => recapRepository.getMyYearRecap(2026));
+      verifyNever(() => recapRepository.getMyYearRecap(2027));
+    });
+
+    test('before Christmas is over nothing is fetched nor listened to',
+        () async {
+      final cards = await loadRecap(DateTime(2026, 12, 25, 23));
 
       expect(cards, isEmpty);
       verifyNever(() => recapRepository.getMyYearRecap(any()));
       expect(realtimeListened, isFalse);
     });
 
-    test('in December the live stream is still not listened to', () async {
-      await loadRecap(DateTime(2026, 12, 10, 9));
+    test('in the window the live stream is still not listened to', () async {
+      await loadRecap(DateTime(2026, 12, 27, 9));
 
       expect(realtimeListened, isFalse);
     });
@@ -1067,7 +1081,7 @@ void main() {
       when(() => recapRepository.getMyYearRecap(any()))
           .thenAnswer((_) async => fakeYearRecap());
 
-      expect(await loadRecap(DateTime(2026, 12, 10, 9)), isEmpty);
+      expect(await loadRecap(DateTime(2026, 12, 27, 9)), isEmpty);
     });
 
     test('the recap unavailable only loses this card', () async {
@@ -1075,8 +1089,8 @@ void main() {
           .thenThrow(Exception('offline'));
 
       final cards = await load(
-        at: DateTime(2026, 12, 20, 9),
-        birthdays: {fakeFriendUserId1: const Birthday(month: 12, day: 21)},
+        at: DateTime(2026, 12, 27, 9),
+        birthdays: {fakeFriendUserId1: const Birthday(month: 12, day: 28)},
         extra: [
           yearRecapRepositoryProvider.overrideWithValue(recapRepository),
         ],

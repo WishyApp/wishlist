@@ -8,7 +8,7 @@ import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 
 /// The figures and the profile of the user for `year`, computed by the server
 /// (`get_my_year_recap`), for the card "Ton année Wishy", its page and the
-/// share image. Only read in the month of the recap (see `homeCardsProvider`)
+/// share image. Only read in the window of the recap (see `homeCardsProvider`)
 /// and by the recap page. It is read again when the count or the latest day of
 /// the received wishes changes (`receivedWishesSummaryProvider`, already live
 /// on the home screen) and when a booking of the user gets received.
