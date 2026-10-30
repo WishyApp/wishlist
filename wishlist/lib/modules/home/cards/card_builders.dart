@@ -26,6 +26,22 @@ const onboardingPhotoKey = 'onboarding:photo';
 /// Words that name the Christmas wishlist when `christmas` has none.
 const _defaultChristmasKeywords = ['noel', 'christmas', 'xmas'];
 
+/// Used when the `birthday_keywords` param of `after_party` has no valid word.
+/// Same defaults in the migration 20261031100001 and in
+/// supabase-tests/home_cards.sql: keep the three in sync.
+const _defaultBirthdayKeywords = ['anniv', 'anniversaire', 'birthday', 'bday'];
+
+/// Lists with such a word are never the birthday list (a wedding anniversary).
+/// Used when `birthday_exclude_keywords` has no valid word; same sync rule.
+const _defaultBirthdayExcludeKeywords = ['mariage', 'wedding'];
+
+List<String> _keywordsOrDefault(
+  List<String> configured,
+  List<String> defaults,
+) {
+  return validKeywords(configured).isEmpty ? defaults : configured;
+}
+
 DateTime _day(DateTime now) {
   final local = now.toLocal();
   return DateTime(local.year, local.month, local.day);
@@ -70,6 +86,16 @@ Wishlist? _christmasWishlist(
     keywords: _christmasKeywords(christmas),
     occasionDate: occasionDate,
   );
+}
+
+/// The only open wishlist, unless its name is that of an occasion (a birthday
+/// of another year, Christmas, an excluded one such as a wedding): the matcher
+/// rejected it for a reason.
+Wishlist? _singleOtherList(List<Wishlist> openOwn, List<String> keywords) {
+  if (openOwn.length != 1 || nameHasKeyword(openOwn.single.name, keywords)) {
+    return null;
+  }
+  return openOwn.single;
 }
 
 /// Friends whose birthday is today (`friend_birthday_today`) or within the
@@ -127,8 +153,10 @@ List<HomeCardCandidate> friendBirthdayCards({
 }
 
 /// The day after the user's birthday or after Christmas, up to `days_after`
-/// days. The wishlist of Christmas is found by its name; the one of the
-/// birthday is the only open wishlist of the user, if there is just one.
+/// days. The wishlists of Christmas and of the birthday are found by their
+/// name (`keywords` of [christmas], `birthday_keywords` of [definition]); when
+/// no birthday list matches, the birthday one is the only open wishlist of the
+/// user, if there is just one.
 /// Nothing is offered to a user who has no open wishlist of their own, as
 /// there is nothing to tick.
 List<HomeCardCandidate> afterPartyCards({
@@ -150,6 +178,21 @@ List<HomeCardCandidate> afterPartyCards({
   }
   final today = _day(now);
   final daysAfter = definition.intParam('days_after', 7);
+  final birthdayKeywords = _keywordsOrDefault(
+    definition.stringListParam('birthday_keywords'),
+    _defaultBirthdayKeywords,
+  );
+  final excludeKeywords = _keywordsOrDefault(
+    definition.stringListParam('birthday_exclude_keywords'),
+    _defaultBirthdayExcludeKeywords,
+  );
+  final christmasKeywords = _christmasKeywords(christmas);
+  // Excluded lists are not candidates; a single match is proposed, several
+  // matches give no button rather than a wrong list.
+  final birthdayCandidates = [
+    for (final w in openOwn)
+      if (!nameHasKeyword(w.name, excludeKeywords)) w,
+  ];
   final cards = <HomeCardCandidate>[];
 
   if (myBirthday != null) {
@@ -164,7 +207,18 @@ List<HomeCardCandidate> afterPartyCards({
             content: AfterParty(
               AfterPartyOccasion.birthday,
               ago,
-              openOwn.length == 1 ? openOwn.single : null,
+              findOccasionWishlist(
+                    wishlists: birthdayCandidates,
+                    userId: userId,
+                    keywords: birthdayKeywords,
+                    occasionDate: day,
+                    twoDigitYears: false,
+                  ) ??
+                  _singleOtherList(openOwn, [
+                    ...birthdayKeywords,
+                    ...excludeKeywords,
+                    ...christmasKeywords,
+                  ]),
             ),
             eventAt: day,
             lastDay: DateTime(day.year, day.month, day.day + daysAfter),
