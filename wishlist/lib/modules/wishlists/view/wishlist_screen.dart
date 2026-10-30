@@ -222,23 +222,11 @@ class WishlistScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _shareWishlist(
-    BuildContext context,
-    Wishlist wishlist,
-  ) async {
+  ShareParams _wishlistShareParams(Wishlist wishlist) {
     final shareLink =
         DeeplinkConfig.buildWishlistShareUri(wishlistId: wishlist.id)
             .toString();
-
-    try {
-      await SharePlus.instance.share(
-        ShareParams(text: '${wishlist.name}\n$shareLink'),
-      );
-    } catch (e) {
-      if (context.mounted) {
-        showGenericError(context, error: e);
-      }
-    }
+    return ShareParams(text: '${wishlist.name}\n$shareLink');
   }
 
   void _onWishlistDeleted(BuildContext context) {
@@ -345,10 +333,8 @@ class WishlistScreen extends ConsumerWidget {
                     wishlistTheme: wishlistTheme,
                     isMyWishlist: isMyWishlist,
                     canShareWishlist: canShareWishlist,
-                    onShare: () => _shareWishlist(
-                      context,
-                      wishlist,
-                    ),
+                    shareParams: () => _wishlistShareParams(wishlist),
+                    onShareError: (e) => showGenericError(context, error: e),
                     onSettings: () => WishlistSettingsRoute(
                       wishlistId: wishlist.id,
                     ).push(context),
