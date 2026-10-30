@@ -52,9 +52,9 @@ class YearRecapScreen extends ConsumerWidget {
         error: error,
         appBarTitle: l10n.yearRecapScreenTitle('$year'),
         onRetry: () async {
-          // The bookings feed the recap too: a failed stream keeps serving its
-          // error until it is reopened. Failing again shows in the page, it
-          // must not escape here.
+          // The bookings trigger the recap's recomputation: a failed stream
+          // stops doing so until it is reopened. Failing again shows in the
+          // page, it must not escape here.
           await ref.retryFailed([bookedWishesRealtimeProvider]).then(
             (_) {},
             onError: (_) {},

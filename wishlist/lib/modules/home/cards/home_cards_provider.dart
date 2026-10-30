@@ -264,8 +264,8 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     },
     const <int, DateTime>{},
   );
-  // The recap reads the received wishes once, and only in its month: nothing
-  // heavy is kept alive the rest of the year.
+  // The recap calls get_my_year_recap only in its month: nothing heavy is kept
+  // alive the rest of the year.
   final yearRecapFuture = _orElse<YearRecapData?>(
     'year recap',
     () async {
