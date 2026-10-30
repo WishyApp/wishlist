@@ -14,6 +14,12 @@ abstract class FriendshipRepository {
 
   Future<FriendshipStatus> currentUserFriendshipStatusWith(String userId);
 
+  /// Requests the current user sent that were accepted at or after [since],
+  /// with the acceptance time (the `updated_at` of the friendship, set by a
+  /// database trigger on every update).
+  Future<List<({String friendId, DateTime acceptedAt})>>
+      getRecentlyAcceptedRequests(DateTime since);
+
   Future<void> askFriendshipTo(String userId);
 
   Future<void> cancelFriendshipRequest(String userId);

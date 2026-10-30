@@ -15,12 +15,19 @@ class MockQueryBuilder extends Mock implements SupabaseQueryBuilder {}
 class FakeQuery extends Fake implements PostgrestFilterBuilder<PostgrestList> {
   final _result = Completer<PostgrestList>();
   final filters = <String, Object?>{};
+  final minimums = <String, Object?>{};
 
   void complete(PostgrestList rows) => _result.complete(rows);
 
   @override
   PostgrestFilterBuilder<PostgrestList> eq(String column, Object value) {
     filters[column] = value;
+    return this;
+  }
+
+  @override
+  PostgrestFilterBuilder<PostgrestList> gte(String column, Object value) {
+    minimums[column] = value;
     return this;
   }
 
@@ -126,4 +133,71 @@ void main() {
       expect(inserted.requesterId, 'user-1');
     },
   );
+
+  group('getRecentlyAcceptedRequests', () {
+    final since = DateTime.utc(2026, 10, 23, 8);
+
+    test('asks for the accepted requests the user sent since a date', () async {
+      final query = FakeQuery()
+        ..complete([
+          {
+            'receiver_id': 'friend-1',
+            'updated_at': '2026-10-28T09:30:00+00:00',
+          },
+          {'receiver_id': 'friend-2', 'updated_at': '2026-10-29T18:00:00Z'},
+        ]);
+      when(() => table.select(any())).thenAnswer((_) => query);
+      final repository = SupabaseFriendshipRepository(client);
+
+      final accepted = await repository.getRecentlyAcceptedRequests(since);
+
+      expect(query.filters, {
+        'requester_id': 'user-1',
+        'status': 'accepted',
+      });
+      expect(query.minimums, {'updated_at': '2026-10-23T08:00:00.000Z'});
+      expect(accepted, [
+        (friendId: 'friend-1', acceptedAt: DateTime.utc(2026, 10, 28, 9, 30)),
+        (friendId: 'friend-2', acceptedAt: DateTime.utc(2026, 10, 29, 18)),
+      ]);
+    });
+
+    test('sends the date as UTC whatever the zone it comes in', () async {
+      final query = FakeQuery()..complete(const []);
+      when(() => table.select(any())).thenAnswer((_) => query);
+      final repository = SupabaseFriendshipRepository(client);
+
+      await repository.getRecentlyAcceptedRequests(
+        DateTime.parse('2026-10-23T10:00:00+02:00'),
+      );
+
+      expect(query.minimums['updated_at'], '2026-10-23T08:00:00.000Z');
+    });
+
+    test('sends a local date as UTC', () async {
+      // Only meaningful under a non-UTC zone, e.g. TZ=Europe/Paris.
+      final local = DateTime(2026, 10, 23, 10);
+      final query = FakeQuery()..complete(const []);
+      when(() => table.select(any())).thenAnswer((_) => query);
+      final repository = SupabaseFriendshipRepository(client);
+
+      await repository.getRecentlyAcceptedRequests(local);
+
+      expect(query.minimums['updated_at'], local.toUtc().toIso8601String());
+      expect(query.minimums['updated_at'], endsWith('Z'));
+    });
+
+    test('keeps the user it started with when the session changes', () async {
+      final query = FakeQuery();
+      when(() => table.select(any())).thenAnswer((_) => query);
+      final repository = SupabaseFriendshipRepository(client);
+
+      final request = repository.getRecentlyAcceptedRequests(since);
+      currentUser = userWithId('user-2');
+      query.complete(const []);
+      await request;
+
+      expect(query.filters['requester_id'], 'user-1');
+    });
+  });
 }
