@@ -81,6 +81,7 @@ _$YearRecapDataImpl _$$YearRecapDataImplFromJson(Map<String, dynamic> json) =>
       stats: YearRecapStats.fromJson(json['stats'] as Map<String, dynamic>),
       profile:
           YearRecapProfile.fromJson(json['profile'] as Map<String, dynamic>),
+      mostGiftedFriend: json['most_gifted_friend'] as String?,
     );
 
 Map<String, dynamic> _$$YearRecapDataImplToJson(_$YearRecapDataImpl instance) =>
@@ -88,4 +89,5 @@ Map<String, dynamic> _$$YearRecapDataImplToJson(_$YearRecapDataImpl instance) =>
       'year': instance.year,
       'stats': instance.stats,
       'profile': instance.profile,
+      'most_gifted_friend': instance.mostGiftedFriend,
     };

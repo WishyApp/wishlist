@@ -14,8 +14,16 @@ import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 /// on the home screen) and when a booking of the user gets received.
 final yearRecapFactsProvider =
     FutureProvider.autoDispose.family<YearRecapData, int>((ref, year) async {
-  // Only to start again for another user
-  ref.watch(currentUserIdProvider);
+  // Also to start again for another user
+  if (ref.watch(currentUserIdProvider) == null) {
+    // Signed out: an empty recap replaces the previous user's one, nothing is
+    // asked to the server.
+    return YearRecapData(
+      year: year,
+      stats: const YearRecapStats(),
+      profile: const YearRecapProfile(key: YearRecapProfileKey.minimaliste),
+    );
+  }
   // Only a trigger: a summary that cannot be read must not fail the recap.
   ref.watch(
     receivedWishesSummaryProvider.select(
@@ -30,7 +38,14 @@ final yearRecapFactsProvider =
   ref.watch(
     bookedWishesRealtimeProvider.select(
       (bookings) => bookings.valueOrNull
-          ?.map((booking) => (booking.wish.id, booking.receivedAt))
+          ?.map(
+            (booking) => (
+              booking.wish.id,
+              booking.receivedAt,
+              booking.bookedQuantity,
+              booking.receivedQuantity,
+            ),
+          )
           .toIList(),
     ),
   );

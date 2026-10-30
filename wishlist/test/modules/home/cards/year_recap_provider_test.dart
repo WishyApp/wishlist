@@ -26,10 +26,11 @@ void main() {
   ProviderContainer containerWith(
     Stream<ReceivedWishesSummary> summaries, {
     Stream<IList<BookedWishWithDetails>> bookings = const Stream.empty(),
+    bool signedOut = false,
   }) {
     final container = ProviderContainer(
       overrides: [
-        supabaseClientOverride(),
+        supabaseClientOverride(signedOut: signedOut),
         yearRecapRepositoryProvider.overrideWithValue(repository),
         receivedWishesSummaryProvider.overrideWith((ref) => summaries),
         bookedWishesRealtimeProvider.overrideWith((ref) => bookings),
@@ -58,6 +59,72 @@ void main() {
     expect(recap.profile.key, YearRecapProfileKey.gate);
     verify(() => repository.getMyYearRecap(2026)).called(1);
     subscription.close();
+  });
+
+  test('signed out, nothing is asked to the server', () async {
+    final container = containerWith(const Stream.empty(), signedOut: true);
+    final subscription = container.listen(
+      yearRecapFactsProvider(2026),
+      (_, __) {},
+    );
+
+    final recap = await container.read(yearRecapFactsProvider(2026).future);
+
+    expect(recap.year, 2026);
+    expect(recap.stats.received + recap.stats.offered, 0);
+    expect(recap.mostGiftedFriend, isNull);
+    verifyNever(() => repository.getMyYearRecap(any()));
+    subscription.close();
+  });
+
+  test('keeps the most gifted friend the server gives', () async {
+    when(() => repository.getMyYearRecap(any())).thenAnswer(
+      (_) async => fakeYearRecap(mostGiftedFriend: 'Marie'),
+    );
+    final container = containerWith(const Stream.empty());
+    final subscription = container.listen(
+      yearRecapFactsProvider(2026),
+      (_, __) {},
+    );
+
+    final recap = await container.read(yearRecapFactsProvider(2026).future);
+
+    expect(recap.mostGiftedFriend, 'Marie');
+    subscription.close();
+  });
+
+  test('a booking received for more units loads the recap again', () async {
+    when(() => repository.getMyYearRecap(any()))
+        .thenAnswer((_) async => fakeYearRecap());
+    final bookings = StreamController<IList<BookedWishWithDetails>>();
+    addTearDown(bookings.close);
+    final received = fakeBookedWish1.copyWith(
+      bookedQuantity: 2,
+      receivedQuantity: 1,
+      receivedAt: DateTime(2026, 5, 6),
+    );
+    bookings.add([received].toIList());
+    final container =
+        containerWith(const Stream.empty(), bookings: bookings.stream);
+    final bookingsSubscription = container.listen(
+      bookedWishesRealtimeProvider,
+      (_, __) {},
+    );
+    await container.read(bookedWishesRealtimeProvider.future);
+    final subscription = container.listen(
+      yearRecapFactsProvider(2026),
+      (_, __) {},
+    );
+    await container.read(yearRecapFactsProvider(2026).future);
+
+    // Same day, but now the whole booking is received: it counts as offered
+    bookings.add([received.copyWith(receivedQuantity: 2)].toIList());
+    await Future<void>.delayed(Duration.zero);
+    await container.read(yearRecapFactsProvider(2026).future);
+
+    verify(() => repository.getMyYearRecap(2026)).called(2);
+    subscription.close();
+    bookingsSubscription.close();
   });
 
   test('a new received wish loads the recap again', () async {

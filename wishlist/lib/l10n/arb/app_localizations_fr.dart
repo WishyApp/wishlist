@@ -1368,7 +1368,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get yearRecapProfileAmiFideleTitle => 'L\'ami fidèle / L\'amie fidèle';
 
   @override
-  String get yearRecapProfileAmiFideleTagline => 'Elle se reconnaîtra.';
+  String get yearRecapProfileAmiFideleTagline =>
+      'Cette personne se reconnaîtra.';
 
   @override
   String get yearRecapProfileDernierMomentTitle =>

@@ -30,9 +30,11 @@ Map<String, dynamic> recapJson({
   Object? longestAwaited,
   String key = 'patient',
   String? illustrationPath,
+  String? mostGiftedFriend,
 }) =>
     {
       'year': 2026,
+      'most_gifted_friend': mostGiftedFriend,
       'stats': {
         'received': 3,
         'offered': 2,
@@ -115,6 +117,14 @@ void main() {
     expect(recap.profile.key, YearRecapProfileKey.patient);
     expect(recap.profile.score, 1.5);
     expect(recap.profile.illustrationPath, 'patient.png');
+  });
+
+  test('parses the most gifted friend, null when absent', () async {
+    answerWith(recapJson(mostGiftedFriend: 'Marie'));
+    expect((await repository.getMyYearRecap(2026)).mostGiftedFriend, 'Marie');
+
+    answerWith(recapJson()..remove('most_gifted_friend'));
+    expect((await repository.getMyYearRecap(2026)).mostGiftedFriend, isNull);
   });
 
   test('a null longest awaited wish and illustration are kept null', () async {

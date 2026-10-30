@@ -17,11 +17,13 @@ YearRecapData fakeYearRecap({
   YearRecapStats stats = const YearRecapStats(),
   YearRecapProfileKey profile = YearRecapProfileKey.minimaliste,
   String? illustrationPath,
+  String? mostGiftedFriend,
 }) {
   return YearRecapData(
     year: year,
     stats: stats,
     profile: YearRecapProfile(key: profile, illustrationPath: illustrationPath),
+    mostGiftedFriend: mostGiftedFriend,
   );
 }
 

@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
 import 'package:wishlist/modules/year_recap/share/year_recap_sharer.dart';
 import 'package:wishlist/modules/year_recap/view/year_recap_screen.dart';
+import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
@@ -56,23 +58,8 @@ void main() {
   );
 
   testWidgets('shows every block when the facts are all known', (tester) async {
-    await tester.pumpRouterApp(
-      YearRecapRoute(year: 2026).location,
-      overrides: [
-        ...homeScreenOverrides(
-          now: fakeNow,
-          bookedWishes: [
-            fakeBookedWish1.copyWith(
-              receivedAt: DateTime(2026, 5),
-              receivedQuantity: fakeBookedWish1.bookedQuantity,
-            ),
-          ].toIList(),
-        ),
-        yearRecapFactsProvider.overrideWith((ref, year) async => fullRecap),
-        yearRecapRepositoryOverride(fullRecap),
-      ],
-    );
-    await tester.pumpAndSettle();
+    final recap = fullRecap.copyWith(mostGiftedFriend: 'Marie');
+    await pumpRecap(tester, recap);
 
     expect(find.text('Ton année Wishy 2026'), findsOneWidget);
     expect(find.text('3 wishs reçus'), findsWidgets);
@@ -82,7 +69,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Ton ami le plus gâté : ${fakeBookedWish1.ownerPseudo}'),
+      find.text('Ton ami le plus gâté : Marie'),
       findsOneWidget,
     );
     expect(find.byType(PrimaryButton), findsOneWidget);
@@ -155,7 +142,7 @@ void main() {
         const YearRecapStats(maxOfferedSameFriend: 4),
         [
           "L'ami fidèle / L'amie fidèle",
-          'Elle se reconnaîtra.',
+          'Cette personne se reconnaîtra.',
           '4 cadeaux pour la même personne',
         ],
       ),
@@ -264,6 +251,33 @@ void main() {
     );
   });
 
+  testWidgets('a reload while sharing keeps the page and the share running',
+      (tester) async {
+    final gate = sharer.gate = Completer<void>();
+    await pumpRecap(tester, fullRecap);
+    tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed!();
+    await tester.pump();
+
+    ProviderScope.containerOf(tester.element(find.byType(YearRecapScreen)))
+        .invalidate(yearRecapFactsProvider);
+    await tester.pump();
+
+    // The page is still there (the spinner is the button's, sharing)
+    expect(find.text('2 wishs reçus'), findsNothing);
+    expect(find.text('3 wishs reçus'), findsWidgets);
+    expect(
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNull,
+    );
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(sharer.shared, hasLength(1));
+    expect(
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNotNull,
+    );
+  });
+
   testWidgets('the generic illustration replaces one that fails to load',
       (tester) async {
     await pumpRecap(
@@ -303,6 +317,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(YearRecapScreen), findsNothing);
+  });
+
+  testWidgets('retry reloads the recap and reopens the bookings that failed',
+      (tester) async {
+    var bookingLoads = 0;
+    var recapLoads = 0;
+    await tester.pumpRouterApp(
+      YearRecapRoute(year: 2026).location,
+      overrides: [
+        ...homeScreenOverrides(now: fakeNow),
+        bookedWishesRealtimeProvider.overrideWith((ref) {
+          bookingLoads++;
+          return bookingLoads == 1
+              ? Stream.error(Exception('timeout'))
+              : Stream.value(const IListConst([]));
+        }),
+        yearRecapFactsProvider.overrideWith((ref, year) async {
+          // Watching the bookings is what a failed stream keeps serving
+          await ref.watch(bookedWishesRealtimeProvider.future);
+          recapLoads++;
+          return fakeYearRecap(stats: const YearRecapStats(received: 1));
+        }),
+        yearRecapRepositoryOverride(fakeYearRecap()),
+      ],
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('1 wish reçu'), findsNothing);
+
+    await tester.tap(find.byType(PrimaryButton));
+    await tester.pumpAndSettle();
+
+    expect(bookingLoads, 2);
+    expect(recapLoads, 1);
+    expect(find.text('1 wish reçu'), findsWidgets);
   });
 
   testAdaptiveWidgets('$YearRecapScreen golden test', (tester, variant) async {

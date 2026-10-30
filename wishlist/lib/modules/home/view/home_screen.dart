@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/modules/home/cards/wishlists_last_activity_provider.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
 import 'package:wishlist/modules/home/view/widgets/cards/home_card_stack.dart';
 import 'package:wishlist/modules/home/view/widgets/home_empty_wishlists.dart';
 import 'package:wishlist/modules/home/view/widgets/home_profile_header.dart';
 import 'package:wishlist/modules/home/view/widgets/home_received_wishes_row.dart';
+import 'package:wishlist/modules/home/view/widgets/home_refresh_on_return.dart';
 import 'package:wishlist/modules/home/view/widgets/home_wishlists_error.dart';
 import 'package:wishlist/shared/infra/received_wishes_summary_provider.dart';
 import 'package:wishlist/shared/infra/repositories/user/user_streams_providers.dart';
@@ -43,6 +45,7 @@ class HomeScreen extends ConsumerWidget {
         ..invalidate(wishlistsRealtimeProvider)
         // Read again even if the summary did not change
         ..invalidate(yearRecapFactsProvider)
+        ..invalidate(wishlistsLastActivityProvider)
         // Not awaited: the pile keeps its cards while it reloads
         ..invalidate(homeCardsProvider);
 
@@ -78,37 +81,39 @@ class HomeScreen extends ConsumerWidget {
             ),
     );
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: AppRefreshIndicator(
-          onRefresh: refreshWishlists,
-          // The page is the nearest scrollable of the grid, so the drag
-          // autoscroll of a wishlist scrolls it.
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              const SliverToBoxAdapter(child: HomeProfileHeader()),
-              const SliverToBoxAdapter(child: HomeCardsSlot()),
-              const SliverToBoxAdapter(child: HomeReceivedWishesRow()),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    l10n.homeMyWishlists,
-                    style: AppTextStyles.small.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.makara,
+    return HomeRefreshOnReturn(
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          bottom: false,
+          child: AppRefreshIndicator(
+            onRefresh: refreshWishlists,
+            // The page is the nearest scrollable of the grid, so the drag
+            // autoscroll of a wishlist scrolls it.
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                const SliverToBoxAdapter(child: HomeProfileHeader()),
+                const SliverToBoxAdapter(child: HomeCardsSlot()),
+                const SliverToBoxAdapter(child: HomeReceivedWishesRow()),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      l10n.homeMyWishlists,
+                      style: AppTextStyles.small.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.makara,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              wishlistsSliver,
-              SliverToBoxAdapter(
-                child: SizedBox(height: NavBarPadding.of(context)),
-              ),
-            ],
+                wishlistsSliver,
+                SliverToBoxAdapter(
+                  child: SizedBox(height: NavBarPadding.of(context)),
+                ),
+              ],
+            ),
           ),
         ),
       ),

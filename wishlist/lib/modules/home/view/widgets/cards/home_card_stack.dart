@@ -7,6 +7,7 @@ import 'package:wishlist/modules/home/cards/home_card_actions.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
 import 'package:wishlist/modules/home/view/widgets/cards/home_card_view.dart';
+import 'package:wishlist/shared/infra/clock_provider.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
@@ -15,14 +16,45 @@ import 'package:wishlist/shared/utils/app_snackbar.dart';
 /// rest. Shows nothing while the cards load for the first time and when they
 /// cannot be loaded; while they reload it keeps the previous ones, so that the
 /// pile never blinks. The cards swiped away and not sent yet are left out.
-class HomeCardsSlot extends ConsumerWidget {
+class HomeCardsSlot extends ConsumerStatefulWidget {
   const HomeCardsSlot({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeCardsSlot> createState() => _HomeCardsSlotState();
+}
+
+class _HomeCardsSlotState extends ConsumerState<HomeCardsSlot> {
+  /// An error snack-bar of this slot is on screen (or about to be): several
+  /// sends failing at once (offline) tell the user once, not once per card.
+  var _errorVisible = false;
+
+  @override
+  Widget build(BuildContext context) {
     // `valueOrNull` keeps the previous value while reloading
     final cards = ref.watch(homeCardsProvider).valueOrNull;
     final removed = ref.watch(homeCardActionsProvider);
+    // A card sent and gone from the reload is not filtered any more: it shows
+    // again when it comes back (the next day, the next reminder step).
+    ref
+      ..listen(homeCardsProvider, (_, next) {
+        final loaded = next.valueOrNull;
+        if (loaded != null) {
+          ref.read(homeCardActionsProvider.notifier).release({
+            for (final card in loaded) card.stateKey,
+          });
+        }
+      })
+      // A send that failed: the card is back, the user must know
+      ..listen(homeCardSendFailureProvider, (_, failure) {
+        if (failure != null && !_errorVisible) {
+          _errorVisible = true;
+          showGenericError(
+            context,
+            error: failure.error,
+            onClosed: () => _errorVisible = false,
+          );
+        }
+      });
     final visible = [
       for (final card in cards ?? const <HomeCardCandidate>[])
         if (!removed.contains(card.stateKey)) card,
@@ -55,10 +87,26 @@ class HomeCardStack extends ConsumerStatefulWidget {
 }
 
 class _HomeCardStackState extends ConsumerState<HomeCardStack> {
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _recordTop);
     _recordTop();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Back in front after another screen was on top of the home
+    _recordTop();
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   @override
@@ -67,7 +115,9 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
     _recordTop();
   }
 
-  /// Only the top card is in front of the user. The notifier records each
+  /// Only the top card is in front of the user, and only while the home is the
+  /// screen on top and the app is in front (a live event reloads the cards
+  /// behind another screen or in the background). The notifier records each
   /// key once.
   void _recordTop() {
     final top = widget.cards.firstOrNull;
@@ -75,10 +125,18 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && _isInFront) {
         ref.read(homeCardActionsProvider.notifier).recordShown(top.stateKey);
       }
     });
+    // Nothing else may ask for a frame (the app was just resumed)
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  bool get _isInFront {
+    final state = WidgetsBinding.instance.lifecycleState;
+    return (ModalRoute.of(context)?.isCurrent ?? true) &&
+        (state == null || state == AppLifecycleState.resumed);
   }
 
   void _swipe(HomeCardCandidate card, HomeCardSwipe swipe) {
@@ -88,7 +146,11 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
     // A screen reader user needs more than 4 s: the snack-bar stays until
     // dismissed, and the card is sent when leaving or on the app lifecycle.
     final keepOpen = MediaQuery.of(context).accessibleNavigation;
-    actions.swipe(card, swipe, autoCommit: !keepOpen);
+    // Already off the screen (a double tap on the cross): the first swipe has
+    // its snack-bar, a second one would have an "Undo" that does nothing.
+    if (!actions.swipe(card, swipe, autoCommit: !keepOpen)) {
+      return;
+    }
     final close = showAppSnackBar(
       context,
       swipe == HomeCardSwipe.hide
@@ -110,8 +172,22 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
   }
 
   /// Whether swiping right makes sense: a card closed for good (an alert, the
-  /// optional onboarding steps) is not brought back tomorrow, it is hidden.
+  /// optional onboarding steps) is not brought back tomorrow, it is hidden. Nor
+  /// is a card that is gone by the day it would come back (the event is today,
+  /// the window ends before).
   bool _canPostpone(HomeCardCandidate card) {
+    final lastDay = card.lastDay;
+    if (lastDay != null) {
+      final now = ref.read(clockProvider)();
+      final comesBack = DateTime(
+        now.year,
+        now.month,
+        now.day + ref.read(homeCardActionsProvider.notifier).laterDays,
+      );
+      if (comesBack.isAfter(lastDay)) {
+        return false;
+      }
+    }
     return switch (card.content) {
       BookedWishRemoved() => false,
       Onboarding(:final step) =>

@@ -101,6 +101,10 @@ class YearRecapData with _$YearRecapData {
     required int year,
     required YearRecapStats stats,
     required YearRecapProfile profile,
+
+    /// The pseudo of the friend the user offered the most to, null when nothing
+    /// was offered or when several friends tie.
+    @JsonKey(name: 'most_gifted_friend') String? mostGiftedFriend,
   }) = _YearRecapData;
 
   factory YearRecapData.fromJson(Map<String, dynamic> json) =>

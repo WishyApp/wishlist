@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:adaptive_test/adaptive_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wishlist/l10n/arb/app_localizations_fr.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/modules/home/cards/wishlists_last_activity_provider.dart';
 import 'package:wishlist/modules/home/view/home_screen.dart';
 import 'package:wishlist/modules/home/view/widgets/cards/home_card_view.dart';
 import 'package:wishlist/modules/home/view/widgets/home_profile_header.dart';
@@ -441,5 +444,112 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text(l10n.networkErrorTitle), findsOneWidget);
+  });
+
+  group('last activity of the wishlists', () {
+    var reads = 0;
+    var cardLoads = 0;
+
+    Future<void> pumpHome(WidgetTester tester) async {
+      reads = 0;
+      cardLoads = 0;
+      await tester.pumpApp(
+        const FloatingNavBarNavigator(
+          // ignore: avoid_redundant_argument_values
+          currentTab: FloatingNavBarTab.home,
+        ),
+        overrides: [
+          ...homeScreenOverrides(overrideHomeCards: false),
+          homeCardsProvider.overrideWith((ref) async {
+            cardLoads++;
+            return const [];
+          }),
+          wishlistsLastActivityProvider.overrideWith((ref) async {
+            reads++;
+            return const {};
+          }),
+        ],
+      );
+      await tester.pumpAndSettle();
+      // What the cards do while the home lives
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(HomeScreen)),
+      );
+      final subscription = container.listen(
+        wishlistsLastActivityProvider,
+        (_, __) {},
+      );
+      addTearDown(subscription.close);
+      await tester.pumpAndSettle();
+      expect(reads, 1);
+      expect(cardLoads, 1);
+    }
+
+    testWidgets('is read again when the home comes back from a screen',
+        (tester) async {
+      await pumpHome(tester);
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+
+      unawaited(
+        navigator.push(
+          MaterialPageRoute<void>(builder: (_) => const Text('pushed')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(reads, 1);
+
+      navigator.pop();
+      await tester.pumpAndSettle();
+
+      expect(reads, 2);
+      // The screen may have changed what the cards read without a stream
+      expect(cardLoads, 2);
+    });
+
+    testWidgets('is not read again when a dialog over the home closes',
+        (tester) async {
+      await pumpHome(tester);
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+
+      unawaited(
+        showDialog<void>(
+          context: navigator.context,
+          builder: (_) => const Text('dialog'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      navigator.pop();
+      await tester.pumpAndSettle();
+
+      expect(reads, 1);
+      expect(cardLoads, 1);
+    });
+
+    testWidgets('is read again when the app comes back to the foreground',
+        (tester) async {
+      await pumpHome(tester);
+
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+
+      expect(reads, 2);
+      // The same day: the cards themselves are not recomputed
+      expect(cardLoads, 1);
+    });
+
+    testWidgets('is read again by the pull-to-refresh', (tester) async {
+      await pumpHome(tester);
+
+      await tester.fling(
+        find.byType(CustomScrollView),
+        const Offset(0, 400),
+        1000,
+      );
+      await tester.pumpAndSettle();
+
+      expect(reads, 2);
+    });
   });
 }

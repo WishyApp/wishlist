@@ -2165,7 +2165,7 @@ abstract class AppLocalizations {
   /// No description provided for @yearRecapProfileAmiFideleTagline.
   ///
   /// In fr, this message translates to:
-  /// **'Elle se reconnaîtra.'**
+  /// **'Cette personne se reconnaîtra.'**
   String get yearRecapProfileAmiFideleTagline;
 
   /// No description provided for @yearRecapProfileDernierMomentTitle.

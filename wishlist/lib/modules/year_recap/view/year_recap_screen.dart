@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:wishlist/gen/assets.gen.dart';
 import 'package:wishlist/l10n/l10n.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
-import 'package:wishlist/modules/year_recap/most_gifted_friend.dart';
 import 'package:wishlist/modules/year_recap/share/year_recap_sharer.dart';
 import 'package:wishlist/modules/year_recap/year_recap_texts.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
@@ -19,6 +18,7 @@ import 'package:wishlist/shared/theme/colors.dart';
 import 'package:wishlist/shared/theme/text_styles.dart';
 import 'package:wishlist/shared/theme/widgets/buttons.dart';
 import 'package:wishlist/shared/utils/app_snackbar.dart';
+import 'package:wishlist/shared/utils/retry_providers_extension.dart';
 import 'package:wishlist/shared/widgets/page_layout.dart';
 
 /// How the illustration of a profile is fetched. Behind a provider so that a
@@ -41,6 +41,9 @@ class YearRecapScreen extends ConsumerWidget {
     final recap = ref.watch(yearRecapFactsProvider(year));
 
     return recap.when(
+      // A reload (a booking received while the page is open) keeps the page,
+      // and with it a share in progress
+      skipLoadingOnReload: true,
       loading: () => PageLayout(
         title: l10n.yearRecapScreenTitle('$year'),
         child: const Center(child: CircularProgressIndicator()),
@@ -49,7 +52,13 @@ class YearRecapScreen extends ConsumerWidget {
         error: error,
         appBarTitle: l10n.yearRecapScreenTitle('$year'),
         onRetry: () async {
-          // The failure shows again in the page, it must not escape here
+          // The bookings feed the recap too: a failed stream keeps serving its
+          // error until it is reopened. Failing again shows in the page, it
+          // must not escape here.
+          await ref.retryFailed([bookedWishesRealtimeProvider]).then(
+            (_) {},
+            onError: (_) {},
+          );
           await ref.refresh(yearRecapFactsProvider(year).future).then(
                 (_) {},
                 onError: (_) {},
@@ -106,14 +115,7 @@ class _RecapState extends ConsumerState<_Recap> {
     final recap = widget.recap;
     final stats = recap.stats;
     final awaited = stats.longestAwaited;
-    // The server returns no pseudo: the bookings the app already has give it
-    final bookings = ref.watch(bookedWishesRealtimeProvider).valueOrNull;
-    final friend = bookings == null
-        ? null
-        : mostGiftedFriendPseudo(
-            bookings: bookings.toList(),
-            year: recap.year,
-          );
+    final friend = recap.mostGiftedFriend;
 
     return PageLayout.scrolling(
       title: l10n.yearRecapScreenTitle('${recap.year}'),

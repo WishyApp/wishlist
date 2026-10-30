@@ -912,6 +912,11 @@ mixin _$YearRecapData {
   YearRecapStats get stats => throw _privateConstructorUsedError;
   YearRecapProfile get profile => throw _privateConstructorUsedError;
 
+  /// The pseudo of the friend the user offered the most to, null when nothing
+  /// was offered or when several friends tie.
+  @JsonKey(name: 'most_gifted_friend')
+  String? get mostGiftedFriend => throw _privateConstructorUsedError;
+
   /// Serializes this YearRecapData to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -928,7 +933,11 @@ abstract class $YearRecapDataCopyWith<$Res> {
           YearRecapData value, $Res Function(YearRecapData) then) =
       _$YearRecapDataCopyWithImpl<$Res, YearRecapData>;
   @useResult
-  $Res call({int year, YearRecapStats stats, YearRecapProfile profile});
+  $Res call(
+      {int year,
+      YearRecapStats stats,
+      YearRecapProfile profile,
+      @JsonKey(name: 'most_gifted_friend') String? mostGiftedFriend});
 
   $YearRecapStatsCopyWith<$Res> get stats;
   $YearRecapProfileCopyWith<$Res> get profile;
@@ -952,6 +961,7 @@ class _$YearRecapDataCopyWithImpl<$Res, $Val extends YearRecapData>
     Object? year = null,
     Object? stats = null,
     Object? profile = null,
+    Object? mostGiftedFriend = freezed,
   }) {
     return _then(_value.copyWith(
       year: null == year
@@ -966,6 +976,10 @@ class _$YearRecapDataCopyWithImpl<$Res, $Val extends YearRecapData>
           ? _value.profile
           : profile // ignore: cast_nullable_to_non_nullable
               as YearRecapProfile,
+      mostGiftedFriend: freezed == mostGiftedFriend
+          ? _value.mostGiftedFriend
+          : mostGiftedFriend // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 
@@ -998,7 +1012,11 @@ abstract class _$$YearRecapDataImplCopyWith<$Res>
       __$$YearRecapDataImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({int year, YearRecapStats stats, YearRecapProfile profile});
+  $Res call(
+      {int year,
+      YearRecapStats stats,
+      YearRecapProfile profile,
+      @JsonKey(name: 'most_gifted_friend') String? mostGiftedFriend});
 
   @override
   $YearRecapStatsCopyWith<$Res> get stats;
@@ -1022,6 +1040,7 @@ class __$$YearRecapDataImplCopyWithImpl<$Res>
     Object? year = null,
     Object? stats = null,
     Object? profile = null,
+    Object? mostGiftedFriend = freezed,
   }) {
     return _then(_$YearRecapDataImpl(
       year: null == year
@@ -1036,6 +1055,10 @@ class __$$YearRecapDataImplCopyWithImpl<$Res>
           ? _value.profile
           : profile // ignore: cast_nullable_to_non_nullable
               as YearRecapProfile,
+      mostGiftedFriend: freezed == mostGiftedFriend
+          ? _value.mostGiftedFriend
+          : mostGiftedFriend // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -1044,7 +1067,10 @@ class __$$YearRecapDataImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$YearRecapDataImpl implements _YearRecapData {
   const _$YearRecapDataImpl(
-      {required this.year, required this.stats, required this.profile});
+      {required this.year,
+      required this.stats,
+      required this.profile,
+      @JsonKey(name: 'most_gifted_friend') this.mostGiftedFriend});
 
   factory _$YearRecapDataImpl.fromJson(Map<String, dynamic> json) =>
       _$$YearRecapDataImplFromJson(json);
@@ -1056,9 +1082,15 @@ class _$YearRecapDataImpl implements _YearRecapData {
   @override
   final YearRecapProfile profile;
 
+  /// The pseudo of the friend the user offered the most to, null when nothing
+  /// was offered or when several friends tie.
+  @override
+  @JsonKey(name: 'most_gifted_friend')
+  final String? mostGiftedFriend;
+
   @override
   String toString() {
-    return 'YearRecapData(year: $year, stats: $stats, profile: $profile)';
+    return 'YearRecapData(year: $year, stats: $stats, profile: $profile, mostGiftedFriend: $mostGiftedFriend)';
   }
 
   @override
@@ -1068,12 +1100,15 @@ class _$YearRecapDataImpl implements _YearRecapData {
             other is _$YearRecapDataImpl &&
             (identical(other.year, year) || other.year == year) &&
             (identical(other.stats, stats) || other.stats == stats) &&
-            (identical(other.profile, profile) || other.profile == profile));
+            (identical(other.profile, profile) || other.profile == profile) &&
+            (identical(other.mostGiftedFriend, mostGiftedFriend) ||
+                other.mostGiftedFriend == mostGiftedFriend));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, year, stats, profile);
+  int get hashCode =>
+      Object.hash(runtimeType, year, stats, profile, mostGiftedFriend);
 
   /// Create a copy of YearRecapData
   /// with the given fields replaced by the non-null parameter values.
@@ -1095,7 +1130,9 @@ abstract class _YearRecapData implements YearRecapData {
   const factory _YearRecapData(
       {required final int year,
       required final YearRecapStats stats,
-      required final YearRecapProfile profile}) = _$YearRecapDataImpl;
+      required final YearRecapProfile profile,
+      @JsonKey(name: 'most_gifted_friend')
+      final String? mostGiftedFriend}) = _$YearRecapDataImpl;
 
   factory _YearRecapData.fromJson(Map<String, dynamic> json) =
       _$YearRecapDataImpl.fromJson;
@@ -1106,6 +1143,12 @@ abstract class _YearRecapData implements YearRecapData {
   YearRecapStats get stats;
   @override
   YearRecapProfile get profile;
+
+  /// The pseudo of the friend the user offered the most to, null when nothing
+  /// was offered or when several friends tie.
+  @override
+  @JsonKey(name: 'most_gifted_friend')
+  String? get mostGiftedFriend;
 
   /// Create a copy of YearRecapData
   /// with the given fields replaced by the non-null parameter values.
