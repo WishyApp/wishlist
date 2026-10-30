@@ -150,7 +150,14 @@ class _CompletedWishesScreenState extends ConsumerState<CompletedWishesScreen> {
                           ),
                         )
                       : AnimatedListView<CompletedWishWithDetails>(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                          // The list scrolls under the system navigation
+                          // bar, its last item ends above it
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            16,
+                            16,
+                            32 + MediaQuery.viewPaddingOf(context).bottom,
+                          ),
                           items: filtered,
                           animationDuration: const Duration(milliseconds: 500),
                           itemSpacing: 12,
