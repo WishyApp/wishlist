@@ -6,12 +6,12 @@ import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/card_state.dart';
-import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
-import 'package:wishlist/shared/models/wish/wish.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
+import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 
 import '../../../fixtures/fake_data.dart';
+import '../../../fixtures/fake_year_recap.dart';
 
 HomeCardDefinition def(
   String key, {
@@ -74,60 +74,6 @@ Wishlist wishlist(
     order: 0,
     updatedBy: fakeCurrentUserId,
     updatedAt: fakeUpdatedAt,
-  );
-}
-
-CompletedWishWithDetails received(
-  int id, {
-  required DateTime completedAt,
-  DateTime? createdAt,
-  String name = 'Wish',
-}) {
-  return CompletedWishWithDetails(
-    wish: Wish(
-      id: id,
-      createdAt: createdAt ?? completedAt,
-      name: name,
-      description: '',
-      quantity: 1,
-      wishlistId: 1,
-      updatedBy: fakeFriendUserId1,
-      updatedAt: fakeUpdatedAt,
-    ),
-    fromWishlistId: 1,
-    fromWishlistName: 'Liste',
-    ownerPseudo: 'Alice',
-    ownerId: fakeFriendUserId1,
-    completedAt: completedAt,
-    quantity: 1,
-  );
-}
-
-BookedWishWithDetails offered(
-  int id, {
-  required DateTime? receivedAt,
-  String ownerId = fakeFriendUserId1,
-  String ownerPseudo = 'Alice',
-  int bookedQuantity = 1,
-  int? receivedQuantity,
-}) {
-  return BookedWishWithDetails(
-    wish: Wish(
-      id: id,
-      createdAt: fakeCreatedAt,
-      name: 'Wish $id',
-      description: '',
-      quantity: 1,
-      wishlistId: 1,
-      updatedBy: fakeFriendUserId1,
-      updatedAt: fakeUpdatedAt,
-    ),
-    bookedQuantity: bookedQuantity,
-    receivedQuantity: receivedQuantity ?? (receivedAt == null ? 0 : 1),
-    wishlistName: 'Liste',
-    ownerPseudo: ownerPseudo,
-    ownerId: ownerId,
-    receivedAt: receivedAt,
   );
 }
 
@@ -363,6 +309,195 @@ void main() {
       );
 
       expect((cards.single.content as AfterParty).wishlist, isNull);
+    });
+
+    test('the birthday wishlist is found by its name among several', () {
+      final anniv = wishlist(3, 'Anniv 2026');
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [wishlist(1, 'Vacances'), wishlist(2, 'Maison'), anniv],
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, anniv);
+    });
+
+    test('a birthday wishlist of another year is discarded', () {
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [wishlist(1, 'Anniv 2025'), wishlist(2, 'Anniv 26')],
+      );
+
+      expect((cards.single.content as AfterParty).wishlist?.id, 2);
+
+      final wrong = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [wishlist(1, 'Anniv 2025'), wishlist(2, 'Maison')],
+      );
+      expect((wrong.single.content as AfterParty).wishlist, isNull);
+    });
+
+    test('the birthday keywords come from the params', () {
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [wishlist(1, 'Fête'), wishlist(2, 'Anniv')],
+        definition: def(
+          'after_party',
+          params: {
+            'days_after': 7,
+            'birthday_keywords': ['fete'],
+          },
+        ),
+      );
+
+      expect((cards.single.content as AfterParty).wishlist?.id, 1);
+    });
+
+    test('no name matching a single wishlist falls back to it', () {
+      final single = wishlist(1, 'Vacances');
+      final cards = build(
+        now,
+        mine: const Birthday(month: 10, day: 29),
+        wishlists: [single, wishlist(2, 'Anniv 2024', isClosed: true)],
+      );
+
+      expect((cards.single.content as AfterParty).wishlist, single);
+    });
+
+    group('the single open wishlist fallback for a birthday', () {
+      List<HomeCardCandidate> buildWith(String name) => build(
+            now,
+            mine: const Birthday(month: 10, day: 29),
+            wishlists: [wishlist(1, name)],
+          );
+
+      test('is refused when its name is a birthday of another year', () {
+        expect(
+          (buildWith('Anniv 2025').single.content as AfterParty).wishlist,
+          isNull,
+        );
+      });
+
+      test('is refused when its name is a Christmas list', () {
+        expect(
+          (buildWith('Noël 2026').single.content as AfterParty).wishlist,
+          isNull,
+        );
+      });
+
+      test('is used when its name has no occasion keyword', () {
+        final maison = wishlist(1, 'Maison');
+        final cards = build(
+          now,
+          mine: const Birthday(month: 10, day: 29),
+          wishlists: [maison],
+        );
+        expect((cards.single.content as AfterParty).wishlist, maison);
+      });
+    });
+
+    test('the birthday year is the one of the birthday, not of today', () {
+      const birthday = Birthday(month: 12, day: 30);
+      final at = DateTime(2027, 1, 2, 9);
+      final anniv2026 = wishlist(1, 'Anniv 2026');
+      final anniv2027 = wishlist(1, 'Anniv 2027');
+      final holiday = wishlist(2, 'Vacances');
+
+      final right = build(at, mine: birthday, wishlists: [anniv2026, holiday]);
+      expect((right.single.content as AfterParty).wishlist, anniv2026);
+
+      final wrong = build(at, mine: birthday, wishlists: [anniv2027, holiday]);
+      expect((wrong.single.content as AfterParty).wishlist, isNull);
+    });
+
+    test('empty birthday keywords fall back to the default ones', () {
+      final anniv = wishlist(1, 'Anniv 2026');
+      for (final keywords in [<String>[], 'oops']) {
+        final cards = build(
+          now,
+          mine: const Birthday(month: 10, day: 29),
+          wishlists: [anniv, wishlist(2, 'Vacances')],
+          definition: def(
+            'after_party',
+            params: {'days_after': 7, 'birthday_keywords': keywords},
+          ),
+        );
+        expect((cards.single.content as AfterParty).wishlist, anniv);
+      }
+    });
+
+    group('birthday list matching', () {
+      AfterParty partyOf(
+        List<Wishlist> lists, {
+        Map<String, Object?> extra = const {},
+      }) =>
+          build(
+            now,
+            mine: const Birthday(month: 10, day: 29),
+            wishlists: lists,
+            definition: def(
+              'after_party',
+              params: {'days_after': 7, ...extra},
+            ),
+          ).single.content as AfterParty;
+
+      test('an age is not read as a year', () {
+        final anniv = wishlist(1, 'Anniv 25 ans');
+        expect(partyOf([anniv, wishlist(2, 'Maison')]).wishlist, anniv);
+        expect(partyOf([anniv]).wishlist, anniv);
+      });
+
+      test('a wedding list is excluded', () {
+        final anniv = wishlist(1, 'Anniv 2026');
+        final wedding = wishlist(2, 'Anniversaire de mariage 2026');
+        expect(partyOf([anniv, wedding]).wishlist, anniv);
+      });
+
+      test('a wedding list alone is never proposed', () {
+        expect(
+          partyOf([wishlist(1, 'Anniversaire de mariage')]).wishlist,
+          isNull,
+        );
+        expect(partyOf([wishlist(1, 'Mariage')]).wishlist, isNull);
+      });
+
+      test('two matching lists give no button', () {
+        expect(
+          partyOf([wishlist(1, 'Anniv'), wishlist(2, 'Anniversaire')]).wishlist,
+          isNull,
+        );
+      });
+
+      test('a single match gives the button', () {
+        final anniv = wishlist(2, 'Anniversaire');
+        expect(partyOf([wishlist(1, 'Maison'), anniv]).wishlist, anniv);
+      });
+
+      test('exclude keywords come from the params', () {
+        final cards = partyOf(
+          [wishlist(1, 'Anniv enfant'), wishlist(2, 'Anniv 2026')],
+          extra: {
+            'birthday_exclude_keywords': ['enfant'],
+          },
+        );
+        expect(cards.wishlist?.id, 2);
+      });
+
+      test('only invalid keyword entries fall back to the defaults', () {
+        final anniv = wishlist(1, 'Anniv 2026');
+        final wedding = wishlist(2, 'Mariage 2026');
+        final cards = partyOf(
+          [anniv, wedding],
+          extra: {
+            'birthday_keywords': ['mon anniv'],
+            'birthday_exclude_keywords': ['mon mariage'],
+          },
+        );
+        expect(cards.wishlist, anniv);
+      });
     });
 
     test('a birthday in December still counts in January, with its year', () {
@@ -1200,149 +1335,15 @@ void main() {
     });
   });
 
-  group('yearRecapFacts', () {
-    test('a booking counts as offered once its booked quantity is received',
-        () {
-      final facts = yearRecapFacts(
-        received: const [],
-        bookings: [
-          // 1 of the 2 booked received: not offered yet
-          offered(
-            10,
-            receivedAt: on(2026, 5, 1),
-            bookedQuantity: 2,
-            receivedQuantity: 1,
-          ),
-          // Booked 1, the owner received 1 (others may still wait): offered
-          offered(
-            11,
-            receivedAt: on(2026, 5, 1),
-            receivedQuantity: 1,
-          ),
-        ],
-        year: 2026,
-      );
-      expect(facts.offeredCount, 1);
-    });
-
-    test('counts what was received and offered in the year only', () {
-      final facts = yearRecapFacts(
-        received: [
-          received(1, completedAt: on(2026, 3, 1)),
-          received(2, completedAt: on(2026, 12, 1)),
-          received(3, completedAt: DateTime(2025, 12, 31)),
-        ],
-        bookings: [
-          offered(10, receivedAt: on(2026, 5, 1)),
-          offered(11, receivedAt: on(2025, 5, 1)),
-          offered(12, receivedAt: null),
-        ],
-        year: 2026,
-      );
-
-      expect(facts.year, 2026);
-      expect(facts.receivedCount, 2);
-      expect(facts.offeredCount, 1);
-    });
-
-    test('the longest awaited is the earliest created wish of the year', () {
-      final facts = yearRecapFacts(
-        received: [
-          received(
-            1,
-            completedAt: on(2026, 3, 1),
-            createdAt: on(2024, 6, 1),
-            name: 'Old',
-          ),
-          received(
-            2,
-            completedAt: on(2026, 4, 1),
-            createdAt: on(2025, 1, 1),
-          ),
-          received(
-            3,
-            completedAt: on(2025, 4, 1),
-            createdAt: on(2020, 1, 1),
-            name: 'Last year',
-          ),
-        ],
-        bookings: const [],
-        year: 2026,
-      );
-
-      expect(facts.longestAwaited?.wish.name, 'Old');
-    });
-
-    test('there is no longest awaited without a received wish', () {
-      final facts = yearRecapFacts(
-        received: const [],
-        bookings: [offered(10, receivedAt: on(2026, 5, 1))],
-        year: 2026,
-      );
-
-      expect(facts.longestAwaited, isNull);
-    });
-
-    test('the most gifted friend is the one who got the most wishes', () {
-      final facts = yearRecapFacts(
-        received: const [],
-        bookings: [
-          offered(10, receivedAt: on(2026, 1, 1)),
-          offered(
-            11,
-            receivedAt: on(2026, 2, 1),
-            ownerId: fakeFriendUserId2,
-            ownerPseudo: 'Bob',
-          ),
-          offered(
-            12,
-            receivedAt: on(2026, 3, 1),
-            ownerId: fakeFriendUserId2,
-            ownerPseudo: 'Bob',
-          ),
-        ],
-        year: 2026,
-      );
-
-      expect(facts.mostGiftedFriendPseudo, 'Bob');
-    });
-
-    test('a tie, or nothing offered, gives no most gifted friend', () {
-      final tie = yearRecapFacts(
-        received: const [],
-        bookings: [
-          offered(10, receivedAt: on(2026, 1, 1)),
-          offered(
-            11,
-            receivedAt: on(2026, 2, 1),
-            ownerId: fakeFriendUserId2,
-            ownerPseudo: 'Bob',
-          ),
-        ],
-        year: 2026,
-      );
-      final none = yearRecapFacts(
-        received: [received(1, completedAt: on(2026, 3, 1))],
-        bookings: const [],
-        year: 2026,
-      );
-
-      expect(tie.mostGiftedFriendPseudo, isNull);
-      expect(none.mostGiftedFriendPseudo, isNull);
-    });
-  });
-
   group('yearRecapCards', () {
     final december = DateTime(2026, 12, 10, 9);
-    const facts = YearRecapFacts(
-      year: 2026,
-      receivedCount: 3,
-      offeredCount: 2,
+    final recap = fakeYearRecap(
+      stats: const YearRecapStats(received: 3, offered: 2),
     );
 
     test('a dark card on December 10 with received and offered wishes', () {
       final cards = yearRecapCards(
-        facts: facts,
+        recap: recap,
         definition: yearRecapDef,
         now: december,
       );
@@ -1350,7 +1351,7 @@ void main() {
       expect(cards.single.type, 'year_recap');
       expect(cards.single.stateKey, 'year_recap@2026');
       expect(cards.single.tone, HomeCardTone.dark);
-      expect((cards.single.content as YearRecap).facts, facts);
+      expect((cards.single.content as YearRecap).recap, recap);
       // Gone after December: "Later" past the 31st would act as a hide.
       expect(cards.single.lastDay, DateTime(2026, 12, 31));
     });
@@ -1358,7 +1359,7 @@ void main() {
     test('nothing in November', () {
       expect(
         yearRecapCards(
-          facts: facts,
+          recap: recap,
           definition: yearRecapDef,
           now: DateTime(2026, 11, 30, 23),
         ),
@@ -1369,7 +1370,7 @@ void main() {
     test('the month comes from the definition', () {
       expect(
         yearRecapCards(
-          facts: facts,
+          recap: recap,
           definition: def('year_recap', params: {'month': 11}),
           now: DateTime(2026, 11, 30),
         ),
@@ -1380,11 +1381,7 @@ void main() {
     test('nothing without any activity in the year', () {
       expect(
         yearRecapCards(
-          facts: const YearRecapFacts(
-            year: 2026,
-            receivedCount: 0,
-            offeredCount: 0,
-          ),
+          recap: fakeYearRecap(),
           definition: yearRecapDef,
           now: december,
         ),
@@ -1394,7 +1391,7 @@ void main() {
 
     test('a disabled type gives nothing', () {
       expect(
-        yearRecapCards(facts: facts, definition: null, now: december),
+        yearRecapCards(recap: recap, definition: null, now: december),
         isEmpty,
       );
     });

@@ -1277,4 +1277,181 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yearRecapBack => 'Back';
+
+  @override
+  String get yearRecapProfileIntro => 'This year, I was';
+
+  @override
+  String get yearRecapShareButton => 'Share my year';
+
+  @override
+  String yearRecapShareImageHeader(String year) {
+    return 'My year $year';
+  }
+
+  @override
+  String get yearRecapShareFooter => 'And you, who are you?';
+
+  @override
+  String yearRecapShareText(String year) {
+    return 'My Wishy year $year · wishy-app.fr';
+  }
+
+  @override
+  String get yearRecapProfilePatientTitle => 'The patient one';
+
+  @override
+  String get yearRecapProfilePatientTagline =>
+      'I wanted it. I waited. I got it.';
+
+  @override
+  String get yearRecapProfilePereNoelDiscretTitle => 'The secret Santa';
+
+  @override
+  String get yearRecapProfilePereNoelDiscretTagline =>
+      'Nobody knows it was me.';
+
+  @override
+  String get yearRecapProfileGateTitle => 'The spoiled one';
+
+  @override
+  String get yearRecapProfileGateTagline => 'I was very good. I think.';
+
+  @override
+  String get yearRecapProfileEquilibristeTitle => 'The balancer';
+
+  @override
+  String get yearRecapProfileEquilibristeTagline => 'Give and take.';
+
+  @override
+  String get yearRecapProfileReveurTitle => 'The dreamer';
+
+  @override
+  String get yearRecapProfileReveurTagline => 'Dreaming is free.';
+
+  @override
+  String get yearRecapProfileRassembleurTitle => 'The gatherer';
+
+  @override
+  String get yearRecapProfileRassembleurTagline =>
+      'The more, the merrier, the more gifts.';
+
+  @override
+  String get yearRecapProfileAmiFideleTitle => 'The loyal friend';
+
+  @override
+  String get yearRecapProfileAmiFideleTagline => 'They know who they are.';
+
+  @override
+  String get yearRecapProfileDernierMomentTitle => 'The last-minute one';
+
+  @override
+  String get yearRecapProfileDernierMomentTagline =>
+      'I work better under pressure.';
+
+  @override
+  String get yearRecapProfileOrganiseTitle => 'The organised one';
+
+  @override
+  String get yearRecapProfileOrganiseTagline =>
+      'Wrapping paper barely torn, list already up to date.';
+
+  @override
+  String get yearRecapProfileMinimalisteTitle => 'The minimalist';
+
+  @override
+  String get yearRecapProfileMinimalisteTagline => 'Few, but good.';
+
+  @override
+  String yearRecapReceivedShort(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count received',
+      one: '1 received',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatPatient(int days, String wish) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return '$_temp0 for $wish';
+  }
+
+  @override
+  String yearRecapStatPatientShare(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days of waiting',
+      one: '1 day of waiting',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatOfferedReceived(String offered, String received) {
+    return '$offered, $received';
+  }
+
+  @override
+  String yearRecapStatReveur(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wishes added',
+      one: '1 wish added',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatRassembleur(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new friends',
+      one: '1 new friend',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatAmiFidele(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count gifts for the same person',
+      one: '1 gift for the same person',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatDernierMoment(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count gifts booked at the last minute',
+      one: '1 gift booked at the last minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatOrganise(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wishes ticked off on the big day',
+      one: '1 wish ticked off on the big day',
+    );
+    return '$_temp0';
+  }
 }

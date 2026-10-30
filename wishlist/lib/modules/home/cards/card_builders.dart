@@ -6,9 +6,9 @@ import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
 import 'package:wishlist/shared/models/booked_wish_with_details/booked_wish_with_details.dart';
 import 'package:wishlist/shared/models/card_state.dart';
-import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
 import 'package:wishlist/shared/models/home_card_definition.dart';
 import 'package:wishlist/shared/models/wishlist/wishlist.dart';
+import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 import 'package:wishlist/shared/utils/occasion_wishlist_utils.dart';
 
 // Pure functions: they build the cards that could be shown at [now] (local
@@ -25,6 +25,22 @@ const onboardingPhotoKey = 'onboarding:photo';
 
 /// Words that name the Christmas wishlist when `christmas` has none.
 const _defaultChristmasKeywords = ['noel', 'christmas', 'xmas'];
+
+/// Used when the `birthday_keywords` param of `after_party` has no valid word.
+/// Same defaults in the migration 20261031100001 and in
+/// supabase-tests/home_cards.sql: keep the three in sync.
+const _defaultBirthdayKeywords = ['anniv', 'anniversaire', 'birthday', 'bday'];
+
+/// Lists with such a word are never the birthday list (a wedding anniversary).
+/// Used when `birthday_exclude_keywords` has no valid word; same sync rule.
+const _defaultBirthdayExcludeKeywords = ['mariage', 'wedding'];
+
+List<String> _keywordsOrDefault(
+  List<String> configured,
+  List<String> defaults,
+) {
+  return validKeywords(configured).isEmpty ? defaults : configured;
+}
 
 DateTime _day(DateTime now) {
   final local = now.toLocal();
@@ -70,6 +86,16 @@ Wishlist? _christmasWishlist(
     keywords: _christmasKeywords(christmas),
     occasionDate: occasionDate,
   );
+}
+
+/// The only open wishlist, unless its name is that of an occasion (a birthday
+/// of another year, Christmas, an excluded one such as a wedding): the matcher
+/// rejected it for a reason.
+Wishlist? _singleOtherList(List<Wishlist> openOwn, List<String> keywords) {
+  if (openOwn.length != 1 || nameHasKeyword(openOwn.single.name, keywords)) {
+    return null;
+  }
+  return openOwn.single;
 }
 
 /// Friends whose birthday is today (`friend_birthday_today`) or within the
@@ -127,8 +153,10 @@ List<HomeCardCandidate> friendBirthdayCards({
 }
 
 /// The day after the user's birthday or after Christmas, up to `days_after`
-/// days. The wishlist of Christmas is found by its name; the one of the
-/// birthday is the only open wishlist of the user, if there is just one.
+/// days. The wishlists of Christmas and of the birthday are found by their
+/// name (`keywords` of [christmas], `birthday_keywords` of [definition]); when
+/// no birthday list matches, the birthday one is the only open wishlist of the
+/// user, if there is just one.
 /// Nothing is offered to a user who has no open wishlist of their own, as
 /// there is nothing to tick.
 List<HomeCardCandidate> afterPartyCards({
@@ -150,6 +178,21 @@ List<HomeCardCandidate> afterPartyCards({
   }
   final today = _day(now);
   final daysAfter = definition.intParam('days_after', 7);
+  final birthdayKeywords = _keywordsOrDefault(
+    definition.stringListParam('birthday_keywords'),
+    _defaultBirthdayKeywords,
+  );
+  final excludeKeywords = _keywordsOrDefault(
+    definition.stringListParam('birthday_exclude_keywords'),
+    _defaultBirthdayExcludeKeywords,
+  );
+  final christmasKeywords = _christmasKeywords(christmas);
+  // Excluded lists are not candidates; a single match is proposed, several
+  // matches give no button rather than a wrong list.
+  final birthdayCandidates = [
+    for (final w in openOwn)
+      if (!nameHasKeyword(w.name, excludeKeywords)) w,
+  ];
   final cards = <HomeCardCandidate>[];
 
   if (myBirthday != null) {
@@ -164,7 +207,18 @@ List<HomeCardCandidate> afterPartyCards({
             content: AfterParty(
               AfterPartyOccasion.birthday,
               ago,
-              openOwn.length == 1 ? openOwn.single : null,
+              findOccasionWishlist(
+                    wishlists: birthdayCandidates,
+                    userId: userId,
+                    keywords: birthdayKeywords,
+                    occasionDate: day,
+                    twoDigitYears: false,
+                  ) ??
+                  _singleOtherList(openOwn, [
+                    ...birthdayKeywords,
+                    ...excludeKeywords,
+                    ...christmasKeywords,
+                  ]),
               partyDay: day,
             ),
             eventAt: day,
@@ -493,55 +547,6 @@ List<HomeCardCandidate> staleWishlistCards({
   return const [];
 }
 
-/// What was received (`completedAt`) and given during [year]. A booking counts
-/// as given once the owner marked at least the booked quantity as received
-/// (`receivedAt` in [year]), even if other bookings of the wish are not.
-YearRecapFacts yearRecapFacts({
-  required List<CompletedWishWithDetails> received,
-  required List<BookedWishWithDetails> bookings,
-  required int year,
-}) {
-  final receivedInYear = [
-    for (final wish in received)
-      if (wish.completedAt.toLocal().year == year) wish,
-  ];
-  // Differs on purpose from `BookedWishWithDetails.isGiven` (every booking of
-  // the wish received, used by the booked reminder card): here the owner only
-  // has to have received what this user booked, whatever the other bookers
-  // did. Do not align the two.
-  final offeredInYear = [
-    for (final booking in bookings)
-      if (booking.receivedAt?.toLocal().year == year &&
-          booking.receivedQuantity >= booking.bookedQuantity)
-        booking,
-  ];
-  CompletedWishWithDetails? longestAwaited;
-  for (final wish in receivedInYear) {
-    if (longestAwaited == null ||
-        wish.wish.createdAt.isBefore(longestAwaited.wish.createdAt)) {
-      longestAwaited = wish;
-    }
-  }
-  final givenByOwner = <String, int>{};
-  final pseudos = <String, String>{};
-  for (final booking in offeredInYear) {
-    givenByOwner.update(booking.ownerId, (n) => n + 1, ifAbsent: () => 1);
-    pseudos[booking.ownerId] = booking.ownerPseudo;
-  }
-  final most = givenByOwner.values.fold(0, max);
-  final top = [
-    for (final entry in givenByOwner.entries)
-      if (entry.value == most) entry.key,
-  ];
-  return YearRecapFacts(
-    year: year,
-    receivedCount: receivedInYear.length,
-    offeredCount: offeredInYear.length,
-    longestAwaited: longestAwaited,
-    mostGiftedFriendPseudo: top.length == 1 ? pseudos[top.single] : null,
-  );
-}
-
 /// Whether [now] is in the `month` of the definition of the recap (December):
 /// the only time its facts are worth loading.
 bool isYearRecapMonth(HomeCardDefinition? definition, DateTime now) {
@@ -552,21 +557,21 @@ bool isYearRecapMonth(HomeCardDefinition? definition, DateTime now) {
 /// "Ton année Wishy": only in the `month` of the definition (December), and
 /// only when the user received or gave at least one wish that year.
 List<HomeCardCandidate> yearRecapCards({
-  required YearRecapFacts facts,
+  required YearRecapData recap,
   required HomeCardDefinition? definition,
   required DateTime now,
 }) {
   if (definition == null ||
       !isYearRecapMonth(definition, now) ||
-      facts.receivedCount + facts.offeredCount == 0) {
+      recap.stats.received + recap.stats.offered == 0) {
     return const [];
   }
   final local = now.toLocal();
   return [
     HomeCardCandidate(
       type: definition.key,
-      stateKey: cardKey(definition.key, year: facts.year),
-      content: YearRecap(facts),
+      stateKey: cardKey(definition.key, year: recap.year),
+      content: YearRecap(recap),
       tone: HomeCardTone.dark,
       // Gone after the last day of its month.
       lastDay: DateTime(local.year, local.month + 1, 0),

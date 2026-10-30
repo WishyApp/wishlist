@@ -12,12 +12,12 @@ import 'package:wishlist/shared/infra/repositories/card_state/card_state_reposit
 import 'package:wishlist/shared/infra/repositories/wish/wish_streams_providers.dart';
 import 'package:wishlist/shared/models/birthday.dart';
 import 'package:wishlist/shared/models/booked_wish_removal.dart';
-import 'package:wishlist/shared/models/completed_wish_with_details/completed_wish_with_details.dart';
-import 'package:wishlist/shared/models/wish/wish.dart';
+import 'package:wishlist/shared/models/year_recap/year_recap.dart';
 import 'package:wishlist/shared/theme/colors.dart';
 
 import '../../../../../fixtures/fake_data.dart';
 import '../../../../../fixtures/fake_providers.dart';
+import '../../../../../fixtures/fake_year_recap.dart';
 import '../../../../../pump_app.dart';
 
 class MockCardStateRepository extends Mock implements CardStateRepository {}
@@ -33,27 +33,6 @@ HomeCardCandidate card(
     content: content,
     tone: tone,
     dismissable: dismissable,
-  );
-}
-
-CompletedWishWithDetails completed({required DateTime createdAt}) {
-  return CompletedWishWithDetails(
-    wish: Wish(
-      id: 5,
-      createdAt: createdAt,
-      name: 'Casque',
-      description: '',
-      quantity: 1,
-      wishlistId: 1,
-      updatedBy: fakeFriendUserId1,
-      updatedAt: fakeUpdatedAt,
-    ),
-    fromWishlistId: 1,
-    fromWishlistName: 'Liste',
-    ownerPseudo: 'Alice',
-    ownerId: fakeFriendUserId1,
-    completedAt: fakeNow,
-    quantity: 1,
   );
 }
 
@@ -510,8 +489,10 @@ void main() {
       await pumpCard(
         tester,
         card(
-          const YearRecap(
-            YearRecapFacts(year: 2026, receivedCount: 3, offeredCount: 2),
+          YearRecap(
+            fakeYearRecap(
+              stats: const YearRecapStats(received: 3, offered: 2),
+            ),
           ),
           tone: HomeCardTone.dark,
         ),
@@ -539,11 +520,13 @@ void main() {
         tester,
         card(
           YearRecap(
-            YearRecapFacts(
-              year: 2026,
-              receivedCount: 1,
-              offeredCount: 1,
-              longestAwaited: completed(createdAt: DateTime(2024, 6, 2)),
+            fakeYearRecap(
+              stats: YearRecapStats(
+                received: 1,
+                offered: 1,
+                longestAwaited:
+                    fakeLongestAwaited(createdOn: DateTime(2024, 6, 2)),
+              ),
             ),
           ),
           tone: HomeCardTone.dark,
@@ -563,11 +546,12 @@ void main() {
         tester,
         card(
           YearRecap(
-            YearRecapFacts(
-              year: 2026,
-              receivedCount: 1,
-              offeredCount: 0,
-              longestAwaited: completed(createdAt: DateTime(2026, 2, 2)),
+            fakeYearRecap(
+              stats: YearRecapStats(
+                received: 1,
+                longestAwaited:
+                    fakeLongestAwaited(createdOn: DateTime(2026, 2, 2)),
+              ),
             ),
           ),
           tone: HomeCardTone.dark,
@@ -582,8 +566,10 @@ void main() {
       await pumpCard(
         tester,
         card(
-          const YearRecap(
-            YearRecapFacts(year: 2026, receivedCount: 3, offeredCount: 2),
+          YearRecap(
+            fakeYearRecap(
+              stats: const YearRecapStats(received: 3, offered: 2),
+            ),
           ),
           tone: HomeCardTone.dark,
         ),
@@ -705,12 +691,13 @@ void main() {
           card(
             tone == HomeCardTone.dark
                 ? YearRecap(
-                    YearRecapFacts(
-                      year: 2026,
-                      receivedCount: 3,
-                      offeredCount: 2,
-                      longestAwaited:
-                          completed(createdAt: DateTime(2024, 6, 2)),
+                    fakeYearRecap(
+                      stats: YearRecapStats(
+                        received: 3,
+                        offered: 2,
+                        longestAwaited:
+                            fakeLongestAwaited(createdOn: DateTime(2024, 6, 2)),
+                      ),
                     ),
                   )
                 : BookedWishRemoved(removal(), canOpenList: true),

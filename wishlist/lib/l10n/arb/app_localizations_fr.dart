@@ -1301,4 +1301,196 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get yearRecapBack => 'Retour';
+
+  @override
+  String get yearRecapProfileIntro => 'Cette année, j\'étais';
+
+  @override
+  String get yearRecapShareButton => 'Partager mon année';
+
+  @override
+  String yearRecapShareImageHeader(String year) {
+    return 'Mon année $year';
+  }
+
+  @override
+  String get yearRecapShareFooter => 'Et toi, t\'es qui ?';
+
+  @override
+  String yearRecapShareText(String year) {
+    return 'Mon année Wishy $year · wishy-app.fr';
+  }
+
+  @override
+  String get yearRecapProfilePatientTitle =>
+      'Le marathonien / La marathonienne';
+
+  @override
+  String get yearRecapProfilePatientTagline =>
+      'Je l\'ai voulu. J\'ai attendu. Je l\'ai eu.';
+
+  @override
+  String get yearRecapProfilePereNoelDiscretTitle =>
+      'Le Père Noël / La Mère Noël';
+
+  @override
+  String get yearRecapProfilePereNoelDiscretTagline =>
+      'Personne ne sait que c\'était moi.';
+
+  @override
+  String get yearRecapProfileGateTitle => 'Le gâté / La gâtée';
+
+  @override
+  String get yearRecapProfileGateTagline =>
+      'J\'ai été très sage. Enfin, je crois.';
+
+  @override
+  String get yearRecapProfileEquilibristeTitle => 'L\'équilibriste';
+
+  @override
+  String get yearRecapProfileEquilibristeTagline => 'Donnant, donnant.';
+
+  @override
+  String get yearRecapProfileReveurTitle => 'Le rêveur / La rêveuse';
+
+  @override
+  String get yearRecapProfileReveurTagline => 'Rêver, c\'est gratuit.';
+
+  @override
+  String get yearRecapProfileRassembleurTitle =>
+      'Le rassembleur / La rassembleuse';
+
+  @override
+  String get yearRecapProfileRassembleurTagline =>
+      'Plus on est de fous, plus on offre.';
+
+  @override
+  String get yearRecapProfileAmiFideleTitle => 'L\'ami fidèle / L\'amie fidèle';
+
+  @override
+  String get yearRecapProfileAmiFideleTagline =>
+      'Cette personne se reconnaîtra.';
+
+  @override
+  String get yearRecapProfileDernierMomentTitle =>
+      'Le roi / La reine du dernier moment';
+
+  @override
+  String get yearRecapProfileDernierMomentTagline =>
+      'Je travaille mieux sous pression.';
+
+  @override
+  String get yearRecapProfileOrganiseTitle => 'L\'organisé / L\'organisée';
+
+  @override
+  String get yearRecapProfileOrganiseTagline =>
+      'Papier cadeau à peine déchiré, liste déjà à jour.';
+
+  @override
+  String get yearRecapProfileMinimalisteTitle =>
+      'Le minimaliste / La minimaliste';
+
+  @override
+  String get yearRecapProfileMinimalisteTagline => 'Peu, mais bien.';
+
+  @override
+  String yearRecapReceivedShort(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count reçus',
+      one: '1 reçu',
+      zero: '0 reçu',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatPatient(int days, String wish) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days jours',
+      one: '1 jour',
+      zero: '0 jour',
+    );
+    return '$_temp0 pour $wish';
+  }
+
+  @override
+  String yearRecapStatPatientShare(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days jours d\'attente',
+      one: '1 jour d\'attente',
+      zero: '0 jour d\'attente',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatOfferedReceived(String offered, String received) {
+    return '$offered, $received';
+  }
+
+  @override
+  String yearRecapStatReveur(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wishs ajoutés',
+      one: '1 wish ajouté',
+      zero: '0 wish ajouté',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatRassembleur(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nouveaux amis',
+      one: '1 nouvel ami',
+      zero: '0 nouvel ami',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatAmiFidele(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cadeaux pour la même personne',
+      one: '1 cadeau pour la même personne',
+      zero: '0 cadeau pour la même personne',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatDernierMoment(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cadeaux réservés au dernier moment',
+      one: '1 cadeau réservé au dernier moment',
+      zero: '0 cadeau réservé au dernier moment',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearRecapStatOrganise(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wishs cochés le jour J',
+      one: '1 wish coché le jour J',
+      zero: '0 wish coché le jour J',
+    );
+    return '$_temp0';
+  }
 }
