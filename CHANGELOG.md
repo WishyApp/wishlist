@@ -2,6 +2,31 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.1.0] - 2026-10-30
+
+### Nouvelles fonctionnalités
+
+- **Nouvel accueil** : en haut, ta photo et ton pseudo, avec « Modifier le profil » ; en dessous, le nombre de wishs reçus et la date du dernier, qui mène à « Mes wishs complétés ». Sans wishlist, l'accueil garde l'en-tête au-dessus d'un bloc « Pas encore de wishlist »
+- **Page « Modifier le profil »** : photo, pseudo et anniversaire quittent les Réglages pour leur propre page
+- **Cartes du moment** sur l'accueil, en pile : glisser à gauche pour masquer une carte, à droite pour la revoir le lendemain. Selon le moment :
+  - l'anniversaire d'un ami qui approche, puis le jour J ;
+  - Noël qui approche, avec ta liste de Noël, puis « C'est le grand jour » le 25 décembre ;
+  - après Noël ou ton anniversaire, « Cocher ce que j'ai reçu » ouvre la bonne liste, avec la date de la fête déjà proposée ;
+  - un rappel pour les cadeaux que tu as réservés avant la fête ;
+  - un wish que tu avais réservé et que son propriétaire a retiré ;
+  - une demande d'ami acceptée ;
+  - une liste sans activité depuis 3 mois (« Liste à l'abandon ») ;
+  - les premiers pas pour un nouveau compte
+- **Ton année Wishy** : en décembre, une carte ouvre le récap de ton année (wishs reçus et offerts, le plus attendu…), avec ton profil de l'année, du Père Noël discret au roi du dernier moment, et une image à partager
+- **Date de réception d'un wish** : en complétant un wish, l'app demande le jour où il a été reçu. La date se modifie ensuite depuis « Wishs complétés », dont chaque carte a un menu ⋮ (modifier la date, modifier la quantité, retirer des complétés)
+
+### Corrections de bugs
+
+- **iPad** : le partage d'une wishlist fonctionne (il affichait une erreur)
+- En sélection, l'action de complétion s'appelle « Compléter » au lieu de « Valider »
+- « Continuer avec Google » explique que la connexion a besoin de Safari quand il est bloqué sur l'iPhone, au lieu d'une erreur générique
+- Une erreur passagère du serveur pendant la vérification de la version est réessayée au lieu d'être remontée
+
 ## [1.0.0] - 2026-10-28
 
 ### À savoir
