@@ -32,6 +32,11 @@ class _HomeCardsSlotState extends ConsumerState<HomeCardsSlot> {
   /// sends failing at once (offline) tell the user once, not once per card.
   var _errorVisible = false;
 
+  /// The last card swiped away: when it comes back on top ("Undo", a failed
+  /// send), it comes back from the side it left by. Kept here: the stack is
+  /// gone while no card is left.
+  ({String key, HomeCardSwipe swipe})? _lastSwiped;
+
   @override
   Widget build(BuildContext context) {
     // `valueOrNull` keeps the previous value while reloading
@@ -72,19 +77,36 @@ class _HomeCardsSlotState extends ConsumerState<HomeCardsSlot> {
           ? const SizedBox(width: double.infinity)
           : Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: HomeCardStack(cards: visible),
+              child: HomeCardStack(
+                cards: visible,
+                lastSwiped: _lastSwiped,
+                onSwiped: (key, swipe) =>
+                    setState(() => _lastSwiped = (key: key, swipe: swipe)),
+              ),
             ),
     );
   }
 }
 
 /// The first of [cards] on top, the next two cards behind it, their bottom
-/// showing under it. The top card can be swiped (right: later, left: hide)
-/// unless it cannot be hidden; the cross hides it as well.
+/// showing under it. The top card can be swiped (towards the end of the text,
+/// right in French: later; towards its start: hide) unless it cannot be
+/// hidden; the cross hides it as well.
 class HomeCardStack extends ConsumerStatefulWidget {
-  const HomeCardStack({super.key, required this.cards});
+  const HomeCardStack({
+    super.key,
+    required this.cards,
+    this.lastSwiped,
+    this.onSwiped,
+  });
 
   final List<HomeCardCandidate> cards;
+
+  /// The last card swiped away: back on top, it comes in from that side.
+  final ({String key, HomeCardSwipe swipe})? lastSwiped;
+
+  /// A card was swiped away (by the gesture, the cross or an action).
+  final void Function(String key, HomeCardSwipe swipe)? onSwiped;
 
   @override
   ConsumerState<HomeCardStack> createState() => _HomeCardStackState();
@@ -92,13 +114,6 @@ class HomeCardStack extends ConsumerStatefulWidget {
 
 class _HomeCardStackState extends ConsumerState<HomeCardStack> {
   late final AppLifecycleListener _lifecycle;
-
-  /// The last card swiped away: when it comes back on top ("Undo", a failed
-  /// send), it comes back from the side it left by.
-  ({String key, HomeCardSwipe swipe})? _lastSwiped;
-
-  /// The side the top card comes in from, if it is the last card swiped away.
-  HomeCardSwipe? _enterFrom;
 
   @override
   void initState() {
@@ -123,14 +138,6 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
   @override
   void didUpdateWidget(HomeCardStack oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final top = widget.cards.first.stateKey;
-    if (top != oldWidget.cards.first.stateKey) {
-      final last = _lastSwiped;
-      _enterFrom = last?.key == top ? last!.swipe : null;
-      if (_enterFrom != null) {
-        _lastSwiped = null;
-      }
-    }
     _recordTop();
   }
 
@@ -158,7 +165,8 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
         (state == null || state == AppLifecycleState.resumed);
   }
 
-  void _swipe(HomeCardCandidate card, HomeCardSwipe swipe) {
+  /// Swipes [card] away; false if it already was.
+  bool _swipe(HomeCardCandidate card, HomeCardSwipe swipe) {
     final l10n = context.l10n;
     final actions = ref.read(homeCardActionsProvider.notifier);
     final key = card.stateKey;
@@ -168,9 +176,9 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
     // Already off the screen (a double tap on the cross): the first swipe has
     // its snack-bar, a second one would have an "Undo" that does nothing.
     if (!actions.swipe(card, swipe, autoCommit: !keepOpen)) {
-      return;
+      return false;
     }
-    _lastSwiped = (key: key, swipe: swipe);
+    widget.onSwiped?.call(key, swipe);
     final close = showAppSnackBar(
       context,
       swipe == HomeCardSwipe.hide
@@ -189,6 +197,7 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
     );
     // Anything else that sends the card (lifecycle, leaving) closes it too
     actions.attachCloser(key, close);
+    return true;
   }
 
   /// Whether swiping right makes sense: a card closed for good (an alert, the
@@ -222,6 +231,7 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
     final top = cards.first;
     final l10n = context.l10n;
     final canPostpone = _canPostpone(top);
+    final last = widget.lastSwiped;
 
     final view = HomeCardView(
       card: top,
@@ -235,7 +245,8 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
         if (top.dismissable) HomeCardSwipe.hide,
         if (top.dismissable && canPostpone) HomeCardSwipe.later,
       },
-      enterFrom: _enterFrom,
+      // Only read when the pile of this card is created: it comes back
+      enterFrom: last?.key == top.stateKey ? last!.swipe : null,
       onSwiped: (swipe) => _swipe(top, swipe),
       behind: [
         for (final card in cards.skip(1).take(_behindRest.length))
@@ -289,7 +300,8 @@ const _stretch = 0.12;
 /// tilts; the cards behind move up and grow as it goes. Released far or fast
 /// enough to one of [directions], it leaves the screen, then [onSwiped] tells
 /// it; otherwise it springs back. Pulled to a side it cannot go to, it resists
-/// and comes back.
+/// and comes back. Later is towards the end of the text, as `Dismissible`'s
+/// `startToEnd`.
 class _SwipePile extends StatefulWidget {
   const _SwipePile({
     super.key,
@@ -308,7 +320,9 @@ class _SwipePile extends StatefulWidget {
   /// The swipes the top card allows: none, it does not move.
   final Set<HomeCardSwipe> directions;
 
-  final ValueChanged<HomeCardSwipe> onSwiped;
+  /// The card left by this side. False: the swipe did not happen (the card
+  /// was already swiped away), it comes back.
+  final bool Function(HomeCardSwipe swipe) onSwiped;
 
   /// The top card comes in from this side (it was swiped away by it).
   final HomeCardSwipe? enterFrom;
@@ -319,19 +333,29 @@ class _SwipePile extends StatefulWidget {
 
 class _SwipePileState extends State<_SwipePile>
     with SingleTickerProviderStateMixin {
-  /// Where the top card is, in widths: right is positive (later).
+  /// Where the top card is, in widths: towards the end of the text is
+  /// positive (later).
   late final AnimationController _offset;
 
   /// Where the finger took the card, in widths, before the resistance of a
   /// forbidden side.
   var _drag = 0.0;
 
+  /// A drag was taken: only its own update, end or cancel move the card.
+  var _dragging = false;
+
+  /// The card comes back ("Undo"): a drag now would start from the side and
+  /// leave again at once.
+  var _entering = false;
+
+  /// The card goes: no drag nor tap any more, its swipe is decided.
   var _leaving = false;
 
+  /// Back to the middle without going past it: past it, the other side's
+  /// stamp would flash and the cards behind would jump.
   static final _spring = SpringDescription.withDampingRatio(
     mass: 1,
     stiffness: 400,
-    ratio: 0.8,
   );
 
   @override
@@ -346,11 +370,14 @@ class _SwipePileState extends State<_SwipePile>
       },
     );
     if (widget.enterFrom != null) {
-      _offset.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-      );
+      _entering = true;
+      _offset
+          .animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+          )
+          .whenCompleteOrCancel(() => _entering = false);
     }
   }
 
@@ -359,6 +386,10 @@ class _SwipePileState extends State<_SwipePile>
     _offset.dispose();
     super.dispose();
   }
+
+  /// From the text direction to the screen: -1 when right to left.
+  double get _screenSign =>
+      Directionality.of(context) == TextDirection.rtl ? -1 : 1;
 
   static HomeCardSwipe _sideOf(double value) =>
       value > 0 ? HomeCardSwipe.later : HomeCardSwipe.hide;
@@ -385,48 +416,64 @@ class _SwipePileState extends State<_SwipePile>
   }
 
   void _onStart(DragStartDetails details) {
-    if (_leaving) {
+    if (_leaving || _entering) {
       return;
     }
+    _dragging = true;
     _offset.stop();
     _drag = _unresisted(_offset.value);
   }
 
   void _onUpdate(DragUpdateDetails details, double width) {
-    if (_leaving) {
+    if (!_dragging) {
       return;
     }
-    _drag += details.primaryDelta! / width;
+    _drag += details.primaryDelta! * _screenSign / width;
     _offset.value = _resisted(_drag);
   }
 
-  void _onEnd(DragEndDetails details, double width) {
-    if (_leaving) {
+  void _onEnd(DragEndDetails details) {
+    if (!_dragging) {
       return;
     }
+    _dragging = false;
     final value = _offset.value;
-    final velocity = details.primaryVelocity ?? 0;
+    final velocity = (details.primaryVelocity ?? 0) * _screenSign;
     final flung = velocity.abs() > _flingVelocity &&
         velocity.sign == value.sign &&
         _allows(velocity);
     if (_allows(value) && (value.abs() > _leaveThreshold || flung)) {
       _leave(_sideOf(value));
     } else {
-      _offset.animateWith(
-        SpringSimulation(_spring, value, 0, velocity / width),
-      );
+      _settle();
     }
   }
 
+  /// The drag was taken by something else (the page scrolls): the card does
+  /// not leave, whatever its position.
+  void _onCancel() {
+    if (!_dragging) {
+      return;
+    }
+    _dragging = false;
+    _settle();
+  }
+
+  /// Back to the middle. From a standstill: with the speed of the finger, a
+  /// card thrown to a forbidden side would go far past its stretch.
+  void _settle() =>
+      _offset.animateWith(SpringSimulation(_spring, _offset.value, 0, 0));
+
   Future<void> _leave(HomeCardSwipe side) async {
-    _leaving = true;
+    setState(() => _leaving = true);
     await _offset.animateTo(
       side == HomeCardSwipe.later ? _outside : -_outside,
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
-    if (mounted) {
-      widget.onSwiped(side);
+    if (mounted && !widget.onSwiped(side)) {
+      setState(() => _leaving = false);
+      _settle();
     }
   }
 
@@ -434,6 +481,7 @@ class _SwipePileState extends State<_SwipePile>
   Widget build(BuildContext context) {
     final behind = widget.behind;
     final still = MediaQuery.disableAnimationsOf(context);
+    final sign = _screenSign;
     final pile = LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -457,14 +505,17 @@ class _SwipePileState extends State<_SwipePile>
                     ),
                   ),
                 Transform.translate(
-                  offset: Offset(value * width, 0),
+                  offset: Offset(value * width * sign, 0),
                   child: Transform.rotate(
-                    angle: still ? 0 : value * _maxTilt,
+                    angle: still ? 0 : value * sign * _maxTilt,
                     alignment: _tiltPivot,
-                    child: _TopCard(
-                      offset: value,
-                      side: _allows(value) ? _sideOf(value) : null,
-                      child: widget.top,
+                    child: IgnorePointer(
+                      ignoring: _leaving,
+                      child: _TopCard(
+                        offset: value,
+                        side: _allows(value) ? _sideOf(value) : null,
+                        child: widget.top,
+                      ),
                     ),
                   ),
                 ),
@@ -487,10 +538,8 @@ class _SwipePileState extends State<_SwipePile>
                 onHorizontalDragStart: _onStart,
                 onHorizontalDragUpdate: (details) =>
                     _onUpdate(details, constraints.maxWidth),
-                onHorizontalDragEnd: (details) =>
-                    _onEnd(details, constraints.maxWidth),
-                onHorizontalDragCancel: () =>
-                    _onEnd(DragEndDetails(), constraints.maxWidth),
+                onHorizontalDragEnd: _onEnd,
+                onHorizontalDragCancel: _onCancel,
                 child: pile,
               ),
             ),
@@ -547,10 +596,11 @@ class _TopCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Positioned(
+              // On the side the card comes from, as the text reads
+              PositionedDirectional(
                 top: 12,
-                left: side == HomeCardSwipe.later ? 12 : null,
-                right: side == HomeCardSwipe.hide ? 12 : null,
+                start: side == HomeCardSwipe.later ? 12 : null,
+                end: side == HomeCardSwipe.hide ? 12 : null,
                 child: Opacity(
                   opacity: shown,
                   child: side == HomeCardSwipe.later
@@ -604,10 +654,10 @@ class _BehindCard extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: radius,
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x142C2C2C),
-                  offset: Offset(0, 4),
+                  color: AppColors.darkGrey.withValues(alpha: 0.08),
+                  offset: const Offset(0, 4),
                   blurRadius: 10,
                 ),
               ],
@@ -650,10 +700,10 @@ class _SwipeStamp extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(999),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1F2C2C2C),
-            offset: Offset(0, 2),
+            color: AppColors.darkGrey.withValues(alpha: 0.12),
+            offset: const Offset(0, 2),
             blurRadius: 8,
           ),
         ],

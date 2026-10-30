@@ -918,6 +918,141 @@ void main() {
       );
     });
 
+    testWidgets('"Annuler" on the last card brings it back from its side',
+        (tester) async {
+      await pump(tester, () async => cards.take(1).toList());
+      final rest = tester.getTopLeft(_topCard);
+
+      await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+      await letItLeave(tester);
+      expect(find.byType(HomeCardView), findsNothing);
+      await tester.tap(find.text('Annuler'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final card = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byType(HomeCardView),
+      );
+      expect(tester.getTopLeft(card).dx, lessThan(rest.dx));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(card).dx,
+        moreOrLessEquals(rest.dx, epsilon: 0.5),
+      );
+    });
+
+    group('while the card comes back', () {
+      /// Swipes the first card left, then "Annuler": it is on its way back,
+      /// still past the threshold of a swipe. Returns a point of it on screen.
+      Future<Offset> undoAndCatch(WidgetTester tester) async {
+        await pump(tester, () async => cards);
+        await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+        await letItLeave(tester);
+        await tester.tap(find.text('Annuler'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 90));
+        final card = find.ancestor(
+          of: find.text(_firstTitle),
+          matching: find.byType(HomeCardView),
+        );
+        return tester.getTopRight(card) + const Offset(-60, 60);
+      }
+
+      testWidgets('a touch that is not a swipe leaves it there',
+          (tester) async {
+        final point = await undoAndCatch(tester);
+
+        // Down then up without moving: the drag is cancelled
+        await tester.tapAt(point);
+        await letItLeave(tester);
+
+        expect(find.text(_firstTitle).hitTestable(), findsOneWidget);
+        expect(find.text('Carte masquée'), findsNothing);
+        await finish(tester);
+        verifyNever(
+          () =>
+              cardStates.dismiss(any(), snoozeUntil: any(named: 'snoozeUntil')),
+        );
+      });
+
+      testWidgets('a short drag does not send it away again', (tester) async {
+        final point = await undoAndCatch(tester);
+
+        await tester.dragFrom(point, const Offset(-30, 0));
+        await letItLeave(tester);
+
+        expect(find.text(_firstTitle).hitTestable(), findsOneWidget);
+        expect(find.text('Carte masquée'), findsNothing);
+        await finish(tester);
+      });
+    });
+
+    testWidgets('a leaving card cannot be tapped', (tester) async {
+      await pump(tester, () async => cards);
+      // Its cross or its button: its swipe is already decided
+      final ignored = find.ancestor(
+        of: find.text(_firstTitle),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is IgnorePointer && widget.ignoring,
+        ),
+      );
+      expect(ignored, findsNothing);
+
+      await tester.drag(find.text(_firstTitle), const Offset(500, 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(ignored, findsOneWidget);
+
+      await letItLeave(tester);
+      expect(find.text('Reportée à demain'), findsOneWidget);
+      await finish(tester);
+    });
+
+    testWidgets('a card thrown to a side it cannot go to stays near',
+        (tester) async {
+      await pump(tester, () async => [cards[1]]);
+      final card = find.byType(HomeCardView);
+      final rest = tester.getTopLeft(card).dx;
+
+      await tester.fling(card, const Offset(60, 0), 3000);
+      var farthest = 0.0;
+      var lowest = double.infinity;
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final dx = tester.getTopLeft(card).dx - rest;
+        farthest = max(farthest, dx);
+        lowest = min(lowest, dx);
+      }
+
+      // No further than where the finger left it, and not past the middle
+      expect(farthest, lessThan(60));
+      expect(lowest, greaterThan(-0.5));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('right to left, a swipe to the left postpones the card',
+        (tester) async {
+      await tester.pumpApp(
+        const Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            body: SafeArea(
+              child: SingleChildScrollView(child: HomeCardsSlot()),
+            ),
+          ),
+        ),
+        overrides: overrides(() async => cards),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.text(_firstTitle), const Offset(-500, 0));
+      await letItLeave(tester);
+
+      expect(find.text('Reportée à demain'), findsOneWidget);
+      await finish(tester);
+    });
+
     testAdaptiveWidgets('$HomeCardStack mid-swipe golden test',
         (tester, variant) async {
       await pump(tester, () async => cards, windowConfig: variant);
