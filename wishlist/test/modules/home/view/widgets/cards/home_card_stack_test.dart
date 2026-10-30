@@ -942,6 +942,68 @@ void main() {
       );
     });
 
+    group('the next card goes from the height of the top one to its own', () {
+      // Taller: a text under its title
+      final removal = HomeCardCandidate(
+        type: 'booked_wish_removed',
+        stateKey: 'booked_wish_removed:7',
+        content: BookedWishRemoved(
+          BookedWishRemoval(
+            id: 7,
+            ownerId: fakeFriendUserId1,
+            ownerPseudo: 'Alice',
+            wishId: 9,
+            wishName: 'Casque',
+            quantity: 1,
+            wishlistName: 'Liste',
+            removedAt: fakeNow,
+          ),
+          canOpenList: true,
+        ),
+      );
+      const removalTitle = 'Alice a retiré Casque que tu avais réservé';
+
+      for (final (name, pile, top, next) in [
+        ('taller', [cards.first, removal], _firstTitle, removalTitle),
+        ('shorter', [removal, cards.first], removalTitle, _firstTitle),
+      ]) {
+        testWidgets(name, (tester) async {
+          await pump(tester, () async => pile);
+          // The card as drawn: its rounded frame, not its content
+          double drawn(String title) => tester
+              .getSize(
+                find
+                    .ancestor(
+                      of: find.text(title),
+                      matching: find.byType(ClipRRect),
+                    )
+                    .first,
+              )
+              .height;
+          final before = drawn(top);
+
+          await tester.drag(find.text(top), const Offset(-500, 0));
+          // Until the top card is gone, then the first frame of the next one
+          while (find.text(top).evaluate().isNotEmpty) {
+            await tester.pump(const Duration(milliseconds: 16));
+          }
+          final heights = [drawn(next)];
+          for (var i = 0; i < 30; i++) {
+            await tester.pump(const Duration(milliseconds: 16));
+            heights.add(drawn(next));
+          }
+
+          expect(heights.first, moreOrLessEquals(before, epsilon: 1));
+          expect((heights.last - before).abs(), greaterThan(10));
+          // Step by step, never more than a few pixels a frame
+          for (var i = 1; i < heights.length; i++) {
+            expect((heights[i] - heights[i - 1]).abs(), lessThan(12));
+          }
+          await finish(tester);
+        });
+      }
+    });
+
     group('while the card comes back', () {
       /// Swipes the first card left, then "Annuler": it is on its way back,
       /// still past the threshold of a swipe. Returns a point of it on screen.

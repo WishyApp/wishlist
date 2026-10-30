@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:wishlist/l10n/l10n.dart';
@@ -114,6 +114,10 @@ class HomeCardStack extends ConsumerStatefulWidget {
 
 class _HomeCardStackState extends ConsumerState<HomeCardStack> {
   late final AppLifecycleListener _lifecycle;
+
+  /// The height of the top card as last drawn: the next one on top starts
+  /// from it.
+  double? _topHeight;
 
   @override
   void initState() {
@@ -247,6 +251,9 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
       },
       // Only read when the pile of this card is created: it comes back
       enterFrom: last?.key == top.stateKey ? last!.swipe : null,
+      fromHeight: _topHeight,
+      // Not a state change: only read by the next pile
+      onHeight: (height) => _topHeight = height,
       onSwiped: (swipe) => _swipe(top, swipe),
       behind: [
         for (final card in cards.skip(1).take(_behindRest.length))
@@ -310,6 +317,8 @@ class _SwipePile extends StatefulWidget {
     required this.directions,
     required this.onSwiped,
     this.enterFrom,
+    this.fromHeight,
+    required this.onHeight,
   });
 
   final Widget top;
@@ -327,15 +336,27 @@ class _SwipePile extends StatefulWidget {
   /// The top card comes in from this side (it was swiped away by it).
   final HomeCardSwipe? enterFrom;
 
+  /// The height of the card that was on top before: the top card starts at
+  /// it and goes to its own, so that nothing jumps when one replaces the
+  /// other. Read when the pile is created, as [enterFrom].
+  final double? fromHeight;
+
+  /// The top card was laid out at this height.
+  final ValueChanged<double> onHeight;
+
   @override
   State<_SwipePile> createState() => _SwipePileState();
 }
 
-class _SwipePileState extends State<_SwipePile>
-    with SingleTickerProviderStateMixin {
+class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
   /// Where the top card is, in widths: towards the end of the text is
   /// positive (later).
   late final AnimationController _offset;
+
+  /// From [_SwipePile.fromHeight] (0) to the card's own height (1).
+  late final AnimationController _resize;
+
+  late final double? _fromHeight = widget.fromHeight;
 
   /// Where the finger took the card, in widths, before the resistance of a
   /// forbidden side.
@@ -379,11 +400,17 @@ class _SwipePileState extends State<_SwipePile>
           )
           .whenCompleteOrCancel(() => _entering = false);
     }
+    _resize = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+      value: _fromHeight == null ? 1 : 0,
+    )..forward();
   }
 
   @override
   void dispose() {
     _offset.dispose();
+    _resize.dispose();
     super.dispose();
   }
 
@@ -486,7 +513,7 @@ class _SwipePileState extends State<_SwipePile>
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         return AnimatedBuilder(
-          animation: _offset,
+          animation: Listenable.merge([_offset, _resize]),
           builder: (context, _) {
             final value = _offset.value;
             // The cards behind only move up for a side the card can go to
@@ -514,7 +541,14 @@ class _SwipePileState extends State<_SwipePile>
                       child: _TopCard(
                         offset: value,
                         side: _allows(value) ? _sideOf(value) : null,
-                        child: widget.top,
+                        child: _ResizedFrom(
+                          from: _fromHeight,
+                          progress: Curves.easeOutCubic.transform(
+                            _resize.value,
+                          ),
+                          onHeight: widget.onHeight,
+                          child: widget.top,
+                        ),
                       ),
                     ),
                   ),
@@ -544,6 +578,85 @@ class _SwipePileState extends State<_SwipePile>
               ),
             ),
     );
+  }
+}
+
+/// Its child at a height going from [from] to the child's own as [progress]
+/// goes from 0 to 1: taller than its own, the child is stretched (the
+/// background of a card fills it); shorter, it overflows and is clipped by
+/// the parent. As a card behind the top one is drawn, so that one taking the
+/// top place does not change.
+class _ResizedFrom extends SingleChildRenderObjectWidget {
+  const _ResizedFrom({
+    required this.from,
+    required this.progress,
+    required this.onHeight,
+    required super.child,
+  });
+
+  final double? from;
+  final double progress;
+  final ValueChanged<double> onHeight;
+
+  @override
+  _RenderResizedFrom createRenderObject(BuildContext context) =>
+      _RenderResizedFrom(from: from, progress: progress, onHeight: onHeight);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderResizedFrom renderObject,
+  ) {
+    renderObject
+      ..from = from
+      ..progress = progress
+      ..onHeight = onHeight;
+  }
+}
+
+class _RenderResizedFrom extends RenderProxyBox {
+  _RenderResizedFrom({
+    required double? from,
+    required double progress,
+    required this.onHeight,
+  })  : _from = from,
+        _progress = progress;
+
+  ValueChanged<double> onHeight;
+
+  double? get from => _from;
+  double? _from;
+  set from(double? value) {
+    if (value != _from) {
+      _from = value;
+      markNeedsLayout();
+    }
+  }
+
+  double get progress => _progress;
+  double _progress;
+  set progress(double value) {
+    if (value != _progress) {
+      _progress = value;
+      markNeedsLayout();
+    }
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child!;
+    final free = constraints.copyWith(minHeight: 0);
+    child.layout(free, parentUsesSize: true);
+    final own = child.size.height;
+    final from = _from;
+    final height = from == null || _progress >= 1
+        ? own
+        : lerpDouble(from, own, _progress)!;
+    if (height > own) {
+      child.layout(free.copyWith(minHeight: height), parentUsesSize: true);
+    }
+    size = constraints.constrain(Size(child.size.width, height));
+    onHeight(size.height);
   }
 }
 
