@@ -125,6 +125,7 @@ class HomeCardCandidate {
     this.lastDay,
     this.dismissable = true,
     this.maxShows,
+    this.isQueue = false,
   });
 
   /// Key of the `home_cards` row that tunes this card.
@@ -148,4 +149,10 @@ class HomeCardCandidate {
 
   /// The card is dropped once it was shown this many times.
   final int? maxShows;
+
+  /// The card is one of a queue of its type (the stale lists): among them the
+  /// oldest `eventAt` comes first, and once the user dismissed one today, no
+  /// other of the queue comes into the stack before tomorrow (see
+  /// `selectHomeCards`).
+  final bool isQueue;
 }

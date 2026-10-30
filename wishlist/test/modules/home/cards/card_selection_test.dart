@@ -12,6 +12,7 @@ HomeCardCandidate candidate(
   DateTime? eventAt,
   bool dismissable = true,
   int? maxShows,
+  bool isQueue = false,
 }) {
   return HomeCardCandidate(
     type: type,
@@ -20,6 +21,7 @@ HomeCardCandidate candidate(
     eventAt: eventAt,
     dismissable: dismissable,
     maxShows: maxShows,
+    isQueue: isQueue,
   );
 }
 
@@ -181,5 +183,88 @@ void main() {
       ),
       ['a-yesterday', 'a-future', 'a-old'],
     );
+  });
+
+  group('a queue of cards (the stale lists)', () {
+    final queueDefs = {
+      'a': definition('a', 10),
+      'b': definition('b', 20),
+      'q': definition('q', 60),
+    };
+
+    // q1 is the oldest, q4 the most recent.
+    List<HomeCardCandidate> queue() => [
+          for (var i = 4; i >= 1; i--)
+            candidate(
+              'q',
+              'q$i',
+              eventAt: DateTime(2026, 1, i),
+              isQueue: true,
+            ),
+        ];
+
+    List<String> run(
+      List<HomeCardCandidate> candidates, {
+      Map<String, CardState> states = const {},
+      Set<String>? queueKeys,
+    }) {
+      return selectHomeCards(
+        candidates: candidates,
+        definitions: queueDefs,
+        states: states,
+        maxCards: 3,
+        now: DateTime(2026, 10, 30, 10),
+        queueKeys: queueKeys,
+      ).map((card) => card.stateKey).toList();
+    }
+
+    CardState hidden(String key) => CardState(
+          cardKey: key,
+          shownCount: 1,
+          dismissedAt: DateTime(2026, 10, 30, 8),
+          snoozedUntil: DateTime(2026, 12, 29),
+        );
+
+    test('three cards of the queue, the oldest event first', () {
+      expect(run(queue().sublist(1)), ['q1', 'q2', 'q3']);
+    });
+
+    test('they fill the slots left by the more urgent cards', () {
+      expect(
+        run([candidate('a', 'a1'), candidate('b', 'b1'), ...queue()]),
+        ['a1', 'b1', 'q1'],
+      );
+      expect(run([candidate('a', 'a1'), ...queue()]), ['a1', 'q1', 'q2']);
+    });
+
+    test('without limit a hidden card makes room for the next one', () {
+      expect(run(queue(), states: {'q2': hidden('q2')}), ['q1', 'q3', 'q4']);
+    });
+
+    test('with the keys of the day only these cards of the queue stay', () {
+      expect(
+        run(
+          queue(),
+          states: {'q2': hidden('q2')},
+          queueKeys: {'q1', 'q2', 'q3'},
+        ),
+        ['q1', 'q3'],
+      );
+    });
+
+    test('the keys of the day do not limit the other cards', () {
+      expect(
+        run(
+          [candidate('a', 'a1'), candidate('b', 'b1'), ...queue()],
+          states: {'a1': hidden('a1')},
+          queueKeys: {'q1'},
+        ),
+        ['b1', 'q1'],
+      );
+    });
+
+    test('empty keys of the day: no card of the queue', () {
+      expect(run(queue(), queueKeys: const {}), isEmpty);
+    });
   });
 }

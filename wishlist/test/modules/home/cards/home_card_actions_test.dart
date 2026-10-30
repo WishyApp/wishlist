@@ -8,6 +8,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:wishlist/modules/home/cards/home_card_actions.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/modules/home/cards/stale_cards_day_store.dart';
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository.dart';
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository.dart';
@@ -99,16 +100,19 @@ void main() {
       ProviderContainer container,
     ) body, {
     List<HomeCardDefinition>? definitions,
+    List<Override> extra = const [],
+    List<HomeCardCandidate> cards = const [],
   }) {
     fakeAsync((async) {
       final container = ProviderContainer(
         overrides: [
+          ...extra,
           clockOverride(now),
           cardStateRepositoryProvider.overrideWithValue(cardStates),
           bookedWishRemovalRepositoryProvider.overrideWithValue(removals),
           homeCardsProvider.overrideWith((ref) async {
             homeCardsLoads++;
-            return const [];
+            return cards;
           }),
           homeCardDefinitionsProvider.overrideWith(
             (ref) async => {
@@ -409,6 +413,91 @@ void main() {
       async.elapse(homeCardCommitFallback);
       // Sent: still off the screen, still refused
       expect(actions.swipe(photoCard(), HomeCardSwipe.hide), isFalse);
+    });
+  });
+
+  group('a stale card', () {
+    final staleCard2 = HomeCardCandidate(
+      type: 'stale_wishlist',
+      stateKey: 'stale_wishlist:2',
+      content: StaleWishlist(fakeWishlist2, 4),
+      isQueue: true,
+    );
+    final staleCard = HomeCardCandidate(
+      type: 'stale_wishlist',
+      stateKey: 'stale_wishlist:1',
+      content: StaleWishlist(fakeWishlist1, 4),
+      isQueue: true,
+    );
+    late StaleCardsDayStore store;
+
+    setUp(() => store = StaleCardsDayStore());
+
+    void runStale(
+      void Function(FakeAsync async, HomeCardActions actions) body,
+    ) {
+      run(
+        (async, actions, container) => body(async, actions),
+        extra: [
+          supabaseClientOverride(userId: fakeCurrentUserId),
+          staleCardsDayStoreProvider.overrideWithValue(store),
+        ],
+      );
+    }
+
+    bool dismissed() => store.dayOf(fakeCurrentUserId, now).dismissed;
+
+    for (final swipe in HomeCardSwipe.values) {
+      test('swiped ($swipe) blocks the other stale lists before sending', () {
+        runStale((async, actions) {
+          actions.swipe(staleCard, swipe);
+
+          expect(dismissed(), isTrue);
+          verifyNever(
+            () => cardStates.dismiss(
+              any(),
+              snoozeUntil: any(named: 'snoozeUntil'),
+            ),
+          );
+        });
+      });
+    }
+
+    test('swiped keeps the stale cards of the stack on screen as shown', () {
+      run(
+        (async, actions, container) {
+          container.read(homeCardsProvider);
+          async.flushMicrotasks();
+
+          actions.swipe(staleCard, HomeCardSwipe.hide);
+
+          expect(
+            store.dayOf(fakeCurrentUserId, now).shownKeys,
+            {'stale_wishlist:1', 'stale_wishlist:2'},
+          );
+        },
+        extra: [
+          supabaseClientOverride(userId: fakeCurrentUserId),
+          staleCardsDayStoreProvider.overrideWithValue(store),
+        ],
+        cards: [staleCard, staleCard2],
+      );
+    });
+
+    test('dismissed at once blocks them too', () {
+      runStale((async, actions) {
+        actions.dismissNow(staleCard);
+
+        expect(dismissed(), isTrue);
+      });
+    });
+
+    test('another card does not block them', () {
+      runStale((async, actions) {
+        actions.swipe(photoCard(), HomeCardSwipe.hide);
+
+        expect(dismissed(), isFalse);
+      });
     });
   });
 

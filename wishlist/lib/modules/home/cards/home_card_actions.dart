@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/home/cards/card_builders.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/modules/home/cards/stale_cards_day_store.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
+import 'package:wishlist/shared/infra/current_user_id_provider.dart';
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository.dart';
 import 'package:wishlist/shared/infra/repositories/booked_wish_removal/booked_wish_removal_repository_provider.dart';
 import 'package:wishlist/shared/infra/repositories/card_state/card_state_repository.dart';
@@ -125,6 +127,7 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
           now.day + laterDaysOf(definitions),
         ),
     };
+    _markStaleDismissed(card, now);
     final pending = _Swipe(card, until);
     if (autoCommit) {
       pending.timer = Timer(homeCardCommitFallback, () => _commit(key));
@@ -153,8 +156,33 @@ class HomeCardActions extends AutoDisposeNotifier<Set<String>> {
     if (_disposed || state.contains(key)) {
       return;
     }
+    _markStaleDismissed(card, ref.read(clockProvider)());
     state = {...state, key};
     unawaited(_sendAndReload(_Swipe(card, null)));
+  }
+
+  /// A stale card acted on blocks the other stale lists until tomorrow, from
+  /// the moment of the swipe: the request is sent later and an undo does not
+  /// lift the block (see `StaleCardsDayStore`).
+  void _markStaleDismissed(HomeCardCandidate card, DateTime now) {
+    if (!card.isQueue) {
+      return;
+    }
+    final userId = ref.read(currentUserIdProvider);
+    if (userId != null) {
+      // The stale cards of the stack the user swipes in: the reload under way
+      // may belong to another day.
+      ref.read(staleCardsDayStoreProvider).markDismissed(
+        userId,
+        now,
+        stackKeys: [
+          for (final shown in ref.read(homeCardsProvider).valueOrNull ??
+              const <HomeCardCandidate>[])
+            if (shown.isQueue) shown.stateKey,
+          card.stateKey,
+        ],
+      );
+    }
   }
 
   /// Registers how to close the snack-bar of [stateKey]; called when the card

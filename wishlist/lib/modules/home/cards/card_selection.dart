@@ -11,17 +11,26 @@ import 'package:wishlist/shared/models/home_card_definition.dart';
 /// a card shown `maxShows` times already. Sorts by the `priority` of the
 /// definition (smaller first), then by the `eventAt` closest to [now], past or
 /// future (none last), so that the most recent past event comes first, then
-/// by state key so that the order is stable.
+/// by state key so that the order is stable. Among the cards of a queue
+/// (`isQueue`) the oldest event comes first instead.
+///
+/// With [queueKeys], the cards of a queue whose state key is not in it are
+/// dropped: the queue may shrink, never gain a card (see `StaleCardsDay`).
 List<HomeCardCandidate> selectHomeCards({
   required List<HomeCardCandidate> candidates,
   required Map<String, HomeCardDefinition> definitions,
   required Map<String, CardState> states,
   required int maxCards,
   required DateTime now,
+  Set<String>? queueKeys,
 }) {
   final kept = [
     for (final card in candidates)
-      if (definitions.containsKey(card.type) && _isShown(card, states, now))
+      if (definitions.containsKey(card.type) &&
+          _isShown(card, states, now) &&
+          (queueKeys == null ||
+              !card.isQueue ||
+              queueKeys.contains(card.stateKey)))
         card,
   ]..sort((a, b) {
       final byPriority = definitions[a.type]!.priority.compareTo(
@@ -30,7 +39,11 @@ List<HomeCardCandidate> selectHomeCards({
       if (byPriority != 0) {
         return byPriority;
       }
-      final byEvent = _compareEvents(a.eventAt, b.eventAt, now);
+      final aEvent = a.eventAt;
+      final bEvent = b.eventAt;
+      final byEvent = a.isQueue && b.isQueue && aEvent != null && bEvent != null
+          ? aEvent.compareTo(bEvent)
+          : _compareEvents(aEvent, bEvent, now);
       return byEvent != 0 ? byEvent : a.stateKey.compareTo(b.stateKey);
     });
   return kept.take(max(0, maxCards)).toList();

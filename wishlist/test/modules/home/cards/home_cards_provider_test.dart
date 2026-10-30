@@ -9,6 +9,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
 import 'package:wishlist/modules/home/cards/home_cards_provider.dart';
+import 'package:wishlist/modules/home/cards/stale_cards_day_store.dart';
 import 'package:wishlist/modules/home/cards/wishlists_last_activity_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
 import 'package:wishlist/shared/infra/clock_provider.dart';
@@ -680,19 +681,193 @@ void main() {
           ],
         );
 
-    test('the list idle the longest gives a card', () async {
+    test('every idle list gives a card, the one idle the longest first',
+        () async {
       when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
         (_) async => {
           fakeWishlist1.id: DateTime(2026, 7, 2),
           fakeWishlist2.id: DateTime(2026, 5, 2),
-          fakeWishlist3.id: DateTime(2026, 10, 2),
+          fakeWishlist3.id: DateTime(2026, 6, 2),
         },
       );
 
       final cards = await loadWithActivity();
 
-      expect(cards.single.type, 'stale_wishlist');
-      expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist2.id}');
+      expect(cards.map((card) => card.stateKey), [
+        'stale_wishlist:${fakeWishlist2.id}',
+        'stale_wishlist:${fakeWishlist3.id}',
+        'stale_wishlist:${fakeWishlist1.id}',
+      ]);
+    });
+
+    test('two more urgent cards leave one slot to the oldest list', () async {
+      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+        (_) async => {
+          fakeWishlist1.id: DateTime(2026, 7, 2),
+          fakeWishlist2.id: DateTime(2026, 5, 2),
+          fakeWishlist3.id: DateTime(2026, 6, 2),
+        },
+      );
+
+      final cards = await load(
+        birthdays: {
+          fakeFriendUserId1: tomorrow(),
+          fakeFriendUserId2: tomorrow(),
+        },
+        extra: [
+          wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+        ],
+      );
+
+      expect(cards.map((card) => card.type), [
+        'friend_birthday',
+        'friend_birthday',
+        'stale_wishlist',
+      ]);
+      expect(cards.last.stateKey, 'stale_wishlist:${fakeWishlist2.id}');
+    });
+
+    // Four idle lists, the idle-longest first: 2, 3, 1, 4. The stack shows the
+    // first three.
+    final fourthWishlist = Wishlist(
+      id: 4,
+      createdAt: fakeCreatedAt,
+      name: 'Voyage',
+      idOwner: fakeCurrentUserId,
+      color: fakeColorPurple,
+      order: 3,
+      updatedBy: fakeCurrentUserId,
+      updatedAt: fakeUpdatedAt,
+    );
+    final idleDates = {
+      fakeWishlist1.id: DateTime(2026, 7, 2),
+      fakeWishlist2.id: DateTime(2026, 5, 2),
+      fakeWishlist3.id: DateTime(2026, 6, 2),
+      fourthWishlist.id: DateTime(2026, 7, 20),
+    };
+    late StaleCardsDayStore dayStore;
+
+    setUp(() {
+      dayStore = StaleCardsDayStore();
+    });
+
+    // A fresh container each time: a reload of the cards, a new launch.
+    Future<List<HomeCardCandidate>> loadFourLists({
+      Map<int, DateTime>? activity,
+      DateTime? at,
+    }) {
+      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
+        (_) async => activity ?? idleDates,
+      );
+      return load(
+        at: at,
+        extra: [
+          wishlistRepositoryProvider.overrideWithValue(wishlistRepository),
+          wishlistsRealtimeOverride(
+            wishlists: [...fakeWishlists, fourthWishlist],
+          ),
+          staleCardsDayStoreProvider.overrideWithValue(dayStore),
+        ],
+      );
+    }
+
+    String staleKey(int id) => 'stale_wishlist:$id';
+
+    CardState hiddenState(int id, DateTime at) => CardState(
+          cardKey: staleKey(id),
+          shownCount: 1,
+          dismissedAt: at,
+          snoozedUntil: at.add(const Duration(days: 60)),
+        );
+
+    List<String> keys(List<HomeCardCandidate> cards) =>
+        [for (final card in cards) card.stateKey];
+
+    test('three stale lists, the idle-longest first, the fourth waits',
+        () async {
+      expect(
+        keys(await loadFourLists()),
+        [staleKey(2), staleKey(3), staleKey(1)],
+      );
+    });
+
+    test('a card dismissed today is not replaced by the next list', () async {
+      await loadFourLists();
+      // The user hides the list 2: the swipe is known at once
+      dayStore.markDismissed(fakeCurrentUserId, now);
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {staleKey(2): hiddenState(2, now)},
+      );
+
+      expect(keys(await loadFourLists()), [staleKey(3), staleKey(1)]);
+    });
+
+    test('a swipe not sent yet already blocks the refill', () async {
+      await loadFourLists();
+      // List 2 was hidden and sent; list 3 was swiped and is still waiting
+      // for the snack-bar to close: the server still shows it, and the reload
+      // must not let the list 4 take its place.
+      dayStore.markDismissed(fakeCurrentUserId, now);
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {staleKey(2): hiddenState(2, now)},
+      );
+
+      final cards = await loadFourLists();
+
+      expect(keys(cards), [staleKey(3), staleKey(1)]);
+      expect(keys(cards), isNot(contains(staleKey(4))));
+    });
+
+    test('a dismissed list that is not stale anymore does not refill',
+        () async {
+      await loadFourLists();
+      dayStore.markDismissed(fakeCurrentUserId, now);
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {staleKey(2): hiddenState(2, now)},
+      );
+
+      // The user opened the list 2 from "Later" and added a wish
+      final cards = await loadFourLists(
+        activity: {...idleDates, fakeWishlist2.id: now},
+      );
+
+      expect(keys(cards), [staleKey(3), staleKey(1)]);
+    });
+
+    test('the next day the fourth list comes in', () async {
+      await loadFourLists();
+      dayStore.markDismissed(fakeCurrentUserId, now);
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {staleKey(2): hiddenState(2, now)},
+      );
+
+      final cards = await loadFourLists(at: DateTime(2026, 10, 29, 0, 1));
+
+      expect(keys(cards), [staleKey(3), staleKey(1), staleKey(4)]);
+    });
+
+    test('a list dismissed yesterday does not block today', () async {
+      final yesterday = DateTime(2026, 10, 27, 23, 30);
+      when(() => cardStates.getStates(any())).thenAnswer(
+        (_) async => {staleKey(2): hiddenState(2, yesterday)},
+      );
+
+      final cards = await loadFourLists();
+
+      expect(keys(cards), [staleKey(3), staleKey(1), staleKey(4)]);
+    });
+
+    test('a dismissal of another user does not block this one', () async {
+      dayStore.markDismissed('someone-else', now);
+
+      expect(keys(await loadFourLists()), hasLength(3));
+    });
+
+    test('the stale cards are never recorded as shown on the server', () async {
+      await loadFourLists();
+      await pumpEventQueue();
+
+      verifyNever(() => cardStates.recordShown(any()));
     });
 
     test('the last activity is fetched while the other sources load', () async {
@@ -717,31 +892,6 @@ void main() {
       );
 
       expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist1.id}');
-    });
-
-    test('a snoozed list makes room for the next oldest one', () async {
-      when(() => wishlistRepository.getLastActivityByWishlist()).thenAnswer(
-        (_) async => {
-          fakeWishlist1.id: DateTime(2026, 7, 2),
-          fakeWishlist2.id: DateTime(2026, 5, 2),
-          fakeWishlist3.id: DateTime(2026, 6, 2),
-        },
-      );
-      final key = 'stale_wishlist:${fakeWishlist2.id}';
-      when(() => cardStates.getStates(any())).thenAnswer(
-        (_) async => {
-          key: CardState(
-            cardKey: key,
-            shownCount: 1,
-            dismissedAt: now,
-            snoozedUntil: now.add(const Duration(days: 30)),
-          ),
-        },
-      );
-
-      final cards = await loadWithActivity();
-
-      expect(cards.single.stateKey, 'stale_wishlist:${fakeWishlist3.id}');
     });
 
     test('the last activity unavailable only loses this card', () async {

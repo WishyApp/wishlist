@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wishlist/modules/home/cards/card_builders.dart';
 import 'package:wishlist/modules/home/cards/card_selection.dart';
 import 'package:wishlist/modules/home/cards/home_card_candidate.dart';
+import 'package:wishlist/modules/home/cards/stale_cards_day_store.dart';
 import 'package:wishlist/modules/home/cards/wishlists_last_activity_provider.dart';
 import 'package:wishlist/modules/home/cards/year_recap_provider.dart';
 import 'package:wishlist/shared/infra/booked_wishes_realtime_provider.dart';
@@ -118,6 +119,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
   // Captured here: callbacks run outside the build, where `ref` must not be
   // used to read.
   final recordedWindows = ref.watch(_optionalWindowRecordedProvider);
+  final dayStore = ref.watch(staleCardsDayStoreProvider);
   final cardStateRepository = ref.watch(cardStateRepositoryProvider);
   final friendshipRepository = ref.watch(friendshipRepositoryProvider);
   final wishlistRepository = ref.watch(wishlistRepositoryProvider);
@@ -354,7 +356,8 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
 
   // The onboarding card needs the states of its optional steps, which are
   // fetched with the others in one go.
-  // The stale lists too: the oldest one whose card is not snoozed is kept.
+  // The stale lists too, all of them: the selection keeps the oldest ones the
+  // other cards leave room for.
   final staleCandidates = staleWishlistCandidates(
     wishlists: wishlists,
     lastActivity: lastActivity,
@@ -366,13 +369,7 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     for (final candidate in staleCandidates) candidate.stateKey,
     ..._onboardingStateKeys,
   ]);
-  candidates.addAll(
-    staleWishlistCards(
-      candidates: staleCandidates,
-      states: states,
-      now: now,
-    ),
-  );
+  candidates.addAll(staleCandidates);
   candidates.addAll(
     onboardingCards(
       wishlistCount: wishlists.length,
@@ -386,6 +383,11 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     ),
   );
 
+  // Once the user hid a stale card today, no stale list that was not already
+  // in the stack today comes in before tomorrow (the state is kept on this
+  // device, see `StaleCardsDayStore`).
+  await dayStore.load();
+  final day = dayStore.dayOf(userId, now);
   final cards = selectHomeCards(
     candidates: candidates,
     definitions: definitions,
@@ -393,7 +395,12 @@ Future<List<HomeCardCandidate>> _loadCards(Ref ref, DateTime now) async {
     maxCards: definitions[_stackKey]?.intParam('max_cards', _defaultMaxCards) ??
         _defaultMaxCards,
     now: now,
+    queueKeys: day.dismissed ? day.shownKeys : null,
   );
+  dayStore.addShown(userId, now, [
+    for (final card in cards)
+      if (card.isQueue) card.stateKey,
+  ]);
 
   // The optional onboarding steps stop 48 hours after they were first shown.
   // Only the top card is really in front of the user: record the start of the
