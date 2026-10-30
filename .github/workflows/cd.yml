@@ -164,6 +164,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Pinned: ubuntu-latest moved its default JDK to 25, which Gradle 8.11
+      # cannot read ("Unsupported class file major version 69").
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
