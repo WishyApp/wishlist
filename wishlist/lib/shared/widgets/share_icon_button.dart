@@ -26,7 +26,10 @@ class ShareIconButton extends StatelessWidget {
           try {
             await shareFrom(buttonContext, params());
           } catch (e) {
-            onError?.call(e);
+            // The page may have closed while the share sheet was open
+            if (buttonContext.mounted) {
+              onError?.call(e);
+            }
           }
         },
       ),
