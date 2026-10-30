@@ -110,6 +110,7 @@ void showGenericError(
   Object? error,
   bool isTopSnackBar = false,
   Duration duration = const Duration(seconds: 4),
+  VoidCallback? onClosed,
 }) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final userMessageKey = error is AppException ? error.userMessageKey : null;
@@ -126,6 +127,7 @@ void showGenericError(
       type: SnackBarType.error,
       isTopSnackBar: isTopSnackBar,
       duration: duration,
+      onClosed: onClosed,
     );
   });
 }
@@ -259,9 +261,11 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
   bool _isActionDone = false;
 
   /// Ferme le snackbar et lance l'action, une seule fois : le bouton reste
-  /// visible pendant l'animation de sortie
+  /// visible pendant l'animation de sortie, mais il est trop tard une fois la
+  /// fermeture notifiée (l'appelant a déjà agi comme si le bouton n'existait
+  /// pas)
   void _handleAction() {
-    if (_isActionDone) {
+    if (_isActionDone || _isClosedNotified) {
       return;
     }
     // Before closing: the action is not a close without action

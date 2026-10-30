@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishlist/l10n/l10n.dart';
+import 'package:wishlist/shared/navigation/app_route_observer.dart';
 import 'package:wishlist/shared/navigation/routes.dart';
 import 'package:wishlist/shared/theme/theme.dart';
 
@@ -45,6 +46,7 @@ extension EnhancedWidgetTester on WidgetTester {
       child: _addReusableWrapper(
         MaterialApp(
           debugShowCheckedModeBanner: false,
+          navigatorObservers: [appRouteObserver],
           locale: _defaultTestLocale,
           localizationsDelegates: _localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -111,6 +113,7 @@ extension EnhancedWidgetTester on WidgetTester {
       initialExtra: initialExtra,
       initialLocation: path,
       routes: routes ?? $appRoutes,
+      observers: [appRouteObserver],
     );
 
     final app = ProviderScope(

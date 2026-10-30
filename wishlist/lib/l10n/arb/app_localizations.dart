@@ -1963,6 +1963,96 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Choisir une photo'**
   String get homeCardOnboardingPhotoAction;
+
+  /// No description provided for @homeCardStaleOverline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas touchée depuis {months, plural, =0{0 mois} =1{1 mois} other{{months} mois}}'**
+  String homeCardStaleOverline(int months);
+
+  /// No description provided for @homeCardStaleTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'« {name} » est toujours à jour ?'**
+  String homeCardStaleTitle(String name);
+
+  /// No description provided for @homeCardStaleConfirm.
+  ///
+  /// In fr, this message translates to:
+  /// **'Oui, c\'est bon'**
+  String get homeCardStaleConfirm;
+
+  /// No description provided for @homeCardStaleReview.
+  ///
+  /// In fr, this message translates to:
+  /// **'La revoir'**
+  String get homeCardStaleReview;
+
+  /// No description provided for @homeCardYearRecapOverline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ton année Wishy {year}'**
+  String homeCardYearRecapOverline(String year);
+
+  /// No description provided for @homeCardYearRecapTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'{received}, {offered}'**
+  String homeCardYearRecapTitle(String received, String offered);
+
+  /// No description provided for @homeCardYearRecapOffered.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 offert} =1{1 offert} other{{count} offerts}}'**
+  String homeCardYearRecapOffered(int count);
+
+  /// No description provided for @homeCardYearRecapAwaited.
+  ///
+  /// In fr, this message translates to:
+  /// **'Et {wish} qui t\'attendait depuis {year}'**
+  String homeCardYearRecapAwaited(String wish, String year);
+
+  /// No description provided for @homeCardYearRecapAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Découvrir'**
+  String get homeCardYearRecapAction;
+
+  /// No description provided for @yearRecapScreenTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ton année Wishy {year}'**
+  String yearRecapScreenTitle(String year);
+
+  /// No description provided for @yearRecapReceived.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 wish reçu} =1{1 wish reçu} other{{count} wishs reçus}}'**
+  String yearRecapReceived(int count);
+
+  /// No description provided for @yearRecapOffered.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{0 wish offert} =1{1 wish offert} other{{count} wishs offerts}}'**
+  String yearRecapOffered(int count);
+
+  /// No description provided for @yearRecapLongestAwaited.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le plus attendu : {wish}, sur ta liste depuis {date}'**
+  String yearRecapLongestAwaited(String wish, String date);
+
+  /// No description provided for @yearRecapMostGifted.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ton ami le plus gâté : {pseudo}'**
+  String yearRecapMostGifted(String pseudo);
+
+  /// No description provided for @yearRecapBack.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retour'**
+  String get yearRecapBack;
 }
 
 class _AppLocalizationsDelegate

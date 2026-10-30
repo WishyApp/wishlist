@@ -532,5 +532,106 @@
   "homeCardOnboardingBirthdayTitle": "Add your birthday",
   "homeCardOnboardingBirthdayAction": "Add",
   "homeCardOnboardingPhotoTitle": "Add a photo",
-  "homeCardOnboardingPhotoAction": "Choose a photo"
+  "homeCardOnboardingPhotoAction": "Choose a photo",
+  "homeCardStaleOverline": "Untouched for {months, plural, =1{1 month} other{{months} months}}",
+  "@homeCardStaleOverline": {
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardStaleTitle": "Is \"{name}\" still up to date?",
+  "@homeCardStaleTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardStaleConfirm": "Yes, it's fine",
+  "homeCardStaleReview": "Review it",
+  "homeCardYearRecapOverline": "Your Wishy year {year}",
+  "@homeCardYearRecapOverline": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardYearRecapTitle": "{received}, {offered}",
+  "@homeCardYearRecapTitle": {
+    "placeholders": {
+      "received": {
+        "type": "String"
+      },
+      "offered": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardYearRecapOffered": "{count, plural, =1{1 given} other{{count} given}}",
+  "@homeCardYearRecapOffered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCardYearRecapAwaited": "And {wish}, which had been waiting for you since {year}",
+  "@homeCardYearRecapAwaited": {
+    "placeholders": {
+      "wish": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "homeCardYearRecapAction": "Discover",
+  "yearRecapScreenTitle": "Your Wishy year {year}",
+  "@yearRecapScreenTitle": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapReceived": "{count, plural, =1{1 wish received} other{{count} wishes received}}",
+  "@yearRecapReceived": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapOffered": "{count, plural, =1{1 wish given} other{{count} wishes given}}",
+  "@yearRecapOffered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearRecapLongestAwaited": "Most awaited: {wish}, on your list since {date}",
+  "@yearRecapLongestAwaited": {
+    "placeholders": {
+      "wish": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapMostGifted": "Your most spoiled friend: {pseudo}",
+  "@yearRecapMostGifted": {
+    "placeholders": {
+      "pseudo": {
+        "type": "String"
+      }
+    }
+  },
+  "yearRecapBack": "Back"
 }
