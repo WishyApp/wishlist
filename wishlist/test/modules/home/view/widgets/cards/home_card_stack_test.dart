@@ -1216,7 +1216,7 @@ void main() {
       await finish(tester);
     });
 
-    testWidgets('another finger does not change how the drag ends',
+    testWidgets('another finger taken back by the system keeps the card',
         (tester) async {
       await pump(tester, () async => cards);
 
@@ -1234,11 +1234,39 @@ void main() {
         tester.getTopRight(card) + const Offset(-60, 60),
       );
       await other.cancel();
+      // The drag may follow either finger: the card stays, the safe side
       await drag.up();
       await letItLeave(tester);
 
-      expect(find.text('Carte masquée'), findsOneWidget);
+      expect(find.text('Carte masquée'), findsNothing);
+      expect(find.text(_firstTitle).hitTestable(), findsOneWidget);
       await finish(tester);
+    });
+
+    testWidgets('a reload with one card less behind does not jump',
+        (tester) async {
+      var loads = 0;
+      await pump(tester, () async {
+        loads++;
+        return loads == 1 ? cards : cards.take(2).toList();
+      });
+      double slot() => tester.getSize(find.byType(HomeCardsSlot)).height;
+      final before = slot();
+
+      // The same card on top, one card less behind it
+      ProviderScope.containerOf(tester.element(find.byType(HomeCardsSlot)))
+          .invalidate(homeCardsProvider);
+      final heights = [before];
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        heights.add(slot());
+      }
+
+      expect(loads, 2);
+      expect(heights.first - heights.last, moreOrLessEquals(9, epsilon: 0.5));
+      for (var i = 1; i < heights.length; i++) {
+        expect((heights[i] - heights[i - 1]).abs(), lessThan(3));
+      }
     });
 
     testWidgets('the pile with one card less behind does not jump',
@@ -1261,7 +1289,8 @@ void main() {
       await finish(tester);
     });
 
-    testWidgets('"Annuler" once the home is left does nothing', (tester) async {
+    testWidgets('"Annuler" once the home is left does not fail',
+        (tester) async {
       var shown = true;
       late StateSetter setShown;
       await tester.pumpApp(

@@ -297,8 +297,9 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
 
     final behind = cards.skip(1).take(_behindRest.length).toList();
     final fromDrop = _drop;
+    final drop = behind.isEmpty ? 0.0 : _behindRest[behind.length - 1].drop;
     // Not a state change: only read by the next pile
-    _drop = behind.isEmpty ? 0 : _behindRest[behind.length - 1].drop;
+    _drop = drop;
 
     return _SwipePile(
       // One state per card: the next card never inherits the drag
@@ -309,6 +310,7 @@ class _HomeCardStackState extends ConsumerState<HomeCardStack> {
       },
       enterFrom: returning?.key == top.stateKey ? returning!.swipe : null,
       fromHeight: _topHeight,
+      drop: drop,
       fromDrop: fromDrop,
       // Not a state change: only read by the next pile
       onHeight: (height) => _topHeight = height,
@@ -377,6 +379,7 @@ class _SwipePile extends StatefulWidget {
     required this.onSwiped,
     this.enterFrom,
     this.fromHeight,
+    required this.drop,
     this.fromDrop,
     required this.onHeight,
   });
@@ -402,8 +405,13 @@ class _SwipePile extends StatefulWidget {
   /// other. Read when the pile is created, as [enterFrom].
   final double? fromHeight;
 
-  /// How far the cards behind showed under the top card before: as the
-  /// height of the top card, it goes from there to the one of this pile.
+  /// How far the cards behind show under the top card. When it changes (a
+  /// reload adds or takes one behind the same top card), it goes there in
+  /// 250 ms, as the height of the top card.
+  final double drop;
+
+  /// How far the cards behind showed under the top card of the pile before:
+  /// this pile starts from it. Read when the pile is created.
   final double? fromDrop;
 
   /// The top card was laid out at this height.
@@ -422,7 +430,18 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
   late final AnimationController _resize;
 
   late final double? _fromHeight = widget.fromHeight;
-  late final double? _fromDrop = widget.fromDrop;
+
+  /// The bottom of the cards behind goes from [_dropFrom] (0) to [_dropTo]
+  /// (1).
+  late final AnimationController _dropMove;
+  late double _dropTo = widget.drop;
+  late double _dropFrom = widget.fromDrop ?? widget.drop;
+
+  double get _shownDrop => lerpDouble(
+        _dropFrom,
+        _dropTo,
+        Curves.easeOutCubic.transform(_dropMove.value),
+      )!;
 
   /// Where the finger took the card, in widths, before the resistance of a
   /// forbidden side.
@@ -431,23 +450,14 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
   /// A drag was taken: only its own update, end or cancel move the card.
   var _dragging = false;
 
-  /// The system took the pointer back (a call, a system gesture): the drag
-  /// ends as if released, but the user did not let the card go.
+  /// The system took a pointer back during the drag (a call, a system
+  /// gesture): the drag ends as if released, but the user did not let the
+  /// card go. Any finger counts: the drag can follow another one than the
+  /// first, and keeping the card is the safe way to be wrong.
   var _pointerCancelled = false;
 
-  /// The pointer that can drag the card: the one put down while no drag was
-  /// under way. Another finger neither cancels nor revives its drag.
-  int? _dragPointer;
-
-  void _onPointerDown(PointerDownEvent event) {
-    if (!_dragging) {
-      _dragPointer = event.pointer;
-      _pointerCancelled = false;
-    }
-  }
-
   void _onPointerCancel(PointerCancelEvent event) {
-    if (event.pointer == _dragPointer) {
+    if (_dragging) {
       _pointerCancelled = true;
     }
   }
@@ -482,6 +492,11 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 250),
       value: _fromHeight == null ? 1 : 0,
     );
+    _dropMove = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+      value: _dropFrom == _dropTo ? 1 : 0,
+    );
   }
 
   var _started = false;
@@ -497,6 +512,7 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
     if (MediaQuery.disableAnimationsOf(context)) {
       _offset.value = 0;
       _resize.value = 1;
+      _dropMove.value = 1;
       return;
     }
     if (widget.enterFrom != null) {
@@ -510,6 +526,7 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
           .whenCompleteOrCancel(() => _entering = false);
     }
     _resize.forward();
+    _dropMove.forward();
   }
 
   @override
@@ -521,12 +538,22 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
       _dragging = false;
       _settle();
     }
+    if (widget.drop != _dropTo) {
+      _dropFrom = _shownDrop;
+      _dropTo = widget.drop;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _dropMove.value = 1;
+      } else {
+        _dropMove.forward(from: 0);
+      }
+    }
   }
 
   @override
   void dispose() {
     _offset.dispose();
     _resize.dispose();
+    _dropMove.dispose();
     super.dispose();
   }
 
@@ -563,6 +590,7 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
       return;
     }
     _dragging = true;
+    _pointerCancelled = false;
     _offset.stop();
     _drag = _unresisted(_offset.value);
   }
@@ -628,7 +656,6 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
     final behind = widget.behind;
     final still = MediaQuery.disableAnimationsOf(context);
     final sign = _screenSign;
-    final drop = behind.isEmpty ? 0.0 : _behindRest[behind.length - 1].drop;
     final swipeable = widget.directions.isNotEmpty;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -637,7 +664,6 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
         // cannot any more (a reload) keeps its state, only the callbacks go
         return Listener(
           // Before the drag recognizer, which ends the drag on a cancel
-          onPointerDown: swipeable ? _onPointerDown : null,
           onPointerCancel: swipeable ? _onPointerCancel : null,
           child: GestureDetector(
             onHorizontalDragStart: swipeable ? _onStart : null,
@@ -646,7 +672,7 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
             onHorizontalDragEnd: swipeable ? _onEnd : null,
             onHorizontalDragCancel: swipeable ? _onCancel : null,
             child: AnimatedBuilder(
-              animation: Listenable.merge([_offset, _resize]),
+              animation: Listenable.merge([_offset, _resize, _dropMove]),
               builder: (context, _) {
                 final value = _offset.value;
                 final resized = Curves.easeOutCubic.transform(_resize.value);
@@ -654,14 +680,9 @@ class _SwipePileState extends State<_SwipePile> with TickerProviderStateMixin {
                 final progress = _allows(value)
                     ? (value.abs() / _fullTravel).clamp(0.0, 1.0)
                     : 0.0;
-                final fromDrop = _fromDrop;
                 return Padding(
                   // The bottom of the cards behind, under the top card
-                  padding: EdgeInsets.only(
-                    bottom: fromDrop == null
-                        ? drop
-                        : lerpDouble(fromDrop, drop, resized)!,
-                  ),
+                  padding: EdgeInsets.only(bottom: _shownDrop),
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -738,6 +759,9 @@ class _ResizedFrom extends SingleChildRenderObjectWidget {
   }
 }
 
+/// Far enough, on the sides and above, for nothing to be clipped there.
+const _unclipped = 100000.0;
+
 class _RenderResizedFrom extends RenderProxyBox {
   _RenderResizedFrom({
     required double? from,
@@ -800,13 +824,9 @@ class _RenderResizedFrom extends RenderProxyBox {
       _clip.layer = context.pushClipRect(
         needsCompositing,
         offset,
-        // Only what goes past the bottom: shadows and a tilted card stay
-        Rect.fromLTRB(
-          -size.width,
-          -size.height,
-          size.width * 2,
-          size.height,
-        ),
+        // Only what goes past the bottom: shadows and a tilted or leaving
+        // card stay, whatever their travel
+        Rect.fromLTRB(-_unclipped, -_unclipped, _unclipped, size.height),
         super.paint,
         oldLayer: _clip.layer,
       );
