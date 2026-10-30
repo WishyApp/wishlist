@@ -33,9 +33,8 @@ enum SnackBarType {
 /// Avec [actionLabel] et [onAction], un bouton à droite du message : le
 /// toucher ferme le snackbar puis appelle [onAction], une seule fois. Le
 /// snackbar survit à l'écran qui l'affiche : [onAction] ne doit pas dépendre de
-/// son context. Le bouton prend la couleur principale du thème de [context]
-/// (celle de la wishlist sur ses écrans), foncée si besoin pour rester lisible
-/// sur le fond blanc : l'overlay racine n'a que le thème de l'app.
+/// son context. Le bouton est en gris foncé et en gras, quel que soit le thème
+/// de [context].
 ///
 /// [onClosed] est appelé quand le snackbar se ferme sans passer par son
 /// bouton : fin du délai, glissement ou toucher. Jamais après [onAction], ni
@@ -67,10 +66,6 @@ VoidCallback showAppSnackBar(
       : Icons.error_outline;
 
   final overlayState = Overlay.of(context, rootOverlay: true);
-  final actionColor = AppColors.darkenForContrast(
-    Theme.of(context).primaryColor,
-    foreground: Colors.white,
-  );
 
   late final OverlayEntry overlayEntry;
   var isRemoved = false;
@@ -89,7 +84,6 @@ VoidCallback showAppSnackBar(
       duration: duration,
       isTop: isTopSnackBar,
       actionLabel: actionLabel,
-      actionColor: actionColor,
       onAction: onAction,
       onClosed: onClosed,
       autoClose: autoClose,
@@ -141,7 +135,6 @@ class _AnimatedSnackBar extends StatefulWidget {
     required this.duration,
     required this.isTop,
     required this.onDismissed,
-    required this.actionColor,
     required this.autoClose,
     this.actionLabel,
     this.onAction,
@@ -156,7 +149,6 @@ class _AnimatedSnackBar extends StatefulWidget {
   final bool autoClose;
   final VoidCallback? onClosed;
   final VoidCallback onDismissed;
-  final Color actionColor;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -302,7 +294,6 @@ class _AnimatedSnackBarState extends State<_AnimatedSnackBar>
                       iconColor: widget.iconColor,
                       progress: _progressController.value,
                       actionLabel: widget.actionLabel,
-                      actionColor: widget.actionColor,
                       onAction: widget.onAction == null ? null : _handleAction,
                     ),
                   ),
@@ -322,7 +313,6 @@ class _AppSnackBarContent extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.progress,
-    required this.actionColor,
     this.actionLabel,
     this.onAction,
   });
@@ -331,7 +321,6 @@ class _AppSnackBarContent extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final double progress;
-  final Color actionColor;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -389,7 +378,7 @@ class _AppSnackBarContent extends StatelessWidget {
                         child: Text(
                           actionLabel,
                           style: AppTextStyles.smaller.copyWith(
-                            color: actionColor,
+                            color: AppColors.darkGrey,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

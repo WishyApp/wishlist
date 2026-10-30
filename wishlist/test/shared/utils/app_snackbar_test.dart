@@ -148,7 +148,7 @@ void main() {
     expect(find.text('Done'), findsNothing);
   });
 
-  testWidgets('colors the action with the theme of the calling screen',
+  testWidgets('draws the action in bold dark grey whatever the theme',
       (tester) async {
     await tester.pumpApp(
       Theme(
@@ -176,45 +176,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
 
-    expect(tester.widget<Text>(find.text('See')).style?.color, Colors.indigo);
-    await tester.pumpAndSettle();
-  });
-
-  testWidgets('darkens a light theme color to keep the action readable',
-      (tester) async {
-    const yellow = Color(0xFFDBCD4D);
-    await tester.pumpApp(
-      Theme(
-        data: ThemeData(primaryColor: yellow),
-        child: Builder(
-          builder: (context) {
-            return ElevatedButton(
-              onPressed: () {
-                showAppSnackBar(
-                  context,
-                  'Done',
-                  type: SnackBarType.success,
-                  actionLabel: 'See',
-                  onAction: () {},
-                );
-              },
-              child: const Text('Trigger'),
-            );
-          },
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Trigger'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 800));
-
-    final color = tester.widget<Text>(find.text('See')).style!.color!;
-    expect(color, isNot(yellow));
-    expect(
-      AppColors.contrastRatio(color, Colors.white),
-      greaterThanOrEqualTo(4.5),
-    );
+    final style = tester.widget<Text>(find.text('See')).style!;
+    expect(style.color, AppColors.darkGrey);
+    expect(style.fontWeight, FontWeight.bold);
     await tester.pumpAndSettle();
   });
 
